@@ -1,0 +1,50 @@
+name: release-candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry_relay_image:
+        description: Digest-pinned registry-relay image
+        required: true
+      registry_notary_image:
+        description: Digest-pinned registry-notary image
+        required: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY_RELAY_IMAGE: ${{ inputs.registry_relay_image }}
+      REGISTRY_NOTARY_IMAGE: ${{ inputs.registry_notary_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install tools
+        run: |
+          corepack enable
+          sudo apt-get update
+          sudo apt-get install -y just
+      - name: Setup
+        run: just setup
+      - name: Install Playwright browser
+        run: cd portal && pnpm exec playwright install --with-deps chromium
+      - name: Generate fixtures and secrets
+        run: just generate
+      - name: Validate
+        run: |
+          just release-pins v0.8.4
+          just lint
+          just test
+          just compose
+      - name: Start stack
+        run: just up
+      - name: Smoke
+        run: just smoke
+      - name: Portal live e2e
+        run: just portal-live-e2e
+      - name: Stop stack
+        if: always()
+        run: just down

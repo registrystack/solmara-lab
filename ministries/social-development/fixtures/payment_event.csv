@@ -1,0 +1,2 @@
+payment_id,entitlement_id,pay_cycle,amount,currency,payment_status,delivery_channel,failure_reason,is_reconciled,payment_date,observed_at,source_system
+PAY-00001,ENT-00001,2026-07,120.00,XTS,scheduled,mobile_money,,false,2026-07-25,2026-07-04T09:00:00Z,MOSD-MIS

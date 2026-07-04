@@ -1,0 +1,6 @@
+tenure_claim_id,parcel_ref,farmer_id,land_tenure,cadastre_parcel_id,claim_status,observed_at,source_system
+TC-000001,NAGDI-PARCEL-000001,FR-1001,customary,,accepted,2026-07-04T09:00:00Z,NAGDI-CORE
+TC-000002,NAGDI-PARCEL-000002,FR-1002,customary,,accepted,2026-07-04T09:00:00Z,NAGDI-CORE
+TC-000003,NAGDI-PARCEL-000003,FR-1003,customary,,accepted,2026-07-04T09:00:00Z,NAGDI-CORE
+TC-000004,NAGDI-PARCEL-000004,FR-1004,customary,,accepted,2026-07-04T09:00:00Z,NAGDI-CORE
+TC-000005,NAGDI-PARCEL-000005,FR-1005,customary,,accepted,2026-07-04T09:00:00Z,NAGDI-CORE

@@ -1,0 +1,220 @@
+server:
+  bind: 0.0.0.0:8080
+  openapi_requires_auth: false
+  admin_listener:
+    mode: dedicated
+    bind: 0.0.0.0:8081
+
+instance:
+  id: solmara-pension-notary
+  environment: hosted_lab
+  owner: Social Insurance and Pensions Fund
+  jurisdiction: XS
+  public_base_url: https://pension-notary.lab.registrystack.org
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: pension_service_client
+      fingerprint:
+        provider: env
+        name: PENSION_CLIENT_TOKEN_HASH
+      scopes:
+        - cra_civil:evidence_verification
+        - nia_population:evidence_verification
+        - sipf_pensions:evidence_verification
+        - mosd_programme:evidence_verification
+      authorization_details:
+        type: registry-notary/evidence-authorization/v1
+        schema_version: v1
+        legal_basis_ref: https://id.registrystack.org/solmara/legal-basis/social-insurance-act
+        consent_ref: https://id.registrystack.org/solmara/consent/pension-review
+        jurisdiction: XS
+        assurance_level: substantial
+
+audit:
+  sink: file
+  path: /var/lib/registry-notary/config-state/audit.jsonl
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+
+replay:
+  storage: redis
+  redis:
+    url_env: REGISTRY_NOTARY_REPLAY_REDIS_URL
+    key_prefix: solmara-pension-notary
+    connect_timeout_ms: 1000
+    operation_timeout_ms: 500
+
+deployment:
+  profile: hosted_lab
+
+cel:
+  worker_count: 8
+  worker_memory_bytes: 1073741824
+
+evidence:
+  enabled: true
+  service_id: pension-notary
+  api_base_url: http://pension-notary:8080
+  allowed_purposes:
+    - https://id.registrystack.org/solmara/purpose/pension-payment-review
+    - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+  source_connections:
+    civil:
+      base_url: http://cra-civil-relay:8080
+      allow_insecure_private_network: true
+      token_env: CRA_PENSION_SOURCE_RAW
+    population:
+      base_url: http://nia-population-relay:8080
+      allow_insecure_private_network: true
+      token_env: NIA_PENSION_SOURCE_RAW
+    pensions:
+      base_url: http://sipf-pensions-relay:8080
+      allow_insecure_private_network: true
+      token_env: SIPF_PENSION_SOURCE_RAW
+    programme:
+      base_url: http://programme-mis-relay:8080
+      allow_insecure_private_network: true
+      token_env: PROGRAMME_PENSION_SOURCE_RAW
+  signing_keys:
+    pension-issuer:
+      provider: local_jwk_env
+      private_jwk_env: PENSION_NOTARY_ISSUER_JWK
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:notary:pension#issuer-key-1
+      status: active
+  credential_profiles:
+    survivor_benefit_sd_jwt:
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:notary:pension
+      signing_key: pension-issuer
+      vct: https://id.registrystack.org/solmara/vct/survivor-benefit-eligibility
+      validity_seconds: 600
+      allowed_claims:
+        - person-is-deceased
+        - pension-payment-should-stop
+        - survivor-is-eligible
+      holder_binding:
+        mode: did
+        proof_of_possession: required
+        allowed_did_methods:
+          - did:jwk
+      disclosure:
+        allowed:
+          - predicate
+  claims:
+    - id: person-is-deceased
+      title: Person is deceased
+      version: "2026-07"
+      subject_type: person
+      value:
+        type: boolean
+      source_bindings:
+        civil:
+          connector: registry_data_api
+          connection: civil
+          required_scope: cra_civil:evidence_verification
+          dataset: cra_civil
+          entity: civil_person
+          matching: &pension_matching
+            allowed_purposes:
+              - https://id.registrystack.org/solmara/purpose/pension-payment-review
+              - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+            permitted_jurisdictions: [XS]
+            require_legal_basis: true
+            require_consent: true
+          lookup:
+            input: target.identifiers.solmara_uin
+            field: id
+            op: eq
+            cardinality: one
+          fields:
+            deceased:
+              field: deceased
+              type: boolean
+              required: true
+            death_drn:
+              field: death_drn
+              type: string
+              required: false
+      rule:
+        type: cel
+        expression: "source.civil.deceased == true"
+      disclosure: &predicate_only
+        default: predicate
+        allowed:
+          - predicate
+          - redacted
+      formats: &claim_formats
+        - application/vnd.registry-notary.claim-result+json
+        - application/dc+sd-jwt
+      credential_profiles:
+        - survivor_benefit_sd_jwt
+    - id: pension-payment-should-stop
+      title: Pension payment should stop
+      version: "2026-07"
+      subject_type: pension_case
+      value:
+        type: boolean
+      depends_on:
+        - person-is-deceased
+      source_bindings:
+        pension:
+          connector: registry_data_api
+          connection: pensions
+          required_scope: sipf_pensions:evidence_verification
+          dataset: sipf_pensions
+          entity: pension_case
+          matching: *pension_matching
+          lookup:
+            input: target.identifiers.solmara_uin
+            field: pensioner_uin
+            op: eq
+            cardinality: one
+          fields:
+            payment_status:
+              field: payment_status
+              type: string
+              required: true
+      rule:
+        type: cel
+        expression: "claims.person_is_deceased.value == true && source.pension.payment_status == 'active'"
+        bindings:
+          claims:
+            person_is_deceased:
+              claim: person-is-deceased
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - survivor_benefit_sd_jwt
+    - id: survivor-is-eligible
+      title: Survivor is eligible
+      version: "2026-07"
+      subject_type: person
+      value:
+        type: boolean
+      source_bindings:
+        pension:
+          connector: registry_data_api
+          connection: pensions
+          required_scope: sipf_pensions:evidence_verification
+          dataset: sipf_pensions
+          entity: pension_case
+          matching: *pension_matching
+          lookup:
+            input: target.identifiers.solmara_uin
+            field: spouse_uin
+            op: eq
+            cardinality: one
+          fields:
+            survivor_eligible:
+              field: survivor_eligible
+              type: boolean
+              required: true
+      rule:
+        type: cel
+        expression: "source.pension.survivor_eligible == true"
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - survivor_benefit_sd_jwt

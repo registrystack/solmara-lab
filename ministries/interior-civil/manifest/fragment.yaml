@@ -1,0 +1,17 @@
+schema_version: solmara-lab/manifest-fragment/v1
+application_profiles:
+  - id: cpsv-ap
+    version: 3.2.0
+authority:
+  id: cra
+  iri: did:web:id.registrystack.org:solmara:authority:cra
+  name: Civil Registration Authority
+datasets:
+  - id: cra-civil
+    entities:
+      - civil_person
+purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  - https://id.registrystack.org/solmara/purpose/pension-payment-review
+  - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service

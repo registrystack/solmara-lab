@@ -1,0 +1,73 @@
+set dotenv-load := true
+set positional-arguments := true
+
+default:
+    @just --list
+
+# Install local development dependencies when subprojects define them.
+setup:
+    @if [ -f generator/pyproject.toml ]; then cd generator && uv sync; fi
+    @if [ -f portal/package.json ]; then cd portal && pnpm install --frozen-lockfile; fi
+
+# Generate deterministic fixtures and local secrets.
+generate:
+    @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m solmara_lab.generate; else echo "generator/pyproject.toml missing"; exit 1; fi
+    scripts/gen-secrets.py
+
+# Generate only local secrets.
+gen-secrets:
+    scripts/gen-secrets.py
+
+# Static repository checks.
+lint:
+    scripts/check-fiction.sh
+    scripts/check-image-pins.py
+    scripts/check-config-secrets.py
+    @if [ -f portal/package.json ]; then cd portal && pnpm check; fi
+
+# Unit and integration tests that can run without a full Compose stack.
+test:
+    @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m unittest discover -s tests; fi
+    @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
+    python3 -m unittest discover -s scripts -p 'test_*.py'
+
+# Validate Compose files without starting services.
+compose:
+    @if [ -f compose.yaml ]; then docker compose --env-file versions.env -f compose.yaml config >/dev/null; fi
+    @if [ -f compose.hosted.yaml ]; then docker compose --env-file versions.env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
+
+# Start the local topology.
+up:
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; docker compose $env_args -f compose.yaml up -d --build
+
+# Stop the local topology and remove local volumes.
+down:
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; docker compose $env_args -f compose.yaml down -v
+
+# Run story and federation smokes against the running local topology.
+smoke:
+    scripts/smoke.sh
+
+# Run only live HTTP checks against the running local topology.
+smoke-live:
+    scripts/smoke-live.py
+
+# Probe Relay source endpoints used by live Notary smoke.
+relay-source-smoke:
+    scripts/smoke-relay-sources.py
+
+# Smoke the Compose portal service and live BFF wiring.
+portal-compose-smoke:
+    scripts/smoke-portal-compose.py
+
+# Run browser e2e against the live local topology.
+portal-live-e2e:
+    @cd portal && PORT="${PORT:-4001}" PORTAL_PROVIDER=live pnpm e2e
+
+# Verify pinned Registry Stack images match a published release tag.
+release-pins tag="v0.8.4":
+    scripts/check-release-pins.py {{tag}}
+
+# Run release-readiness and security-oriented checks.
+review:
+    scripts/review.sh

@@ -1,0 +1,2 @@
+change_id,entity_type,entity_id,change_type,observed_at,source_system
+CHG-000001,Farmer,FR-1001,created,2026-07-04T09:00:00Z,NAGDI-CORE

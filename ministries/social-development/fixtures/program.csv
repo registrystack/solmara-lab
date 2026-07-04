@@ -1,0 +1,3 @@
+program_code,display_name,implementing_agency,targeting_approach,conditionality_type,benefit_modality,start_date,end_date,observed_at,source_system
+CHILD_SUPPORT,Child Support Grant,MoSD Programme MIS,poverty_targeted,none,cash,2024-01-01,,2026-07-04T09:00:00Z,MOSD-MIS
+OLD_AGE_GRANT,Old Age Grant,MoSD Programme MIS,categorical,none,cash,2024-01-01,,2026-07-04T09:00:00Z,MOSD-MIS

@@ -1,0 +1,5 @@
+award_no,account_no,beneficiary_uin,award_type,award_status,monthly_amount,currency,effective_date,stop_date,death_notified_drn,observed_at,source_system
+SIPF-AWD-000001,SIPF-00000001,2300109568,old_age,in_payment,240.00,XTS,2010-01-01,,DRN-2026-0301-00002,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-AWD-000002,SIPF-00000002,2300118698,old_age,in_payment,240.00,XTS,2010-01-01,,,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-AWD-000003,SIPF-00000003,2300127827,old_age,in_payment,240.00,XTS,2010-01-01,,,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-AWD-000004,SIPF-00000004,2300136959,old_age,pending_proof_of_life,240.00,XTS,2010-01-01,,,2026-07-04T09:00:00Z,SIPF-CORE

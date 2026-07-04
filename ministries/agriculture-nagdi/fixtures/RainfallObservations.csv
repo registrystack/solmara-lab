@@ -1,0 +1,2 @@
+observation_id,district_code,observation_date,rainfall_mm,observed_at,source_system
+RAIN-000001,XS-0103,2026-06-01,41.2,2026-07-04T09:00:00Z,NAGDI-CORE

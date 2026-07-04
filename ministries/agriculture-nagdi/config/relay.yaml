@@ -1,0 +1,254 @@
+server:
+  bind: 0.0.0.0:8080
+  admin_bind: 0.0.0.0:8081
+  openapi_requires_auth: false
+  cache_dir: /var/lib/registry-relay/cache
+
+instance:
+  id: solmara-nagdi-agriculture-relay
+  environment: hosted_lab
+  owner: National Agricultural Data Institute
+  jurisdiction: XS
+
+catalog:
+  title: NAgDI Farmer and Livestock Relay
+  base_url: http://nagdi-agriculture-relay:8080
+  publisher: National Agricultural Data Institute
+  participant_id: did:web:id.registrystack.org:solmara:authority:nagdi
+
+vocabularies:
+  ps: https://publicschema.org/
+  solmara: https://id.registrystack.org/solmara/
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: nagdi_notary_source
+      fingerprint:
+        provider: env
+        name: NAGDI_NOTARY_SOURCE_HASH
+      scopes: &nagdi_scopes
+        - nagdi_agriculture:metadata
+        - nagdi_agriculture:rows
+        - nagdi_agriculture:evidence_verification
+    - id: nagdi_citizen_source
+      fingerprint:
+        provider: env
+        name: NAGDI_CITIZEN_SOURCE_HASH
+      scopes: *nagdi_scopes
+    - id: portal_relay_reader
+      fingerprint:
+        provider: env
+        name: PORTAL_RELAY_TOKEN_HASH
+      scopes:
+        - nagdi_agriculture:metadata
+
+audit:
+  sink: file
+  path: /var/lib/registry-relay/audit/audit.jsonl
+  format: jsonl
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+
+deployment:
+  profile: hosted_lab
+  evidence:
+    ingress_rate_limit: true
+    api_key_rotation: true
+  waivers:
+    - finding: relay.config.unsigned
+      reason: first-pass lab config before governed bundle publication
+      expires: "2026-10-01"
+
+datasets:
+  - id: nagdi_agriculture
+    title: Solmara farmer and livestock registries
+    description: NAgDI farmer, farm parcel, voucher, herd, and livestock movement projections.
+    owner: National Agricultural Data Institute
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: weekly
+    defaults:
+      refresh:
+        mode: manual
+    tables:
+      - id: farmer_voucher_table
+        materialization: snapshot
+        source:
+          type: file
+          path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/farmer_voucher.csv
+          format:
+            csv:
+              header_row: 1
+        primary_key: farmer_id
+        schema:
+          strict: true
+          fields:
+            - name: farmer_id
+              type: string
+              nullable: false
+              sensitive: true
+            - name: uin
+              type: string
+              nullable: true
+              sensitive: true
+            - name: district_code
+              type: string
+              nullable: false
+            - name: farmer_registered
+              type: boolean
+              nullable: false
+            - name: data_use_authorized
+              type: boolean
+              nullable: false
+            - name: active_smallholder_farmer
+              type: boolean
+              nullable: false
+            - name: active_farm_parcel
+              type: boolean
+              nullable: false
+            - name: crop_declared_for_season
+              type: boolean
+              nullable: false
+            - name: district_climate_risk_active
+              type: boolean
+              nullable: false
+            - name: voucher_entitlement_current
+              type: boolean
+              nullable: false
+            - name: voucher_not_redeemed
+              type: boolean
+              nullable: false
+            - name: observed_at
+              type: timestamp
+              nullable: true
+            - name: source_system
+              type: string
+              nullable: false
+      - id: livestock_movement_table
+        materialization: snapshot
+        source:
+          type: file
+          path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/livestock_movement.csv
+          format:
+            csv:
+              header_row: 1
+        primary_key: farmer_id
+        schema:
+          strict: true
+          fields:
+            - name: herd_id
+              type: string
+              nullable: false
+              sensitive: true
+            - name: farmer_id
+              type: string
+              nullable: false
+              sensitive: true
+            - name: species
+              type: string
+              nullable: false
+            - name: registered_livestock_holder
+              type: boolean
+              nullable: false
+            - name: registered_herd
+              type: boolean
+              nullable: false
+            - name: herd_vaccination_current
+              type: boolean
+              nullable: false
+            - name: origin_district_not_quarantined_for_species
+              type: boolean
+              nullable: false
+            - name: destination_district_open
+              type: boolean
+              nullable: false
+            - name: no_conflicting_open_movement_permit
+              type: boolean
+              nullable: false
+            - name: observed_at
+              type: timestamp
+              nullable: true
+            - name: source_system
+              type: string
+              nullable: false
+    entities:
+      - name: farmer_voucher
+        title: Farmer voucher eligibility snapshot
+        description: Farmer registry projection for climate-smart voucher eligibility.
+        table: farmer_voucher_table
+        concept_uri: ps:Farm
+        fields:
+          - name: id
+            from: farmer_id
+            sensitive: true
+          - name: uin
+            sensitive: true
+          - name: district_code
+          - name: farmer_registered
+          - name: data_use_authorized
+          - name: active_smallholder_farmer
+          - name: active_farm_parcel
+          - name: crop_declared_for_season
+          - name: district_climate_risk_active
+          - name: voucher_entitlement_current
+          - name: voucher_not_redeemed
+          - name: observed_at
+        access: &nagdi_access
+          metadata_scope: nagdi_agriculture:metadata
+          aggregate_scope: nagdi_agriculture:aggregate
+          read_scope: nagdi_agriculture:rows
+          evidence_verification_scope: nagdi_agriculture:evidence_verification
+        api:
+          default_limit: 25
+          max_limit: 100
+          require_purpose_header: true
+          governed_policy:
+            permitted_purposes:
+              - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+              - https://id.registrystack.org/solmara/purpose/citizen-self-service
+            # Notary v0.8.4 forwards Data-Purpose to Registry Data API sources.
+            # Legal basis, consent, jurisdiction, and assurance are enforced by
+            # Notary source matching with configured credential authorization details.
+          allowed_filters:
+            - field: id
+              ops: [eq, in]
+            - field: uin
+              ops: [eq]
+            - field: district_code
+              ops: [eq]
+      - name: livestock_movement
+        title: Livestock movement eligibility snapshot
+        description: Livestock registry projection for movement permit eligibility.
+        table: livestock_movement_table
+        concept_uri: solmara:LivestockHerd
+        fields:
+          - name: id
+            from: farmer_id
+            sensitive: true
+          - name: herd_id
+            sensitive: true
+          - name: species
+          - name: registered_livestock_holder
+          - name: registered_herd
+          - name: herd_vaccination_current
+          - name: origin_district_not_quarantined_for_species
+          - name: destination_district_open
+          - name: no_conflicting_open_movement_permit
+          - name: observed_at
+        access: *nagdi_access
+        api:
+          default_limit: 25
+          max_limit: 100
+          require_purpose_header: true
+          governed_policy:
+            permitted_purposes:
+              - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+              - https://id.registrystack.org/solmara/purpose/citizen-self-service
+            # Notary v0.8.4 forwards Data-Purpose to Registry Data API sources.
+            # Legal basis, consent, jurisdiction, and assurance are enforced by
+            # Notary source matching with configured credential authorization details.
+          allowed_filters:
+            - field: id
+              ops: [eq, in]
+            - field: species
+              ops: [eq]

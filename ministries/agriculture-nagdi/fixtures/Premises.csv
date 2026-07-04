@@ -1,0 +1,6 @@
+premises_id,livestock_holding_id,district_code,premises_type,biosecurity_level,observed_at,source_system
+PRM-000001,LH-000001,XS-0103,farm,standard,2026-07-04T09:00:00Z,NAGDI-CORE
+PRM-000002,LH-000002,XS-0102,farm,standard,2026-07-04T09:00:00Z,NAGDI-CORE
+PRM-000003,LH-000003,XS-0402,farm,standard,2026-07-04T09:00:00Z,NAGDI-CORE
+PRM-000004,LH-000004,XS-0401,farm,standard,2026-07-04T09:00:00Z,NAGDI-CORE
+PRM-000005,LH-000005,XS-0403,farm,standard,2026-07-04T09:00:00Z,NAGDI-CORE

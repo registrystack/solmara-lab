@@ -1,0 +1,8 @@
+schema_version: solmara-lab/publicschema-crosswalk/v1
+target: https://publicschema.org/Household
+fields:
+  id: householdIdentifier
+  head_uin: headOfHousehold.identifier
+  poverty_band: socioEconomicProfile.povertyBand
+  member_count: householdSize
+  child_under_5_count: householdComposition.childrenUnderFive

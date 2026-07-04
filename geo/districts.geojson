@@ -1,0 +1,512 @@
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.0,
+              -10.4
+            ],
+            [
+              79.2,
+              -10.4
+            ],
+            [
+              79.2,
+              -9.8
+            ],
+            [
+              79.0,
+              -9.8
+            ],
+            [
+              79.0,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0101",
+        "admin_level": "district",
+        "admin_name": "Ketterin",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-01",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.2,
+              -10.4
+            ],
+            [
+              79.39999999999999,
+              -10.4
+            ],
+            [
+              79.39999999999999,
+              -9.8
+            ],
+            [
+              79.2,
+              -9.8
+            ],
+            [
+              79.2,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0102",
+        "admin_level": "district",
+        "admin_name": "Ovasse",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-01",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.39999999999999,
+              -10.4
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.6,
+              -9.8
+            ],
+            [
+              79.39999999999999,
+              -9.8
+            ],
+            [
+              79.39999999999999,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0103",
+        "admin_level": "district",
+        "admin_name": "Brenholm",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-01",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.0,
+              -11.0
+            ],
+            [
+              79.2,
+              -11.0
+            ],
+            [
+              79.2,
+              -10.4
+            ],
+            [
+              79.0,
+              -10.4
+            ],
+            [
+              79.0,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0201",
+        "admin_level": "district",
+        "admin_name": "Salvet",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-02",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.2,
+              -11.0
+            ],
+            [
+              79.39999999999999,
+              -11.0
+            ],
+            [
+              79.39999999999999,
+              -10.4
+            ],
+            [
+              79.2,
+              -10.4
+            ],
+            [
+              79.2,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0202",
+        "admin_level": "district",
+        "admin_name": "Marindi",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-02",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.39999999999999,
+              -11.0
+            ],
+            [
+              79.6,
+              -11.0
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.39999999999999,
+              -10.4
+            ],
+            [
+              79.39999999999999,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0203",
+        "admin_level": "district",
+        "admin_name": "Velcor",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-02",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.6,
+              -11.0
+            ],
+            [
+              79.8,
+              -11.0
+            ],
+            [
+              79.8,
+              -10.4
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.6,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0301",
+        "admin_level": "district",
+        "admin_name": "Lydessa",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-03",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.8,
+              -11.0
+            ],
+            [
+              80.0,
+              -11.0
+            ],
+            [
+              80.0,
+              -10.4
+            ],
+            [
+              79.8,
+              -10.4
+            ],
+            [
+              79.8,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0302",
+        "admin_level": "district",
+        "admin_name": "Orivale",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-03",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              80.0,
+              -11.0
+            ],
+            [
+              80.2,
+              -11.0
+            ],
+            [
+              80.2,
+              -10.4
+            ],
+            [
+              80.0,
+              -10.4
+            ],
+            [
+              80.0,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0303",
+        "admin_level": "district",
+        "admin_name": "Carrowen",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-03",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.8,
+              -10.4
+            ],
+            [
+              79.8,
+              -9.8
+            ],
+            [
+              79.6,
+              -9.8
+            ],
+            [
+              79.6,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0401",
+        "admin_level": "district",
+        "admin_name": "Eastmere",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-04",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.8,
+              -10.4
+            ],
+            [
+              80.0,
+              -10.4
+            ],
+            [
+              80.0,
+              -9.8
+            ],
+            [
+              79.8,
+              -9.8
+            ],
+            [
+              79.8,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0402",
+        "admin_level": "district",
+        "admin_name": "Navaro",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-04",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              80.0,
+              -10.4
+            ],
+            [
+              80.2,
+              -10.4
+            ],
+            [
+              80.2,
+              -9.8
+            ],
+            [
+              80.0,
+              -9.8
+            ],
+            [
+              80.0,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0403",
+        "admin_level": "district",
+        "admin_name": "Vestrel",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-04",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.35,
+              -11.0
+            ],
+            [
+              79.6,
+              -11.0
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.35,
+              -10.4
+            ],
+            [
+              79.35,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-0203-OLD",
+        "admin_level": "district_version",
+        "admin_name": "Velcor old boundary",
+        "crs": "EPSG:4326",
+        "parent_admin_code": "XS-02",
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    }
+  ],
+  "type": "FeatureCollection"
+}

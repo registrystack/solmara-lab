@@ -1,0 +1,3 @@
+application_id,herd_id,origin_premises_id,destination_district_code,application_status,observed_at,source_system
+MA-000001,HERD-000004,PRM-000004,XS-0402,approved,2026-07-04T09:00:00Z,NAGDI-CORE
+MA-000002,HERD-000005,PRM-000005,XS-0402,quarantine_hold,2026-07-04T09:00:00Z,NAGDI-CORE

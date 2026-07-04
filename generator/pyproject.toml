@@ -1,0 +1,9 @@
+[project]
+name = "solmara-lab-generator"
+version = "0.1.0"
+description = "Deterministic fixture generator for the Solmara Lab."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv]
+package = false

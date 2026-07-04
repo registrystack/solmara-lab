@@ -1,0 +1,2 @@
+visit_id,farmer_id,visit_date,topic,observed_at,source_system
+EV-000001,FR-1001,2026-06-12,soil moisture,2026-07-04T09:00:00Z,NAGDI-CORE

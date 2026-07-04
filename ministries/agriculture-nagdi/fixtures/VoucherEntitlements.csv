@@ -1,0 +1,2 @@
+voucher_id,farmer_id,program_id,entitlement_status,amount,currency,observed_at,source_system
+VE-000001,FR-1001,AGP-000001,approved,75.00,XTS,2026-07-04T09:00:00Z,NAGDI-CORE

@@ -1,0 +1,2 @@
+rule_id,program_id,rule_name,rule_version,observed_at,source_system
+RULE-000001,AGP-000001,risk-and-tenure-check,2026.1,2026-07-04T09:00:00Z,NAGDI-CORE

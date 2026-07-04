@@ -1,0 +1,2 @@
+risk_id,district_code,risk_band,season,observed_at,source_system
+DCR-000001,XS-0103,high,2026-A,2026-07-04T09:00:00Z,NAGDI-CORE

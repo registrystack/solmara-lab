@@ -1,0 +1,161 @@
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.0,
+              -10.4
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.6,
+              -9.8
+            ],
+            [
+              79.0,
+              -9.8
+            ],
+            [
+              79.0,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-01",
+        "admin_level": "province",
+        "admin_name": "Anvela",
+        "crs": "EPSG:4326",
+        "parent_admin_code": null,
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.0,
+              -11.0
+            ],
+            [
+              79.6,
+              -11.0
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.0,
+              -10.4
+            ],
+            [
+              79.0,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-02",
+        "admin_level": "province",
+        "admin_name": "Tolara",
+        "crs": "EPSG:4326",
+        "parent_admin_code": null,
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.6,
+              -11.0
+            ],
+            [
+              80.2,
+              -11.0
+            ],
+            [
+              80.2,
+              -10.4
+            ],
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              79.6,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-03",
+        "admin_level": "province",
+        "admin_name": "Mendira",
+        "crs": "EPSG:4326",
+        "parent_admin_code": null,
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.6,
+              -10.4
+            ],
+            [
+              80.2,
+              -10.4
+            ],
+            [
+              80.2,
+              -9.8
+            ],
+            [
+              79.6,
+              -9.8
+            ],
+            [
+              79.6,
+              -10.4
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS-04",
+        "admin_level": "province",
+        "admin_name": "Corvala",
+        "crs": "EPSG:4326",
+        "parent_admin_code": null,
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    }
+  ],
+  "type": "FeatureCollection"
+}

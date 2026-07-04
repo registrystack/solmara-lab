@@ -1,0 +1,30 @@
+schema_version: solmara-lab/metadata-assembly/v1
+publish_model: merged_multi_authority
+publisher:
+  service: static-metadata
+  manifest: metadata/solmara-wave1.metadata.yaml
+  output: metadata/public
+  command:
+    - registry-manifest-cli
+    - publish
+    - metadata/solmara-wave1.metadata.yaml
+    - --out
+    - metadata/public
+application_profiles:
+  - id: cpsv-ap
+    version: 3.2.0
+source_fragments:
+  - ministries/interior-civil/manifest/fragment.yaml
+  - ministries/interior-population/manifest/fragment.yaml
+  - ministries/social-development/manifest/sro-fragment.yaml
+  - ministries/social-development/manifest/programme-mis-fragment.yaml
+  - ministries/labour-pensions/manifest/fragment.yaml
+  - ministries/agriculture-nagdi/manifest/fragment.yaml
+merged_manifest: metadata/solmara-wave1.metadata.yaml
+purpose_catalogue:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  - https://id.registrystack.org/solmara/purpose/pension-payment-review
+  - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+  - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+  - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service

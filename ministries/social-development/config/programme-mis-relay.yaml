@@ -1,0 +1,161 @@
+server:
+  bind: 0.0.0.0:8080
+  admin_bind: 0.0.0.0:8081
+  openapi_requires_auth: false
+  cache_dir: /var/lib/registry-relay/cache
+
+instance:
+  id: solmara-programme-mis-relay
+  environment: hosted_lab
+  owner: Ministry of Social Development Programme MIS
+  jurisdiction: XS
+
+catalog:
+  title: MoSD Programme MIS Relay
+  base_url: http://programme-mis-relay:8080
+  publisher: Ministry of Social Development Programme MIS
+  participant_id: did:web:id.registrystack.org:solmara:authority:mosd-programme-mis
+
+vocabularies:
+  ps: https://publicschema.org/
+  sp: https://publicschema.org/sp/
+  solmara: https://id.registrystack.org/solmara/
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: programme_child_benefit_source
+      fingerprint:
+        provider: env
+        name: PROGRAMME_CHILD_BENEFIT_SOURCE_HASH
+      scopes: &programme_scopes
+        - mosd_programme:metadata
+        - mosd_programme:rows
+        - mosd_programme:evidence_verification
+    - id: programme_pension_source
+      fingerprint:
+        provider: env
+        name: PROGRAMME_PENSION_SOURCE_HASH
+      scopes: *programme_scopes
+    - id: programme_citizen_source
+      fingerprint:
+        provider: env
+        name: PROGRAMME_CITIZEN_SOURCE_HASH
+      scopes: *programme_scopes
+    - id: portal_relay_reader
+      fingerprint:
+        provider: env
+        name: PORTAL_RELAY_TOKEN_HASH
+      scopes:
+        - mosd_programme:metadata
+
+audit:
+  sink: file
+  path: /var/lib/registry-relay/audit/audit.jsonl
+  format: jsonl
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+
+deployment:
+  profile: hosted_lab
+  evidence:
+    ingress_rate_limit: true
+    api_key_rotation: true
+  waivers:
+    - finding: relay.config.unsigned
+      reason: first-pass lab config before governed bundle publication
+      expires: "2026-10-01"
+
+datasets:
+  - id: mosd_programme
+    title: Solmara integrated beneficiary registry
+    description: Programme enrollment and entitlement projection maintained by MoSD.
+    owner: Ministry of Social Development
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: daily
+    defaults:
+      refresh:
+        mode: manual
+    tables:
+      - id: enrollment_table
+        materialization: snapshot
+        source:
+          type: file
+          path: /var/lib/solmara/ministries/social-development/fixtures/programme_mis_enrollment.csv
+          format:
+            csv:
+              header_row: 1
+        primary_key: enrollment_id
+        schema:
+          strict: true
+          fields:
+            - name: enrollment_id
+              type: string
+              nullable: false
+            - name: uin
+              type: string
+              nullable: false
+              sensitive: true
+            - name: programme_id
+              type: string
+              nullable: false
+            - name: enrollment_status
+              type: string
+              nullable: false
+            - name: entitlement_status
+              type: string
+              nullable: false
+            - name: duplicate_flag
+              type: boolean
+              nullable: false
+            - name: benefit_start_date
+              type: date
+              nullable: true
+            - name: observed_at
+              type: timestamp
+              nullable: true
+            - name: source_system
+              type: string
+              nullable: false
+    entities:
+      - name: enrollment
+        title: Programme enrollment
+        description: Current programme enrollment and duplicate status.
+        table: enrollment_table
+        concept_uri: sp:Enrollment
+        fields:
+          - name: id
+            from: enrollment_id
+          - name: uin
+            sensitive: true
+          - name: programme_id
+          - name: enrollment_status
+          - name: entitlement_status
+          - name: duplicate_flag
+          - name: benefit_start_date
+          - name: observed_at
+        access:
+          metadata_scope: mosd_programme:metadata
+          aggregate_scope: mosd_programme:aggregate
+          read_scope: mosd_programme:rows
+          evidence_verification_scope: mosd_programme:evidence_verification
+        api:
+          default_limit: 25
+          max_limit: 100
+          require_purpose_header: true
+          governed_policy:
+            permitted_purposes:
+              - https://id.registrystack.org/solmara/purpose/child-benefit-review
+              - https://id.registrystack.org/solmara/purpose/pension-payment-review
+              - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+              - https://id.registrystack.org/solmara/purpose/citizen-self-service
+            # Notary v0.8.4 forwards Data-Purpose to Registry Data API sources.
+            # Legal basis, consent, jurisdiction, and assurance are enforced by
+            # Notary source matching with configured credential authorization details.
+          allowed_filters:
+            - field: uin
+              ops: [eq, in]
+            - field: programme_id
+              ops: [eq]
+            - field: enrollment_status
+              ops: [eq]

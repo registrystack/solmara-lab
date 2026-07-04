@@ -1,0 +1,2 @@
+grievance_id,complainant_uin,program_code,grievance_type,grievance_status,submission_date,resolution_date,observed_at,source_system
+GRV-000001,2300045650,CHILD_SUPPORT,eligibility,open,2026-06-22,,2026-07-04T09:00:00Z,MOSD-MIS

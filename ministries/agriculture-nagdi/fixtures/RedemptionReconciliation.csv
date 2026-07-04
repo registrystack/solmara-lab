@@ -1,0 +1,2 @@
+reconciliation_id,redemption_id,reconciliation_status,observed_at,source_system
+RR-000001,VR-000001,open,2026-07-04T09:00:00Z,NAGDI-CORE

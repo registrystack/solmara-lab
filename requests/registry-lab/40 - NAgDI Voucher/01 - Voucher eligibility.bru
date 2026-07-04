@@ -1,0 +1,36 @@
+meta {
+  name: 01 - Voucher eligibility
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{nagdi_notary_url}}/v1/evaluations
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{NAGDI_NOTARY_TOKEN}}
+  Data-Purpose: {{voucher_purpose}}
+  Accept: application/vnd.registry-notary.claim-result+json
+}
+
+body:json {
+  {
+    "target": {
+      "type": "Person",
+      "identifiers": [
+        {
+          "scheme": "farmer_id",
+          "value": "FR-1001"
+        }
+      ]
+    },
+    "claims": [
+      "eligible-for-climate-smart-input-voucher"
+    ],
+    "disclosure": "decision",
+    "format": "application/vnd.registry-notary.claim-result+json"
+  }
+}

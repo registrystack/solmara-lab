@@ -1,0 +1,2 @@
+sanction_id,farmer_id,sanction_status,reason,observed_at,source_system
+SAN-000001,FR-1002,inactive,duplicate redemption warning,2026-07-04T09:00:00Z,NAGDI-CORE

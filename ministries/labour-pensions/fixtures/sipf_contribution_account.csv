@@ -1,0 +1,5 @@
+account_no,uin,employer_business_id,scheme,enrolment_date,account_status,accrued_qualifying_months,life_status,observed_at,source_system
+SIPF-00000001,2300109568,,old_age,1990-01-01,in_payment,360,deceased,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-00000002,2300118698,,old_age,1990-01-01,in_payment,360,alive,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-00000003,2300127827,,old_age,1990-01-01,in_payment,360,alive,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-00000004,2300136959,,old_age,1990-01-01,in_payment,360,alive,2026-07-04T09:00:00Z,SIPF-CORE

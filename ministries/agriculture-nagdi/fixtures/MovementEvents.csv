@@ -1,0 +1,2 @@
+movement_event_id,permit_id,event_type,event_date,observed_at,source_system
+MEV-000001,MPER-000001,departed,2026-07-02,2026-07-04T09:00:00Z,NAGDI-CORE

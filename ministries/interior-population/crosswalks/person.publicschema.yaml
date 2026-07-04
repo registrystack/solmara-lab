@@ -1,0 +1,8 @@
+schema_version: solmara-lab/publicschema-crosswalk/v1
+target: https://publicschema.org/Person
+fields:
+  id: identifier.value
+  birth_date: birthDate
+  identity_status: identifier.status
+  alive: vitalStatus.alive
+  district_code: address.districtCode

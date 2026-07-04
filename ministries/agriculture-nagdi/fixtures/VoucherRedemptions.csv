@@ -1,0 +1,2 @@
+redemption_id,voucher_id,supplier_id,redemption_status,observed_at,source_system
+VR-000001,VE-000001,SUP-000001,pending,2026-07-04T09:00:00Z,NAGDI-CORE

@@ -1,0 +1,17 @@
+schema_version: solmara-lab/manifest-fragment/v1
+application_profiles:
+  - id: cpsv-ap
+    version: 3.2.0
+authority:
+  id: nagdi
+  iri: did:web:id.registrystack.org:solmara:authority:nagdi
+  name: National Agricultural Data Institute
+datasets:
+  - id: nagdi-agriculture
+    entities:
+      - farmer_voucher
+      - livestock_movement
+purposes:
+  - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+  - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service

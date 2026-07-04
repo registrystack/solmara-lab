@@ -1,0 +1,2 @@
+authorization_id,farmer_id,purpose_scope,authorization_status,observed_at,source_system
+DUA-000001,FR-1001,voucher-eligibility-review,authorized,2026-07-04T09:00:00Z,NAGDI-CORE

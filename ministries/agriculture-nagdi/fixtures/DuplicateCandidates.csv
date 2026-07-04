@@ -1,0 +1,2 @@
+candidate_id,farmer_id,matched_farmer_id,match_basis,observed_at,source_system
+DC-000001,FR-1005,FR-1001,name_address,2026-07-04T09:00:00Z,NAGDI-CORE

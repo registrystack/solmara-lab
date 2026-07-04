@@ -1,0 +1,15 @@
+schema_version: solmara-lab/manifest-fragment/v1
+application_profiles:
+  - id: cpsv-ap
+    version: 3.2.0
+authority:
+  id: sro
+  iri: did:web:id.registrystack.org:solmara:authority:sro
+  name: Social Registry Office
+datasets:
+  - id: sro-social
+    entities:
+      - household
+purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service

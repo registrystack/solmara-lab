@@ -1,0 +1,1 @@
+create table population_person (uin text primary key, person_id text, legacy_nid text, given_name text, family_name text, birth_date date, sex text, district_code text, address_area text, settlement_type text, identity_status text, pending_merge_with_uin text, match_basis text, alive boolean, birth_brn text, updated_at timestamptz, observed_at timestamptz, source_system text);

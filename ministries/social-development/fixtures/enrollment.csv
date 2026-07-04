@@ -1,0 +1,2 @@
+enrollment_id,uin,household_id,program_code,eligibility_decision_id,enrollment_status,enrollment_date,exit_date,exit_reason,observed_at,source_system
+ENR-00001,2300054788,HH-002320,CHILD_SUPPORT,DEC-000004,active,2026-05-20,,,2026-07-04T09:00:00Z,MOSD-MIS

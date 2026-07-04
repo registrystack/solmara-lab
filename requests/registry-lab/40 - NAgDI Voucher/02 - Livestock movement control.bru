@@ -1,0 +1,36 @@
+meta {
+  name: 02 - Livestock movement control
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{nagdi_notary_url}}/v1/evaluations
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{NAGDI_NOTARY_TOKEN}}
+  Data-Purpose: {{livestock_purpose}}
+  Accept: application/vnd.registry-notary.claim-result+json
+}
+
+body:json {
+  {
+    "target": {
+      "type": "Person",
+      "identifiers": [
+        {
+          "scheme": "farmer_id",
+          "value": "FR-1001"
+        }
+      ]
+    },
+    "claims": [
+      "eligible-for-livestock-movement-permit"
+    ],
+    "disclosure": "decision",
+    "format": "application/vnd.registry-notary.claim-result+json"
+  }
+}

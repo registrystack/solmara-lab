@@ -1,0 +1,300 @@
+server:
+  bind: 0.0.0.0:8080
+  openapi_requires_auth: false
+  admin_listener:
+    mode: dedicated
+    bind: 0.0.0.0:8081
+
+instance:
+  id: solmara-nagdi-notary
+  environment: hosted_lab
+  owner: National Agricultural Data Institute
+  jurisdiction: XS
+  public_base_url: https://nagdi-notary.lab.registrystack.org
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: nagdi_service_client
+      fingerprint:
+        provider: env
+        name: NAGDI_CLIENT_TOKEN_HASH
+      scopes:
+        - nagdi_agriculture:evidence_verification
+      authorization_details:
+        type: registry-notary/evidence-authorization/v1
+        schema_version: v1
+        legal_basis_ref: https://id.registrystack.org/solmara/legal-basis/agricultural-data-act
+        consent_ref: https://id.registrystack.org/solmara/consent/nagdi-services
+        jurisdiction: XS
+        assurance_level: substantial
+
+audit:
+  sink: file
+  path: /var/lib/registry-notary/config-state/audit.jsonl
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+
+replay:
+  storage: redis
+  redis:
+    url_env: REGISTRY_NOTARY_REPLAY_REDIS_URL
+    key_prefix: solmara-nagdi-notary
+    connect_timeout_ms: 1000
+    operation_timeout_ms: 500
+
+deployment:
+  profile: hosted_lab
+
+cel:
+  worker_count: 8
+  worker_memory_bytes: 1073741824
+
+evidence:
+  enabled: true
+  service_id: nagdi-notary
+  api_base_url: http://nagdi-notary:8080
+  allowed_purposes:
+    - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+    - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+  source_connections:
+    agriculture:
+      base_url: http://nagdi-agriculture-relay:8080
+      allow_insecure_private_network: true
+      token_env: NAGDI_NOTARY_SOURCE_RAW
+  signing_keys:
+    nagdi-issuer:
+      provider: local_jwk_env
+      private_jwk_env: NAGDI_NOTARY_ISSUER_JWK
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:notary:nagdi#issuer-key-1
+      status: active
+  credential_profiles:
+    climate_smart_voucher_sd_jwt:
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:notary:nagdi
+      signing_key: nagdi-issuer
+      vct: https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility
+      validity_seconds: 600
+      allowed_claims:
+        - farmer-registered
+        - data-use-authorized-for-purpose
+        - eligible-for-climate-smart-input-voucher
+      holder_binding: &holder_binding
+        mode: did
+        proof_of_possession: required
+        allowed_did_methods:
+          - did:jwk
+      disclosure:
+        allowed:
+          - predicate
+    livestock_movement_sd_jwt:
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:notary:nagdi
+      signing_key: nagdi-issuer
+      vct: https://id.registrystack.org/solmara/vct/livestock-movement-permit
+      validity_seconds: 600
+      allowed_claims:
+        - registered-herd
+        - origin-district-not-quarantined-for-species
+        - eligible-for-livestock-movement-permit
+      holder_binding: *holder_binding
+      disclosure:
+        allowed:
+          - predicate
+  claims:
+    - id: farmer-registered
+      title: Farmer registered
+      version: "2026-07"
+      subject_type: farmer
+      value:
+        type: boolean
+      source_bindings: &farmer_binding
+        farmer:
+          connector: registry_data_api
+          connection: agriculture
+          required_scope: nagdi_agriculture:evidence_verification
+          dataset: nagdi_agriculture
+          entity: farmer_voucher
+          matching:
+            allowed_purposes:
+              - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+            permitted_jurisdictions: [XS]
+            require_legal_basis: true
+            require_consent: true
+          lookup:
+            input: target.identifiers.farmer_id
+            field: id
+            op: eq
+            cardinality: one
+          fields:
+            farmer_registered:
+              field: farmer_registered
+              type: boolean
+              required: true
+            data_use_authorized:
+              field: data_use_authorized
+              type: boolean
+              required: true
+            active_smallholder_farmer:
+              field: active_smallholder_farmer
+              type: boolean
+              required: true
+            active_farm_parcel:
+              field: active_farm_parcel
+              type: boolean
+              required: true
+            crop_declared_for_season:
+              field: crop_declared_for_season
+              type: boolean
+              required: true
+            district_climate_risk_active:
+              field: district_climate_risk_active
+              type: boolean
+              required: true
+            voucher_entitlement_current:
+              field: voucher_entitlement_current
+              type: boolean
+              required: true
+            voucher_not_redeemed:
+              field: voucher_not_redeemed
+              type: boolean
+              required: true
+      rule:
+        type: cel
+        expression: "source.farmer.farmer_registered == true"
+      disclosure: &predicate_only
+        default: predicate
+        allowed:
+          - predicate
+          - redacted
+      formats: &claim_formats
+        - application/vnd.registry-notary.claim-result+json
+        - application/dc+sd-jwt
+      credential_profiles:
+        - climate_smart_voucher_sd_jwt
+    - id: data-use-authorized-for-purpose
+      title: Data use authorized for purpose
+      version: "2026-07"
+      subject_type: farmer
+      value:
+        type: boolean
+      source_bindings: *farmer_binding
+      rule:
+        type: cel
+        expression: "source.farmer.data_use_authorized == true"
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - climate_smart_voucher_sd_jwt
+    - id: eligible-for-climate-smart-input-voucher
+      title: Eligible for climate-smart voucher
+      version: "2026-07"
+      subject_type: farmer
+      value:
+        type: boolean
+      depends_on:
+        - farmer-registered
+        - data-use-authorized-for-purpose
+      source_bindings: *farmer_binding
+      rule:
+        type: cel
+        expression: "claims.farmer_registered.value == true && claims.data_use_authorized_for_purpose.value == true && source.farmer.active_smallholder_farmer == true && source.farmer.active_farm_parcel == true && source.farmer.crop_declared_for_season == true && source.farmer.district_climate_risk_active == true && source.farmer.voucher_entitlement_current == true && source.farmer.voucher_not_redeemed == true"
+        bindings:
+          claims:
+            farmer_registered:
+              claim: farmer-registered
+            data_use_authorized_for_purpose:
+              claim: data-use-authorized-for-purpose
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - climate_smart_voucher_sd_jwt
+    - id: registered-herd
+      title: Registered herd
+      version: "2026-07"
+      subject_type: farmer
+      value:
+        type: boolean
+      source_bindings: &herd_binding
+        herd:
+          connector: registry_data_api
+          connection: agriculture
+          required_scope: nagdi_agriculture:evidence_verification
+          dataset: nagdi_agriculture
+          entity: livestock_movement
+          matching:
+            allowed_purposes:
+              - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+            permitted_jurisdictions: [XS]
+            require_legal_basis: true
+            require_consent: true
+          lookup:
+            input: target.identifiers.farmer_id
+            field: id
+            op: eq
+            cardinality: one
+          fields:
+            registered_herd:
+              field: registered_herd
+              type: boolean
+              required: true
+            herd_vaccination_current:
+              field: herd_vaccination_current
+              type: boolean
+              required: true
+            origin_district_not_quarantined_for_species:
+              field: origin_district_not_quarantined_for_species
+              type: boolean
+              required: true
+            destination_district_open:
+              field: destination_district_open
+              type: boolean
+              required: true
+            no_conflicting_open_movement_permit:
+              field: no_conflicting_open_movement_permit
+              type: boolean
+              required: true
+      rule:
+        type: cel
+        expression: "source.herd.registered_herd == true"
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - livestock_movement_sd_jwt
+    - id: origin-district-not-quarantined-for-species
+      title: Origin district is not quarantined for species
+      version: "2026-07"
+      subject_type: farmer
+      value:
+        type: boolean
+      source_bindings: *herd_binding
+      rule:
+        type: cel
+        expression: "source.herd.origin_district_not_quarantined_for_species == true"
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - livestock_movement_sd_jwt
+    - id: eligible-for-livestock-movement-permit
+      title: Eligible for livestock movement permit
+      version: "2026-07"
+      subject_type: farmer
+      value:
+        type: boolean
+      depends_on:
+        - registered-herd
+        - origin-district-not-quarantined-for-species
+      source_bindings: *herd_binding
+      rule:
+        type: cel
+        expression: "claims.registered_herd.value == true && claims.origin_district_not_quarantined_for_species.value == true && source.herd.herd_vaccination_current == true && source.herd.destination_district_open == true && source.herd.no_conflicting_open_movement_permit == true"
+        bindings:
+          claims:
+            registered_herd:
+              claim: registered-herd
+            origin_district_not_quarantined_for_species:
+              claim: origin-district-not-quarantined-for-species
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - livestock_movement_sd_jwt

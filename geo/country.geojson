@@ -1,0 +1,44 @@
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              79.0,
+              -11.0
+            ],
+            [
+              80.2,
+              -11.0
+            ],
+            [
+              80.2,
+              -9.8
+            ],
+            [
+              79.0,
+              -9.8
+            ],
+            [
+              79.0,
+              -11.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "admin_code": "XS",
+        "admin_level": "country",
+        "admin_name": "Republic of Solmara",
+        "crs": "EPSG:4326",
+        "parent_admin_code": null,
+        "valid_from": "2026-01-01",
+        "valid_until": ""
+      },
+      "type": "Feature"
+    }
+  ],
+  "type": "FeatureCollection"
+}

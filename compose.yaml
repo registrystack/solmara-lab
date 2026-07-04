@@ -1,0 +1,397 @@
+name: solmara-lab
+
+x-relay-environment: &relay-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET}
+
+x-notary-environment: &notary-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET}
+  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
+  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
+  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+
+x-relay-common: &relay-common
+  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:93e194500a3500ba3f6331d5a0a9a3069127c48a709beccb083a5fcbdbc3ec61}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *relay-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+
+x-notary-common: &notary-common
+  image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *notary-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  volume-permissions:
+    image: ${VOLUME_INIT_IMAGE:-busybox:1.36}
+    command:
+      - sh
+      - -c
+      - chown -R 65532:65532 /relay/* && chown -R 65534:65534 /notary/*
+    volumes:
+      - cra-civil-cache:/relay/cra-civil-cache
+      - cra-civil-audit:/relay/cra-civil-audit
+      - nia-population-cache:/relay/nia-population-cache
+      - nia-population-audit:/relay/nia-population-audit
+      - sro-social-cache:/relay/sro-social-cache
+      - sro-social-audit:/relay/sro-social-audit
+      - programme-mis-cache:/relay/programme-mis-cache
+      - programme-mis-audit:/relay/programme-mis-audit
+      - sipf-pensions-cache:/relay/sipf-pensions-cache
+      - sipf-pensions-audit:/relay/sipf-pensions-audit
+      - nagdi-agriculture-cache:/relay/nagdi-agriculture-cache
+      - nagdi-agriculture-audit:/relay/nagdi-agriculture-audit
+      - child-benefit-notary-state:/notary/child-benefit-notary-state
+      - pension-notary-state:/notary/pension-notary-state
+      - nagdi-notary-state:/notary/nagdi-notary-state
+      - citizen-notary-state:/notary/citizen-notary-state
+
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
+    environment:
+      POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
+      POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
+    ports:
+      - "${SOLMARA_POSTGRES_PORT:-54329}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./ministries/interior-population/fixtures:/docker-entrypoint-initdb.d:ro
+      - ./scripts/postgres-entrypoint.sh:/usr/local/bin/solmara-postgres-entrypoint.sh:ro
+      - ./config/postgres/ssl:/run/solmara-postgres-ssl:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${SOLMARA_REDIS_PORT:-63799}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  static-metadata:
+    image: ${STATIC_METADATA_IMAGE:-python:3.12-alpine}
+    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"]
+    ports:
+      - "${SOLMARA_METADATA_PORT:-4331}:8080"
+    volumes:
+      - ./metadata/public:/srv/static:ro
+
+  cra-civil-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      CRA_CHILD_BENEFIT_SOURCE_HASH: ${CRA_CHILD_BENEFIT_SOURCE_HASH}
+      CRA_PENSION_SOURCE_HASH: ${CRA_PENSION_SOURCE_HASH}
+      CRA_CITIZEN_SOURCE_HASH: ${CRA_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    ports:
+      - "${SOLMARA_CRA_RELAY_PORT:-4311}:8080"
+    volumes:
+      - ./ministries/interior-civil/config/relay.yaml:/etc/registry-relay/relay.yaml:ro
+      - ./ministries/interior-civil:/var/lib/solmara/ministries/interior-civil:ro
+      - cra-civil-cache:/var/lib/registry-relay/cache
+      - cra-civil-audit:/var/lib/registry-relay/audit
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+
+  nia-population-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
+      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
+      NIA_CHILD_BENEFIT_SOURCE_HASH: ${NIA_CHILD_BENEFIT_SOURCE_HASH}
+      NIA_PENSION_SOURCE_HASH: ${NIA_PENSION_SOURCE_HASH}
+      NIA_CITIZEN_SOURCE_HASH: ${NIA_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    ports:
+      - "${SOLMARA_NIA_RELAY_PORT:-4312}:8080"
+    volumes:
+      - ./ministries/interior-population/config/relay.yaml:/etc/registry-relay/relay.yaml:ro
+      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
+      - nia-population-cache:/var/lib/registry-relay/cache
+      - nia-population-audit:/var/lib/registry-relay/audit
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  sro-social-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      SRO_CHILD_BENEFIT_SOURCE_HASH: ${SRO_CHILD_BENEFIT_SOURCE_HASH}
+      SRO_CITIZEN_SOURCE_HASH: ${SRO_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    ports:
+      - "${SOLMARA_SRO_RELAY_PORT:-4313}:8080"
+    volumes:
+      - ./ministries/social-development/config/sro-relay.yaml:/etc/registry-relay/relay.yaml:ro
+      - ./ministries/social-development:/var/lib/solmara/ministries/social-development:ro
+      - sro-social-cache:/var/lib/registry-relay/cache
+      - sro-social-audit:/var/lib/registry-relay/audit
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+
+  programme-mis-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      PROGRAMME_CHILD_BENEFIT_SOURCE_HASH: ${PROGRAMME_CHILD_BENEFIT_SOURCE_HASH}
+      PROGRAMME_PENSION_SOURCE_HASH: ${PROGRAMME_PENSION_SOURCE_HASH}
+      PROGRAMME_CITIZEN_SOURCE_HASH: ${PROGRAMME_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    ports:
+      - "${SOLMARA_PROGRAMME_RELAY_PORT:-4314}:8080"
+    volumes:
+      - ./ministries/social-development/config/programme-mis-relay.yaml:/etc/registry-relay/relay.yaml:ro
+      - ./ministries/social-development:/var/lib/solmara/ministries/social-development:ro
+      - programme-mis-cache:/var/lib/registry-relay/cache
+      - programme-mis-audit:/var/lib/registry-relay/audit
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+
+  sipf-pensions-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      SIPF_PENSION_SOURCE_HASH: ${SIPF_PENSION_SOURCE_HASH}
+      SIPF_CITIZEN_SOURCE_HASH: ${SIPF_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    ports:
+      - "${SOLMARA_SIPF_RELAY_PORT:-4315}:8080"
+    volumes:
+      - ./ministries/labour-pensions/config/relay.yaml:/etc/registry-relay/relay.yaml:ro
+      - ./ministries/labour-pensions:/var/lib/solmara/ministries/labour-pensions:ro
+      - sipf-pensions-cache:/var/lib/registry-relay/cache
+      - sipf-pensions-audit:/var/lib/registry-relay/audit
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+
+  nagdi-agriculture-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      NAGDI_NOTARY_SOURCE_HASH: ${NAGDI_NOTARY_SOURCE_HASH}
+      NAGDI_CITIZEN_SOURCE_HASH: ${NAGDI_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    ports:
+      - "${SOLMARA_NAGDI_RELAY_PORT:-4316}:8080"
+    volumes:
+      - ./ministries/agriculture-nagdi/config/relay.yaml:/etc/registry-relay/relay.yaml:ro
+      - ./ministries/agriculture-nagdi:/var/lib/solmara/ministries/agriculture-nagdi:ro
+      - nagdi-agriculture-cache:/var/lib/registry-relay/cache
+      - nagdi-agriculture-audit:/var/lib/registry-relay/audit
+    depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
+
+  child-benefit-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/child-benefit.yaml"]
+    environment:
+      <<: *notary-environment
+      CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      CRA_CHILD_BENEFIT_SOURCE_RAW: ${CRA_CHILD_BENEFIT_SOURCE_RAW}
+      NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
+      SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
+      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+      CHILD_BENEFIT_NOTARY_ISSUER_JWK: ${CHILD_BENEFIT_NOTARY_ISSUER_JWK}
+    ports:
+      - "${SOLMARA_CHILD_BENEFIT_NOTARY_PORT:-4321}:8080"
+    volumes:
+      - ./notaries/child-benefit.yaml:/etc/registry-notary/child-benefit.yaml:ro
+      - child-benefit-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      cra-civil-relay:
+        condition: service_started
+      nia-population-relay:
+        condition: service_started
+      sro-social-relay:
+        condition: service_started
+      programme-mis-relay:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  pension-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/pension.yaml"]
+    environment:
+      <<: *notary-environment
+      PENSION_CLIENT_TOKEN_HASH: ${PENSION_CLIENT_TOKEN_HASH}
+      CRA_PENSION_SOURCE_RAW: ${CRA_PENSION_SOURCE_RAW}
+      NIA_PENSION_SOURCE_RAW: ${NIA_PENSION_SOURCE_RAW}
+      SIPF_PENSION_SOURCE_RAW: ${SIPF_PENSION_SOURCE_RAW}
+      PROGRAMME_PENSION_SOURCE_RAW: ${PROGRAMME_PENSION_SOURCE_RAW}
+      PENSION_NOTARY_ISSUER_JWK: ${PENSION_NOTARY_ISSUER_JWK}
+    ports:
+      - "${SOLMARA_PENSION_NOTARY_PORT:-4322}:8080"
+    volumes:
+      - ./notaries/pension.yaml:/etc/registry-notary/pension.yaml:ro
+      - pension-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      cra-civil-relay:
+        condition: service_started
+      nia-population-relay:
+        condition: service_started
+      sipf-pensions-relay:
+        condition: service_started
+      programme-mis-relay:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  nagdi-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/nagdi.yaml"]
+    environment:
+      <<: *notary-environment
+      NAGDI_CLIENT_TOKEN_HASH: ${NAGDI_CLIENT_TOKEN_HASH}
+      NAGDI_NOTARY_SOURCE_RAW: ${NAGDI_NOTARY_SOURCE_RAW}
+      NAGDI_NOTARY_ISSUER_JWK: ${NAGDI_NOTARY_ISSUER_JWK}
+    ports:
+      - "${SOLMARA_NAGDI_NOTARY_PORT:-4323}:8080"
+    volumes:
+      - ./notaries/nagdi.yaml:/etc/registry-notary/nagdi.yaml:ro
+      - nagdi-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      nagdi-agriculture-relay:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  citizen-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/citizen.yaml"]
+    environment:
+      <<: *notary-environment
+      CITIZEN_PORTAL_BFF_TOKEN_HASH: ${CITIZEN_PORTAL_BFF_TOKEN_HASH}
+      CRA_CITIZEN_SOURCE_RAW: ${CRA_CITIZEN_SOURCE_RAW}
+      NIA_CITIZEN_SOURCE_RAW: ${NIA_CITIZEN_SOURCE_RAW}
+      SRO_CITIZEN_SOURCE_RAW: ${SRO_CITIZEN_SOURCE_RAW}
+      PROGRAMME_CITIZEN_SOURCE_RAW: ${PROGRAMME_CITIZEN_SOURCE_RAW}
+      SIPF_CITIZEN_SOURCE_RAW: ${SIPF_CITIZEN_SOURCE_RAW}
+      NAGDI_CITIZEN_SOURCE_RAW: ${NAGDI_CITIZEN_SOURCE_RAW}
+      CITIZEN_NOTARY_ISSUER_JWK: ${CITIZEN_NOTARY_ISSUER_JWK}
+    ports:
+      - "${SOLMARA_CITIZEN_NOTARY_PORT:-4324}:8080"
+    volumes:
+      - ./notaries/citizen.yaml:/etc/registry-notary/citizen.yaml:ro
+      - citizen-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      cra-civil-relay:
+        condition: service_started
+      nia-population-relay:
+        condition: service_started
+      sro-social-relay:
+        condition: service_started
+      programme-mis-relay:
+        condition: service_started
+      sipf-pensions-relay:
+        condition: service_started
+      nagdi-agriculture-relay:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  portal:
+    build:
+      context: ./portal
+    image: ${SOLMARA_PORTAL_IMAGE:-solmara-lab-portal:local}
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4000
+      PORTAL_PROVIDER: live
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET}
+      CHILD_BENEFIT_NOTARY_URL: http://child-benefit-notary:8080
+      CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
+      PENSION_NOTARY_URL: http://pension-notary:8080
+      PENSION_NOTARY_TOKEN: ${PENSION_NOTARY_TOKEN}
+      NAGDI_NOTARY_URL: http://nagdi-notary:8080
+      NAGDI_NOTARY_TOKEN: ${NAGDI_NOTARY_TOKEN}
+      PORTAL_CITIZEN_NOTARY_URL: http://citizen-notary:8080
+      PORTAL_CITIZEN_NOTARY_TOKEN: ${PORTAL_CITIZEN_NOTARY_TOKEN}
+      PORTAL_CIVIL_RELAY_URL: http://cra-civil-relay:8080
+      PORTAL_SOCIAL_RELAY_URL: http://sro-social-relay:8080
+      PORTAL_AGRI_RELAY_URL: http://nagdi-agriculture-relay:8080
+      PORTAL_CERTS_RELAY_URL: http://cra-civil-relay:8080
+      PORTAL_RELAY_TOKEN: ${PORTAL_RELAY_TOKEN}
+    ports:
+      - "${SOLMARA_PORTAL_PORT:-4300}:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      child-benefit-notary:
+        condition: service_healthy
+      pension-notary:
+        condition: service_healthy
+      nagdi-notary:
+        condition: service_healthy
+      citizen-notary:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  cra-civil-cache:
+  cra-civil-audit:
+  nia-population-cache:
+  nia-population-audit:
+  sro-social-cache:
+  sro-social-audit:
+  programme-mis-cache:
+  programme-mis-audit:
+  sipf-pensions-cache:
+  sipf-pensions-audit:
+  nagdi-agriculture-cache:
+  nagdi-agriculture-audit:
+  child-benefit-notary-state:
+  pension-notary-state:
+  nagdi-notary-state:
+  citizen-notary-state:

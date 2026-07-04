@@ -1,0 +1,242 @@
+server:
+  bind: 0.0.0.0:8080
+  admin_bind: 0.0.0.0:8081
+  openapi_requires_auth: false
+  cache_dir: /var/lib/registry-relay/cache
+
+instance:
+  id: solmara-sro-social-relay
+  environment: hosted_lab
+  owner: Social Registry Office
+  jurisdiction: XS
+
+catalog:
+  title: Social Registry Office Relay
+  base_url: http://sro-social-relay:8080
+  publisher: Social Registry Office
+  participant_id: did:web:id.registrystack.org:solmara:authority:sro
+
+vocabularies:
+  ps: https://publicschema.org/
+  solmara: https://id.registrystack.org/solmara/
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: sro_child_benefit_source
+      fingerprint:
+        provider: env
+        name: SRO_CHILD_BENEFIT_SOURCE_HASH
+      scopes: &sro_scopes
+        - sro_social:metadata
+        - sro_social:rows
+        - sro_social:evidence_verification
+    - id: sro_citizen_source
+      fingerprint:
+        provider: env
+        name: SRO_CITIZEN_SOURCE_HASH
+      scopes: *sro_scopes
+    - id: portal_relay_reader
+      fingerprint:
+        provider: env
+        name: PORTAL_RELAY_TOKEN_HASH
+      scopes:
+        - sro_social:metadata
+
+audit:
+  sink: file
+  path: /var/lib/registry-relay/audit/audit.jsonl
+  format: jsonl
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+
+deployment:
+  profile: hosted_lab
+  evidence:
+    ingress_rate_limit: true
+    api_key_rotation: true
+  waivers:
+    - finding: relay.config.unsigned
+      reason: first-pass lab config before governed bundle publication
+      expires: "2026-10-01"
+
+datasets:
+  - id: sro_social
+    title: Solmara social registry
+    description: Household poverty and composition projection maintained by the Social Registry Office.
+    owner: Social Registry Office
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: monthly
+    defaults:
+      refresh:
+        mode: manual
+    tables:
+      - id: household_table
+        materialization: snapshot
+        source:
+          type: file
+          path: /var/lib/solmara/ministries/social-development/fixtures/social_registry_household.csv
+          format:
+            csv:
+              header_row: 1
+        primary_key: household_id
+        schema:
+          strict: true
+          fields:
+            - name: household_id
+              type: string
+              nullable: false
+              sensitive: true
+            - name: head_uin
+              type: string
+              nullable: false
+              sensitive: true
+            - name: district_code
+              type: string
+              nullable: false
+            - name: poverty_score
+              type: number
+              nullable: false
+              sensitive: true
+            - name: poverty_band
+              type: string
+              nullable: false
+            - name: member_count
+              type: integer
+              nullable: false
+            - name: child_under_5_count
+              type: integer
+              nullable: false
+            - name: consent_status
+              type: string
+              nullable: false
+            - name: observed_at
+              type: timestamp
+              nullable: true
+            - name: source_system
+              type: string
+              nullable: false
+      - id: household_member_table
+        materialization: snapshot
+        source:
+          type: file
+          path: /var/lib/solmara/ministries/social-development/fixtures/household_member.csv
+          format:
+            csv:
+              header_row: 1
+        primary_key: membership_id
+        schema:
+          strict: true
+          fields:
+            - name: membership_id
+              type: string
+              nullable: false
+              sensitive: true
+            - name: household_id
+              type: string
+              nullable: false
+              sensitive: true
+            - name: uin
+              type: string
+              nullable: false
+              sensitive: true
+            - name: relationship_to_head
+              type: string
+              nullable: false
+            - name: membership_status
+              type: string
+              nullable: false
+            - name: start_date
+              type: date
+              nullable: false
+            - name: end_date
+              type: date
+              nullable: true
+            - name: observed_at
+              type: timestamp
+              nullable: true
+            - name: source_system
+              type: string
+              nullable: false
+    entities:
+      - name: household
+        title: Social registry household
+        description: Minimized household eligibility projection.
+        table: household_table
+        concept_uri: ps:Household
+        fields:
+          - name: id
+            from: household_id
+            sensitive: true
+          - name: head_uin
+          - name: district_code
+          - name: poverty_score
+          - name: poverty_band
+          - name: member_count
+          - name: child_under_5_count
+          - name: consent_status
+          - name: observed_at
+        access:
+          metadata_scope: sro_social:metadata
+          aggregate_scope: sro_social:aggregate
+          read_scope: sro_social:rows
+          evidence_verification_scope: sro_social:evidence_verification
+        api:
+          default_limit: 25
+          max_limit: 100
+          require_purpose_header: true
+          governed_policy:
+            permitted_purposes:
+              - https://id.registrystack.org/solmara/purpose/child-benefit-review
+              - https://id.registrystack.org/solmara/purpose/citizen-self-service
+            # Notary v0.8.4 forwards Data-Purpose to Registry Data API sources.
+            # Legal basis, consent, jurisdiction, and assurance are enforced by
+            # Notary source matching with configured credential authorization details.
+            redaction_fields:
+              - poverty_score
+          allowed_filters:
+            - field: id
+              ops: [eq]
+            - field: head_uin
+              ops: [eq, in]
+            - field: poverty_band
+              ops: [eq]
+      - name: household_member
+        title: Social registry household member
+        description: Minimized household membership projection.
+        table: household_member_table
+        concept_uri: ps:HouseholdMember
+        fields:
+          - name: id
+            from: membership_id
+            sensitive: true
+          - name: household_id
+            sensitive: true
+          - name: uin
+            sensitive: true
+          - name: relationship_to_head
+          - name: membership_status
+          - name: observed_at
+        access:
+          metadata_scope: sro_social:metadata
+          aggregate_scope: sro_social:aggregate
+          read_scope: sro_social:rows
+          evidence_verification_scope: sro_social:evidence_verification
+        api:
+          default_limit: 25
+          max_limit: 100
+          require_purpose_header: true
+          governed_policy:
+            permitted_purposes:
+              - https://id.registrystack.org/solmara/purpose/child-benefit-review
+              - https://id.registrystack.org/solmara/purpose/citizen-self-service
+            # Notary v0.8.4 forwards Data-Purpose to Registry Data API sources.
+            # Legal basis, consent, jurisdiction, and assurance are enforced by
+            # Notary source matching with configured credential authorization details.
+          allowed_filters:
+            - field: id
+              ops: [eq]
+            - field: household_id
+              ops: [eq]
+            - field: uin
+              ops: [eq, in]

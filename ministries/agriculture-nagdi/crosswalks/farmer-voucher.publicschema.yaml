@@ -1,0 +1,9 @@
+schema_version: solmara-lab/publicschema-crosswalk/v1
+target: https://publicschema.org/Farm
+fields:
+  id: farmOperator.identifier
+  uin: farmOperator.personIdentifier
+  district_code: location.districtCode
+  active_farm_parcel: parcel.active
+  crop_declared_for_season: cropDeclaration.current
+  voucher_entitlement_current: entitlement.current

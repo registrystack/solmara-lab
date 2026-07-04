@@ -1,0 +1,6 @@
+farmer_id,legacy_farmer_id,uin,household_id,given_name,family_name,district_code,farmer_status,registration_date,observed_at,source_system
+FR-1001,FR-1001,2300164345,,Amina,Kone,XS-0103,active,2025-05-01,2026-07-04T09:00:00Z,NAGDI-CORE
+FR-1002,FR-1002,2300173478,,Diego,Santos,XS-0102,active,2025-05-01,2026-07-04T09:00:00Z,NAGDI-CORE
+FR-1003,FR-1003,2300182600,,Noor,Patel,XS-0402,active,2025-05-01,2026-07-04T09:00:00Z,NAGDI-CORE
+FR-1004,FR-1004,2300191733,,Beatriz,Okafor,XS-0401,active,2025-05-01,2026-07-04T09:00:00Z,NAGDI-CORE
+FR-1005,FR-1005,2300200865,,Sefu,Dela Cruz,XS-0403,active,2025-05-01,2026-07-04T09:00:00Z,NAGDI-CORE

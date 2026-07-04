@@ -1,0 +1,5 @@
+pension_case_id,pensioner_uin,spouse_uin,marriage_mrn,pension_status,payment_status,survivor_eligible,last_payment_date,account_life_status,observed_at,source_system
+SIPF-AWD-000001,2300109568,2300118698,MRN-1970-0401-00001,in_payment,active,true,2026-07-01,deceased,2026-07-04T09:00:00Z,SIPF-RELAY-PROJECTION
+SIPF-AWD-000002,2300118698,,,in_payment,active,false,,alive,2026-07-04T09:00:00Z,SIPF-RELAY-PROJECTION
+SIPF-AWD-000003,2300127827,,,in_payment,active,false,,alive,2026-07-04T09:00:00Z,SIPF-RELAY-PROJECTION
+SIPF-AWD-000004,2300136959,,,pending_proof_of_life,active,false,,alive,2026-07-04T09:00:00Z,SIPF-RELAY-PROJECTION

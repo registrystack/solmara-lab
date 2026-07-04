@@ -1,0 +1,6 @@
+herd_id,farmer_id,species,registered_livestock_holder,registered_herd,herd_vaccination_current,origin_district_not_quarantined_for_species,destination_district_open,no_conflicting_open_movement_permit,observed_at,source_system
+HERD-000001,FR-1001,cattle,true,true,true,true,true,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
+HERD-000002,FR-1002,cattle,true,true,true,true,true,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
+HERD-000003,FR-1003,cattle,true,true,true,true,true,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
+HERD-000004,FR-1004,goat,true,true,true,false,true,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
+HERD-000005,FR-1005,cattle,true,true,false,true,true,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION

@@ -1,0 +1,9 @@
+schema_version: solmara-lab/publicschema-crosswalk/v1
+target: https://publicschema.org/sp/Enrollment
+fields:
+  id: enrollmentId
+  uin: beneficiary.identifier
+  programme_id: program.identifier
+  enrollment_status: enrollmentStatus
+  entitlement_status: entitlement.status
+  benefit_start_date: enrollmentDate

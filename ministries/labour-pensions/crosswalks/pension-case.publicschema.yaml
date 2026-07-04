@@ -1,0 +1,9 @@
+schema_version: solmara-lab/publicschema-crosswalk/v1
+target: https://id.registrystack.org/solmara/publicschema-extension/PensionCase
+fields:
+  id: pensionCaseId
+  pensioner_uin: beneficiary.identifier
+  spouse_uin: survivor.identifier
+  pension_status: enrollmentStatus
+  payment_status: paymentStatus
+  survivor_eligible: survivorEligibility

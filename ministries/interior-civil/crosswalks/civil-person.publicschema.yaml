@@ -1,0 +1,9 @@
+schema_version: solmara-lab/publicschema-crosswalk/v1
+target: https://publicschema.org/crvs/Person
+fields:
+  id: identifier.value
+  birth_date: birthDate
+  birth_brn: crvs.birthRegistrationNumber
+  death_drn: crvs.deathRegistrationNumber
+  deceased: crvs.deceased
+  district_code: address.districtCode

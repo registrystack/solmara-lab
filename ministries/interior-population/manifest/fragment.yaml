@@ -1,0 +1,15 @@
+schema_version: solmara-lab/manifest-fragment/v1
+application_profiles:
+  - id: cpsv-ap
+    version: 3.2.0
+authority:
+  id: nia
+  iri: did:web:id.registrystack.org:solmara:authority:nia
+  name: National Identity Agency
+datasets:
+  - id: nia-population
+    entities:
+      - person
+purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service

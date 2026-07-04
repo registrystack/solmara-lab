@@ -1,0 +1,2 @@
+allocation_id,program_id,district_code,amount,currency,observed_at,source_system
+BA-000001,AGP-000001,XS-0103,5000.00,XTS,2026-07-04T09:00:00Z,NAGDI-CORE

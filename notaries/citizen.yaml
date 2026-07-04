@@ -1,0 +1,213 @@
+server:
+  bind: 0.0.0.0:8080
+  openapi_requires_auth: false
+  admin_listener:
+    mode: dedicated
+    bind: 0.0.0.0:8081
+
+instance:
+  id: solmara-citizen-notary
+  environment: hosted_lab
+  owner: Citizen Services Portal
+  jurisdiction: XS
+  public_base_url: https://citizen-notary.lab.registrystack.org
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: portal_bff
+      fingerprint:
+        provider: env
+        name: CITIZEN_PORTAL_BFF_TOKEN_HASH
+      scopes:
+        - cra_civil:evidence_verification
+        - nia_population:evidence_verification
+        - sro_social:evidence_verification
+        - mosd_programme:evidence_verification
+        - sipf_pensions:evidence_verification
+        - nagdi_agriculture:evidence_verification
+      authorization_details:
+        type: registry-notary/evidence-authorization/v1
+        schema_version: v1
+        legal_basis_ref: https://id.registrystack.org/solmara/legal-basis/citizen-self-service
+        consent_ref: https://id.registrystack.org/solmara/consent/citizen-self-service
+        jurisdiction: XS
+        assurance_level: substantial
+
+audit:
+  sink: file
+  path: /var/lib/registry-notary/config-state/audit.jsonl
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+
+replay:
+  storage: redis
+  redis:
+    url_env: REGISTRY_NOTARY_REPLAY_REDIS_URL
+    key_prefix: solmara-citizen-notary
+    connect_timeout_ms: 1000
+    operation_timeout_ms: 500
+
+deployment:
+  profile: hosted_lab
+
+cel:
+  worker_count: 8
+  worker_memory_bytes: 1073741824
+
+evidence:
+  enabled: true
+  service_id: citizen-notary
+  api_base_url: http://citizen-notary:8080
+  allowed_purposes:
+    - https://id.registrystack.org/solmara/purpose/citizen-self-service
+  source_connections:
+    civil:
+      base_url: http://cra-civil-relay:8080
+      allow_insecure_private_network: true
+      token_env: CRA_CITIZEN_SOURCE_RAW
+    population:
+      base_url: http://nia-population-relay:8080
+      allow_insecure_private_network: true
+      token_env: NIA_CITIZEN_SOURCE_RAW
+    social:
+      base_url: http://sro-social-relay:8080
+      allow_insecure_private_network: true
+      token_env: SRO_CITIZEN_SOURCE_RAW
+    programme:
+      base_url: http://programme-mis-relay:8080
+      allow_insecure_private_network: true
+      token_env: PROGRAMME_CITIZEN_SOURCE_RAW
+    pensions:
+      base_url: http://sipf-pensions-relay:8080
+      allow_insecure_private_network: true
+      token_env: SIPF_CITIZEN_SOURCE_RAW
+    agriculture:
+      base_url: http://nagdi-agriculture-relay:8080
+      allow_insecure_private_network: true
+      token_env: NAGDI_CITIZEN_SOURCE_RAW
+  signing_keys:
+    citizen-issuer:
+      provider: local_jwk_env
+      private_jwk_env: CITIZEN_NOTARY_ISSUER_JWK
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:notary:citizen#issuer-key-1
+      status: active
+  credential_profiles:
+    citizen_status_sd_jwt:
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:notary:citizen
+      signing_key: citizen-issuer
+      vct: https://id.registrystack.org/solmara/vct/citizen-self-service-status
+      validity_seconds: 600
+      allowed_claims:
+        - population-record-active
+        - civil-record-linked
+        - citizen-self-service-summary
+      holder_binding:
+        mode: did
+        proof_of_possession: required
+        allowed_did_methods:
+          - did:jwk
+      disclosure:
+        allowed:
+          - predicate
+  claims:
+    - id: population-record-active
+      title: Population record active
+      version: "2026-07"
+      subject_type: person
+      value:
+        type: boolean
+      source_bindings:
+        population:
+          connector: registry_data_api
+          connection: population
+          required_scope: nia_population:evidence_verification
+          dataset: nia_population
+          entity: person
+          matching: &citizen_matching
+            allowed_purposes:
+              - https://id.registrystack.org/solmara/purpose/citizen-self-service
+            permitted_jurisdictions: [XS]
+            require_legal_basis: true
+            require_consent: true
+          lookup:
+            input: target.identifiers.solmara_uin
+            field: id
+            op: eq
+            cardinality: one
+          fields:
+            identity_status:
+              field: identity_status
+              type: string
+              required: true
+            alive:
+              field: alive
+              type: boolean
+              required: true
+      rule:
+        type: cel
+        expression: "source.population.identity_status == 'active' && source.population.alive == true"
+      disclosure: &predicate_only
+        default: predicate
+        allowed:
+          - predicate
+          - redacted
+      formats: &claim_formats
+        - application/vnd.registry-notary.claim-result+json
+        - application/dc+sd-jwt
+      credential_profiles:
+        - citizen_status_sd_jwt
+    - id: civil-record-linked
+      title: Civil record linked
+      version: "2026-07"
+      subject_type: person
+      value:
+        type: boolean
+      source_bindings:
+        civil:
+          connector: registry_data_api
+          connection: civil
+          required_scope: cra_civil:evidence_verification
+          dataset: cra_civil
+          entity: civil_person
+          matching: *citizen_matching
+          lookup:
+            input: target.identifiers.solmara_uin
+            field: id
+            op: eq
+            cardinality: one
+          fields:
+            birth_brn:
+              field: birth_brn
+              type: string
+              required: false
+      rule:
+        type: exists
+        source: civil
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - citizen_status_sd_jwt
+    - id: citizen-self-service-summary
+      title: Citizen self-service summary
+      version: "2026-07"
+      subject_type: person
+      value:
+        type: boolean
+      depends_on:
+        - population-record-active
+        - civil-record-linked
+      rule:
+        type: cel
+        expression: "claims.population_record_active.value == true && claims.civil_record_linked.value == true"
+        bindings:
+          claims:
+            population_record_active:
+              claim: population-record-active
+            civil_record_linked:
+              claim: civil-record-linked
+      disclosure: *predicate_only
+      formats: *claim_formats
+      credential_profiles:
+        - citizen_status_sd_jwt

@@ -1,0 +1,2 @@
+price_id,district_code,commodity,price,currency,observed_at,source_system
+MP-000001,XS-0103,maize,14.20,XTS,2026-07-04T09:00:00Z,NAGDI-CORE

@@ -1,0 +1,2 @@
+permit_id,application_id,permit_status,valid_until,observed_at,source_system
+MPER-000001,MA-000001,issued,2026-08-01,2026-07-04T09:00:00Z,NAGDI-CORE

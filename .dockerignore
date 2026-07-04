@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+output
+node_modules
+.svelte-kit
+build
+coverage
+playwright-report
+test-results
+.venv
+__pycache__
+.pytest_cache
+*.pyc
+*.log

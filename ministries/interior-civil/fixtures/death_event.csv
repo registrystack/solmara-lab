@@ -1,0 +1,4 @@
+event_id,drn,deceased_person_id,date_of_death,place_type,facility_id,cause_of_death,manner_of_death,medical_certifier_present,informant_person_id,informant_relationship,observed_at,source_system
+DE-00001,DRN-2026-0203-00001,CP-000010,2026-02-14,home,,natural causes,natural,true,CP-000013,spouse,2026-07-04T09:00:00Z,CRA-CORE
+DE-00002,DRN-2026-0301-00002,CP-000012,2026-03-03,home,,natural causes,natural,true,CP-000013,spouse,2026-07-04T09:00:00Z,CRA-CORE
+DE-00003,DRN-2026-0303-00003,CP-000017,2026-04-09,home,,natural causes,natural,true,CP-000013,spouse,2026-07-04T09:00:00Z,CRA-CORE

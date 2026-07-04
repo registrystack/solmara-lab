@@ -1,0 +1,2 @@
+advisory_rule_id,crop,risk_band,advisory_text,observed_at,source_system
+AR-000001,maize,high,Use short-cycle seed,2026-07-04T09:00:00Z,NAGDI-CORE

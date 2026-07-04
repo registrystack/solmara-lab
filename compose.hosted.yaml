@@ -1,0 +1,51 @@
+name: solmara-lab-hosted
+
+services:
+  static-metadata:
+    labels:
+      solmara.lab.host: metadata.lab.registrystack.org
+
+  cra-civil-relay:
+    labels:
+      solmara.lab.host: cra-relay.lab.registrystack.org
+
+  nia-population-relay:
+    labels:
+      solmara.lab.host: nia-relay.lab.registrystack.org
+
+  sro-social-relay:
+    labels:
+      solmara.lab.host: sro-relay.lab.registrystack.org
+
+  programme-mis-relay:
+    labels:
+      solmara.lab.host: mosd-programme-relay.lab.registrystack.org
+
+  sipf-pensions-relay:
+    labels:
+      solmara.lab.host: sipf-relay.lab.registrystack.org
+
+  nagdi-agriculture-relay:
+    labels:
+      solmara.lab.host: nagdi-relay.lab.registrystack.org
+
+  child-benefit-notary:
+    labels:
+      solmara.lab.host: child-benefit-notary.lab.registrystack.org
+
+  pension-notary:
+    labels:
+      solmara.lab.host: pension-notary.lab.registrystack.org
+
+  nagdi-notary:
+    labels:
+      solmara.lab.host: nagdi-notary.lab.registrystack.org
+
+  citizen-notary:
+    labels:
+      solmara.lab.host: citizen-notary.lab.registrystack.org
+
+  portal:
+    profiles: []
+    labels:
+      solmara.lab.host: portal.lab.registrystack.org

@@ -1,0 +1,23 @@
+persona_id,uin,roster_primary_id,civil_person_id,legacy_nid,legacy_farmer_id,given_name,family_name,role,district_code,observed_at,source_system
+child_positive,2300010248,2300010248,CP-000001,NID-1001,,Mateo,Santos,child benefit positive child,XS-0101,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+mother_positive,2300018263,2300018263,CP-000002,NID-1002,,Elena,Dela Cruz,Mateo guardian,XS-0101,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+child_positive_head,2300027390,2300027390,CP-000003,NID-1003,,Luis,Okafor,household head for child benefit positive path,XS-0101,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+above_threshold_child,2300036523,2300036523,CP-000004,NID-1004,,Hana,Aquino,child benefit denied above threshold,XS-0301,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+above_threshold_guardian,2300045650,2300045650,CP-000005,NID-1005,,Priya,Mensah,guardian for above-threshold child household,XS-0301,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+duplicate_enrolled_child,2300054788,2300054788,CP-000006,NID-1006,,Tomas,Bello,child benefit denied duplicate enrollment,XS-0302,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+duplicate_enrolled_guardian,2300063915,2300063915,CP-000007,NID-1007,,Joana,Bello,guardian for duplicate-enrollment control,XS-0302,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+unregistered_child,2300073046,2300073046,CP-000008,NID-1008,,Karim,Kone,birth registration gap,XS-0202,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+guardian,2300082172,2300082172,CP-000009,NID-1009,,Aisha,Kone,guardian for unregistered-birth inclusion path,XS-0202,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+deceased_child_control,2300091305,2300091305,CP-000010,NID-1010,,Esteban,Cruz,deceased child-benefit control,XS-0203,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+deceased_child_guardian,2300100431,2300100431,CP-000011,NID-1011,,Miriam,Cruz,guardian for deceased control path,XS-0203,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+deceased_pensioner,2300109568,2300109568,CP-000012,NID-2001,,Rafael,Nkomo,pension positive deceased member,XS-0301,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+survivor_spouse,2300118698,2300118698,CP-000013,NID-2002,,Imani,Nkomo,survivor benefit positive spouse,XS-0301,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+deceased_lag,2300127827,2300127827,CP-000014,NID-2004,,Otto,Ferreira,pension stale-data failure death not registered,XS-0302,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+survivor_waits,2300136959,2300136959,CP-000015,NID-2005,,Lucia,Ferreira,survivor claim waits for death reconciliation,XS-0302,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+divorced_head,2300146081,2300146081,CP-000016,NID-2006,,Mina,Rahman,survivor denied marriage dissolved,XS-0303,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+former_spouse,2300155218,2300155218,CP-000017,NID-2010,,Pavel,Rahman,deceased former spouse for dissolved-marriage control,XS-0303,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+farmer_positive,2300164345,FR-1001,CP-000018,NID-2011,FR-1001,Amina,Kone,farmer voucher positive and livestock movement positive owner,XS-0103,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+farmer_missing_auth,2300173478,FR-1002,CP-000019,NID-2012,FR-1002,Diego,Santos,farmer voucher denied missing data-use authorization,XS-0102,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+farmer_risk_denied,2300182600,FR-1003,CP-000020,NID-2013,FR-1003,Noor,Patel,farmer voucher denied outside eligible climate-risk band,XS-0402,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+livestock_quarantine,2300191733,FR-1004,CP-000021,NID-2014,FR-1004,Beatriz,Okafor,livestock movement denied species-specific quarantine,XS-0401,2026-07-04T09:00:00Z,SOLMARA-GENERATOR
+livestock_vaccination,2300200865,FR-1005,CP-000022,NID-2015,FR-1005,Sefu,Dela Cruz,livestock movement denied incomplete vaccination evidence,XS-0403,2026-07-04T09:00:00Z,SOLMARA-GENERATOR

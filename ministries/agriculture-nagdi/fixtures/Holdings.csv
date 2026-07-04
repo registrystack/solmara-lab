@@ -1,0 +1,6 @@
+holding_id,farmer_id,district_code,holding_name,total_area_ha,irrigated,observed_at,source_system
+HOLD-000001,FR-1001,XS-0103,Kone farm,2.50,true,2026-07-04T09:00:00Z,NAGDI-CORE
+HOLD-000002,FR-1002,XS-0102,Santos farm,3.50,false,2026-07-04T09:00:00Z,NAGDI-CORE
+HOLD-000003,FR-1003,XS-0402,Patel farm,4.50,true,2026-07-04T09:00:00Z,NAGDI-CORE
+HOLD-000004,FR-1004,XS-0401,Okafor farm,5.50,false,2026-07-04T09:00:00Z,NAGDI-CORE
+HOLD-000005,FR-1005,XS-0403,Dela Cruz farm,6.50,true,2026-07-04T09:00:00Z,NAGDI-CORE

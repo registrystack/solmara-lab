@@ -1,0 +1,2 @@
+snapshot_id,application_id,movement_allowed,reason,observed_at,source_system
+LMS-000001,MA-000002,false,species_quarantine,2026-07-04T09:00:00Z,NAGDI-CORE
