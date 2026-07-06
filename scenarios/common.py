@@ -12,11 +12,11 @@ import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 
 CLAIM_RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
@@ -100,7 +100,7 @@ class HolderKeypair:
     """An ephemeral did:jwk holder identity used to prove possession at credential issuance."""
 
     holder_id: str
-    private_key: Ed25519PrivateKey
+    private_key: "Ed25519PrivateKey"
 
 
 def holder_keypair() -> HolderKeypair:
@@ -109,6 +109,12 @@ def holder_keypair() -> HolderKeypair:
     The private key never leaves this process; only the public JWK is encoded
     into the did:jwk identifier that gets sent to the notary.
     """
+    # Imported here, not at module level: preview-only consumers (the smoke
+    # story previews) run under the system Python without the cryptography
+    # package, and only real signing needs it.
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
     private_key = Ed25519PrivateKey.generate()
     public_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     public_jwk = {"kty": "OKP", "crv": "Ed25519", "x": b64url_nopad(public_bytes)}

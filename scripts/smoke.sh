@@ -11,7 +11,9 @@ ran=1
 if [ "${SOLMARA_SMOKE_LIVE:-1}" != "0" ]; then
   ran=1
   "$root/scripts/smoke-relay-sources.py"
-  "$root/scripts/smoke-live.py"
+  # smoke-live signs real holder proofs, so it needs the locked project env
+  # (cryptography); the other smokes stay stdlib-only.
+  uv run "$root/scripts/smoke-live.py"
   "$root/scripts/smoke-published-tokens.py"
   "$root/scripts/smoke-portal-compose.py"
 fi

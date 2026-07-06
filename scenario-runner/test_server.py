@@ -7,6 +7,7 @@ import base64
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -306,6 +307,26 @@ class HolderProofTest(unittest.TestCase):
         self.assertEqual(result["credential_source"]["headers"]["x-api-key"], "[runtime token hidden]")
         # And the outgoing body actually carried the same holder object (nothing lost in transit).
         self.assertEqual(captured["body"]["holder"], body["holder"])
+
+
+class StdlibOnlyImportTest(unittest.TestCase):
+    def test_scenarios_import_without_cryptography(self) -> None:
+        """Preview-only consumers (scripts/smoke-story-previews.py) run under the
+        system Python, so importing the scenario modules must not require the
+        cryptography package; only actually signing a holder proof may."""
+        code = (
+            "import builtins\n"
+            "real_import = builtins.__import__\n"
+            "def guard(name, *args, **kwargs):\n"
+            "    if name.split('.')[0] == 'cryptography':\n"
+            "        raise ModuleNotFoundError(name)\n"
+            "    return real_import(name, *args, **kwargs)\n"
+            "builtins.__import__ = guard\n"
+            "import scenarios.common\n"
+            "import scenarios.child_benefit\n"
+        )
+        result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class FriendlyResultTest(unittest.TestCase):

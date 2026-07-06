@@ -46,7 +46,7 @@ lint:
 # Unit and integration tests that can run without a full Compose stack.
 test:
     @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m unittest discover -s tests; fi
-    python3 -m unittest discover -s scenario-runner -p 'test_*.py'
+    uv run python3 -m unittest discover -s scenario-runner -p 'test_*.py'
     @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
     @if [ -f home/package.json ]; then cd home && pnpm test; fi
     python3 -m unittest discover -s scripts -p 'test_*.py'
