@@ -53,8 +53,9 @@ test:
 
 # Validate Compose files without starting services.
 compose:
-    @if [ -f compose.yaml ]; then docker compose --env-file versions.env -f compose.yaml config >/dev/null; fi
-    @if [ -f compose.hosted.yaml ]; then docker compose --env-file versions.env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
+    @if [ ! -f .env ]; then echo ".env is missing; run 'just gen-secrets' first" >&2; exit 1; fi
+    @if [ -f compose.yaml ]; then docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null; fi
+    @if [ -f compose.hosted.yaml ]; then docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
 
 # Start the local topology.
 up:

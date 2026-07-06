@@ -30,6 +30,8 @@ jobs:
         run: just lint
       - name: Test
         run: just test
+      - name: Generate local secrets
+        run: just gen-secrets
       - name: Compose
         run: just compose
       - name: Review

@@ -2,11 +2,14 @@ name: solmara-lab
 
 x-relay-environment: &relay-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET}
+  # Required-variable guard: any compose invocation that skips .env (for
+  # example --env-file versions.env alone) must abort here instead of
+  # recreating services with empty credentials. Start the stack with just up.
+  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET:?.env not loaded; run just gen-secrets once, then just up}
 
 x-notary-environment: &notary-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET}
+  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?.env not loaded; run just gen-secrets once, then just up}
   REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
   REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
   REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
