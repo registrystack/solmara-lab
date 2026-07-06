@@ -60,6 +60,23 @@ describe('mock portal sessions', () => {
     expect(getSession(cookiesForTest(second))).toEqual(MOCK_SESSION);
   });
 
+  it('binds a handed-off persona session when one is supplied', () => {
+    const jar = new MemoryCookies();
+    const persona = { subject: '2300010248', displayName: 'Mateo Santos' };
+
+    setMockSession(cookiesForTest(jar), persona);
+
+    // The subject is still bound server-side, never carried in the cookie value.
+    expect(jar.values.get(SESSION_COOKIE)).not.toMatch(/\b[2-9]\d{9}\b/);
+    expect(getSession(cookiesForTest(jar))).toEqual(persona);
+  });
+
+  it('falls back to the default Elena session when no persona is supplied', () => {
+    const jar = new MemoryCookies();
+    setMockSession(cookiesForTest(jar));
+    expect(getSession(cookiesForTest(jar))).toEqual(MOCK_SESSION);
+  });
+
   it('does not accept the raw canned subject as a session cookie', () => {
     const jar = new MemoryCookies();
     jar.values.set(SESSION_COOKIE, MOCK_SESSION.subject);

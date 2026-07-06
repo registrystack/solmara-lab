@@ -36,11 +36,16 @@ const sessions = new Map<string, StoredSession>();
 // Establish the mock session cookie. httpOnly so the browser script never reads
 // it; no token material is stored. Phase 1 stores the eSignet session server-side
 // keyed by an opaque id instead of carrying the subject in the cookie value.
-export function setMockSession(cookies: Cookies): void {
+//
+// The optional `session` selects which mock persona to bind. It defaults to the
+// canned Elena Dela Cruz session. Callers pass a persona ONLY after validating
+// it against the published roster (see `personas.ts`); the subject is still
+// bound server-side, never read from the cookie value.
+export function setMockSession(cookies: Cookies, session: PortalSession = MOCK_SESSION): void {
   reclaimExpiredSessions();
   const sessionId = randomUUID();
   sessions.set(sessionId, {
-    session: MOCK_SESSION,
+    session,
     expiresAt: Date.now() + SESSION_MAX_AGE_MS
   });
   cookies.set(SESSION_COOKIE, sessionId, {

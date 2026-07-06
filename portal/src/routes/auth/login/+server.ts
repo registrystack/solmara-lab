@@ -12,7 +12,11 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = () => {
+export const GET: RequestHandler = ({ url }) => {
   // Phase 1: build PKCE + redirect to eSignet authorize. Phase 0: go to callback.
-  throw redirect(302, '/auth/callback');
+  // A `persona` hint from the visitor center handoff is carried through so the
+  // callback can bind that persona's mock session. Phase 1 ignores it: the
+  // subject comes from real UserInfo, never a query parameter.
+  const persona = url.searchParams.get('persona');
+  throw redirect(302, persona ? `/auth/callback?persona=${encodeURIComponent(persona)}` : '/auth/callback');
 };

@@ -13,10 +13,15 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { setMockSession } from '$lib/server/session';
+import { resolvePersona } from '$lib/server/personas';
 
-export const GET: RequestHandler = ({ cookies }) => {
+export const GET: RequestHandler = ({ cookies, url }) => {
   // Phase 1: exchange ?code, verify PKCE, store tokens + UserInfo server-side.
-  // Phase 0: set the canned subject-bound session and continue to the catalog.
-  setMockSession(cookies);
+  // Phase 0: set a subject-bound mock session and continue to the catalog. A
+  // valid persona hint from the visitor center binds that persona; an unknown or
+  // absent hint falls back to the default Elena Dela Cruz session, so a query
+  // parameter can never forge a session for someone off the published roster.
+  const persona = resolvePersona(url.searchParams.get('persona'));
+  setMockSession(cookies, persona ?? undefined);
   throw redirect(302, '/services');
 };

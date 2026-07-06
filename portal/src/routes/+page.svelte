@@ -1,6 +1,11 @@
 <script lang="ts">
   // Landing: the Republic of Solmara portal. The ministry rail (in the layout) is
   // already breathing before any login. Nothing has been shared yet.
+  //
+  // A validated persona handoff from the visitor center is carried into the mock
+  // sign-in so the visitor lands as the person named on the card.
+  export let data: { persona: string | null; personaName: string | null };
+  $: signInHref = data.persona ? `/auth/login?persona=${encodeURIComponent(data.persona)}` : '/auth/login';
 </script>
 
 <section class="hero">
@@ -10,9 +15,12 @@
     Sign in once. Each ministry answers for itself, in the open: nothing is copied into a central
     file, and you watch every connection happen.
   </p>
+  {#if data.personaName}
+    <p class="persona-hint" data-testid="persona-hint">Continuing as {data.personaName} (synthetic persona).</p>
+  {/if}
   <!-- /auth/login is a server endpoint, not a page route: force a full navigation
        so the client router does not try (and fail) to resolve it as a page. -->
-  <a class="signin" href="/auth/login" data-sveltekit-reload data-testid="signin">
+  <a class="signin" href={signInHref} data-sveltekit-reload data-testid="signin">
     Sign in with SolmaraID
   </a>
   <p class="nothing-shared">Nothing has been shared yet.</p>
@@ -76,5 +84,13 @@
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--color-channel-self);
+  }
+
+  .persona-hint {
+    margin: 0 0 var(--space-4);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-accent-seal);
   }
 </style>
