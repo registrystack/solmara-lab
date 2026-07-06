@@ -23,7 +23,7 @@ const KNOWN_STORY_STEPS: Record<string, string[]> = {
   'farmer-climate-smart-voucher': [
     'discover',
     'positive',
-    'inactive-parcel-control',
+    'authorization-control',
     'redeemed-control',
     'movement-permit',
     'purpose-denial'

@@ -149,8 +149,8 @@ must stay stable.
 | Mina Rahman | `2300146081` | Carrowen | Survivor denied: marriage dissolved. |
 | Pavel Rahman | `2300155218` | Carrowen | Deceased former spouse for dissolved-marriage control. |
 | Amina Kone | `FR-1001` | Brenholm | Farmer voucher positive path and livestock movement positive owner. |
-| Diego Santos | `FR-1002` | Ovasse | Farmer voucher denied: missing data-use authorization. |
-| Noor Patel | `FR-1003` | Navaro | Farmer voucher denied: farm outside eligible climate-risk band. |
+| Diego Santos | `FR-1002` | Ovasse | Farmer voucher denied: no data-use authorization on file. |
+| Noor Patel | `FR-1003` | Navaro | Farmer voucher denied: already redeemed this season. |
 | Beatriz Okafor | `FR-1004` | Eastmere | Livestock movement denied: species-specific quarantine. |
 | Sefu Dela Cruz | `FR-1005` | Vestrel | Livestock movement denied: incomplete vaccination evidence. |
 

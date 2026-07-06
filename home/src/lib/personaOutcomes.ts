@@ -148,14 +148,14 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       text: 'Also clears the livestock movement permit, evaluated under its own purpose.'
     }
   ],
-  // Diego Santos, farmer voucher denied: the parcel is not active.
+  // Diego Santos, farmer voucher denied: no data-use authorization on file.
   'FR-1002': [
     {
       storyId: 'farmer-climate-smart-voucher',
       storyTitle: 'Farmer climate-smart voucher',
-      stepId: 'inactive-parcel-control',
+      stepId: 'authorization-control',
       tone: 'refusal',
-      text: 'Refused: the parcel is not active, exactly as designed.'
+      text: 'Refused: no data-use authorization on file, exactly as designed.'
     }
   ]
 };

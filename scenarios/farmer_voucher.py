@@ -13,7 +13,7 @@ SCENARIO_ID = "farmer-climate-smart-voucher"
 SERVICE_NAME = "NAgDI Notary"
 SERVICE_ID = "nagdi-notary"
 POSITIVE_FARMER = "FR-1001"
-PARCEL_CONTROL = "FR-1002"
+AUTHORIZATION_CONTROL = "FR-1002"
 REDEEMED_CONTROL = "FR-1003"
 CLAIMS = ["eligible-for-climate-smart-input-voucher"]
 MOVEMENT_CLAIMS = ["eligible-for-livestock-movement-permit"]
@@ -34,10 +34,10 @@ FRIENDLY = {
             "The voucher eligibility check came back not met for this farmer.",
         ),
     },
-    "inactive-parcel-control": {
+    "authorization-control": {
         "unmet": (
-            "Rejected: the parcel is not active.",
-            "The eligibility check came back not met, so no voucher is issued for an inactive parcel.",
+            "Rejected: no data-use authorization on file.",
+            "The eligibility check came back not met because Diego has not authorized his data to be used for this review, so no voucher is issued.",
         ),
     },
     "redeemed-control": {
@@ -74,7 +74,7 @@ def story() -> dict[str, Any]:
         "steps": [
             {"id": "discover", "label": "Discover NAgDI claims", "prompt": "Read the NAgDI claim catalogue.", "button": "Discover", "request_summary": "GET /v1/claims"},
             {"id": "positive", "label": "Evaluate voucher eligibility", "prompt": "Run the positive farmer control.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1001."},
-            {"id": "inactive-parcel-control", "label": "Inactive parcel control", "prompt": "Reject an inactive parcel control.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1002."},
+            {"id": "authorization-control", "label": "Missing authorization control", "prompt": "Reject a farmer who has not authorized this data use.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1002."},
             {"id": "redeemed-control", "label": "Already redeemed control", "prompt": "Reject an already-redeemed farmer.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1003."},
             {"id": "movement-permit", "label": "Livestock movement permit", "prompt": "Evaluate the companion movement-control claim.", "button": "Evaluate", "request_summary": "POST livestock movement-control claim."},
             {"id": "purpose-denial", "label": "Purpose denial", "prompt": "Use the wrong purpose for a movement-control request.", "button": "Try denial", "request_summary": "POST livestock claim with voucher purpose."},
@@ -98,7 +98,7 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     url = service_url(SERVICE_ID, "/v1/claims" if step_id == "discover" else "/v1/evaluations")
     subject = {
         "positive": POSITIVE_FARMER,
-        "inactive-parcel-control": PARCEL_CONTROL,
+        "authorization-control": AUTHORIZATION_CONTROL,
         "redeemed-control": REDEEMED_CONTROL,
         "movement-permit": POSITIVE_FARMER,
         "purpose-denial": POSITIVE_FARMER,

@@ -153,9 +153,9 @@ SCENARIO_CASES = (
         {"eligible-for-climate-smart-input-voucher": True},
     ),
     ScenarioCase(
-        "farmer inactive parcel control",
+        "farmer missing authorization control",
         "farmer_voucher",
-        "inactive-parcel-control",
+        "authorization-control",
         200,
         {"eligible-for-climate-smart-input-voucher": False},
     ),
