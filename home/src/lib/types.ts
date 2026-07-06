@@ -238,6 +238,8 @@ export type HomeData = {
   purposes: Purpose[];
   personas: Persona[];
   districts: Record<string, unknown>;
+  provinces: Record<string, unknown>;
+  country: Record<string, unknown>;
   status: StatusItem[];
   services: string[];
   versions: Record<string, string>;

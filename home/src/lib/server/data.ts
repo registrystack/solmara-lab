@@ -13,13 +13,15 @@ type FetchLike = typeof fetch;
 export { readPurposes } from './purposes';
 
 export async function loadHomeData(fetcher: FetchLike = fetch): Promise<HomeData> {
-  const [metadata, scenarioResult, purposes, personas, districts, services, versions, status, smoke, seed, changelogLatest] =
+  const [metadata, scenarioResult, purposes, personas, districts, provinces, country, services, versions, status, smoke, seed, changelogLatest] =
     await Promise.all([
       fetchMetadata(fetcher),
       fetchScenarios(fetcher),
       readPurposes(),
       readPersonas(),
       readJson('geo/districts.geojson'),
+      readJson('geo/provinces.geojson'),
+      readJson('geo/country.geojson'),
       readComposeServices(),
       readVersions(),
       readStatus(fetcher),
@@ -37,6 +39,8 @@ export async function loadHomeData(fetcher: FetchLike = fetch): Promise<HomeData
     purposes,
     personas,
     districts,
+    provinces,
+    country,
     status,
     services,
     versions,

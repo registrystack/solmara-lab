@@ -67,7 +67,14 @@
     </div>
   </section>
 
-  <NationPanel metadata={home.metadata} personas={home.personas} districts={home.districts} portalUrl={home.portalUrl} />
+  <NationPanel
+    metadata={home.metadata}
+    personas={home.personas}
+    districts={home.districts}
+    provinces={home.provinces}
+    country={home.country}
+    portalUrl={home.portalUrl}
+  />
 
   <EngineerDoor tokens={home.publishedTokens} curls={home.curlExamples} versions={home.versions} repoUrl={home.repoUrl} />
 

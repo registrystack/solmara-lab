@@ -147,6 +147,16 @@ pre {
   text-decoration: none;
 }
 
+.persona-portal {
+  color: inherit;
+  text-decoration: none;
+}
+
+.persona-portal:hover,
+.persona-portal:focus-visible {
+  text-decoration: underline;
+}
+
 .time-links a {
   padding: 0.7rem 0.9rem;
 }
@@ -382,19 +392,96 @@ pre {
 
 .map {
   width: min(100%, 520px);
+  display: block;
   border: 1px solid var(--home-line);
   border-radius: 8px;
-  background: #dceef8;
+  background: var(--home-sky);
 }
 
-.map path {
-  fill: #d9f2e8;
-  stroke: #006c67;
-  stroke-width: 1.2;
+.map .coastline {
+  fill: none;
+  stroke: var(--home-forest);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  opacity: 0.35;
 }
 
-.map path.index-even {
-  fill: #f3e5be;
+.district-group {
+  cursor: pointer;
+}
+
+.district {
+  stroke: var(--home-panel);
+  stroke-width: 1.5;
+  transition: filter 120ms ease;
+}
+
+.district-group:hover .district,
+.district-group:focus-visible .district {
+  filter: brightness(1.1);
+  stroke: var(--home-ink);
+  stroke-width: 2;
+}
+
+/* Distinct-but-related tones per province, shaded per district within it. */
+.district.province-0 {
+  fill: var(--home-mint);
+}
+.district.province-0.shade-1 {
+  fill: color-mix(in srgb, var(--home-mint) 65%, var(--home-teal) 35%);
+}
+.district.province-0.shade-2 {
+  fill: color-mix(in srgb, var(--home-mint) 35%, var(--home-teal) 65%);
+}
+
+.district.province-1 {
+  fill: var(--home-sky);
+}
+.district.province-1.shade-1 {
+  fill: color-mix(in srgb, var(--home-sky) 55%, var(--home-teal) 45%);
+}
+.district.province-1.shade-2 {
+  fill: color-mix(in srgb, var(--home-sky) 30%, var(--home-teal) 70%);
+}
+
+.district.province-2 {
+  fill: color-mix(in srgb, var(--home-gold) 35%, white);
+}
+.district.province-2.shade-1 {
+  fill: color-mix(in srgb, var(--home-gold) 55%, white);
+}
+.district.province-2.shade-2 {
+  fill: color-mix(in srgb, var(--home-gold) 75%, white);
+}
+
+.district.province-3 {
+  fill: color-mix(in srgb, var(--home-coral) 30%, white);
+}
+.district.province-3.shade-1 {
+  fill: color-mix(in srgb, var(--home-coral) 50%, white);
+}
+.district.province-3.shade-2 {
+  fill: color-mix(in srgb, var(--home-coral) 70%, white);
+}
+
+.district-label {
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--home-ink);
+  paint-order: stroke;
+  stroke: var(--home-panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.map-caption {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--home-muted);
+  min-height: 1.2em;
 }
 
 .registry-grid {
@@ -425,9 +512,49 @@ pre {
   padding: 0.9rem;
 }
 
+.persona-portal {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .persona span {
   color: var(--home-muted);
   font-size: 0.9rem;
+}
+
+.persona-outcomes {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid var(--home-line);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.persona-outcomes li {
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.persona-outcomes a {
+  text-decoration: underline dotted;
+}
+
+.persona-outcomes a:hover,
+.persona-outcomes a:focus-visible {
+  text-decoration: underline solid;
+}
+
+.persona-outcomes .tone-positive a {
+  color: var(--home-teal);
+}
+
+.persona-outcomes .tone-refusal a {
+  color: var(--home-coral);
+}
+
+.persona-outcomes .tone-note a {
+  color: var(--home-muted);
 }
 
 .explorer-grid {

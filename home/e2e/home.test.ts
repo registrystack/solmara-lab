@@ -87,8 +87,22 @@ test('engineer door always shows the copy-as-curl examples', async ({ page }) =>
 
 test('persona cards hand off to the portal with a persona query parameter', async ({ page }) => {
   await page.goto('/');
-  const persona = page.locator('.persona-row a.persona').first();
-  await expect(persona).toHaveAttribute('href', /\?persona=\d{10}$/);
+  const persona = page.locator('.persona-row a.persona-portal').first();
+  await expect(persona).toHaveAttribute('href', /\?persona=[A-Za-z0-9-]+$/);
+});
+
+test('persona cards say what happens to each persona, linked to their story', async ({ page }) => {
+  await page.goto('/');
+  const outcomeLink = page.locator('.persona-row .persona-outcomes a').first();
+  await expect(outcomeLink).toBeVisible();
+  await expect(outcomeLink).toHaveAttribute('href', /^\/stories\/[a-z-]+(#[a-z-]+)?$/);
+});
+
+test('the nation map renders district labels on the committed district geometry', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.map .district').first()).toBeVisible();
+  await expect(page.locator('.map .district-label').first()).toBeVisible();
+  await expect(page.locator('.map .district-label', { hasText: 'Ketterin' })).toBeVisible();
 });
 
 test('explorer renders all five published artifact families from the live bundle', async ({ page }) => {
