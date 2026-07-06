@@ -3,28 +3,29 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from .common import (
     CLAIM_RESULT_FORMAT,
     PURPOSES,
+    SD_JWT_VC_FORMAT,
     auth_headers,
-    env_url,
+    credential_attempt,
     evaluation_body,
+    friendly_result,
     http_json,
     missing_runtime_token,
     request_source,
     source_response,
     standard_error_result,
 )
+from .service_config import service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "birth-to-child-benefit"
 SERVICE_NAME = "Child Benefit Notary"
-URL_ENV = "CHILD_BENEFIT_NOTARY_URL"
-TOKEN_ENV = "CHILD_BENEFIT_NOTARY_TOKEN"
-DEFAULT_URL = "http://127.0.0.1:4321"
+SERVICE_ID = "child-benefit-notary"
+CREDENTIAL_STEPS = {"positive"}
 POSITIVE_SUBJECT = "2300010248"
 DECEASED_CONTROL = "2300091305"
 ABOVE_THRESHOLD_CONTROL = "2300036523"
@@ -36,6 +37,46 @@ CLAIMS = [
     "household-below-poverty-threshold",
     "not-already-enrolled",
 ]
+CREDENTIAL_PROFILE = "child_benefit_eligibility_sd_jwt"
+FRIENDLY = {
+    "discover": {
+        "met": ("The catalogue lists what may be asked.", "Claim definitions only. No resident data has moved yet."),
+    },
+    "positive": {
+        "met": (
+            "Yes. Mateo can be reviewed for child benefit.",
+            "All four eligibility facts came back met. No register rows left their ministries.",
+        ),
+        "unmet": (
+            "Not eligible on the facts returned.",
+            "One or more eligibility checks came back not met for this case.",
+        ),
+    },
+    "deceased-control": {
+        "unmet": (
+            "Rejected, exactly as designed.",
+            "The eligibility checks fail for the deceased control case, so enrollment stops here.",
+        ),
+    },
+    "poverty-control": {
+        "unmet": (
+            "Rejected: the household is above the threshold.",
+            "The poverty check came back not met. The caseworker never sees the household's actual income.",
+        ),
+    },
+    "unregistered-control": {
+        "unmet": (
+            "No birth record found. Registration comes first.",
+            "Instead of failing silently, the family is routed to birth registration.",
+        ),
+    },
+    "duplicate-control": {
+        "unmet": (
+            "Rejected: already enrolled.",
+            "The duplicate check came back not met, preventing a double payment.",
+        ),
+    },
+}
 
 
 def story() -> dict[str, Any]:
@@ -67,15 +108,15 @@ def story() -> dict[str, Any]:
 
 
 def preview_step(config: dict[str, Any], step_id: str) -> dict[str, Any]:
-    return _request(step_id, send=False)["request_source"]
+    return _request(config, step_id, send=False)["request_source"]
 
 
 def run_step(config: dict[str, Any], step_id: str) -> dict[str, Any]:
-    return _request(step_id, send=True)
+    return _request(config, step_id, send=True)
 
 
-def _request(step_id: str, *, send: bool) -> dict[str, Any]:
-    url = env_url(URL_ENV, DEFAULT_URL, "/v1/claims" if step_id == "discover" else "/v1/evaluations")
+def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, Any]:
+    url = service_url(SERVICE_ID, "/v1/claims" if step_id == "discover" else "/v1/evaluations")
     subject = {
         "positive": POSITIVE_SUBJECT,
         "deceased-control": DECEASED_CONTROL,
@@ -84,26 +125,33 @@ def _request(step_id: str, *, send: bool) -> dict[str, Any]:
         "duplicate-control": DUPLICATE_CONTROL,
         "purpose-denial": POSITIVE_SUBJECT,
     }.get(step_id)
-    purpose = "https://id.registrystack.org/solmara/purpose/unsupported-demo-purpose" if step_id == "purpose-denial" else PURPOSES["child_benefit"]
-    token = os.environ.get(TOKEN_ENV, "")
-    headers = auth_headers(token, purpose, CLAIM_RESULT_FORMAT if step_id != "discover" else "application/json")
-    body = None if step_id == "discover" else evaluation_body(subject or "", CLAIMS, scheme="solmara_uin")
+    purpose = request_purpose(config, step_id)
+    token = service_token(SERVICE_ID)
+    evaluation_format = SD_JWT_VC_FORMAT if step_id in CREDENTIAL_STEPS else CLAIM_RESULT_FORMAT
+    headers = auth_headers(token, purpose, evaluation_format if step_id != "discover" else "application/json")
+    body = None if step_id == "discover" else evaluation_body(subject or "", CLAIMS, scheme="solmara_uin", format=evaluation_format)
     if step_id != "discover" and not subject:
         return standard_error_result(step_id)
     request = request_source("GET" if step_id == "discover" else "POST", url, headers, body)
     if not send:
         return {"request_source": request}
     if not token:
-        return missing_runtime_token(step_id, SERVICE_NAME, TOKEN_ENV, request)
+        return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(SERVICE_ID), request)
     result = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
-    return {
+    payload = {
         "step_id": step_id,
-        "friendly": {
-            "title": "Request completed." if result.status and 200 <= result.status < 300 else "Request needs attention.",
-            "message": "The response is minimized to claim results and denial codes.",
-            "status": "done" if result.status and 200 <= result.status < 300 else "needs_attention",
-            "facts": [{"label": "HTTP status", "value": result.status if result.status is not None else "No response"}],
-        },
+        "friendly": friendly_result(step_id, result, FRIENDLY),
         "request_source": request,
         "response_source": source_response(result),
     }
+    if step_id in CREDENTIAL_STEPS and result.status and 200 <= result.status < 300:
+        payload.update(credential_attempt(service_url(SERVICE_ID, "/v1/credentials"), token, purpose, result, CREDENTIAL_PROFILE, CLAIMS, SERVICE_ID))
+    return payload
+
+
+def request_purpose(config: dict[str, Any], step_id: str) -> str:
+    if step_id == "purpose-denial":
+        return "https://id.registrystack.org/solmara/purpose/unsupported-demo-purpose"
+    if isinstance(config.get("purpose_override"), str):
+        return config["purpose_override"]
+    return PURPOSES["child_benefit"]
