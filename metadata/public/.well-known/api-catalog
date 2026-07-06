@@ -1,4 +1,45 @@
 {
-  "schema": "registry-manifest/static-placeholder/v1",
-  "message": "Run registry-manifest-cli publish metadata/solmara-wave1.metadata.yaml --out metadata/public before serving the Solmara Lab metadata bundle."
+  "linkset": [
+    {
+      "anchor": "/.well-known/api-catalog",
+      "describedby": [
+        {
+          "href": "/metadata/index.json",
+          "type": "application/json"
+        }
+      ],
+      "item": [
+        {
+          "href": "/metadata/catalog.json",
+          "title": "Registry metadata catalog",
+          "type": "application/json"
+        },
+        {
+          "href": "/metadata/dcat.jsonld",
+          "title": "Base DCAT catalog",
+          "type": "application/ld+json"
+        },
+        {
+          "href": "/metadata/cpsv-ap.jsonld",
+          "title": "cpsv-ap service catalogue",
+          "type": "application/ld+json"
+        },
+        {
+          "href": "/metadata/evidence-offerings.json",
+          "title": "Evidence offerings",
+          "type": "application/json"
+        },
+        {
+          "href": "/metadata/policies.jsonld",
+          "title": "Policy metadata",
+          "type": "application/ld+json"
+        },
+        {
+          "href": "/metadata/ogc-records/items.json",
+          "title": "OGC Records item collection",
+          "type": "application/geo+json"
+        }
+      ]
+    }
+  ]
 }

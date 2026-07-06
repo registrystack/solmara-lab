@@ -1,0 +1,343 @@
+schema_version: registry-manifest/v1
+catalog:
+  id: solmara-wave1-multi-authority
+  base_url: https://metadata.lab.registrystack.org
+  title:
+    en: Solmara Lab Wave 1 Service Catalogue
+  description:
+    en: One merged CPSV-AP metadata publish for Solmara Wave 1 registry and evidence services.
+  publisher:
+    name: Solmara Interoperability Metadata Publisher
+    iri: did:web:id.registrystack.org:solmara:authority:metadata
+    authority_type: eli:PublicAuthority
+  participant_id: did:web:id.registrystack.org:solmara:authority:metadata
+  application_profiles:
+    - id: cpsv-ap
+      version: 3.2.0
+vocabularies:
+  eli: http://data.europa.eu/eli/ontology#
+  ps: https://publicschema.org/
+  solmara: https://id.registrystack.org/solmara/
+authorities:
+  - id: cra
+    iri: did:web:id.registrystack.org:solmara:authority:cra
+    name: Civil Registration Authority
+    authority_type: eli:PublicAuthority
+    spatial: https://id.registrystack.org/solmara/jurisdiction/XS
+  - id: nia
+    iri: did:web:id.registrystack.org:solmara:authority:nia
+    name: National Identity Agency
+    authority_type: eli:PublicAuthority
+    spatial: https://id.registrystack.org/solmara/jurisdiction/XS
+  - id: sro
+    iri: did:web:id.registrystack.org:solmara:authority:sro
+    name: Social Registry Office
+    authority_type: eli:PublicAuthority
+    spatial: https://id.registrystack.org/solmara/jurisdiction/XS
+  - id: mosd-programme-mis
+    iri: did:web:id.registrystack.org:solmara:authority:mosd-programme-mis
+    name: Ministry of Social Development Programme MIS
+    authority_type: eli:PublicAuthority
+    spatial: https://id.registrystack.org/solmara/jurisdiction/XS
+  - id: sipf
+    iri: did:web:id.registrystack.org:solmara:authority:sipf
+    name: Social Insurance and Pensions Fund
+    authority_type: eli:PublicAuthority
+    spatial: https://id.registrystack.org/solmara/jurisdiction/XS
+  - id: nagdi
+    iri: did:web:id.registrystack.org:solmara:authority:nagdi
+    name: National Agricultural Data Institute
+    authority_type: eli:PublicAuthority
+    spatial: https://id.registrystack.org/solmara/jurisdiction/XS
+requirements:
+  - id: child-benefit-review-requirement
+    iri: https://id.registrystack.org/solmara/requirements/child-benefit-review
+    title:
+      en: Child benefit eligibility review
+    description:
+      en: Confirm registered birth, under-five age, household poverty status, and duplicate enrollment status.
+    evidence_type_lists:
+      - id: child-benefit-wave1-evidence
+        title:
+          en: Child benefit registry evidence
+        evidence_types:
+          - birth-registration-evidence
+          - population-status-evidence
+          - household-poverty-evidence
+          - beneficiary-enrollment-evidence
+  - id: pension-survivor-review-requirement
+    iri: https://id.registrystack.org/solmara/requirements/pension-survivor-review
+    title:
+      en: Pension stop and survivor benefit review
+    description:
+      en: Confirm death registration, active pension payment state, and survivor eligibility.
+    evidence_type_lists:
+      - id: pension-wave1-evidence
+        title:
+          en: Pension and survivor registry evidence
+        evidence_types:
+          - death-registration-evidence
+          - pension-case-evidence
+  - id: nagdi-voucher-requirement
+    iri: https://id.registrystack.org/solmara/requirements/nagdi-voucher
+    title:
+      en: Farmer climate-smart voucher review
+    description:
+      en: Confirm farmer registration, data-use authorization, parcel, crop, climate-risk, and redemption predicates.
+    evidence_type_lists:
+      - id: nagdi-voucher-evidence
+        title:
+          en: Farmer voucher evidence
+        evidence_types:
+          - farmer-voucher-evidence
+  - id: livestock-movement-requirement
+    iri: https://id.registrystack.org/solmara/requirements/livestock-movement
+    title:
+      en: Livestock movement control review
+    description:
+      en: Confirm herd registration, vaccination, species-aware quarantine, destination, and open permit predicates.
+    evidence_type_lists:
+      - id: livestock-movement-evidence-list
+        title:
+          en: Livestock movement evidence
+        evidence_types:
+          - livestock-movement-evidence
+evidence_types:
+  - id: birth-registration-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/birth-registration
+    title:
+      en: Birth registration evidence
+    proves:
+      - child-benefit-review-requirement
+    information_concepts:
+      - ps:crvs/Birth
+  - id: population-status-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/population-status
+    title:
+      en: Population status evidence
+    proves:
+      - child-benefit-review-requirement
+    information_concepts:
+      - ps:Person
+  - id: household-poverty-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/household-poverty
+    title:
+      en: Household poverty evidence
+    proves:
+      - child-benefit-review-requirement
+    information_concepts:
+      - ps:Household
+      - ps:SocioEconomicProfile
+  - id: beneficiary-enrollment-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/beneficiary-enrollment
+    title:
+      en: Beneficiary enrollment evidence
+    proves:
+      - child-benefit-review-requirement
+    information_concepts:
+      - ps:sp/Enrollment
+  - id: death-registration-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/death-registration
+    title:
+      en: Death registration evidence
+    proves:
+      - pension-survivor-review-requirement
+    information_concepts:
+      - ps:crvs/Death
+  - id: pension-case-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/pension-case
+    title:
+      en: Pension case evidence
+    proves:
+      - pension-survivor-review-requirement
+  - id: farmer-voucher-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/farmer-voucher
+    title:
+      en: Farmer voucher evidence
+    proves:
+      - nagdi-voucher-requirement
+    information_concepts:
+      - ps:Farm
+  - id: livestock-movement-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/livestock-movement
+    title:
+      en: Livestock movement evidence
+    proves:
+      - livestock-movement-requirement
+public_services:
+  - id: child-benefit-review
+    iri: https://id.registrystack.org/solmara/services/child-benefit-review
+    title:
+      en: Child benefit eligibility review
+    description:
+      en: MoSD review of child benefit eligibility using minimized registry evidence.
+    competent_authority: mosd-programme-mis
+    jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
+    holds_requirements:
+      - child-benefit-review-requirement
+    data_services:
+      - child-benefit-notary-api
+  - id: pension-survivor-review
+    iri: https://id.registrystack.org/solmara/services/pension-survivor-review
+    title:
+      en: Pension stop and survivor benefit review
+    description:
+      en: SIPF review for pension payment stop and survivor benefit eligibility.
+    competent_authority: sipf
+    jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
+    holds_requirements:
+      - pension-survivor-review-requirement
+    data_services:
+      - pension-notary-api
+  - id: nagdi-voucher-review
+    iri: https://id.registrystack.org/solmara/services/nagdi-voucher-review
+    title:
+      en: Farmer climate-smart voucher review
+    description:
+      en: NAgDI review of farmer eligibility for climate-smart input support.
+    competent_authority: nagdi
+    jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
+    holds_requirements:
+      - nagdi-voucher-requirement
+    data_services:
+      - nagdi-notary-api
+  - id: livestock-movement-control
+    iri: https://id.registrystack.org/solmara/services/livestock-movement-control
+    title:
+      en: Livestock movement control
+    description:
+      en: NAgDI review of livestock movement permit eligibility and quarantine controls.
+    competent_authority: nagdi
+    jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
+    holds_requirements:
+      - livestock-movement-requirement
+    data_services:
+      - nagdi-notary-api
+data_services:
+  - id: child-benefit-notary-api
+    iri: https://child-benefit-notary.lab.registrystack.org/evidence/v1
+    title:
+      en: Child benefit evidence API
+    endpoint_url: https://child-benefit-notary.lab.registrystack.org/evidence/v1
+    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+  - id: pension-notary-api
+    iri: https://pension-notary.lab.registrystack.org/evidence/v1
+    title:
+      en: Pension evidence API
+    endpoint_url: https://pension-notary.lab.registrystack.org/evidence/v1
+    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+  - id: nagdi-notary-api
+    iri: https://nagdi-notary.lab.registrystack.org/evidence/v1
+    title:
+      en: NAgDI evidence API
+    endpoint_url: https://nagdi-notary.lab.registrystack.org/evidence/v1
+    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+datasets:
+  - id: cra-civil
+    title:
+      en: Civil registration
+    access_rights: restricted
+    entities:
+      - name: civil_person
+        title:
+          en: Civil person
+        identifiers:
+          - name: uin
+            kind: uin
+        fields:
+          - name: uin
+            type: string
+            required: false
+            concepts:
+              - ps:Person.identifier
+          - name: birth_brn
+            type: string
+            required: false
+            concepts:
+              - ps:crvs/Birth.registrationNumber
+          - name: death_drn
+            type: string
+            required: false
+            concepts:
+              - ps:crvs/Death.registrationNumber
+          - name: deceased
+            type: boolean
+            required: true
+    evidence_offerings:
+      - id: cra-birth-registration-offering
+        iri: https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration
+        title:
+          en: CRA birth registration evidence offering
+        evidence_type: birth-registration-evidence
+        issuing_authority:
+          id: cra
+          iri: did:web:id.registrystack.org:solmara:authority:cra
+          name: Civil Registration Authority
+          country: XS
+        entity: civil_person
+        lookup_keys:
+          - uin
+          - birth_brn
+        procedure_contexts:
+          - child-benefit-review
+        access:
+          kind: evidence-verification-api
+          conforms_to: https://spec.openapis.org/oas/v3.1.0
+          endpoint_url: https://child-benefit-notary.lab.registrystack.org/evidence/v1
+          discovery_url: https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service
+          ruleset: birth-is-registered
+        purposes:
+          - https://id.registrystack.org/solmara/purpose/child-benefit-review
+          - https://id.registrystack.org/solmara/purpose/citizen-self-service
+  - id: nia-population
+    title:
+      en: Population register
+    access_rights: restricted
+    entities:
+      - name: person
+  - id: sro-social
+    title:
+      en: Social registry
+    access_rights: restricted
+    entities:
+      - name: household
+  - id: mosd-programme
+    title:
+      en: Integrated beneficiary registry
+    access_rights: restricted
+    entities:
+      - name: enrollment
+  - id: sipf-pensions
+    title:
+      en: Pensions and social insurance
+    access_rights: restricted
+    entities:
+      - name: pension_case
+  - id: nagdi-agriculture
+    title:
+      en: Farmer and livestock registries
+    access_rights: restricted
+    entities:
+      - name: farmer_voucher
+      - name: livestock_movement
+evaluation_profiles:
+  - id: eligible-for-child-benefit
+    ruleset: eligible-for-child-benefit-v1
+    claim_id: eligible-for-child-benefit
+    subject_id_type: uin
+    max_source_observed_age_seconds: 86400
+  - id: survivor-benefit-eligibility
+    ruleset: survivor-benefit-eligibility-v1
+    claim_id: survivor-is-eligible
+    subject_id_type: uin
+    max_source_observed_age_seconds: 86400
+  - id: climate-smart-voucher-eligibility
+    ruleset: climate-smart-voucher-eligibility-v1
+    claim_id: eligible-for-climate-smart-input-voucher
+    subject_id_type: farmer_id
+    max_source_observed_age_seconds: 86400
+  - id: livestock-movement-permit
+    ruleset: livestock-movement-permit-v1
+    claim_id: eligible-for-livestock-movement-permit
+    subject_id_type: farmer_id
+    max_source_observed_age_seconds: 86400

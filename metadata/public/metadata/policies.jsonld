@@ -1,0 +1,182 @@
+{
+  "@graph": [
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "cra-birth-registration-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/cra-birth-registration-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "nia-population-population-status-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nia-population-population-status-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/nia-population-population-status-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "sro-social-household-poverty-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/sro-social-household-poverty-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/sro-social-household-poverty-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "mosd-programme-beneficiary-enrollment-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+                "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/mosd-programme-beneficiary-enrollment-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/mosd-programme-beneficiary-enrollment-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "sipf-pensions-pension-case-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pensions-pension-case-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/sipf-pensions-pension-case-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "nagdi-agriculture-farmer-voucher-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
+                "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-farmer-voucher-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/nagdi-agriculture-farmer-voucher-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "nagdi-agriculture-livestock-movement-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-livestock-movement-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/nagdi-agriculture-livestock-movement-offering-policy"
+    }
+  ]
+}

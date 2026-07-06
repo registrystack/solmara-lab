@@ -1,0 +1,59 @@
+{
+  "features": [
+    {
+      "geometry": null,
+      "id": "cra-civil",
+      "properties": {
+        "authority": "Civil Registration Authority",
+        "title": "Civil registration"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": null,
+      "id": "nia-population",
+      "properties": {
+        "authority": "National Identity Agency",
+        "title": "Population register"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": null,
+      "id": "sro-social",
+      "properties": {
+        "authority": "Social Registry Office",
+        "title": "Social registry"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": null,
+      "id": "mosd-programme",
+      "properties": {
+        "authority": "Ministry of Social Development Programme MIS",
+        "title": "Integrated beneficiary registry"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": null,
+      "id": "sipf-pensions",
+      "properties": {
+        "authority": "Social Insurance and Pensions Fund",
+        "title": "Pensions and social insurance"
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": null,
+      "id": "nagdi-agriculture",
+      "properties": {
+        "authority": "National Agricultural Data Institute",
+        "title": "Farmer and livestock registries"
+      },
+      "type": "Feature"
+    }
+  ],
+  "type": "FeatureCollection"
+}

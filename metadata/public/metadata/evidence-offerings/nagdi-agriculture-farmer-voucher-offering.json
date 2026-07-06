@@ -1,0 +1,42 @@
+{
+  "access": {
+    "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+    "discovery_url": "https://nagdi-notary.lab.registrystack.org/.well-known/evidence-service",
+    "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+    "kind": "evidence-verification-api"
+  },
+  "dataset": "nagdi-agriculture",
+  "description": "Purpose-limited evidence predicates from Farmer and livestock registries.",
+  "entity": "farmer_voucher",
+  "evidence_type": "farmer-voucher-evidence",
+  "id": "nagdi-agriculture-farmer-voucher-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-farmer-voucher-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "nagdi",
+    "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+    "name": "National Agricultural Data Institute",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "farmer_id"
+  ],
+  "policy": "nagdi-agriculture-farmer-voucher-offering-policy",
+  "public_services": [
+    "nagdi-voucher-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
+    "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
+    "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://publicschema.org/Farm"
+    ]
+  },
+  "title": "Farmer and livestock registries evidence offering"
+}

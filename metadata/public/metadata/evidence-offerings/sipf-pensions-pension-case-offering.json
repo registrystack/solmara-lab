@@ -1,0 +1,42 @@
+{
+  "access": {
+    "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+    "discovery_url": "https://pension-notary.lab.registrystack.org/.well-known/evidence-service",
+    "endpoint_url": "https://pension-notary.lab.registrystack.org/evidence/v1",
+    "kind": "evidence-verification-api"
+  },
+  "dataset": "sipf-pensions",
+  "description": "Purpose-limited evidence predicates from Pensions and social insurance.",
+  "entity": "pension_case",
+  "evidence_type": "pension-case-evidence",
+  "id": "sipf-pensions-pension-case-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pensions-pension-case-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "sipf",
+    "iri": "did:web:id.registrystack.org:solmara:authority:sipf",
+    "name": "Social Insurance and Pensions Fund",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "sipf-pensions-pension-case-offering-policy",
+  "public_services": [
+    "pension-survivor-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+    "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+    "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/semantics/pension-case"
+    ]
+  },
+  "title": "Pensions and social insurance evidence offering"
+}

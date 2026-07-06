@@ -3,13 +3,19 @@ publish_model: merged_multi_authority
 publisher:
   service: static-metadata
   manifest: metadata/solmara-wave1.metadata.yaml
-  output: metadata/public
+  site_root: metadata/public
+  output: metadata/public/metadata
   command:
     - registry-manifest-cli
     - publish
     - metadata/solmara-wave1.metadata.yaml
     - --out
+    - metadata/public/metadata
+    - --site-root
     - metadata/public
+  local_command:
+    - scripts/publish-metadata.py
+    - metadata/assembly.yaml
 application_profiles:
   - id: cpsv-ap
     version: 3.2.0

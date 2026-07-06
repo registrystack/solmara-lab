@@ -1,0 +1,299 @@
+{
+  "offerings": [
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api",
+        "ruleset": "birth-is-registered"
+      },
+      "dataset": "cra-civil",
+      "description": "Purpose-limited evidence predicates from Civil registration.",
+      "entity": "civil_person",
+      "evidence_type": "birth-registration-evidence",
+      "id": "cra-birth-registration-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "cra",
+        "iri": "did:web:id.registrystack.org:solmara:authority:cra",
+        "name": "Civil Registration Authority",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "uin",
+        "birth_brn"
+      ],
+      "policy": "cra-birth-registration-offering-policy",
+      "public_services": [
+        "child-benefit-review"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://publicschema.org/crvs/Birth",
+          "https://publicschema.org/crvs/Death"
+        ]
+      },
+      "title": "CRA birth registration evidence offering"
+    },
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api"
+      },
+      "dataset": "nia-population",
+      "description": "Purpose-limited evidence predicates from Population register.",
+      "entity": "person",
+      "evidence_type": "population-status-evidence",
+      "id": "nia-population-population-status-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/nia-population-population-status-offering",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "nia",
+        "iri": "did:web:id.registrystack.org:solmara:authority:nia",
+        "name": "National Identity Agency",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "uin"
+      ],
+      "policy": "nia-population-population-status-offering-policy",
+      "public_services": [
+        "child-benefit-review"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://publicschema.org/Person"
+        ]
+      },
+      "title": "Population register evidence offering"
+    },
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api"
+      },
+      "dataset": "sro-social",
+      "description": "Purpose-limited evidence predicates from Social registry.",
+      "entity": "household",
+      "evidence_type": "household-poverty-evidence",
+      "id": "sro-social-household-poverty-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/sro-social-household-poverty-offering",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "sro",
+        "iri": "did:web:id.registrystack.org:solmara:authority:sro",
+        "name": "Social Registry Office",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "uin"
+      ],
+      "policy": "sro-social-household-poverty-offering-policy",
+      "public_services": [
+        "child-benefit-review"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://publicschema.org/Household",
+          "https://publicschema.org/SocioEconomicProfile"
+        ]
+      },
+      "title": "Social registry evidence offering"
+    },
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api"
+      },
+      "dataset": "mosd-programme",
+      "description": "Purpose-limited evidence predicates from Integrated beneficiary registry.",
+      "entity": "enrollment",
+      "evidence_type": "beneficiary-enrollment-evidence",
+      "id": "mosd-programme-beneficiary-enrollment-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/mosd-programme-beneficiary-enrollment-offering",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "mosd-programme-mis",
+        "iri": "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis",
+        "name": "Ministry of Social Development Programme MIS",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "uin"
+      ],
+      "policy": "mosd-programme-beneficiary-enrollment-offering-policy",
+      "public_services": [
+        "child-benefit-review"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://publicschema.org/sp/Enrollment"
+        ]
+      },
+      "title": "Integrated beneficiary registry evidence offering"
+    },
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://pension-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://pension-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api"
+      },
+      "dataset": "sipf-pensions",
+      "description": "Purpose-limited evidence predicates from Pensions and social insurance.",
+      "entity": "pension_case",
+      "evidence_type": "pension-case-evidence",
+      "id": "sipf-pensions-pension-case-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pensions-pension-case-offering",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "sipf",
+        "iri": "did:web:id.registrystack.org:solmara:authority:sipf",
+        "name": "Social Insurance and Pensions Fund",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "uin"
+      ],
+      "policy": "sipf-pensions-pension-case-offering-policy",
+      "public_services": [
+        "pension-survivor-review"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://id.registrystack.org/solmara/semantics/pension-case"
+        ]
+      },
+      "title": "Pensions and social insurance evidence offering"
+    },
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://nagdi-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api"
+      },
+      "dataset": "nagdi-agriculture",
+      "description": "Purpose-limited evidence predicates from Farmer and livestock registries.",
+      "entity": "farmer_voucher",
+      "evidence_type": "farmer-voucher-evidence",
+      "id": "nagdi-agriculture-farmer-voucher-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-farmer-voucher-offering",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "nagdi",
+        "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+        "name": "National Agricultural Data Institute",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "farmer_id"
+      ],
+      "policy": "nagdi-agriculture-farmer-voucher-offering-policy",
+      "public_services": [
+        "nagdi-voucher-review"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
+        "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://publicschema.org/Farm"
+        ]
+      },
+      "title": "Farmer and livestock registries evidence offering"
+    },
+    {
+      "access": {
+        "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+        "discovery_url": "https://nagdi-notary.lab.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+        "kind": "evidence-verification-api"
+      },
+      "dataset": "nagdi-agriculture",
+      "description": "Livestock movement-control predicates for permit checks.",
+      "entity": "livestock_movement",
+      "evidence_type": "livestock-movement-evidence",
+      "id": "nagdi-agriculture-livestock-movement-offering",
+      "iri": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-livestock-movement-offering",
+      "issuing_authority": {
+        "authority_type": "eli:PublicAuthority",
+        "id": "nagdi",
+        "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+        "name": "National Agricultural Data Institute",
+        "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+      },
+      "lookup_keys": [
+        "farmer_id"
+      ],
+      "policy": "nagdi-agriculture-livestock-movement-offering-policy",
+      "public_services": [
+        "livestock-movement-control"
+      ],
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
+      ],
+      "semantics": {
+        "application_profiles": [
+          "cpsv-ap"
+        ],
+        "concepts": [
+          "https://publicschema.org/livestock-type"
+        ]
+      },
+      "title": "NAgDI livestock movement evidence offering"
+    }
+  ],
+  "schema_version": "registry-manifest-evidence-offerings/v1"
+}

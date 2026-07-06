@@ -1,4 +1,5 @@
 {
-  "schema": "registry-manifest/static-placeholder/v1",
-  "source": "metadata/solmara-wave1.metadata.yaml"
+  "catalog": "/metadata/catalog.json",
+  "index": "/metadata/index.json",
+  "schema_version": "registry-manifest-discovery/v1"
 }

@@ -1,0 +1,36 @@
+{
+  "@context": {
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "dct": "http://purl.org/dc/terms/"
+  },
+  "@id": "https://metadata.lab.registrystack.org/metadata/dcat.jsonld",
+  "@type": "dcat:Catalog",
+  "dcat:dataset": [
+    {
+      "@id": "https://id.registrystack.org/solmara/datasets/cra-civil",
+      "dct:title": "Civil registration"
+    },
+    {
+      "@id": "https://id.registrystack.org/solmara/datasets/nia-population",
+      "dct:title": "Population register"
+    },
+    {
+      "@id": "https://id.registrystack.org/solmara/datasets/sro-social",
+      "dct:title": "Social registry"
+    },
+    {
+      "@id": "https://id.registrystack.org/solmara/datasets/mosd-programme",
+      "dct:title": "Integrated beneficiary registry"
+    },
+    {
+      "@id": "https://id.registrystack.org/solmara/datasets/sipf-pensions",
+      "dct:title": "Pensions and social insurance"
+    },
+    {
+      "@id": "https://id.registrystack.org/solmara/datasets/nagdi-agriculture",
+      "dct:title": "Farmer and livestock registries"
+    }
+  ],
+  "dct:description": "One merged CPSV-AP metadata publish for Solmara Wave 1 registry and evidence services.",
+  "dct:title": "Solmara Lab Wave 1 Service Catalogue"
+}

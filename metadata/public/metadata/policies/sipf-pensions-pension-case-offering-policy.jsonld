@@ -1,0 +1,26 @@
+{
+  "@context": {
+    "odrl": "http://www.w3.org/ns/odrl/2/"
+  },
+  "id": "sipf-pensions-pension-case-offering-policy",
+  "permission": [
+    {
+      "action": "use",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ]
+        }
+      ]
+    }
+  ],
+  "profile": "https://www.w3.org/TR/odrl-model/",
+  "target": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pensions-pension-case-offering",
+  "type": "odrl:Set",
+  "uid": "https://id.registrystack.org/solmara/policies/sipf-pensions-pension-case-offering-policy"
+}

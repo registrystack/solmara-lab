@@ -1,0 +1,42 @@
+{
+  "access": {
+    "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+    "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
+    "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+    "kind": "evidence-verification-api"
+  },
+  "dataset": "sro-social",
+  "description": "Purpose-limited evidence predicates from Social registry.",
+  "entity": "household",
+  "evidence_type": "household-poverty-evidence",
+  "id": "sro-social-household-poverty-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/sro-social-household-poverty-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "sro",
+    "iri": "did:web:id.registrystack.org:solmara:authority:sro",
+    "name": "Social Registry Office",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "sro-social-household-poverty-offering-policy",
+  "public_services": [
+    "child-benefit-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+    "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://publicschema.org/Household",
+      "https://publicschema.org/SocioEconomicProfile"
+    ]
+  },
+  "title": "Social registry evidence offering"
+}

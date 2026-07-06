@@ -1,0 +1,141 @@
+{
+  "application_profiles": [
+    {
+      "id": "cpsv-ap",
+      "version": "3.2.0"
+    }
+  ],
+  "artifacts": [
+    {
+      "media_type": "application/json",
+      "path": "metadata/catalog.json",
+      "sha256": "sha256:e4c534dc307aadb37aab8f7dc02c5cb91982cdd785f09f3a143ce4b31bb0ed4b"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/cpsv-ap",
+      "sha256": "sha256:96e5a4bedd490cdb2d8d57b59275e39bb2fca00bb97c5190ff7e7089cef6b5c6"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/cpsv-ap.jsonld",
+      "sha256": "sha256:96e5a4bedd490cdb2d8d57b59275e39bb2fca00bb97c5190ff7e7089cef6b5c6"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/dcat.jsonld",
+      "sha256": "sha256:1a400373dc42a07c483e19c9c685b37b3735f7330f24349fc461e39349268e1e"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings.json",
+      "sha256": "sha256:9b5b75e6b4b05da9612e9a6be52c97332e7b34c3ca2d129257f2beeca526c4b3"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/cra-birth-registration-offering.json",
+      "sha256": "sha256:52227827b845b4f611e9ef8decf5e47aaf0d5b1430b031e8f0373b1d36279742"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/mosd-programme-beneficiary-enrollment-offering.json",
+      "sha256": "sha256:385893790d424644ea4cb4a75fe7d9104281502a74c16331183e191146863e68"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/nagdi-agriculture-farmer-voucher-offering.json",
+      "sha256": "sha256:05bcceb3e485e7cc53a34526ade0de0339914a2c2a5d51e01bd1c4895a4926f5"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/nagdi-agriculture-livestock-movement-offering.json",
+      "sha256": "sha256:cdbca6574e60d0d8c000a86e4598dc90205c965aa61c59c1261f3332ed171217"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/nia-population-population-status-offering.json",
+      "sha256": "sha256:81ab3c852be2072282e5bc02245bb0affe20a532ba3ef2d855307d5040a74f1b"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/sipf-pensions-pension-case-offering.json",
+      "sha256": "sha256:695f3d04518be19de290d48b48c540fb6c6ec57fdef59a62e73b7b5cd7edeb06"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/sro-social-household-poverty-offering.json",
+      "sha256": "sha256:5f5ff6e705435db5ebeef0b4b85b69a13aba7fde232a23d8e7cdb3a4926888a7"
+    },
+    {
+      "media_type": "application/yaml",
+      "path": "metadata/metadata.yaml",
+      "sha256": "sha256:64136a9e035608d396b70d2b1442051025f153710d84916977f01ec77a7c6a38"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/ogc-records/items.json",
+      "sha256": "sha256:aeb387ef3c8821b1e9cd1b40b1720c080cb59e686aefa2c3654493e28cda0d33"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies.jsonld",
+      "sha256": "sha256:a058bc0ff1c08bbbc33c0d9f71a733af97c6033d0608f5e3f29c298ca824752b"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/cra-birth-registration-offering-policy.jsonld",
+      "sha256": "sha256:401512532bfb0420068631c84e4fb6b560bdef55813aead1c69df6dbce83a3b6"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/mosd-programme-beneficiary-enrollment-offering-policy.jsonld",
+      "sha256": "sha256:980e23cd78f4244ffa6890d457587a95922be192af1435dbb7ca8a6858f86738"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/nagdi-agriculture-farmer-voucher-offering-policy.jsonld",
+      "sha256": "sha256:b5d867c55ebcbe152c02140db8d0778da7f0b054b65b16383b9ad7805de9842f"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/nagdi-agriculture-livestock-movement-offering-policy.jsonld",
+      "sha256": "sha256:6c3f849025434b9abc5be8644bfd29011bb519914b293e8f3445845ab53376ea"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/nia-population-population-status-offering-policy.jsonld",
+      "sha256": "sha256:aa78904780e72ef893dfae0ff1c9a00973c9d3f86cc4f00b88fc0a26f0ca87cf"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/sipf-pensions-pension-case-offering-policy.jsonld",
+      "sha256": "sha256:44b599e02d31f3ce6c4c4870a856c4fc750bac246a74b35a2af229ca893ab79f"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/sro-social-household-poverty-offering-policy.jsonld",
+      "sha256": "sha256:d1e5e57c8f8d17c4de77ac246dc1b9fdccad478f79821980cc918236c1d7f794"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/shacl.jsonld",
+      "sha256": "sha256:93ad63e11bdbbaf1359412c30d1f11ab3bf1654d11c75652bab4e6692c0376c3"
+    }
+  ],
+  "catalog": "/metadata/catalog.json",
+  "catalog_id": "solmara-wave1-multi-authority",
+  "dcat": "/metadata/dcat.jsonld",
+  "evidence_offerings": "/metadata/evidence-offerings.json",
+  "manifest": "/metadata/metadata.yaml",
+  "ogc_records_items": "/metadata/ogc-records/items.json",
+  "policies": "/metadata/policies.jsonld",
+  "schema_version": "registry-manifest-index/v1",
+  "service_catalogues": [
+    {
+      "id": "cpsv-ap",
+      "url": "/metadata/cpsv-ap.jsonld",
+      "version": "3.2.0"
+    }
+  ],
+  "shacl": "/metadata/shacl.jsonld"
+}

@@ -1,0 +1,44 @@
+{
+  "access": {
+    "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+    "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
+    "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+    "kind": "evidence-verification-api",
+    "ruleset": "birth-is-registered"
+  },
+  "dataset": "cra-civil",
+  "description": "Purpose-limited evidence predicates from Civil registration.",
+  "entity": "civil_person",
+  "evidence_type": "birth-registration-evidence",
+  "id": "cra-birth-registration-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "cra",
+    "iri": "did:web:id.registrystack.org:solmara:authority:cra",
+    "name": "Civil Registration Authority",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin",
+    "birth_brn"
+  ],
+  "policy": "cra-birth-registration-offering-policy",
+  "public_services": [
+    "child-benefit-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+    "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://publicschema.org/crvs/Birth",
+      "https://publicschema.org/crvs/Death"
+    ]
+  },
+  "title": "CRA birth registration evidence offering"
+}

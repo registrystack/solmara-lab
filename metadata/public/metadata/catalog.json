@@ -1,0 +1,651 @@
+{
+  "application_profiles": [
+    {
+      "id": "cpsv-ap",
+      "version": "3.2.0"
+    }
+  ],
+  "authorities": [
+    {
+      "authority_type": "eli:PublicAuthority",
+      "id": "cra",
+      "iri": "did:web:id.registrystack.org:solmara:authority:cra",
+      "name": "Civil Registration Authority",
+      "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+    },
+    {
+      "authority_type": "eli:PublicAuthority",
+      "id": "nia",
+      "iri": "did:web:id.registrystack.org:solmara:authority:nia",
+      "name": "National Identity Agency",
+      "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+    },
+    {
+      "authority_type": "eli:PublicAuthority",
+      "id": "sro",
+      "iri": "did:web:id.registrystack.org:solmara:authority:sro",
+      "name": "Social Registry Office",
+      "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+    },
+    {
+      "authority_type": "eli:PublicAuthority",
+      "id": "mosd-programme-mis",
+      "iri": "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis",
+      "name": "Ministry of Social Development Programme MIS",
+      "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+    },
+    {
+      "authority_type": "eli:PublicAuthority",
+      "id": "sipf",
+      "iri": "did:web:id.registrystack.org:solmara:authority:sipf",
+      "name": "Social Insurance and Pensions Fund",
+      "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+    },
+    {
+      "authority_type": "eli:PublicAuthority",
+      "id": "nagdi",
+      "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+      "name": "National Agricultural Data Institute",
+      "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+    }
+  ],
+  "data_services": [
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+      "id": "child-benefit-notary-api",
+      "iri": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+      "title": {
+        "en": "Child benefit evidence API"
+      }
+    },
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://pension-notary.lab.registrystack.org/evidence/v1",
+      "id": "pension-notary-api",
+      "iri": "https://pension-notary.lab.registrystack.org/evidence/v1",
+      "title": {
+        "en": "Pension evidence API"
+      }
+    },
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+      "id": "nagdi-notary-api",
+      "iri": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+      "title": {
+        "en": "NAgDI evidence API"
+      }
+    }
+  ],
+  "datasets": [
+    {
+      "access_rights": "restricted",
+      "application_profiles": [
+        {
+          "id": "cpsv-ap",
+          "version": "3.2.0"
+        }
+      ],
+      "authority": {
+        "id": "cra",
+        "iri": "did:web:id.registrystack.org:solmara:authority:cra",
+        "name": "Civil Registration Authority"
+      },
+      "description": "Cra civil published metadata.",
+      "entities": [
+        {
+          "description": "Civil person entity metadata.",
+          "fields": [
+            {
+              "concepts": [
+                "ps:Person.identifier"
+              ],
+              "name": "uin",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "concepts": [
+                "ps:crvs/Birth.registrationNumber"
+              ],
+              "name": "birth_brn",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "concepts": [
+                "ps:crvs/Death.registrationNumber"
+              ],
+              "name": "death_drn",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "deceased",
+              "required": true,
+              "type": "boolean"
+            }
+          ],
+          "identifiers": [
+            {
+              "kind": "uin",
+              "name": "uin"
+            }
+          ],
+          "name": "civil_person",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+            "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "ps:Person.identifier",
+              "ps:crvs/Birth.registrationNumber",
+              "ps:crvs/Death.registrationNumber"
+            ]
+          },
+          "title": "Civil person"
+        }
+      ],
+      "id": "cra-civil",
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "title": "Civil registration"
+    },
+    {
+      "access_rights": "restricted",
+      "application_profiles": [
+        {
+          "id": "cpsv-ap",
+          "version": "3.2.0"
+        }
+      ],
+      "authority": {
+        "id": "nia",
+        "iri": "did:web:id.registrystack.org:solmara:authority:nia",
+        "name": "National Identity Agency"
+      },
+      "description": "Nia population published metadata.",
+      "entities": [
+        {
+          "description": "Person entity metadata.",
+          "fields": [],
+          "identifiers": [],
+          "name": "person",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "https://publicschema.org/Person"
+            ]
+          },
+          "title": "Person"
+        }
+      ],
+      "id": "nia-population",
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "title": "Population register"
+    },
+    {
+      "access_rights": "restricted",
+      "application_profiles": [
+        {
+          "id": "cpsv-ap",
+          "version": "3.2.0"
+        }
+      ],
+      "authority": {
+        "id": "sro",
+        "iri": "did:web:id.registrystack.org:solmara:authority:sro",
+        "name": "Social Registry Office"
+      },
+      "description": "Sro social published metadata.",
+      "entities": [
+        {
+          "description": "Household entity metadata.",
+          "fields": [],
+          "identifiers": [],
+          "name": "household",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "https://publicschema.org/Household",
+              "https://publicschema.org/SocioEconomicProfile"
+            ]
+          },
+          "title": "Household"
+        }
+      ],
+      "id": "sro-social",
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "title": "Social registry"
+    },
+    {
+      "access_rights": "restricted",
+      "application_profiles": [
+        {
+          "id": "cpsv-ap",
+          "version": "3.2.0"
+        }
+      ],
+      "authority": {
+        "id": "mosd-programme-mis",
+        "iri": "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis",
+        "name": "Ministry of Social Development Programme MIS"
+      },
+      "description": "Mosd programme published metadata.",
+      "entities": [
+        {
+          "description": "Enrollment entity metadata.",
+          "fields": [],
+          "identifiers": [],
+          "name": "enrollment",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+            "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "https://publicschema.org/sp/Enrollment"
+            ]
+          },
+          "title": "Enrollment"
+        }
+      ],
+      "id": "mosd-programme",
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
+        "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "title": "Integrated beneficiary registry"
+    },
+    {
+      "access_rights": "restricted",
+      "application_profiles": [
+        {
+          "id": "cpsv-ap",
+          "version": "3.2.0"
+        }
+      ],
+      "authority": {
+        "id": "sipf",
+        "iri": "did:web:id.registrystack.org:solmara:authority:sipf",
+        "name": "Social Insurance and Pensions Fund"
+      },
+      "description": "Sipf pensions published metadata.",
+      "entities": [
+        {
+          "description": "Pension case entity metadata.",
+          "fields": [],
+          "identifiers": [],
+          "name": "pension_case",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "https://id.registrystack.org/solmara/semantics/pension-case"
+            ]
+          },
+          "title": "Pension case"
+        }
+      ],
+      "id": "sipf-pensions",
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "title": "Pensions and social insurance"
+    },
+    {
+      "access_rights": "restricted",
+      "application_profiles": [
+        {
+          "id": "cpsv-ap",
+          "version": "3.2.0"
+        }
+      ],
+      "authority": {
+        "id": "nagdi",
+        "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+        "name": "National Agricultural Data Institute"
+      },
+      "description": "Nagdi agriculture published metadata.",
+      "entities": [
+        {
+          "description": "Farmer voucher entity metadata.",
+          "fields": [],
+          "identifiers": [],
+          "name": "farmer_voucher",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
+            "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "https://publicschema.org/Farm"
+            ]
+          },
+          "title": "Farmer voucher"
+        },
+        {
+          "description": "Livestock movement entity metadata.",
+          "fields": [],
+          "identifiers": [],
+          "name": "livestock_movement",
+          "purposes": [
+            "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
+            "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
+            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+          ],
+          "semantics": {
+            "application_profiles": [
+              "cpsv-ap"
+            ],
+            "concepts": [
+              "https://publicschema.org/Farm"
+            ]
+          },
+          "title": "Livestock movement"
+        }
+      ],
+      "id": "nagdi-agriculture",
+      "purposes": [
+        "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
+        "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
+        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+      ],
+      "title": "Farmer and livestock registries"
+    }
+  ],
+  "description": "One merged CPSV-AP metadata publish for Solmara Wave 1 registry and evidence services.",
+  "evidence_types": [
+    {
+      "id": "birth-registration-evidence",
+      "information_concepts": [
+        "ps:crvs/Birth"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/birth-registration",
+      "proves": [
+        "child-benefit-review-requirement"
+      ],
+      "title": {
+        "en": "Birth registration evidence"
+      }
+    },
+    {
+      "id": "population-status-evidence",
+      "information_concepts": [
+        "ps:Person"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/population-status",
+      "proves": [
+        "child-benefit-review-requirement"
+      ],
+      "title": {
+        "en": "Population status evidence"
+      }
+    },
+    {
+      "id": "household-poverty-evidence",
+      "information_concepts": [
+        "ps:Household",
+        "ps:SocioEconomicProfile"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/household-poverty",
+      "proves": [
+        "child-benefit-review-requirement"
+      ],
+      "title": {
+        "en": "Household poverty evidence"
+      }
+    },
+    {
+      "id": "beneficiary-enrollment-evidence",
+      "information_concepts": [
+        "ps:sp/Enrollment"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/beneficiary-enrollment",
+      "proves": [
+        "child-benefit-review-requirement"
+      ],
+      "title": {
+        "en": "Beneficiary enrollment evidence"
+      }
+    },
+    {
+      "id": "death-registration-evidence",
+      "information_concepts": [
+        "ps:crvs/Death"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/death-registration",
+      "proves": [
+        "pension-survivor-review-requirement"
+      ],
+      "title": {
+        "en": "Death registration evidence"
+      }
+    },
+    {
+      "id": "pension-case-evidence",
+      "iri": "https://id.registrystack.org/solmara/evidence-types/pension-case",
+      "proves": [
+        "pension-survivor-review-requirement"
+      ],
+      "title": {
+        "en": "Pension case evidence"
+      }
+    },
+    {
+      "id": "farmer-voucher-evidence",
+      "information_concepts": [
+        "ps:Farm"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/farmer-voucher",
+      "proves": [
+        "nagdi-voucher-requirement"
+      ],
+      "title": {
+        "en": "Farmer voucher evidence"
+      }
+    },
+    {
+      "id": "livestock-movement-evidence",
+      "iri": "https://id.registrystack.org/solmara/evidence-types/livestock-movement",
+      "proves": [
+        "livestock-movement-requirement"
+      ],
+      "title": {
+        "en": "Livestock movement evidence"
+      }
+    }
+  ],
+  "gray_registries": [
+    {
+      "id": "land-cadastre",
+      "owner": "Ministry of Lands and Survey",
+      "title": "Land registry and cadastre",
+      "wave": 2
+    },
+    {
+      "id": "taxpayer",
+      "owner": "Solmara Revenue Authority",
+      "title": "Taxpayer registry",
+      "wave": 2
+    },
+    {
+      "id": "business",
+      "owner": "Solmara Business Registration Service",
+      "title": "Business registry",
+      "wave": 2
+    },
+    {
+      "id": "beneficial-ownership",
+      "owner": "Solmara Business Registration Service",
+      "title": "Beneficial ownership register",
+      "wave": 2
+    },
+    {
+      "id": "disability",
+      "owner": "Disability Assessment Board",
+      "title": "Disability registry",
+      "wave": 3
+    },
+    {
+      "id": "education",
+      "owner": "Ministry of Education",
+      "title": "Education learner registry",
+      "wave": 3
+    },
+    {
+      "id": "health-facilities",
+      "owner": "Ministry of Health",
+      "title": "Health facility registry",
+      "wave": 3
+    },
+    {
+      "id": "patient-immunization",
+      "owner": "Ministry of Health",
+      "title": "Patient and immunization registry",
+      "wave": null
+    },
+    {
+      "id": "transport-licences",
+      "owner": "Ministry of Transport",
+      "title": "Vehicle and driving licence registry",
+      "wave": null
+    },
+    {
+      "id": "customs-traders",
+      "owner": "Customs Service",
+      "title": "Customs trader registry",
+      "wave": null
+    }
+  ],
+  "id": "solmara-wave1-multi-authority",
+  "public_services": [
+    {
+      "competent_authority": "mosd-programme-mis",
+      "data_services": [
+        "child-benefit-notary-api"
+      ],
+      "description": {
+        "en": "MoSD review of child benefit eligibility using minimized registry evidence."
+      },
+      "holds_requirements": [
+        "child-benefit-review-requirement"
+      ],
+      "id": "child-benefit-review",
+      "iri": "https://id.registrystack.org/solmara/services/child-benefit-review",
+      "jurisdiction": "https://id.registrystack.org/solmara/jurisdiction/XS",
+      "title": {
+        "en": "Child benefit eligibility review"
+      }
+    },
+    {
+      "competent_authority": "sipf",
+      "data_services": [
+        "pension-notary-api"
+      ],
+      "description": {
+        "en": "SIPF review for pension payment stop and survivor benefit eligibility."
+      },
+      "holds_requirements": [
+        "pension-survivor-review-requirement"
+      ],
+      "id": "pension-survivor-review",
+      "iri": "https://id.registrystack.org/solmara/services/pension-survivor-review",
+      "jurisdiction": "https://id.registrystack.org/solmara/jurisdiction/XS",
+      "title": {
+        "en": "Pension stop and survivor benefit review"
+      }
+    },
+    {
+      "competent_authority": "nagdi",
+      "data_services": [
+        "nagdi-notary-api"
+      ],
+      "description": {
+        "en": "NAgDI review of farmer eligibility for climate-smart input support."
+      },
+      "holds_requirements": [
+        "nagdi-voucher-requirement"
+      ],
+      "id": "nagdi-voucher-review",
+      "iri": "https://id.registrystack.org/solmara/services/nagdi-voucher-review",
+      "jurisdiction": "https://id.registrystack.org/solmara/jurisdiction/XS",
+      "title": {
+        "en": "Farmer climate-smart voucher review"
+      }
+    },
+    {
+      "competent_authority": "nagdi",
+      "data_services": [
+        "nagdi-notary-api"
+      ],
+      "description": {
+        "en": "NAgDI review of livestock movement permit eligibility and quarantine controls."
+      },
+      "holds_requirements": [
+        "livestock-movement-requirement"
+      ],
+      "id": "livestock-movement-control",
+      "iri": "https://id.registrystack.org/solmara/services/livestock-movement-control",
+      "jurisdiction": "https://id.registrystack.org/solmara/jurisdiction/XS",
+      "title": {
+        "en": "Livestock movement control"
+      }
+    }
+  ],
+  "publisher": {
+    "authority_type": "eli:PublicAuthority",
+    "iri": "did:web:id.registrystack.org:solmara:authority:metadata",
+    "name": "Solmara Interoperability Metadata Publisher"
+  },
+  "schema_version": "registry-manifest-catalog/v1",
+  "title": "Solmara Lab Wave 1 Service Catalogue"
+}
