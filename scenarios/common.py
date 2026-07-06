@@ -251,6 +251,26 @@ def first_evaluation_id(body: Any) -> str | None:
     return None
 
 
+def sd_jwt_vct(credential: Any) -> str | None:
+    """Read the `vct` claim from a compact SD-JWT.
+
+    The issuance response body carries no top-level vct; it only exists inside
+    the signed payload, so decode it here for display. Returns None when the
+    credential is absent or not decodable.
+    """
+    if not isinstance(credential, str):
+        return None
+    segments = credential.split("~")[0].split(".")
+    if len(segments) != 3:
+        return None
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(segments[1] + "=" * (-len(segments[1]) % 4)))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    vct = payload.get("vct") if isinstance(payload, dict) else None
+    return vct if isinstance(vct, str) else None
+
+
 def credential_summary(profile: str, holder_id: str, result: StepHttpResult) -> dict[str, Any]:
     body = result.body if isinstance(result.body, dict) else {}
     if result.status and 200 <= result.status < 300:
@@ -261,6 +281,7 @@ def credential_summary(profile: str, holder_id: str, result: StepHttpResult) -> 
             "status": "issued",
             "profile": body.get("credential_profile", profile),
             "format": body.get("format", SD_JWT_VC_FORMAT),
+            "vct": sd_jwt_vct(credential),
             "issuer": body.get("issuer"),
             "credential_id": body.get("credential_id"),
             "expires_at": body.get("expires_at"),

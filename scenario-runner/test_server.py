@@ -329,6 +329,41 @@ class StdlibOnlyImportTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+class CredentialSummaryVctTest(unittest.TestCase):
+    VCT = "https://id.registrystack.org/solmara/vct/child-benefit-enrollment-eligibility"
+
+    @staticmethod
+    def compact_sd_jwt(payload: dict[str, Any]) -> str:
+        def b64url(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+        header = b64url(json.dumps({"alg": "EdDSA", "typ": "dc+sd-jwt"}).encode())
+        body = b64url(json.dumps(payload).encode())
+        return f"{header}.{body}.fake-signature~ZmFrZS1kaXNjbG9zdXJl~"
+
+    def test_issued_summary_extracts_vct_from_sd_jwt_payload(self) -> None:
+        body = {
+            "credential": self.compact_sd_jwt({"vct": self.VCT, "iss": "did:web:child-benefit-notary"}),
+            "credential_profile": "child_benefit_eligibility_sd_jwt",
+            "disclosures": ["a", "b"],
+        }
+        summary = common.credential_summary("profile", "did:jwk:x", StepHttpResult(200, body, {}))
+        self.assertEqual(summary["status"], "issued")
+        self.assertEqual(summary["vct"], self.VCT)
+
+    def test_issued_summary_without_decodable_credential_has_no_vct(self) -> None:
+        body = {"credential": "not-a-jwt", "disclosures": []}
+        summary = common.credential_summary("profile", "did:jwk:x", StepHttpResult(200, body, {}))
+        self.assertEqual(summary["status"], "issued")
+        self.assertIsNone(summary["vct"])
+
+    def test_issued_summary_with_undecodable_payload_has_no_vct(self) -> None:
+        body = {"credential": "eyJhbGciOiJFZERTQSJ9.%%%not-base64%%%.sig", "disclosures": []}
+        summary = common.credential_summary("profile", "did:jwk:x", StepHttpResult(200, body, {}))
+        self.assertEqual(summary["status"], "issued")
+        self.assertIsNone(summary["vct"])
+
+
 class FriendlyResultTest(unittest.TestCase):
     COPY = {
         "positive": {

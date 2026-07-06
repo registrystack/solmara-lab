@@ -71,6 +71,9 @@
   }
 
   function credentialVct(result: StepRunResult | null): string | null {
+    if (typeof result?.credential?.vct === 'string') {
+      return result.credential.vct;
+    }
     const body = result?.credential_response_source?.body;
     if (body && typeof body === 'object' && typeof (body as { vct?: unknown }).vct === 'string') {
       return (body as { vct: string }).vct;

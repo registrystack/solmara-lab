@@ -161,6 +161,10 @@ test('story page: stepper runs an evaluate step and a purpose-denial step with a
   await page.locator('#positive').getByRole('button', { name: 'Evaluate' }).click();
   await expect(page.locator('#positive .step-result')).toBeVisible({ timeout: 30_000 });
 
+  // The credential moment renders the real issuance, including the vct decoded from the SD-JWT payload.
+  await expect(page.locator('#credential .inspector')).toContainText('Issued', { timeout: 30_000 });
+  await expect(page.locator('#credential .inspector')).toContainText('/solmara/vct/child-benefit-enrollment-eligibility');
+
   // The purpose-denial step is first-class and renders the stable problem code linked to /problem-codes.
   await page.locator('#purpose-denial').getByRole('button', { name: 'Try denial' }).click();
   const denialLink = page.locator('#purpose-denial .problem a[href^="/problem-codes"]');

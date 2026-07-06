@@ -146,6 +146,7 @@ export type CredentialSummary = {
   status: 'issued' | 'not_issued' | 'not_attempted';
   profile: string;
   format: string;
+  vct?: string | null;
   issuer?: string | null;
   credential_id?: string | null;
   expires_at?: string | null;
