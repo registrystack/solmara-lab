@@ -108,6 +108,93 @@ services:
     volumes:
       - ./metadata/public:/srv/static:ro
 
+  scenario-runner:
+    build:
+      context: .
+      dockerfile: scenario-runner/Dockerfile
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:-solmara-lab-scenario-runner:local}
+    environment:
+      SCENARIO_RUNNER_HOST: 0.0.0.0
+      SCENARIO_RUNNER_PORT: 8080
+      SOLMARA_LAB_MODE: local
+      CHILD_BENEFIT_NOTARY_URL: http://child-benefit-notary:8080
+      CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
+      PENSION_NOTARY_URL: http://pension-notary:8080
+      PENSION_NOTARY_TOKEN: ${PENSION_NOTARY_TOKEN}
+      NAGDI_NOTARY_URL: http://nagdi-notary:8080
+      NAGDI_NOTARY_TOKEN: ${NAGDI_NOTARY_TOKEN}
+      PORTAL_CITIZEN_NOTARY_URL: http://citizen-notary:8080
+      PORTAL_CITIZEN_NOTARY_TOKEN: ${PORTAL_CITIZEN_NOTARY_TOKEN}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      child-benefit-notary:
+        condition: service_healthy
+      pension-notary:
+        condition: service_healthy
+      nagdi-notary:
+        condition: service_healthy
+      citizen-notary:
+        condition: service_healthy
+
+  home:
+    build:
+      context: .
+      dockerfile: home/Dockerfile
+    image: ${SOLMARA_HOME_IMAGE:-solmara-lab-home:local}
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4301
+      SOLMARA_LAB_ROOT: /app
+      REPO_URL: ${REPO_URL:-https://github.com/registrystack/solmara-lab}
+      PORTAL_URL: http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}
+      SCENARIO_RUNNER_URL: http://scenario-runner:8080
+      STATIC_METADATA_URL: http://static-metadata:8080
+      # Compose-internal probe URLs for the trust-strip status grid. The home
+      # container is on the same network, so it can probe every service directly.
+      PORTAL_PROBE_URL: http://portal:4000
+      CRA_CIVIL_RELAY_URL: http://cra-civil-relay:8080
+      NIA_POPULATION_RELAY_URL: http://nia-population-relay:8080
+      SRO_SOCIAL_RELAY_URL: http://sro-social-relay:8080
+      PROGRAMME_MIS_RELAY_URL: http://programme-mis-relay:8080
+      SIPF_PENSIONS_RELAY_URL: http://sipf-pensions-relay:8080
+      NAGDI_AGRICULTURE_RELAY_URL: http://nagdi-agriculture-relay:8080
+      CHILD_BENEFIT_NOTARY_URL: http://child-benefit-notary:8080
+      PENSION_NOTARY_URL: http://pension-notary:8080
+      NAGDI_NOTARY_URL: http://nagdi-notary:8080
+      PORTAL_CITIZEN_NOTARY_URL: http://citizen-notary:8080
+      # Deliberate server-side allowlist of synthetic demo tokens the engineer
+      # door publishes. Only names listed here are ever rendered; the values are
+      # the same synthetic notary tokens the scenarios use. Never add a token
+      # that is not meant to be public.
+      HOME_PUBLISHED_TOKENS: >-
+        {"child-benefit-notary":"${CHILD_BENEFIT_NOTARY_TOKEN}",
+        "pension-notary":"${PENSION_NOTARY_TOKEN}",
+        "nagdi-notary":"${NAGDI_NOTARY_TOKEN}",
+        "citizen-notary":"${PORTAL_CITIZEN_NOTARY_TOKEN}"}
+    ports:
+      - "${SOLMARA_HOME_PORT:-4301}:4301"
+    volumes:
+      # Read-only mounts so the trust strip can read live smoke evidence written
+      # by `just smoke` on the host and the generated data-seed manifest. The
+      # image bakes a snapshot of the seed; these keep it current and expose the
+      # smoke artifacts that the image cannot contain.
+      - ./output/smoke:/app/output/smoke:ro
+      - ./generator/output:/app/generator/output:ro
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4301/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      static-metadata:
+        condition: service_started
+      scenario-runner:
+        condition: service_healthy
+
   cra-civil-relay:
     <<: *relay-common
     command: ["--config", "/etc/registry-relay/relay.yaml"]
@@ -360,6 +447,8 @@ services:
       PORTAL_AGRI_RELAY_URL: http://nagdi-agriculture-relay:8080
       PORTAL_CERTS_RELAY_URL: http://cra-civil-relay:8080
       PORTAL_RELAY_TOKEN: ${PORTAL_RELAY_TOKEN}
+      SCENARIO_RUNNER_URL: http://scenario-runner:8080
+      STATIC_METADATA_URL: http://static-metadata:8080
     ports:
       - "${SOLMARA_PORTAL_PORT:-4300}:4000"
     healthcheck:
@@ -375,6 +464,8 @@ services:
       nagdi-notary:
         condition: service_healthy
       citizen-notary:
+        condition: service_healthy
+      scenario-runner:
         condition: service_healthy
 
 volumes:

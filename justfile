@@ -6,8 +6,10 @@ default:
 
 # Install local development dependencies when subprojects define them.
 setup:
+    @if [ -f pyproject.toml ]; then uv sync; fi
     @if [ -f generator/pyproject.toml ]; then cd generator && uv sync; fi
     @if [ -f portal/package.json ]; then cd portal && pnpm install --frozen-lockfile; fi
+    @if [ -f home/package.json ]; then cd home && pnpm install --frozen-lockfile; fi
 
 # Generate deterministic fixtures and local secrets.
 generate:
@@ -18,17 +20,35 @@ generate:
 gen-secrets:
     scripts/gen-secrets.py
 
+# Publish the static metadata bundle served by static-metadata.
+metadata-publish:
+    @if command -v registry-manifest-cli >/dev/null 2>&1; then registry-manifest-cli publish metadata/solmara-wave1.metadata.yaml --out metadata/public/metadata --site-root metadata/public; fi
+    uv run scripts/publish-metadata.py
+
+# Check that the committed static metadata bundle is up to date.
+metadata-publish-check:
+    uv run scripts/publish-metadata.py --check
+
+# Lint the published metadata bundle.
+metadata-lint:
+    uv run scripts/metadata-lint.py
+
 # Static repository checks.
 lint:
     scripts/check-fiction.sh
     scripts/check-image-pins.py
     scripts/check-config-secrets.py
+    just metadata-publish-check
+    just metadata-lint
     @if [ -f portal/package.json ]; then cd portal && pnpm check; fi
+    @if [ -f home/package.json ]; then cd home && pnpm check; fi
 
 # Unit and integration tests that can run without a full Compose stack.
 test:
     @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m unittest discover -s tests; fi
+    python3 -m unittest discover -s scenario-runner -p 'test_*.py'
     @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
+    @if [ -f home/package.json ]; then cd home && pnpm test; fi
     python3 -m unittest discover -s scripts -p 'test_*.py'
 
 # Validate Compose files without starting services.
@@ -63,6 +83,10 @@ portal-compose-smoke:
 # Run browser e2e against the live local topology.
 portal-live-e2e:
     @cd portal && PORT="${PORT:-4001}" PORTAL_PROVIDER=live pnpm e2e
+
+# Run browser e2e against the Visitor's Center.
+home-live-e2e:
+    @cd home && SOLMARA_HOME_E2E_MODE=live PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_HOME_PORT:-4301}" pnpm e2e
 
 # Verify pinned Registry Stack images match a published release tag.
 release-pins tag="v0.8.4":

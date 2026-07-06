@@ -30,9 +30,13 @@ jobs:
       - name: Setup
         run: just setup
       - name: Install Playwright browser
-        run: cd portal && pnpm exec playwright install --with-deps chromium
+        run: |
+          cd portal && pnpm exec playwright install --with-deps chromium
+          cd ../home && pnpm exec playwright install chromium
       - name: Generate fixtures and secrets
-        run: just generate
+        run: |
+          just generate
+          just metadata-publish
       - name: Validate
         run: |
           just release-pins v0.8.4
@@ -45,6 +49,8 @@ jobs:
         run: just smoke
       - name: Portal live e2e
         run: just portal-live-e2e
+      - name: Visitor center e2e
+        run: just home-live-e2e
       - name: Stop stack
         if: always()
         run: just down

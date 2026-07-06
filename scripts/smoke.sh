@@ -12,6 +12,7 @@ if [ "${SOLMARA_SMOKE_LIVE:-1}" != "0" ]; then
   ran=1
   "$root/scripts/smoke-relay-sources.py"
   "$root/scripts/smoke-live.py"
+  "$root/scripts/smoke-published-tokens.py"
   "$root/scripts/smoke-portal-compose.py"
 fi
 

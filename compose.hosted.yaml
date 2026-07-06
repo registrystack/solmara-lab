@@ -5,6 +5,33 @@ services:
     labels:
       solmara.lab.host: metadata.lab.registrystack.org
 
+  scenario-runner:
+    profiles: []
+    labels:
+      solmara.lab.visibility: internal
+
+  home:
+    profiles: []
+    environment:
+      PORTAL_URL: https://portal.lab.registrystack.org
+      # Rewrites the compose-internal URLs the scenario runner reports into the
+      # host-reachable *.lab.registrystack.org URLs shown in previews and curls.
+      SOLMARA_PUBLIC_URL_MAP: >-
+        {"child-benefit-notary:8080":"https://child-benefit-notary.lab.registrystack.org",
+        "pension-notary:8080":"https://pension-notary.lab.registrystack.org",
+        "nagdi-notary:8080":"https://nagdi-notary.lab.registrystack.org",
+        "citizen-notary:8080":"https://citizen-notary.lab.registrystack.org",
+        "cra-civil-relay:8080":"https://cra-relay.lab.registrystack.org",
+        "nia-population-relay:8080":"https://nia-relay.lab.registrystack.org",
+        "sro-social-relay:8080":"https://sro-relay.lab.registrystack.org",
+        "programme-mis-relay:8080":"https://mosd-programme-relay.lab.registrystack.org",
+        "sipf-pensions-relay:8080":"https://sipf-relay.lab.registrystack.org",
+        "nagdi-agriculture-relay:8080":"https://nagdi-relay.lab.registrystack.org",
+        "static-metadata:8080":"https://metadata.lab.registrystack.org",
+        "portal:4000":"https://portal.lab.registrystack.org"}
+    labels:
+      solmara.lab.host: lab.registrystack.org
+
   cra-civil-relay:
     labels:
       solmara.lab.host: cra-relay.lab.registrystack.org

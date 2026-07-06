@@ -24,6 +24,8 @@ jobs:
         run: corepack enable
       - name: Setup
         run: just setup
+      - name: Publish metadata
+        run: just metadata-publish
       - name: Lint
         run: just lint
       - name: Test

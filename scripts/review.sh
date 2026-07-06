@@ -7,6 +7,8 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "$root/scripts/check-image-pins.py"
 "$root/scripts/check-release-pins.py" v0.8.4
 "$root/scripts/check-config-secrets.py"
+uv run --project "$root" "$root/scripts/publish-metadata.py" --check
+uv run --project "$root" "$root/scripts/metadata-lint.py"
 
 if grep -RIn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=ssl \
   -E "(BEGIN (RSA|OPENSSH|EC|PRIVATE) KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9_]{20,})" "$root"; then
