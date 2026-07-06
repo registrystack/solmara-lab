@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Solmara Visitor's Center">
+  <rect width="32" height="32" rx="7" fill="#006c67" />
+  <circle cx="14" cy="14" r="7" fill="none" stroke="#d9f2e8" stroke-width="2.6" />
+  <line x1="19" y1="19" x2="25" y2="25" stroke="#d9f2e8" stroke-width="2.6" stroke-linecap="round" />
+</svg>
