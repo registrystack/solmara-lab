@@ -11,7 +11,7 @@ post {
 }
 
 headers {
-  Authorization: Bearer {{PENSION_NOTARY_TOKEN}}
+  x-api-key: {{PENSION_NOTARY_TOKEN}}
   Data-Purpose: {{survivor_benefit_purpose}}
   Accept: application/vnd.registry-notary.claim-result+json
 }
@@ -30,7 +30,7 @@ body:json {
     "claims": [
       "survivor-is-eligible"
     ],
-    "disclosure": "decision",
+    "disclosure": "predicate",
     "format": "application/vnd.registry-notary.claim-result+json"
   }
 }

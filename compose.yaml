@@ -1,5 +1,3 @@
-name: solmara-lab
-
 x-relay-environment: &relay-environment
   RUST_LOG: ${RUST_LOG:-info}
   # Required-variable guard: any compose invocation that skips .env (for

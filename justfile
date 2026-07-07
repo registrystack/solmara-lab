@@ -1,6 +1,8 @@
 set dotenv-load := true
 set positional-arguments := true
 
+compose_project_name := `python3 scripts/compose_project_name.py`
+
 default:
     @just --list
 
@@ -54,16 +56,20 @@ test:
 # Validate Compose files without starting services.
 compose:
     @if [ ! -f .env ]; then echo ".env is missing; run 'just gen-secrets' first" >&2; exit 1; fi
-    @if [ -f compose.yaml ]; then docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null; fi
-    @if [ -f compose.hosted.yaml ]; then docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
+    @if [ -f compose.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null; fi
+    @if [ -f compose.hosted.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
 
 # Start the local topology.
 up:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; docker compose $env_args -f compose.yaml up -d --build
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
 
-# Stop the local topology and remove local volumes.
+# Stop the local topology without removing local volumes.
 down:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; docker compose $env_args -f compose.yaml down -v
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml down
+
+# Stop the local topology and remove this checkout's local volumes.
+reset:
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml down -v
 
 # Run story and federation smokes against the running local topology.
 smoke:

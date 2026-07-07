@@ -11,7 +11,7 @@ post {
 }
 
 headers {
-  Authorization: Bearer {{NAGDI_NOTARY_TOKEN}}
+  x-api-key: {{NAGDI_NOTARY_TOKEN}}
   Data-Purpose: {{livestock_purpose}}
   Accept: application/vnd.registry-notary.claim-result+json
 }
@@ -30,7 +30,7 @@ body:json {
     "claims": [
       "eligible-for-livestock-movement-permit"
     ],
-    "disclosure": "decision",
+    "disclosure": "predicate",
     "format": "application/vnd.registry-notary.claim-result+json"
   }
 }

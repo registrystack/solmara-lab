@@ -1,5 +1,3 @@
-name: solmara-lab-hosted
-
 services:
   static-metadata:
     labels:

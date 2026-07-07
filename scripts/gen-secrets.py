@@ -11,6 +11,8 @@ import shlex
 import subprocess
 from pathlib import Path
 
+from compose_project_name import compose_project_name
+
 ROOT = Path(__file__).resolve().parents[1]
 POSTGRES_SSL_DIR = ROOT / "config" / "postgres" / "ssl"
 
@@ -127,6 +129,7 @@ def main() -> int:
     postgres_password = raw_key()
     postgres_db = "solmara_lab"
     values: dict[str, str] = {
+        "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
         "REGISTRY_RELAY_AUDIT_HASH_SECRET": raw_key(),
         "REGISTRY_NOTARY_AUDIT_HASH_SECRET": raw_key(),
         "REGISTRY_NOTARY_REPLAY_REDIS_URL": "redis://redis:6379/0",

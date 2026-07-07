@@ -22,6 +22,11 @@ just portal-live-e2e
 just down
 ```
 
+`just up`, `just down`, and `just reset` use a checkout-specific Docker Compose
+project name by default so two local clones do not share containers or volumes.
+Use `just down` to stop services while keeping local data. Use `just reset` only
+when you intend to delete this checkout's Compose volumes.
+
 The first wave covers three journeys:
 
 - Birth to child benefit.
@@ -55,6 +60,8 @@ just smoke      # story previews plus live Relay, Notary, and Compose portal che
 just smoke-live # live Notary checks only
 just portal-compose-smoke # HTTP smoke against the Compose portal and live BFF
 just portal-live-e2e # browser e2e against the running local stack
+just down       # stop the local Compose topology without deleting volumes
+just reset      # stop the local Compose topology and delete its volumes
 just release-pins v0.8.4 # compare versions.env against published GHCR tags
 just review     # security and release-readiness checks
 ```
