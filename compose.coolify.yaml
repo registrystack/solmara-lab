@@ -52,7 +52,7 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: notaries/child-benefit.yaml
+        source: ./notaries/child-benefit.yaml
         target: /etc/registry-notary/child-benefit.yaml
         type: bind
       - source: child-benefit-notary-state
@@ -116,7 +116,7 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: notaries/citizen.yaml
+        source: ./notaries/citizen.yaml
         target: /etc/registry-notary/citizen.yaml
         type: bind
       - source: citizen-notary-state
@@ -155,13 +155,13 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/interior-civil/config/relay.yaml
+        source: ./ministries/interior-civil/config/relay.yaml
         target: /etc/registry-relay/relay.yaml
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/interior-civil
+        source: ./ministries/interior-civil
         target: /var/lib/solmara/ministries/interior-civil
         type: bind
       - source: cra-civil-cache
@@ -243,13 +243,13 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/agriculture-nagdi/config/relay.yaml
+        source: ./ministries/agriculture-nagdi/config/relay.yaml
         target: /etc/registry-relay/relay.yaml
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/agriculture-nagdi
+        source: ./ministries/agriculture-nagdi
         target: /var/lib/solmara/ministries/agriculture-nagdi
         type: bind
       - source: nagdi-agriculture-cache
@@ -297,7 +297,7 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: notaries/nagdi.yaml
+        source: ./notaries/nagdi.yaml
         target: /etc/registry-notary/nagdi.yaml
         type: bind
       - source: nagdi-notary-state
@@ -341,13 +341,13 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/interior-population/config/relay.yaml
+        source: ./ministries/interior-population/config/relay.yaml
         target: /etc/registry-relay/relay.yaml
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: config/postgres/ssl/server.crt
+        source: ./config/postgres/ssl/server.crt
         target: /etc/solmara/postgres/root.crt
         type: bind
       - source: nia-population-cache
@@ -407,7 +407,7 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: notaries/pension.yaml
+        source: ./notaries/pension.yaml
         target: /etc/registry-notary/pension.yaml
         type: bind
       - source: pension-notary-state
@@ -493,19 +493,19 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/interior-population/fixtures
+        source: ./ministries/interior-population/fixtures
         target: /docker-entrypoint-initdb.d
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: scripts/postgres-entrypoint.sh
+        source: ./scripts/postgres-entrypoint.sh
         target: /usr/local/bin/solmara-postgres-entrypoint.sh
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: config/postgres/ssl
+        source: ./config/postgres/ssl
         target: /run/solmara-postgres-ssl
         type: bind
   programme-mis-relay:
@@ -540,13 +540,13 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/social-development/config/programme-mis-relay.yaml
+        source: ./ministries/social-development/config/programme-mis-relay.yaml
         target: /etc/registry-relay/relay.yaml
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/social-development
+        source: ./ministries/social-development
         target: /var/lib/solmara/ministries/social-development
         type: bind
       - source: programme-mis-cache
@@ -640,13 +640,13 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/labour-pensions/config/relay.yaml
+        source: ./ministries/labour-pensions/config/relay.yaml
         target: /etc/registry-relay/relay.yaml
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/labour-pensions
+        source: ./ministries/labour-pensions
         target: /var/lib/solmara/ministries/labour-pensions
         type: bind
       - source: sipf-pensions-cache
@@ -688,13 +688,13 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/social-development/config/sro-relay.yaml
+        source: ./ministries/social-development/config/sro-relay.yaml
         target: /etc/registry-relay/relay.yaml
         type: bind
       - bind:
           create_host_path: true
         read_only: true
-        source: ministries/social-development
+        source: ./ministries/social-development
         target: /var/lib/solmara/ministries/social-development
         type: bind
       - source: sro-social-cache
@@ -722,7 +722,7 @@ services:
       - bind:
           create_host_path: true
         read_only: true
-        source: metadata/public
+        source: ./metadata/public
         target: /srv/static
         type: bind
   volume-permissions:
