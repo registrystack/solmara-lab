@@ -2,3 +2,4 @@ ARG REGISTRY_RELAY_IMAGE=ghcr.io/registrystack/registry-relay@sha256:93e194500a3
 FROM ${REGISTRY_RELAY_IMAGE}
 
 COPY ministries /var/lib/solmara/ministries
+COPY config/postgres/ssl/server.crt /etc/solmara/postgres/root.crt
