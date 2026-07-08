@@ -4,6 +4,9 @@
 !.env.example
 output/*
 !output/.gitkeep
+!output/smoke/
+output/smoke/*
+!output/smoke/.gitkeep
 static-metadata/*
 !static-metadata/.gitkeep
 node_modules/

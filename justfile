@@ -58,6 +58,7 @@ compose:
     @if [ ! -f .env ]; then echo ".env is missing; run 'just gen-secrets' first" >&2; exit 1; fi
     @if [ -f compose.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null; fi
     @if [ -f compose.hosted.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
+    @if [ -f compose.coolify.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" SOLMARA_HOME_IMAGE="${SOLMARA_HOME_IMAGE:-ghcr.io/registrystack/solmara-lab-home@sha256:0000000000000000000000000000000000000000000000000000000000000000}" SOLMARA_PORTAL_IMAGE="${SOLMARA_PORTAL_IMAGE:-ghcr.io/registrystack/solmara-lab-portal@sha256:0000000000000000000000000000000000000000000000000000000000000000}" SOLMARA_SCENARIO_RUNNER_IMAGE="${SOLMARA_SCENARIO_RUNNER_IMAGE:-ghcr.io/registrystack/solmara-lab-scenario-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000}" docker compose --env-file versions.env --env-file .env -f compose.coolify.yaml config >/dev/null; fi
 
 # Start the local topology.
 up:

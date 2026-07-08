@@ -11,7 +11,7 @@ import { env } from '$env/dynamic/private';
  * conventions in `scenarios/service_config.py` and the compose port mappings.
  * Local development maps onto the published localhost ports; the hosted deploy
  * overrides the table with `SOLMARA_PUBLIC_URL_MAP` so the same code emits
- * `*.lab.registrystack.org` URLs.
+ * `*.solmara.registrystack.org` URLs.
  */
 const DEFAULT_LOCAL_MAP: Record<string, string> = {
   'child-benefit-notary:8080': 'http://localhost:4321',

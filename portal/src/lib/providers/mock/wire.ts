@@ -192,7 +192,7 @@ export function buildRawResponse(
 // The HTTP method + URL the proof inspector shows. URL carries the notary host
 // but never a raw subject (subjects go in the body target, which is redacted).
 export function notaryUrl(scenario: ScenarioResult): string {
-  return `https://citizen-notary.lab.registrystack.org/v1/evaluations`;
+  return `https://citizen-notary.solmara.registrystack.org/v1/evaluations`;
 }
 
 // The authority label the result attributes to (depth-1 answered line).

@@ -1,25 +1,57 @@
+name: solmara-lab
+
+# Coolify consumes a single Docker Compose file. This file extends the local
+# topology, removes host port bindings, and requires Solmara-owned images that
+# are built by the release workflow and pinned in Coolify env vars.
+
 services:
+  volume-permissions:
+    extends:
+      file: compose.yaml
+      service: volume-permissions
+
   postgres:
+    extends:
+      file: compose.yaml
+      service: postgres
     ports: !reset []
 
   redis:
+    extends:
+      file: compose.yaml
+      service: redis
     ports: !reset []
 
   static-metadata:
+    extends:
+      file: compose.yaml
+      service: static-metadata
     ports: !reset []
     labels:
       solmara.lab.host: metadata.solmara.registrystack.org
 
   scenario-runner:
-    profiles: []
+    extends:
+      file: compose.yaml
+      service: scenario-runner
+    build: !reset null
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    environment:
+      SOLMARA_LAB_MODE: hosted
     labels:
       solmara.lab.visibility: internal
 
   home:
-    profiles: []
+    extends:
+      file: compose.yaml
+      service: home
+    build: !reset null
+    image: ${SOLMARA_HOME_IMAGE:?set digest-pinned Solmara home image}
     ports: !reset []
+    volumes: !reset []
     environment:
       PORTAL_URL: https://portal.solmara.registrystack.org
+      UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
       # Rewrites the compose-internal URLs the scenario runner reports into the
       # host-reachable *.solmara.registrystack.org URLs shown in previews and curls.
       SOLMARA_PUBLIC_URL_MAP: >-
@@ -39,57 +71,110 @@ services:
       solmara.lab.host: solmara.registrystack.org
 
   cra-civil-relay:
+    extends:
+      file: compose.yaml
+      service: cra-civil-relay
     ports: !reset []
     labels:
       solmara.lab.host: cra-relay.solmara.registrystack.org
 
   nia-population-relay:
+    extends:
+      file: compose.yaml
+      service: nia-population-relay
     ports: !reset []
     labels:
       solmara.lab.host: nia-relay.solmara.registrystack.org
 
   sro-social-relay:
+    extends:
+      file: compose.yaml
+      service: sro-social-relay
     ports: !reset []
     labels:
       solmara.lab.host: sro-relay.solmara.registrystack.org
 
   programme-mis-relay:
+    extends:
+      file: compose.yaml
+      service: programme-mis-relay
     ports: !reset []
     labels:
       solmara.lab.host: mosd-programme-relay.solmara.registrystack.org
 
   sipf-pensions-relay:
+    extends:
+      file: compose.yaml
+      service: sipf-pensions-relay
     ports: !reset []
     labels:
       solmara.lab.host: sipf-relay.solmara.registrystack.org
 
   nagdi-agriculture-relay:
+    extends:
+      file: compose.yaml
+      service: nagdi-agriculture-relay
     ports: !reset []
     labels:
       solmara.lab.host: nagdi-relay.solmara.registrystack.org
 
   child-benefit-notary:
+    extends:
+      file: compose.yaml
+      service: child-benefit-notary
     ports: !reset []
     labels:
       solmara.lab.host: child-benefit-notary.solmara.registrystack.org
 
   pension-notary:
+    extends:
+      file: compose.yaml
+      service: pension-notary
     ports: !reset []
     labels:
       solmara.lab.host: pension-notary.solmara.registrystack.org
 
   nagdi-notary:
+    extends:
+      file: compose.yaml
+      service: nagdi-notary
     ports: !reset []
     labels:
       solmara.lab.host: nagdi-notary.solmara.registrystack.org
 
   citizen-notary:
+    extends:
+      file: compose.yaml
+      service: citizen-notary
     ports: !reset []
     labels:
       solmara.lab.host: citizen-notary.solmara.registrystack.org
 
   portal:
-    profiles: []
+    extends:
+      file: compose.yaml
+      service: portal
+    build: !reset null
+    image: ${SOLMARA_PORTAL_IMAGE:?set digest-pinned Solmara portal image}
     ports: !reset []
     labels:
       solmara.lab.host: portal.solmara.registrystack.org
+
+volumes:
+  postgres-data:
+  cra-civil-cache:
+  cra-civil-audit:
+  nia-population-cache:
+  nia-population-audit:
+  sro-social-cache:
+  sro-social-audit:
+  programme-mis-cache:
+  programme-mis-audit:
+  sipf-pensions-cache:
+  sipf-pensions-audit:
+  nagdi-agriculture-cache:
+  nagdi-agriculture-audit:
+  child-benefit-notary-state:
+  pension-notary-state:
+  nagdi-notary-state:
+  citizen-notary-state:

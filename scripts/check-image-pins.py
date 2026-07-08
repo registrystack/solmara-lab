@@ -35,7 +35,7 @@ def main() -> int:
         if "@latest" in value or ":latest" in value:
             failures.append(f"versions.env:{line_no}: latest tags are not allowed")
 
-    for compose in [ROOT / "compose.yaml", ROOT / "compose.hosted.yaml"]:
+    for compose in [ROOT / "compose.yaml", ROOT / "compose.hosted.yaml", ROOT / "compose.coolify.yaml"]:
         if not compose.exists():
             continue
         text = compose.read_text()

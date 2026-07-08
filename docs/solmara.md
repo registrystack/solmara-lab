@@ -89,7 +89,7 @@ Solmara uses three domain layers:
 |---|---|---|
 | Story domains | `*.gov.solmara.example` | Fictional ministry and service names in UI copy, docs, fixtures, and tutorials. These do not resolve. |
 | Machine identifiers | `https://id.registrystack.org/solmara/...` | Purpose IRIs, credential `vct` values, schema `$id` values, and issuer identifiers. |
-| Service endpoints | `<service>.lab.registrystack.org` | Real TLS endpoints for hosted lab services. |
+| Service endpoints | `<service>.solmara.registrystack.org` | Real TLS endpoints for hosted lab services. |
 
 Issuer identifiers are did:web values under the same identifier host, for
 example `did:web:id.registrystack.org:solmara:notary:child-benefit`. Credential

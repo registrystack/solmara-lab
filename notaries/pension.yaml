@@ -10,7 +10,7 @@ instance:
   environment: hosted_lab
   owner: Social Insurance and Pensions Fund
   jurisdiction: XS
-  public_base_url: https://pension-notary.lab.registrystack.org
+  public_base_url: https://pension-notary.solmara.registrystack.org
 
 auth:
   mode: api_key

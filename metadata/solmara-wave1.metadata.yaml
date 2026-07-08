@@ -1,7 +1,7 @@
 schema_version: registry-manifest/v1
 catalog:
   id: solmara-wave1-multi-authority
-  base_url: https://metadata.lab.registrystack.org
+  base_url: https://metadata.solmara.registrystack.org
   title:
     en: Solmara Lab Wave 1 Service Catalogue
   description:
@@ -215,22 +215,22 @@ public_services:
       - nagdi-notary-api
 data_services:
   - id: child-benefit-notary-api
-    iri: https://child-benefit-notary.lab.registrystack.org/evidence/v1
+    iri: https://child-benefit-notary.solmara.registrystack.org/evidence/v1
     title:
       en: Child benefit evidence API
-    endpoint_url: https://child-benefit-notary.lab.registrystack.org/evidence/v1
+    endpoint_url: https://child-benefit-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: pension-notary-api
-    iri: https://pension-notary.lab.registrystack.org/evidence/v1
+    iri: https://pension-notary.solmara.registrystack.org/evidence/v1
     title:
       en: Pension evidence API
-    endpoint_url: https://pension-notary.lab.registrystack.org/evidence/v1
+    endpoint_url: https://pension-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: nagdi-notary-api
-    iri: https://nagdi-notary.lab.registrystack.org/evidence/v1
+    iri: https://nagdi-notary.solmara.registrystack.org/evidence/v1
     title:
       en: NAgDI evidence API
-    endpoint_url: https://nagdi-notary.lab.registrystack.org/evidence/v1
+    endpoint_url: https://nagdi-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
 datasets:
   - id: cra-civil
@@ -283,8 +283,8 @@ datasets:
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://child-benefit-notary.lab.registrystack.org/evidence/v1
-          discovery_url: https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service
+          endpoint_url: https://child-benefit-notary.solmara.registrystack.org/evidence/v1
+          discovery_url: https://child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service
           ruleset: birth-is-registered
         purposes:
           - https://id.registrystack.org/solmara/purpose/child-benefit-review

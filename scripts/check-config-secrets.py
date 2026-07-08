@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCAN_DIRS = ["ministries", "notaries", "metadata", "compose.yaml", "compose.hosted.yaml"]
+SCAN_DIRS = ["ministries", "notaries", "metadata", "compose.yaml", "compose.hosted.yaml", "compose.coolify.yaml"]
 RAW_SECRET_KEYS = re.compile(
     r"(?i)\b(token|secret|password|private[_-]?key|client[_-]?secret)\s*:\s*['\"]?[^${\s][^#\n]+"
 )
@@ -38,6 +38,7 @@ def main() -> int:
         if path.suffix not in {".yaml", ".yml", ".env", ""} and path.name not in {
             "compose.yaml",
             "compose.hosted.yaml",
+            "compose.coolify.yaml",
         }:
             continue
         for line_no, line in enumerate(path.read_text(errors="ignore").splitlines(), start=1):

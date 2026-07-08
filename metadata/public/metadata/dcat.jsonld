@@ -3,7 +3,7 @@
     "dcat": "http://www.w3.org/ns/dcat#",
     "dct": "http://purl.org/dc/terms/"
   },
-  "@id": "https://metadata.lab.registrystack.org/metadata/dcat.jsonld",
+  "@id": "https://metadata.solmara.registrystack.org/metadata/dcat.jsonld",
   "@type": "dcat:Catalog",
   "dcat:dataset": [
     {

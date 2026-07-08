@@ -31,15 +31,15 @@ describe('LiveEvidenceProvider', () => {
       );
     const provider = new LiveEvidenceProvider(
       {
-        PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.lab.registrystack.org',
+        PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.solmara.registrystack.org',
         PORTAL_CITIZEN_NOTARY_TOKEN: 'notary-token',
-        PENSION_NOTARY_URL: 'https://pension-notary.lab.registrystack.org',
+        PENSION_NOTARY_URL: 'https://pension-notary.solmara.registrystack.org',
         PENSION_NOTARY_TOKEN: 'pension-token',
         PORTAL_RELAY_TOKEN: 'relay-token',
-        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.lab.registrystack.org',
-        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.lab.registrystack.org',
-        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.lab.registrystack.org',
-        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.lab.registrystack.org'
+        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.solmara.registrystack.org',
+        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.solmara.registrystack.org',
+        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.solmara.registrystack.org',
+        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.solmara.registrystack.org'
       },
       fetcher
     );
@@ -50,7 +50,7 @@ describe('LiveEvidenceProvider', () => {
     );
 
     expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(fetcher.mock.calls[0][0]).toBe('https://civil-relay.lab.registrystack.org/metadata/catalog');
+    expect(fetcher.mock.calls[0][0]).toBe('https://civil-relay.solmara.registrystack.org/metadata/catalog');
     expect(fetcher.mock.calls[0][1]).toMatchObject({
       method: 'GET',
       headers: {
@@ -58,7 +58,7 @@ describe('LiveEvidenceProvider', () => {
         'Data-Purpose': PURPOSES.pensionPaymentReview
       }
     });
-    expect(fetcher.mock.calls[1][0]).toBe('https://pension-notary.lab.registrystack.org/v1/evaluations');
+    expect(fetcher.mock.calls[1][0]).toBe('https://pension-notary.solmara.registrystack.org/v1/evaluations');
     const notaryInit = fetcher.mock.calls[1][1] as RequestInit;
     expect(notaryInit.headers).toMatchObject({
       'x-api-key': 'pension-token',
@@ -81,13 +81,13 @@ describe('LiveEvidenceProvider', () => {
       .mockResolvedValueOnce(jsonResponse({ results: [{ satisfied: true, value: true }] }));
     const provider = new LiveEvidenceProvider(
       {
-        PENSION_NOTARY_URL: 'https://pension-notary.lab.registrystack.org',
+        PENSION_NOTARY_URL: 'https://pension-notary.solmara.registrystack.org',
         PENSION_NOTARY_TOKEN: 'pension-token',
         PORTAL_RELAY_TOKEN: 'relay-token',
-        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.lab.registrystack.org',
-        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.lab.registrystack.org',
-        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.lab.registrystack.org',
-        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.lab.registrystack.org'
+        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.solmara.registrystack.org',
+        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.solmara.registrystack.org',
+        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.solmara.registrystack.org',
+        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.solmara.registrystack.org'
       },
       fetcher
     );
@@ -107,13 +107,13 @@ describe('LiveEvidenceProvider', () => {
     const fetcher = vi.fn();
     const provider = new LiveEvidenceProvider(
       {
-        CHILD_BENEFIT_NOTARY_URL: 'https://child-benefit-notary.lab.registrystack.org',
+        CHILD_BENEFIT_NOTARY_URL: 'https://child-benefit-notary.solmara.registrystack.org',
         CHILD_BENEFIT_NOTARY_TOKEN: 'child-token',
         PORTAL_RELAY_TOKEN: 'relay-token',
-        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.lab.registrystack.org',
-        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.lab.registrystack.org',
-        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.lab.registrystack.org',
-        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.lab.registrystack.org'
+        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.solmara.registrystack.org',
+        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.solmara.registrystack.org',
+        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.solmara.registrystack.org',
+        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.solmara.registrystack.org'
       },
       fetcher
     );
@@ -135,13 +135,13 @@ describe('LiveEvidenceProvider', () => {
       .mockResolvedValueOnce(jsonResponse({ results: [{ satisfied: true, value: true }] }));
     const provider = new LiveEvidenceProvider(
       {
-        CHILD_BENEFIT_NOTARY_URL: 'https://child-benefit-notary.lab.registrystack.org',
+        CHILD_BENEFIT_NOTARY_URL: 'https://child-benefit-notary.solmara.registrystack.org',
         CHILD_BENEFIT_NOTARY_TOKEN: 'child-token',
         PORTAL_RELAY_TOKEN: 'relay-token',
-        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.lab.registrystack.org',
-        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.lab.registrystack.org',
-        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.lab.registrystack.org',
-        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.lab.registrystack.org'
+        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.solmara.registrystack.org',
+        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.solmara.registrystack.org',
+        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.solmara.registrystack.org',
+        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.solmara.registrystack.org'
       },
       fetcher
     );
@@ -165,13 +165,13 @@ describe('LiveEvidenceProvider', () => {
     const fetcher = vi.fn();
     const provider = new LiveEvidenceProvider(
       {
-        PENSION_NOTARY_URL: 'https://pension-notary.lab.registrystack.org',
+        PENSION_NOTARY_URL: 'https://pension-notary.solmara.registrystack.org',
         PENSION_NOTARY_TOKEN: 'pension-token',
         PORTAL_RELAY_TOKEN: 'relay-token',
-        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.lab.registrystack.org',
-        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.lab.registrystack.org',
-        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.lab.registrystack.org',
-        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.lab.registrystack.org'
+        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.solmara.registrystack.org',
+        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.solmara.registrystack.org',
+        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.solmara.registrystack.org',
+        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.solmara.registrystack.org'
       },
       fetcher
     );
@@ -192,10 +192,10 @@ describe('LiveEvidenceProvider', () => {
       {
         PORTAL_CITIZEN_NOTARY_TOKEN: 'token',
         PORTAL_RELAY_TOKEN: 'relay-token',
-        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.lab.registrystack.org',
-        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.lab.registrystack.org',
-        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.lab.registrystack.org',
-        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.lab.registrystack.org'
+        PORTAL_CIVIL_RELAY_URL: 'https://civil-relay.solmara.registrystack.org',
+        PORTAL_SOCIAL_RELAY_URL: 'https://social-relay.solmara.registrystack.org',
+        PORTAL_AGRI_RELAY_URL: 'https://nagdi-relay.solmara.registrystack.org',
+        PORTAL_CERTS_RELAY_URL: 'https://civil-relay.solmara.registrystack.org'
       },
       vi.fn()
     );

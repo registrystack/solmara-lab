@@ -52,27 +52,27 @@
   "data_services": [
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+      "endpoint_url": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
       "id": "child-benefit-notary-api",
-      "iri": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+      "iri": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
       "title": {
         "en": "Child benefit evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://pension-notary.lab.registrystack.org/evidence/v1",
+      "endpoint_url": "https://pension-notary.solmara.registrystack.org/evidence/v1",
       "id": "pension-notary-api",
-      "iri": "https://pension-notary.lab.registrystack.org/evidence/v1",
+      "iri": "https://pension-notary.solmara.registrystack.org/evidence/v1",
       "title": {
         "en": "Pension evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+      "endpoint_url": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
       "id": "nagdi-notary-api",
-      "iri": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+      "iri": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
       "title": {
         "en": "NAgDI evidence API"
       }

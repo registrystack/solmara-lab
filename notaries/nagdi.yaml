@@ -10,7 +10,7 @@ instance:
   environment: hosted_lab
   owner: National Agricultural Data Institute
   jurisdiction: XS
-  public_base_url: https://nagdi-notary.lab.registrystack.org
+  public_base_url: https://nagdi-notary.solmara.registrystack.org
 
 auth:
   mode: api_key

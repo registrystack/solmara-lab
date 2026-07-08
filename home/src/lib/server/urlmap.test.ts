@@ -30,8 +30,8 @@ describe('public URL map', () => {
   it('leaves already host-reachable URLs untouched', () => {
     const map = buildPublicUrlMap();
     expect(mapPublicUrl('http://localhost:4321/v1/claims', map)).toBe('http://localhost:4321/v1/claims');
-    expect(mapPublicUrl('https://child-benefit-notary.lab.registrystack.org/v1/claims', map)).toBe(
-      'https://child-benefit-notary.lab.registrystack.org/v1/claims'
+    expect(mapPublicUrl('https://child-benefit-notary.solmara.registrystack.org/v1/claims', map)).toBe(
+      'https://child-benefit-notary.solmara.registrystack.org/v1/claims'
     );
   });
 
@@ -43,10 +43,10 @@ describe('public URL map', () => {
 
   it('merges an env-provided JSON override over the defaults', () => {
     const map = buildPublicUrlMap(
-      JSON.stringify({ 'child-benefit-notary:8080': 'https://child-benefit-notary.lab.registrystack.org' })
+      JSON.stringify({ 'child-benefit-notary:8080': 'https://child-benefit-notary.solmara.registrystack.org' })
     );
     expect(mapPublicUrl('http://child-benefit-notary:8080/v1/claims', map)).toBe(
-      'https://child-benefit-notary.lab.registrystack.org/v1/claims'
+      'https://child-benefit-notary.solmara.registrystack.org/v1/claims'
     );
     // untouched defaults still apply
     expect(mapPublicUrl('http://pension-notary:8080/v1/claims', map)).toBe(

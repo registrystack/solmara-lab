@@ -7,8 +7,9 @@ const config = {
       mode: 'auto',
       directives: {
         'default-src': ['self'],
-        'connect-src': ['self'],
+        'connect-src': ['self', 'https://stats.registrystack.org'],
         'img-src': ['self', 'data:'],
+        'script-src': ['self', 'https://stats.registrystack.org'],
         'style-src': ['self', 'unsafe-inline'],
         'font-src': ['self'],
         'frame-ancestors': ['none'],

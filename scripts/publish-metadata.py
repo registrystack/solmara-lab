@@ -21,42 +21,42 @@ DATASET_OFFERING_DEFAULTS = {
         "evidence_type": "birth-registration-evidence",
         "entity": "civil_person",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "concepts": ["https://publicschema.org/crvs/Birth", "https://publicschema.org/crvs/Death"],
     },
     "nia-population": {
         "evidence_type": "population-status-evidence",
         "entity": "person",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "concepts": ["https://publicschema.org/Person"],
     },
     "sro-social": {
         "evidence_type": "household-poverty-evidence",
         "entity": "household",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "concepts": ["https://publicschema.org/Household", "https://publicschema.org/SocioEconomicProfile"],
     },
     "mosd-programme": {
         "evidence_type": "beneficiary-enrollment-evidence",
         "entity": "enrollment",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "concepts": ["https://publicschema.org/sp/Enrollment"],
     },
     "sipf-pensions": {
         "evidence_type": "pension-case-evidence",
         "entity": "pension_case",
         "service": "pension-survivor-review",
-        "endpoint": "https://pension-notary.lab.registrystack.org/evidence/v1",
+        "endpoint": "https://pension-notary.solmara.registrystack.org/evidence/v1",
         "concepts": ["https://id.registrystack.org/solmara/semantics/pension-case"],
     },
     "nagdi-agriculture": {
         "evidence_type": "farmer-voucher-evidence",
         "entity": "farmer_voucher",
         "service": "nagdi-voucher-review",
-        "endpoint": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+        "endpoint": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
         "concepts": ["https://publicschema.org/Farm"],
     },
 }
@@ -257,7 +257,7 @@ def synthetic_offering(
     entity = entity or defaults.get("entity") or dataset["entities"][0]["name"]
     authority = dataset.get("authority", {})
     authority_id = authority.get("id", dataset["id"])
-    endpoint = defaults.get("endpoint", "https://metadata.lab.registrystack.org/evidence/v1")
+    endpoint = defaults.get("endpoint", "https://metadata.solmara.registrystack.org/evidence/v1")
     offering_id = f"{dataset['id']}-{evidence_type.replace('-evidence', '')}-offering"
     purposes = dataset.get("purposes", [])
     return {
@@ -309,7 +309,7 @@ def dcat_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
     return {
         "@context": {"dcat": "http://www.w3.org/ns/dcat#", "dct": "http://purl.org/dc/terms/"},
         "@type": "dcat:Catalog",
-        "@id": "https://metadata.lab.registrystack.org/metadata/dcat.jsonld",
+        "@id": "https://metadata.solmara.registrystack.org/metadata/dcat.jsonld",
         "dct:title": catalog["title"],
         "dct:description": catalog["description"],
         "dcat:dataset": [
@@ -323,7 +323,7 @@ def cpsv_catalog(catalog: dict[str, Any], offerings: list[dict[str, Any]]) -> di
     return {
         "@context": {"cpsv": "http://purl.org/vocab/cpsv#", "dct": "http://purl.org/dc/terms/"},
         "@type": "cpsv:PublicServiceCatalog",
-        "@id": "https://metadata.lab.registrystack.org/metadata/cpsv-ap.jsonld",
+        "@id": "https://metadata.solmara.registrystack.org/metadata/cpsv-ap.jsonld",
         "dct:title": "Solmara Wave 1 public services",
         "cpsv:PublicService": catalog["public_services"],
         "solmara:evidenceOfferings": offerings,

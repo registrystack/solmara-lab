@@ -12,7 +12,8 @@ COPY home ./
 COPY portal/src/lib/design/tokens.css /app/portal/src/lib/design/tokens.css
 COPY docs /app/docs
 COPY geo /app/geo
-COPY generator/output/shared /app/generator/output/shared
+COPY generator/output /app/generator/output
+COPY output/smoke /app/output/smoke
 COPY metadata/public /app/metadata/public
 COPY compose.yaml versions.env /app/
 
@@ -33,7 +34,8 @@ COPY --from=build /app/home/node_modules ./node_modules
 COPY --from=build /app/home/package.json ./package.json
 COPY --from=build /app/docs /app/docs
 COPY --from=build /app/geo /app/geo
-COPY --from=build /app/generator/output/shared /app/generator/output/shared
+COPY --from=build /app/generator/output /app/generator/output
+COPY --from=build /app/output/smoke /app/output/smoke
 COPY --from=build /app/metadata/public /app/metadata/public
 COPY --from=build /app/compose.yaml /app/compose.yaml
 COPY --from=build /app/versions.env /app/versions.env

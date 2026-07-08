@@ -1,7 +1,9 @@
 .git
 .env
 .env.*
-output
+output/*
+!output/smoke/
+!output/smoke/**
 node_modules
 **/node_modules
 .svelte-kit

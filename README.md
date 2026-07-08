@@ -83,6 +83,19 @@ also creates local Postgres TLS material under `config/postgres/ssl/`, and the
 generated NIA connection string includes `sslmode=require`, matching Registry
 Stack `v0.8.4` Relay requirements.
 
+## Hosted Deployment
+
+Coolify should use `compose.coolify.yaml`. It extends the local topology,
+removes host port bindings, and expects digest-pinned Solmara-owned image refs:
+`SOLMARA_HOME_IMAGE`, `SOLMARA_PORTAL_IMAGE`, and
+`SOLMARA_SCENARIO_RUNNER_IMAGE`. The `release-candidate` workflow builds and
+pushes those three images to GHCR, then writes the digest refs to the workflow
+summary for Coolify env vars. Registry Stack Relay and Notary image pins remain
+in `versions.env` and the Coolify environment.
+
+Set `UMAMI_WEBSITE_ID` in the hosted environment to enable analytics for the
+Visitor Center through the Registry Stack Umami instance.
+
 ## Privacy Rules
 
 Solmara data is synthetic. Do not use real people, real email domains, real

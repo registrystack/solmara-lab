@@ -3,8 +3,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api",
         "ruleset": "birth-is-registered"
       },
@@ -47,8 +47,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api"
       },
       "dataset": "nia-population",
@@ -88,8 +88,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api"
       },
       "dataset": "sro-social",
@@ -130,8 +130,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://child-benefit-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://child-benefit-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api"
       },
       "dataset": "mosd-programme",
@@ -173,8 +173,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://pension-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://pension-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://pension-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://pension-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api"
       },
       "dataset": "sipf-pensions",
@@ -215,8 +215,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://nagdi-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://nagdi-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api"
       },
       "dataset": "nagdi-agriculture",
@@ -257,8 +257,8 @@
     {
       "access": {
         "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-        "discovery_url": "https://nagdi-notary.lab.registrystack.org/.well-known/evidence-service",
-        "endpoint_url": "https://nagdi-notary.lab.registrystack.org/evidence/v1",
+        "discovery_url": "https://nagdi-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "endpoint_url": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
         "kind": "evidence-verification-api"
       },
       "dataset": "nagdi-agriculture",

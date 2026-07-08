@@ -18,14 +18,14 @@ describe('getProvider', () => {
   it('constructs live mode from environment config', () => {
     Object.assign(env, {
       PORTAL_PROVIDER: 'live',
-      PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.lab.registrystack.org',
+      PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.solmara.registrystack.org',
       PORTAL_CITIZEN_NOTARY_TOKEN: 'notary-token',
       PORTAL_RELAY_TOKEN: 'relay-token',
       PORTAL_RELAY_URLS: JSON.stringify({
-        civil: 'https://civil-relay.lab.registrystack.org',
-        social: 'https://social-relay.lab.registrystack.org',
-        agri: 'https://nagdi-relay.lab.registrystack.org',
-        certs: 'https://civil-relay.lab.registrystack.org'
+        civil: 'https://civil-relay.solmara.registrystack.org',
+        social: 'https://social-relay.solmara.registrystack.org',
+        agri: 'https://nagdi-relay.solmara.registrystack.org',
+        certs: 'https://civil-relay.solmara.registrystack.org'
       })
     });
 
@@ -35,13 +35,13 @@ describe('getProvider', () => {
   it('requires a Relay token in live mode', () => {
     Object.assign(env, {
       PORTAL_PROVIDER: 'live',
-      PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.lab.registrystack.org',
+      PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.solmara.registrystack.org',
       PORTAL_CITIZEN_NOTARY_TOKEN: 'notary-token',
       PORTAL_RELAY_URLS: JSON.stringify({
-        civil: 'https://civil-relay.lab.registrystack.org',
-        social: 'https://social-relay.lab.registrystack.org',
-        agri: 'https://nagdi-relay.lab.registrystack.org',
-        certs: 'https://civil-relay.lab.registrystack.org'
+        civil: 'https://civil-relay.solmara.registrystack.org',
+        social: 'https://social-relay.solmara.registrystack.org',
+        agri: 'https://nagdi-relay.solmara.registrystack.org',
+        certs: 'https://civil-relay.solmara.registrystack.org'
       })
     });
 

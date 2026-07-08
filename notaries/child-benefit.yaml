@@ -10,7 +10,7 @@ instance:
   environment: hosted_lab
   owner: Ministry of Social Development
   jurisdiction: XS
-  public_base_url: https://child-benefit-notary.lab.registrystack.org
+  public_base_url: https://child-benefit-notary.solmara.registrystack.org
 
 auth:
   mode: api_key

@@ -12,8 +12,8 @@ const SMOKE_DIR = 'output/smoke';
  * the BFF route that serves the artifact so the browser never reads the
  * filesystem directly.
  */
-export async function readSmokeEvidence(): Promise<SmokeEvidence> {
-  const dir = path.join(runtime.labRoot, SMOKE_DIR);
+export async function readSmokeEvidence(labRoot = runtime.labRoot): Promise<SmokeEvidence> {
+  const dir = path.join(labRoot, SMOKE_DIR);
   let entries: string[];
   try {
     entries = (await readdir(dir)).filter((name) => name.endsWith('.json'));
@@ -45,9 +45,9 @@ export async function readSmokeEvidence(): Promise<SmokeEvidence> {
  * hardcoded string: the checksum manifest gives the artifact count and the
  * persona roster carries the observation date the generator stamped.
  */
-export async function readSeedSummary(): Promise<SeedSummary> {
-  const artifactCount = await readArtifactCount();
-  const observedAt = await readObservedAt();
+export async function readSeedSummary(labRoot = runtime.labRoot): Promise<SeedSummary> {
+  const artifactCount = await readArtifactCount(labRoot);
+  const observedAt = await readObservedAt(labRoot);
   if (artifactCount === null && !observedAt) return { available: false };
   return {
     available: true,
@@ -56,9 +56,9 @@ export async function readSeedSummary(): Promise<SeedSummary> {
   };
 }
 
-async function readArtifactCount(): Promise<number | null> {
+async function readArtifactCount(labRoot: string): Promise<number | null> {
   try {
-    const raw = await readFile(path.join(runtime.labRoot, 'generator/output/checksums.sha256'), 'utf-8');
+    const raw = await readFile(path.join(labRoot, 'generator/output/checksums.sha256'), 'utf-8');
     const count = raw.split('\n').filter((line) => line.trim().length > 0).length;
     return count > 0 ? count : null;
   } catch {
@@ -66,9 +66,9 @@ async function readArtifactCount(): Promise<number | null> {
   }
 }
 
-async function readObservedAt(): Promise<string | null> {
+async function readObservedAt(labRoot: string): Promise<string | null> {
   try {
-    const raw = await readFile(path.join(runtime.labRoot, 'generator/output/shared/personas.csv'), 'utf-8');
+    const raw = await readFile(path.join(labRoot, 'generator/output/shared/personas.csv'), 'utf-8');
     const [header, firstRow] = raw.split('\n');
     if (!header || !firstRow) return null;
     const columns = header.split(',');

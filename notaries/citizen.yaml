@@ -10,7 +10,7 @@ instance:
   environment: hosted_lab
   owner: Citizen Services Portal
   jurisdiction: XS
-  public_base_url: https://citizen-notary.lab.registrystack.org
+  public_base_url: https://citizen-notary.solmara.registrystack.org
 
 auth:
   mode: api_key
