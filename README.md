@@ -85,13 +85,14 @@ Stack `v0.8.4` Relay requirements.
 
 ## Hosted Deployment
 
-Coolify should use `compose.coolify.yaml`. It extends the local topology,
-removes host port bindings, and expects digest-pinned Solmara-owned image refs:
-`SOLMARA_HOME_IMAGE`, `SOLMARA_PORTAL_IMAGE`, and
-`SOLMARA_SCENARIO_RUNNER_IMAGE`. The `release-candidate` workflow builds and
-pushes those three images to GHCR, then writes the digest refs to the workflow
-summary for Coolify env vars. Registry Stack Relay and Notary image pins remain
-in `versions.env` and the Coolify environment.
+Coolify should use `compose.coolify.yaml`. It removes host port bindings and
+avoids repo bind mounts because Coolify does not seed bind-mount sources from
+the Git checkout. The `release-candidate` workflow builds digest-pinned
+Solmara-owned images for the hosted wrappers and app services, then writes the
+digest refs to the workflow summary for Coolify env vars:
+`SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
+`SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
+`SOLMARA_PORTAL_IMAGE`, and `SOLMARA_SCENARIO_RUNNER_IMAGE`.
 
 Set `UMAMI_WEBSITE_ID` in the hosted environment to enable analytics for the
 Visitor Center through the Registry Stack Umami instance.

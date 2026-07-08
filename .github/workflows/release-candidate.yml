@@ -25,6 +25,8 @@ jobs:
       REGISTRY_NOTARY_IMAGE: ${{ inputs.registry_notary_image }}
       SOLMARA_IMAGE_REGISTRY: ghcr.io/registrystack
       SOLMARA_IMAGE_TAG: ${{ inputs.solmara_image_tag || github.sha }}
+      POSTGRES_IMAGE: postgres:16-alpine
+      STATIC_METADATA_IMAGE: python:3.12-alpine
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -67,6 +69,46 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push hosted Relay image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/relay/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}
+      - name: Build and push hosted Notary image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/notary/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-notary:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            REGISTRY_NOTARY_IMAGE=${{ env.REGISTRY_NOTARY_IMAGE }}
+      - name: Build and push hosted Postgres image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/postgres/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-postgres:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            POSTGRES_IMAGE=${{ env.POSTGRES_IMAGE }}
+      - name: Build and push hosted static metadata image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/static-metadata/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-static-metadata:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            STATIC_METADATA_IMAGE=${{ env.STATIC_METADATA_IMAGE }}
       - name: Build and push scenario runner image
         uses: docker/build-push-action@v6
         with:
@@ -96,7 +138,7 @@ jobs:
           {
             echo "### Solmara image digests"
             echo
-            for image in solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal; do
+            for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal; do
               ref="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
               digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
               echo "- ${SOLMARA_IMAGE_REGISTRY}/${image}@${digest}"
