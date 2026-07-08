@@ -1,0 +1,163 @@
+server:
+  bind: 0.0.0.0:8080
+  admin_bind: 0.0.0.0:8081
+  openapi_requires_auth: false
+  cache_dir: /var/lib/registry-relay/cache
+instance:
+  id: solmara-nia-population-relay
+  environment: hosted_lab
+  owner: National Identity Agency
+  jurisdiction: XS
+catalog:
+  title: NIA Population Register Relay
+  base_url: https://nia-relay.solmara.registrystack.org
+  publisher: National Identity Agency
+  participant_id: did:web:id.registrystack.org:solmara:authority:nia
+vocabularies:
+  ps: https://publicschema.org/
+  solmara: https://id.registrystack.org/solmara/
+auth:
+  mode: api_key
+  api_keys:
+  - id: nia_child_benefit_source
+    fingerprint:
+      provider: env
+      name: NIA_CHILD_BENEFIT_SOURCE_HASH
+    scopes: &id001
+    - nia_population:metadata
+    - nia_population:rows
+    - nia_population:evidence_verification
+  - id: nia_pension_source
+    fingerprint:
+      provider: env
+      name: NIA_PENSION_SOURCE_HASH
+    scopes: *id001
+  - id: nia_citizen_source
+    fingerprint:
+      provider: env
+      name: NIA_CITIZEN_SOURCE_HASH
+    scopes: *id001
+  - id: portal_relay_reader
+    fingerprint:
+      provider: env
+      name: PORTAL_RELAY_TOKEN_HASH
+    scopes:
+    - nia_population:metadata
+audit:
+  sink: file
+  path: /var/lib/registry-relay/audit/audit.jsonl
+  format: jsonl
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+deployment:
+  profile: hosted_lab
+  evidence:
+    ingress_rate_limit: true
+    api_key_rotation: true
+  waivers:
+  - finding: relay.config.unsigned
+    reason: first-pass lab config before governed bundle publication
+    expires: '2026-10-01'
+datasets:
+- id: nia_population
+  title: Solmara population register
+  description: Live Postgres-backed SolmaraID person projection maintained by the National Identity Agency.
+  owner: National Identity Agency
+  sensitivity: personal
+  access_rights: restricted
+  update_frequency: continuous
+  defaults:
+    refresh:
+      mode: manual
+  tables:
+  - id: population_person_table
+    materialization: live
+    source:
+      type: postgres
+      connection_env: SOLMARA_NIA_DATABASE_URL
+      table:
+        schema: public
+        name: population_person
+      connect_timeout: 5s
+      query_timeout: 30s
+      live_max_connections: 8
+      live_max_rows: 5000
+    primary_key: uin
+    schema:
+      strict: true
+      fields:
+      - name: uin
+        type: string
+        nullable: false
+        sensitive: true
+      - name: person_id
+        type: string
+        nullable: true
+      - name: given_name
+        type: string
+        nullable: false
+        sensitive: true
+      - name: family_name
+        type: string
+        nullable: false
+        sensitive: true
+      - name: birth_date
+        type: date
+        nullable: false
+      - name: identity_status
+        type: string
+        nullable: false
+      - name: alive
+        type: boolean
+        nullable: false
+      - name: district_code
+        type: string
+        nullable: false
+      - name: observed_at
+        type: timestamp
+        nullable: true
+      - name: source_system
+        type: string
+        nullable: false
+  entities:
+  - name: person
+    title: Population person
+    description: Current SolmaraID status and identity projection.
+    table: population_person_table
+    concept_uri: ps:Person
+    fields:
+    - name: id
+      from: uin
+      sensitive: true
+    - name: civil_person_id
+      from: person_id
+    - name: birth_date
+    - name: identity_status
+    - name: alive
+    - name: district_code
+    - name: observed_at
+    access:
+      metadata_scope: nia_population:metadata
+      aggregate_scope: nia_population:aggregate
+      read_scope: nia_population:rows
+      evidence_verification_scope: nia_population:evidence_verification
+    api:
+      default_limit: 25
+      max_limit: 100
+      require_purpose_header: true
+      governed_policy:
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/child-benefit-review
+        - https://id.registrystack.org/solmara/purpose/pension-payment-review
+        - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+        - https://id.registrystack.org/solmara/purpose/citizen-self-service
+      allowed_filters:
+      - field: id
+        ops:
+        - eq
+        - in
+      - field: identity_status
+        ops:
+        - eq
+      - field: alive
+        ops:
+        - eq

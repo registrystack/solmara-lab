@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCAN_DIRS = ["ministries", "notaries", "metadata", "compose.yaml", "compose.hosted.yaml", "compose.coolify.yaml"]
+SCAN_DIRS = ["ministries", "notaries", "hosted", "metadata", "compose.yaml", "compose.hosted.yaml"]
 RAW_SECRET_KEYS = re.compile(
     r"(?i)\b(token|secret|password|private[_-]?key|client[_-]?secret)\s*:\s*['\"]?[^${\s][^#\n]+"
 )
@@ -29,6 +29,7 @@ def iter_files() -> list[Path]:
             files.append(path)
         elif path.exists():
             files.extend(p for p in path.rglob("*") if p.is_file())
+    files.extend(sorted(ROOT.glob("compose.coolify*.yaml")))
     return files
 
 
@@ -38,8 +39,7 @@ def main() -> int:
         if path.suffix not in {".yaml", ".yml", ".env", ""} and path.name not in {
             "compose.yaml",
             "compose.hosted.yaml",
-            "compose.coolify.yaml",
-        }:
+        } and not path.name.startswith("compose.coolify"):
             continue
         for line_no, line in enumerate(path.read_text(errors="ignore").splitlines(), start=1):
             if any(marker in line for marker in ALLOWED):

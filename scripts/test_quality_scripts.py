@@ -53,6 +53,16 @@ class QualityScriptTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_hosted_configs_are_current(self) -> None:
+        result = subprocess.run(
+            [str(ROOT / "scripts" / "render-hosted-configs.py"), "--check"],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_story_preview_smoke_passes_current_tree(self) -> None:
         result = subprocess.run(
             [str(ROOT / "scripts" / "smoke-story-previews.py")],

@@ -85,11 +85,28 @@ Stack `v0.8.4` Relay requirements.
 
 ## Hosted Deployment
 
-Coolify should use `compose.coolify.yaml`. It removes host port bindings and
-avoids repo bind mounts because Coolify does not seed bind-mount sources from
-the Git checkout. The `release-candidate` workflow builds digest-pinned
-Solmara-owned images for the hosted wrappers and app services, then writes the
-digest refs to the workflow summary for Coolify env vars:
+Coolify uses one hosted compose file for the lab edge plus one compose file per
+pseudo-government authority:
+
+- `compose.coolify.yaml` for the Visitor Center, portal, scenario runner, and
+  static metadata.
+- `compose.coolify.interior.yaml` for CRA, NIA, and the NIA Postgres store.
+- `compose.coolify.social-development.yaml` for SRO, MoSD programme MIS, and
+  the child benefit notary.
+- `compose.coolify.labour-pensions.yaml` for SIPF and the pension notary.
+- `compose.coolify.agriculture.yaml` for NAgDI and the agriculture notary.
+- `compose.coolify.citizen-services.yaml` for the citizen services notary.
+
+The hosted compose files remove host port bindings and avoid repo bind mounts
+because Coolify does not seed bind-mount sources from the Git checkout. They do
+not define custom Docker networks; cross-authority calls use the public
+`*.solmara.registrystack.org` TLS endpoints. Run
+`uv run scripts/render-hosted-configs.py` after editing Relay or Notary configs
+so the hosted config overlays stay current.
+
+The `release-candidate` workflow builds digest-pinned Solmara-owned images for
+the hosted wrappers and app services, then writes the digest refs to the
+workflow summary for Coolify env vars:
 `SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
 `SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
 `SOLMARA_PORTAL_IMAGE`, and `SOLMARA_SCENARIO_RUNNER_IMAGE`.

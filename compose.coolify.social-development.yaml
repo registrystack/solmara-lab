@@ -1,0 +1,84 @@
+name: solmara-lab-social-development
+
+x-relay-environment: &relay-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET:?set REGISTRY_RELAY_AUDIT_HASH_SECRET}
+
+x-notary-environment: &notary-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
+  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
+  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
+  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+
+x-relay-common: &relay-common
+  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *relay-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+
+x-notary-common: &notary-common
+  image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *notary-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sro-social-relay:
+    <<: *relay-common
+    command: ["--config", "/var/lib/solmara/ministries/social-development/config/sro-relay.yaml"]
+    environment:
+      <<: *relay-environment
+      SRO_CHILD_BENEFIT_SOURCE_HASH: ${SRO_CHILD_BENEFIT_SOURCE_HASH}
+      SRO_CITIZEN_SOURCE_HASH: ${SRO_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    labels:
+      solmara.lab.host: sro-relay.solmara.registrystack.org
+
+  programme-mis-relay:
+    <<: *relay-common
+    command: ["--config", "/var/lib/solmara/ministries/social-development/config/programme-mis-relay.yaml"]
+    environment:
+      <<: *relay-environment
+      PROGRAMME_CHILD_BENEFIT_SOURCE_HASH: ${PROGRAMME_CHILD_BENEFIT_SOURCE_HASH}
+      PROGRAMME_PENSION_SOURCE_HASH: ${PROGRAMME_PENSION_SOURCE_HASH}
+      PROGRAMME_CITIZEN_SOURCE_HASH: ${PROGRAMME_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    labels:
+      solmara.lab.host: mosd-programme-relay.solmara.registrystack.org
+
+  child-benefit-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/child-benefit.yaml"]
+    environment:
+      <<: *notary-environment
+      CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      CHILD_BENEFIT_NOTARY_ISSUER_JWK: ${CHILD_BENEFIT_NOTARY_ISSUER_JWK}
+      CRA_CHILD_BENEFIT_SOURCE_RAW: ${CRA_CHILD_BENEFIT_SOURCE_RAW}
+      NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
+      SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
+      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+    labels:
+      solmara.lab.host: child-benefit-notary.solmara.registrystack.org

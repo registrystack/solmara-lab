@@ -1,0 +1,72 @@
+name: solmara-lab-labour-pensions
+
+x-relay-environment: &relay-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET:?set REGISTRY_RELAY_AUDIT_HASH_SECRET}
+
+x-notary-environment: &notary-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
+  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
+  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
+  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+
+x-relay-common: &relay-common
+  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *relay-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+
+x-notary-common: &notary-common
+  image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *notary-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sipf-pensions-relay:
+    <<: *relay-common
+    command: ["--config", "/var/lib/solmara/ministries/labour-pensions/config/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      SIPF_PENSION_SOURCE_HASH: ${SIPF_PENSION_SOURCE_HASH}
+      SIPF_CITIZEN_SOURCE_HASH: ${SIPF_CITIZEN_SOURCE_HASH}
+      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    labels:
+      solmara.lab.host: sipf-relay.solmara.registrystack.org
+
+  pension-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/pension.yaml"]
+    environment:
+      <<: *notary-environment
+      PENSION_CLIENT_TOKEN_HASH: ${PENSION_CLIENT_TOKEN_HASH}
+      PENSION_NOTARY_ISSUER_JWK: ${PENSION_NOTARY_ISSUER_JWK}
+      CRA_PENSION_SOURCE_RAW: ${CRA_PENSION_SOURCE_RAW}
+      NIA_PENSION_SOURCE_RAW: ${NIA_PENSION_SOURCE_RAW}
+      SIPF_PENSION_SOURCE_RAW: ${SIPF_PENSION_SOURCE_RAW}
+      PROGRAMME_PENSION_SOURCE_RAW: ${PROGRAMME_PENSION_SOURCE_RAW}
+    labels:
+      solmara.lab.host: pension-notary.solmara.registrystack.org

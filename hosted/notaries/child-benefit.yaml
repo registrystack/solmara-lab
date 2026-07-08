@@ -1,0 +1,286 @@
+server:
+  bind: 0.0.0.0:8080
+  openapi_requires_auth: false
+  admin_listener:
+    mode: dedicated
+    bind: 0.0.0.0:8081
+instance:
+  id: solmara-child-benefit-notary
+  environment: hosted_lab
+  owner: Ministry of Social Development
+  jurisdiction: XS
+  public_base_url: https://child-benefit-notary.solmara.registrystack.org
+auth:
+  mode: api_key
+  api_keys:
+  - id: child_benefit_service_client
+    fingerprint:
+      provider: env
+      name: CHILD_BENEFIT_CLIENT_TOKEN_HASH
+    scopes:
+    - cra_civil:evidence_verification
+    - nia_population:evidence_verification
+    - sro_social:evidence_verification
+    - mosd_programme:evidence_verification
+    authorization_details:
+      type: registry-notary/evidence-authorization/v1
+      schema_version: v1
+      legal_basis_ref: https://id.registrystack.org/solmara/legal-basis/child-benefit-act
+      consent_ref: https://id.registrystack.org/solmara/consent/child-benefit-review
+      jurisdiction: XS
+      assurance_level: substantial
+audit:
+  sink: file
+  path: /var/lib/registry-notary/config-state/audit.jsonl
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+replay:
+  storage: redis
+  redis:
+    url_env: REGISTRY_NOTARY_REPLAY_REDIS_URL
+    key_prefix: solmara-child-benefit-notary
+    connect_timeout_ms: 1000
+    operation_timeout_ms: 500
+deployment:
+  profile: hosted_lab
+cel:
+  worker_count: 8
+  worker_memory_bytes: 1073741824
+evidence:
+  enabled: true
+  service_id: child-benefit-notary
+  api_base_url: https://child-benefit-notary.solmara.registrystack.org
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  source_connections:
+    civil:
+      base_url: https://cra-relay.solmara.registrystack.org
+      token_env: CRA_CHILD_BENEFIT_SOURCE_RAW
+    population:
+      base_url: https://nia-relay.solmara.registrystack.org
+      token_env: NIA_CHILD_BENEFIT_SOURCE_RAW
+    social:
+      base_url: https://sro-relay.solmara.registrystack.org
+      token_env: SRO_CHILD_BENEFIT_SOURCE_RAW
+    programme:
+      base_url: https://mosd-programme-relay.solmara.registrystack.org
+      token_env: PROGRAMME_CHILD_BENEFIT_SOURCE_RAW
+  signing_keys:
+    child-benefit-issuer:
+      provider: local_jwk_env
+      private_jwk_env: CHILD_BENEFIT_NOTARY_ISSUER_JWK
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:notary:child-benefit#issuer-key-1
+      status: active
+  credential_profiles:
+    child_benefit_eligibility_sd_jwt:
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:notary:child-benefit
+      signing_key: child-benefit-issuer
+      vct: https://id.registrystack.org/solmara/vct/child-benefit-enrollment-eligibility
+      validity_seconds: 600
+      allowed_claims:
+      - birth-is-registered
+      - child-age-under-5
+      - household-below-poverty-threshold
+      - not-already-enrolled
+      - eligible-for-child-benefit
+      holder_binding:
+        mode: did
+        proof_of_possession: required
+        allowed_did_methods:
+        - did:jwk
+      disclosure:
+        allowed:
+        - predicate
+  claims:
+  - id: birth-is-registered
+    title: Birth is registered
+    version: 2026-07
+    subject_type: person
+    value:
+      type: boolean
+    semantics:
+      concept: https://publicschema.org/crvs/Birth
+      predicate: https://id.registrystack.org/solmara/claim/birth-is-registered
+    source_bindings:
+      civil:
+        connector: registry_data_api
+        connection: civil
+        required_scope: cra_civil:evidence_verification
+        dataset: cra_civil
+        entity: civil_person
+        matching: &id001
+          allowed_purposes:
+          - https://id.registrystack.org/solmara/purpose/child-benefit-review
+          permitted_jurisdictions:
+          - XS
+          require_legal_basis: true
+          require_consent: true
+        lookup:
+          input: target.identifiers.solmara_uin
+          field: id
+          op: eq
+          cardinality: one
+        fields:
+          birth_brn:
+            field: birth_brn
+            type: string
+            required: true
+    rule:
+      type: cel
+      expression: source.civil.birth_brn != ''
+    disclosure: &id002
+      default: predicate
+      allowed:
+      - predicate
+      - redacted
+    formats: &id003
+    - application/vnd.registry-notary.claim-result+json
+    - application/dc+sd-jwt
+    credential_profiles:
+    - child_benefit_eligibility_sd_jwt
+  - id: child-age-under-5
+    title: Child age under five
+    version: 2026-07
+    subject_type: person
+    value:
+      type: boolean
+    source_bindings:
+      civil:
+        connector: registry_data_api
+        connection: civil
+        required_scope: cra_civil:evidence_verification
+        dataset: cra_civil
+        entity: civil_person
+        matching: *id001
+        lookup:
+          input: target.identifiers.solmara_uin
+          field: id
+          op: eq
+          cardinality: one
+        fields:
+          birth_date:
+            field: birth_date
+            type: date
+            required: true
+          deceased:
+            field: deceased
+            type: boolean
+            required: true
+    rule:
+      type: cel
+      expression: source.civil.deceased == false && date.age_on(source.civil.birth_date, ctx.today) < 5
+    disclosure: *id002
+    formats: *id003
+    credential_profiles:
+    - child_benefit_eligibility_sd_jwt
+  - id: household-below-poverty-threshold
+    title: Household below poverty threshold
+    version: 2026-07
+    subject_type: household
+    value:
+      type: boolean
+    semantics:
+      concept: https://publicschema.org/SocioEconomicProfile
+      predicate: https://id.registrystack.org/solmara/claim/household-below-poverty-threshold
+    source_bindings:
+      membership:
+        connector: registry_data_api
+        connection: social
+        required_scope: sro_social:evidence_verification
+        dataset: sro_social
+        entity: household_member
+        matching: *id001
+        lookup:
+          input: target.identifiers.solmara_uin
+          field: uin
+          op: eq
+          cardinality: one
+        fields:
+          household_id:
+            field: household_id
+            type: string
+            required: true
+      household:
+        connector: registry_data_api
+        connection: social
+        required_scope: sro_social:evidence_verification
+        dataset: sro_social
+        entity: household
+        matching: *id001
+        lookup:
+          input: source.membership.household_id
+          field: id
+          op: eq
+          cardinality: one
+        fields:
+          poverty_band:
+            field: poverty_band
+            type: string
+            required: true
+    rule:
+      type: cel
+      expression: source.household.poverty_band == 'priority'
+    disclosure: *id002
+    formats: *id003
+    credential_profiles:
+    - child_benefit_eligibility_sd_jwt
+  - id: not-already-enrolled
+    title: Not already enrolled
+    version: 2026-07
+    subject_type: person
+    value:
+      type: boolean
+    source_bindings:
+      enrollment:
+        connector: registry_data_api
+        connection: programme
+        required_scope: mosd_programme:evidence_verification
+        dataset: mosd_programme
+        entity: enrollment
+        matching: *id001
+        lookup:
+          input: target.identifiers.solmara_uin
+          field: uin
+          op: eq
+          cardinality: one
+        fields:
+          duplicate_flag:
+            field: duplicate_flag
+            type: boolean
+            required: true
+    rule:
+      type: cel
+      expression: source.enrollment.duplicate_flag == false
+    disclosure: *id002
+    formats: *id003
+    credential_profiles:
+    - child_benefit_eligibility_sd_jwt
+  - id: eligible-for-child-benefit
+    title: Eligible for child benefit
+    version: 2026-07
+    subject_type: person
+    value:
+      type: boolean
+    depends_on:
+    - birth-is-registered
+    - child-age-under-5
+    - household-below-poverty-threshold
+    - not-already-enrolled
+    rule:
+      type: cel
+      expression: claims.birth_is_registered.value == true && claims.child_age_under_5.value == true && claims.household_below_poverty_threshold.value == true && claims.not_already_enrolled.value == true
+      bindings:
+        claims:
+          birth_is_registered:
+            claim: birth-is-registered
+          child_age_under_5:
+            claim: child-age-under-5
+          household_below_poverty_threshold:
+            claim: household-below-poverty-threshold
+          not_already_enrolled:
+            claim: not-already-enrolled
+    disclosure: *id002
+    formats: *id003
+    credential_profiles:
+    - child_benefit_eligibility_sd_jwt

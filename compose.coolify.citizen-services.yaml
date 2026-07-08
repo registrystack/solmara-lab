@@ -1,0 +1,48 @@
+name: solmara-lab-citizen-services
+
+x-notary-environment: &notary-environment
+  RUST_LOG: ${RUST_LOG:-info}
+  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
+  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
+  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
+  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+
+x-notary-common: &notary-common
+  image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: unless-stopped
+  environment: *notary-environment
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  citizen-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/citizen.yaml"]
+    environment:
+      <<: *notary-environment
+      CITIZEN_NOTARY_ISSUER_JWK: ${CITIZEN_NOTARY_ISSUER_JWK}
+      CITIZEN_PORTAL_BFF_TOKEN_HASH: ${CITIZEN_PORTAL_BFF_TOKEN_HASH}
+      CRA_CITIZEN_SOURCE_RAW: ${CRA_CITIZEN_SOURCE_RAW}
+      NIA_CITIZEN_SOURCE_RAW: ${NIA_CITIZEN_SOURCE_RAW}
+      SRO_CITIZEN_SOURCE_RAW: ${SRO_CITIZEN_SOURCE_RAW}
+      PROGRAMME_CITIZEN_SOURCE_RAW: ${PROGRAMME_CITIZEN_SOURCE_RAW}
+      SIPF_CITIZEN_SOURCE_RAW: ${SIPF_CITIZEN_SOURCE_RAW}
+      NAGDI_CITIZEN_SOURCE_RAW: ${NAGDI_CITIZEN_SOURCE_RAW}
+    labels:
+      solmara.lab.host: citizen-notary.solmara.registrystack.org
