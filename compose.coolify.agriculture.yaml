@@ -54,6 +54,9 @@ services:
       NAGDI_NOTARY_SOURCE_HASH: ${NAGDI_NOTARY_SOURCE_HASH}
       NAGDI_CITIZEN_SOURCE_HASH: ${NAGDI_CITIZEN_SOURCE_HASH}
       PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    volumes:
+      - nagdi-agriculture-cache:/var/lib/registry-relay/cache
+      - nagdi-agriculture-audit:/var/lib/registry-relay/audit
     labels:
       solmara.lab.host: nagdi-relay.solmara.registrystack.org
 
@@ -65,5 +68,12 @@ services:
       NAGDI_CLIENT_TOKEN_HASH: ${NAGDI_CLIENT_TOKEN_HASH}
       NAGDI_NOTARY_ISSUER_JWK: ${NAGDI_NOTARY_ISSUER_JWK}
       NAGDI_NOTARY_SOURCE_RAW: ${NAGDI_NOTARY_SOURCE_RAW}
+    volumes:
+      - nagdi-notary-state:/var/lib/registry-notary/config-state
     labels:
       solmara.lab.host: nagdi-notary.solmara.registrystack.org
+
+volumes:
+  nagdi-agriculture-cache:
+  nagdi-agriculture-audit:
+  nagdi-notary-state:

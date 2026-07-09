@@ -6,6 +6,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -62,6 +64,70 @@ class QualityScriptTests(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_coolify_services_mount_durable_audit_state(self) -> None:
+        expected_mounts = {
+            "compose.coolify.interior.yaml": {
+                "cra-civil-relay": [
+                    "cra-civil-cache:/var/lib/registry-relay/cache",
+                    "cra-civil-audit:/var/lib/registry-relay/audit",
+                ],
+                "nia-population-relay": [
+                    "nia-population-cache:/var/lib/registry-relay/cache",
+                    "nia-population-audit:/var/lib/registry-relay/audit",
+                ],
+            },
+            "compose.coolify.social-development.yaml": {
+                "sro-social-relay": [
+                    "sro-social-cache:/var/lib/registry-relay/cache",
+                    "sro-social-audit:/var/lib/registry-relay/audit",
+                ],
+                "programme-mis-relay": [
+                    "programme-mis-cache:/var/lib/registry-relay/cache",
+                    "programme-mis-audit:/var/lib/registry-relay/audit",
+                ],
+                "child-benefit-notary": [
+                    "child-benefit-notary-state:/var/lib/registry-notary/config-state",
+                ],
+            },
+            "compose.coolify.labour-pensions.yaml": {
+                "sipf-pensions-relay": [
+                    "sipf-pensions-cache:/var/lib/registry-relay/cache",
+                    "sipf-pensions-audit:/var/lib/registry-relay/audit",
+                ],
+                "pension-notary": [
+                    "pension-notary-state:/var/lib/registry-notary/config-state",
+                ],
+            },
+            "compose.coolify.agriculture.yaml": {
+                "nagdi-agriculture-relay": [
+                    "nagdi-agriculture-cache:/var/lib/registry-relay/cache",
+                    "nagdi-agriculture-audit:/var/lib/registry-relay/audit",
+                ],
+                "nagdi-notary": [
+                    "nagdi-notary-state:/var/lib/registry-notary/config-state",
+                ],
+            },
+            "compose.coolify.citizen-services.yaml": {
+                "citizen-notary": [
+                    "citizen-notary-state:/var/lib/registry-notary/config-state",
+                ],
+            },
+        }
+
+        for compose_name, service_mounts in expected_mounts.items():
+            with self.subTest(compose=compose_name):
+                compose = yaml.safe_load((ROOT / compose_name).read_text(encoding="utf-8"))
+                declared_volumes = set((compose.get("volumes") or {}).keys())
+                services = compose["services"]
+
+                for service_name, mounts in service_mounts.items():
+                    service = services[service_name]
+                    service_volumes = set(service.get("volumes") or [])
+                    for mount in mounts:
+                        with self.subTest(service=service_name, mount=mount):
+                            self.assertIn(mount, service_volumes)
+                            self.assertIn(mount.split(":", 1)[0], declared_volumes)
 
     def test_story_preview_smoke_passes_current_tree(self) -> None:
         result = subprocess.run(

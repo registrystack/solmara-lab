@@ -48,6 +48,9 @@ services:
       CRA_PENSION_SOURCE_HASH: ${CRA_PENSION_SOURCE_HASH}
       CRA_CITIZEN_SOURCE_HASH: ${CRA_CITIZEN_SOURCE_HASH}
       PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    volumes:
+      - cra-civil-cache:/var/lib/registry-relay/cache
+      - cra-civil-audit:/var/lib/registry-relay/audit
     labels:
       solmara.lab.host: cra-relay.solmara.registrystack.org
 
@@ -65,8 +68,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - nia-population-cache:/var/lib/registry-relay/cache
+      - nia-population-audit:/var/lib/registry-relay/audit
     labels:
       solmara.lab.host: nia-relay.solmara.registrystack.org
 
 volumes:
   postgres-data:
+  cra-civil-cache:
+  cra-civil-audit:
+  nia-population-cache:
+  nia-population-audit:

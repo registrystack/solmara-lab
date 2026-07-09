@@ -54,6 +54,9 @@ services:
       SIPF_PENSION_SOURCE_HASH: ${SIPF_PENSION_SOURCE_HASH}
       SIPF_CITIZEN_SOURCE_HASH: ${SIPF_CITIZEN_SOURCE_HASH}
       PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    volumes:
+      - sipf-pensions-cache:/var/lib/registry-relay/cache
+      - sipf-pensions-audit:/var/lib/registry-relay/audit
     labels:
       solmara.lab.host: sipf-relay.solmara.registrystack.org
 
@@ -68,5 +71,12 @@ services:
       NIA_PENSION_SOURCE_RAW: ${NIA_PENSION_SOURCE_RAW}
       SIPF_PENSION_SOURCE_RAW: ${SIPF_PENSION_SOURCE_RAW}
       PROGRAMME_PENSION_SOURCE_RAW: ${PROGRAMME_PENSION_SOURCE_RAW}
+    volumes:
+      - pension-notary-state:/var/lib/registry-notary/config-state
     labels:
       solmara.lab.host: pension-notary.solmara.registrystack.org
+
+volumes:
+  sipf-pensions-cache:
+  sipf-pensions-audit:
+  pension-notary-state:

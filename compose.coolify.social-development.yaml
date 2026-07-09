@@ -54,6 +54,9 @@ services:
       SRO_CHILD_BENEFIT_SOURCE_HASH: ${SRO_CHILD_BENEFIT_SOURCE_HASH}
       SRO_CITIZEN_SOURCE_HASH: ${SRO_CITIZEN_SOURCE_HASH}
       PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    volumes:
+      - sro-social-cache:/var/lib/registry-relay/cache
+      - sro-social-audit:/var/lib/registry-relay/audit
     labels:
       solmara.lab.host: sro-relay.solmara.registrystack.org
 
@@ -66,6 +69,9 @@ services:
       PROGRAMME_PENSION_SOURCE_HASH: ${PROGRAMME_PENSION_SOURCE_HASH}
       PROGRAMME_CITIZEN_SOURCE_HASH: ${PROGRAMME_CITIZEN_SOURCE_HASH}
       PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+    volumes:
+      - programme-mis-cache:/var/lib/registry-relay/cache
+      - programme-mis-audit:/var/lib/registry-relay/audit
     labels:
       solmara.lab.host: mosd-programme-relay.solmara.registrystack.org
 
@@ -80,5 +86,14 @@ services:
       NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
       SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
       PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+    volumes:
+      - child-benefit-notary-state:/var/lib/registry-notary/config-state
     labels:
       solmara.lab.host: child-benefit-notary.solmara.registrystack.org
+
+volumes:
+  sro-social-cache:
+  sro-social-audit:
+  programme-mis-cache:
+  programme-mis-audit:
+  child-benefit-notary-state:

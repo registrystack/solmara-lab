@@ -44,5 +44,10 @@ services:
       PROGRAMME_CITIZEN_SOURCE_RAW: ${PROGRAMME_CITIZEN_SOURCE_RAW}
       SIPF_CITIZEN_SOURCE_RAW: ${SIPF_CITIZEN_SOURCE_RAW}
       NAGDI_CITIZEN_SOURCE_RAW: ${NAGDI_CITIZEN_SOURCE_RAW}
+    volumes:
+      - citizen-notary-state:/var/lib/registry-notary/config-state
     labels:
       solmara.lab.host: citizen-notary.solmara.registrystack.org
+
+volumes:
+  citizen-notary-state:
