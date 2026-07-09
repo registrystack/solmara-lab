@@ -19,11 +19,12 @@ project.
 |---|---|---|
 | `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, static metadata |
 | `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay, NIA relay, NIA Postgres |
-| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, eSignet UI, eSignet Postgres, Redis, seed job |
+| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, eSignet UI, eSignet Postgres, Redis, seed jobs |
 | `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay, programme MIS relay, child benefit notary, Redis |
 | `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF relay, pension notary, Redis |
 | `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI relay, NAgDI notary, Redis |
-| `solmara-lab-citizen-services` | `compose.coolify.citizen-services.yaml` | citizen services notary, Redis |
+| `solmara-lab-citizen-services` | `compose.coolify.citizen-services.yaml` | citizen services notary, citizen OID4VCI issuer notary, Redis |
+| `solmara-lab-wallet` | `compose.coolify.walt.yaml` | Walt holder wallet API, Walt web wallet, Postgres, Caddy |
 
 Hosted compose files follow these rules:
 
@@ -44,6 +45,7 @@ The current public hostname pattern is `*.solmara.registrystack.org`.
 | Static metadata | `https://metadata.solmara.registrystack.org` |
 | eSignet | `https://esignet.solmara.registrystack.org` |
 | eSignet UI | `https://esignet-ui.solmara.registrystack.org` |
+| Walt holder wallet | `https://wallet.solmara.registrystack.org` |
 | CRA civil relay | `https://cra-relay.solmara.registrystack.org` |
 | NIA population relay | `https://nia-relay.solmara.registrystack.org` |
 | SRO social relay | `https://sro-relay.solmara.registrystack.org` |
@@ -54,6 +56,7 @@ The current public hostname pattern is `*.solmara.registrystack.org`.
 | Pension notary | `https://pension-notary.solmara.registrystack.org` |
 | NAgDI notary | `https://nagdi-notary.solmara.registrystack.org` |
 | Citizen services notary | `https://citizen-notary.solmara.registrystack.org` |
+| Citizen OID4VCI issuer notary | `https://citizen-issuer-notary.solmara.registrystack.org` |
 
 ## Image Model
 
@@ -78,6 +81,10 @@ Solmara-owned wrapper and application images are built by the
 - `SOLMARA_ESIGNET_POSTGRES_IMAGE`
 - `SOLMARA_ESIGNET_UI_IMAGE`
 - `SOLMARA_ESIGNET_SEED_IMAGE`
+
+The Walt holder wallet app uses upstream Walt, Postgres, Caddy, and Alpine
+images pinned by explicit version tags in `compose.coolify.walt.yaml`; it does
+not build Solmara-owned images.
 
 The relay and notary wrapper images copy hosted configs into product images:
 
@@ -168,6 +175,29 @@ Portal and Visitor Center:
 - `NAGDI_NOTARY_TOKEN`
 - `PORTAL_CITIZEN_NOTARY_TOKEN`
 
+Citizen OID4VCI issuer:
+
+- `CITIZEN_ISSUER_NOTARY_ISSUER_JWK`
+- `CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK`
+- `CITIZEN_ISSUER_ESIGNET_RP_JWK`
+- `CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64`
+
+The `CITIZEN_ISSUER_ESIGNET_RP_JWK` value and
+`CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64` value must be derived from the
+same RSA private key. eSignet stores the public key for client
+`solmara-citizen-issuer`; the issuer notary uses the matching private JWK to
+sign `private_key_jwt` assertions when it exchanges the citizen login code.
+
+Walt holder wallet:
+
+- `CONFIG_REPO_REF`
+- `WALT_DB_PASSWORD`
+- `WALT_AUTH_ENCRYPTION_KEY`
+- `WALT_AUTH_SIGN_KEY`
+- `WALT_AUTH_TOKEN_KEY`
+- `WALT_KTOR_SIGNING_KEY`
+- `WALT_KTOR_VERIFICATION_KEY`
+
 Relay token hashes and notary source tokens:
 
 - Use the variable names referenced by the relevant compose file.
@@ -211,6 +241,7 @@ names that Coolify stores internally.
 | `static-metadata` | `https://metadata.solmara.registrystack.org:8080` |
 | `esignet` | `https://esignet.solmara.registrystack.org:8088` |
 | `esignet-ui` | `https://esignet-ui.solmara.registrystack.org:3000` |
+| `caddy` | `https://wallet.solmara.registrystack.org:7101` |
 | `cra-civil-relay` | `https://cra-relay.solmara.registrystack.org:8080` |
 | `nia-population-relay` | `https://nia-relay.solmara.registrystack.org:8080` |
 | `sro-social-relay` | `https://sro-relay.solmara.registrystack.org:8080` |
@@ -221,6 +252,7 @@ names that Coolify stores internally.
 | `pension-notary` | `https://pension-notary.solmara.registrystack.org:8080` |
 | `nagdi-notary` | `https://nagdi-notary.solmara.registrystack.org:8080` |
 | `citizen-notary` | `https://citizen-notary.solmara.registrystack.org:8080` |
+| `citizen-issuer-notary` | `https://citizen-issuer-notary.solmara.registrystack.org:8080` |
 
 ## Release And Deploy
 
@@ -261,6 +293,7 @@ names that Coolify stores internally.
    solmara-lab-labour-pensions
    solmara-lab-agriculture
    solmara-lab-citizen-services
+   solmara-lab-wallet
    solmara-lab
    ```
 
@@ -279,7 +312,10 @@ just hosted-smoke
 The command runs:
 
 - Public route and `/healthz` checks for the Visitor Center, portal, metadata,
-  six relays, and four notaries.
+  Walt wallet, six relays, and five notaries.
+- OID4VCI issuer checks for issuer metadata, VCT metadata, credential offer,
+  nonce issuance, refusal of unknown credential configurations, eSignet login
+  redirect, and unauthenticated credential refusal.
 - A Visitor Center scenario-proxy check that lists the stories, runs the child
   benefit positive path, confirms credential issuance, and runs the purpose
   denial path.

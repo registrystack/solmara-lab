@@ -80,6 +80,13 @@ NOTARY_CONFIGS = {
             "agriculture": RELAY_PUBLIC_URLS["agriculture"],
         },
     ),
+    "notaries/citizen-issuer.yaml": NotaryRender(
+        public_url="https://citizen-issuer-notary.solmara.registrystack.org",
+        source_urls={
+            "civil": RELAY_PUBLIC_URLS["civil"],
+            "population": RELAY_PUBLIC_URLS["population"],
+        },
+    ),
 }
 
 
@@ -105,6 +112,7 @@ def render_relay(relative: str, public_url: str) -> str:
 
 def render_notary(relative: str, render: NotaryRender) -> str:
     data = read_yaml(relative)
+    data["instance"]["public_base_url"] = render.public_url
     evidence = data["evidence"]
     evidence["api_base_url"] = render.public_url
     source_connections = evidence["source_connections"]

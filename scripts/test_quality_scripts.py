@@ -112,6 +112,9 @@ class QualityScriptTests(unittest.TestCase):
                 "citizen-notary": [
                     "citizen-notary-state:/var/lib/registry-notary/config-state",
                 ],
+                "citizen-issuer-notary": [
+                    "citizen-issuer-notary-state:/var/lib/registry-notary/config-state",
+                ],
             },
         }
 

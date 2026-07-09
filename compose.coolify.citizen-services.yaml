@@ -33,6 +33,7 @@ services:
       - chown -R 65534:65534 /notary/* && touch /tmp/ready && tail -f /dev/null
     volumes:
       - citizen-notary-state:/notary/citizen-notary-state
+      - citizen-issuer-notary-state:/notary/citizen-issuer-notary-state
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/ready"]
       interval: 5s
@@ -66,5 +67,21 @@ services:
     labels:
       solmara.lab.host: citizen-notary.solmara.registrystack.org
 
+  citizen-issuer-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/citizen-issuer.yaml"]
+    environment:
+      <<: *notary-environment
+      CRA_CITIZEN_SOURCE_RAW: ${CRA_CITIZEN_SOURCE_RAW}
+      NIA_CITIZEN_SOURCE_RAW: ${NIA_CITIZEN_SOURCE_RAW}
+      CITIZEN_ISSUER_NOTARY_ISSUER_JWK: ${CITIZEN_ISSUER_NOTARY_ISSUER_JWK}
+      CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK: ${CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK}
+      CITIZEN_ISSUER_ESIGNET_RP_JWK: ${CITIZEN_ISSUER_ESIGNET_RP_JWK}
+    volumes:
+      - citizen-issuer-notary-state:/var/lib/registry-notary/config-state
+    labels:
+      solmara.lab.host: citizen-issuer-notary.solmara.registrystack.org
+
 volumes:
   citizen-notary-state:
+  citizen-issuer-notary-state:

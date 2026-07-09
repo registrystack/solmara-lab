@@ -42,6 +42,7 @@ class HostedTargets:
     metadata_url: str
     esignet_url: str
     esignet_ui_url: str
+    wallet_url: str
     relays: tuple[ServiceTarget, ...]
     notaries: tuple[ServiceTarget, ...]
 
@@ -59,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     checks: list[tuple[str, Any]] = [
         ("public routes and service health", lambda: check_public_routes(targets, args.timeout)),
         ("Visitor Center scenario runner proxy", lambda: check_home_demo(targets.home_url, args.timeout)),
+        ("OID4VCI wallet issuer", lambda: check_oid4vci_issuer(targets, args.timeout)),
         (
             "eSignet backend",
             lambda: run_command(
@@ -199,6 +201,7 @@ def default_targets(domain: str, scheme: str = "https") -> HostedTargets:
         metadata_url=subdomain("metadata"),
         esignet_url=subdomain("esignet"),
         esignet_ui_url=subdomain("esignet-ui"),
+        wallet_url=subdomain("wallet"),
         relays=(
             ServiceTarget("CRA civil relay", subdomain("cra-relay"), env_name="SOLMARA_CRA_RELAY_URL"),
             ServiceTarget("NIA population relay", subdomain("nia-relay"), env_name="SOLMARA_NIA_RELAY_URL"),
@@ -223,6 +226,11 @@ def default_targets(domain: str, scheme: str = "https") -> HostedTargets:
                 "citizen services notary",
                 subdomain("citizen-notary"),
                 env_name="PORTAL_CITIZEN_NOTARY_URL",
+            ),
+            ServiceTarget(
+                "citizen OID4VCI issuer notary",
+                subdomain("citizen-issuer-notary"),
+                env_name="CITIZEN_ISSUER_NOTARY_URL",
             ),
         ),
     )
@@ -250,6 +258,7 @@ def hosted_env(base_env: os._Environ[str] | dict[str, str], targets: HostedTarge
             "PORTAL_CERTS_RELAY_URL": relay_url(targets, "SOLMARA_CRA_RELAY_URL"),
             "SOLMARA_ESIGNET_PUBLIC_BASE_URL": targets.esignet_url,
             "SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL": targets.esignet_ui_url,
+            "SOLMARA_WALLET_URL": targets.wallet_url,
             "SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED": "1",
         }
     )
@@ -266,10 +275,18 @@ def relay_url(targets: HostedTargets, env_name: str) -> str:
     raise SmokeFailure(f"missing relay target for {env_name}")
 
 
+def notary_url(targets: HostedTargets, env_name: str) -> str:
+    for notary in targets.notaries:
+        if notary.env_name == env_name:
+            return notary.base_url
+    raise SmokeFailure(f"missing notary target for {env_name}")
+
+
 def check_public_routes(targets: HostedTargets, timeout: float) -> None:
     checks = [
         ServiceTarget("Visitor Center", targets.home_url, "/"),
         ServiceTarget("portal", targets.portal_url, "/"),
+        ServiceTarget("Walt wallet", targets.wallet_url, "/"),
         ServiceTarget("static metadata", targets.metadata_url, "/metadata/index.json"),
         *targets.relays,
         *targets.notaries,
@@ -328,6 +345,95 @@ def check_home_demo(home_url: str, timeout: float) -> None:
         raise SmokeFailure("child purpose-denial step did not return a stable problem code")
 
 
+def check_oid4vci_issuer(targets: HostedTargets, timeout: float) -> None:
+    issuer_url = notary_url(targets, "CITIZEN_ISSUER_NOTARY_URL")
+    config_id = "citizen_status_sd_jwt"
+    vct = joined_url(issuer_url, "/credentials/citizen-status/v1")
+    metadata = request_json("GET", joined_url(issuer_url, "/.well-known/openid-credential-issuer"), timeout=timeout)
+    if metadata.status != 200 or not isinstance(metadata.body, dict):
+        raise SmokeFailure(f"OID4VCI issuer metadata returned {metadata.detail}")
+    if metadata.body.get("credential_issuer") != issuer_url:
+        raise SmokeFailure("OID4VCI metadata advertises the wrong credential_issuer")
+    if metadata.body.get("credential_endpoint") != joined_url(issuer_url, "/oid4vci/credential"):
+        raise SmokeFailure("OID4VCI metadata advertises the wrong credential_endpoint")
+    if metadata.body.get("nonce_endpoint") != joined_url(issuer_url, "/oid4vci/nonce"):
+        raise SmokeFailure("OID4VCI metadata advertises the wrong nonce_endpoint")
+    if metadata.body.get("token_endpoint") != joined_url(issuer_url, "/oid4vci/token"):
+        raise SmokeFailure("OID4VCI metadata is missing the pre-authorized-code token endpoint")
+    if targets.esignet_url not in (metadata.body.get("authorization_servers") or []):
+        raise SmokeFailure("OID4VCI metadata does not advertise Solmara eSignet as an authorization server")
+
+    configs = metadata.body.get("credential_configurations_supported")
+    if not isinstance(configs, dict) or config_id not in configs:
+        raise SmokeFailure(f"OID4VCI metadata missing {config_id}")
+    config = configs[config_id]
+    if not isinstance(config, dict):
+        raise SmokeFailure(f"OID4VCI metadata for {config_id} is not an object")
+    if config.get("format") != "dc+sd-jwt":
+        raise SmokeFailure(f"OID4VCI {config_id} format is {config.get('format')!r}")
+    if config.get("vct") != vct:
+        raise SmokeFailure(f"OID4VCI {config_id} vct is {config.get('vct')!r}")
+    if "did:jwk" not in (config.get("cryptographic_binding_methods_supported") or []):
+        raise SmokeFailure(f"OID4VCI {config_id} does not allow did:jwk holder binding")
+    if "EdDSA" not in (config.get("credential_signing_alg_values_supported") or []):
+        raise SmokeFailure(f"OID4VCI {config_id} does not advertise EdDSA credential signing")
+    proof_jwt = nested(config, "proof_types_supported", "jwt", "proof_signing_alg_values_supported")
+    if not isinstance(proof_jwt, list) or "EdDSA" not in proof_jwt:
+        raise SmokeFailure(f"OID4VCI {config_id} does not advertise EdDSA proof signing")
+
+    type_metadata = request_json(
+        "GET",
+        joined_url(issuer_url, "/.well-known/vct/credentials/citizen-status/v1"),
+        timeout=timeout,
+    )
+    if type_metadata.status != 200 or not isinstance(type_metadata.body, dict):
+        raise SmokeFailure(f"OID4VCI VCT metadata returned {type_metadata.detail}")
+    if type_metadata.body.get("vct") != vct:
+        raise SmokeFailure("OID4VCI VCT metadata advertises the wrong vct")
+
+    offer = request_json(
+        "GET",
+        joined_url(issuer_url, f"/oid4vci/credential-offer?credential_configuration_id={config_id}"),
+        timeout=timeout,
+    )
+    if offer.status != 200 or not isinstance(offer.body, dict):
+        raise SmokeFailure(f"OID4VCI credential offer returned {offer.detail}")
+    ids = offer.body.get("credential_configuration_ids")
+    if ids != [config_id]:
+        raise SmokeFailure(f"OID4VCI credential offer has unexpected credential_configuration_ids={ids!r}")
+
+    unknown_offer = request_json(
+        "GET",
+        joined_url(issuer_url, "/oid4vci/credential-offer?credential_configuration_id=unknown"),
+        timeout=timeout,
+    )
+    if unknown_offer.status != 400:
+        raise SmokeFailure(f"OID4VCI unknown credential offer returned {unknown_offer.detail}")
+
+    nonce = request_json(
+        "POST",
+        joined_url(issuer_url, "/oid4vci/nonce"),
+        body={"credential_configuration_id": config_id},
+        timeout=timeout,
+    )
+    if nonce.status != 200 or not isinstance(nonce.body, dict) or not nonce.body.get("c_nonce"):
+        raise SmokeFailure(f"OID4VCI nonce returned {nonce.detail}")
+
+    start = request_no_redirect(
+        "GET",
+        joined_url(issuer_url, f"/oid4vci/offer/start?credential_configuration_id={config_id}"),
+        timeout=timeout,
+    )
+    if start.status not in {302, 303} or not start.location:
+        raise SmokeFailure(f"OID4VCI offer start did not redirect, status={start.detail}")
+    if not start.location.startswith(f"{targets.esignet_ui_url}/"):
+        raise SmokeFailure("OID4VCI offer start redirected outside the Solmara eSignet UI")
+
+    credential = request_json("POST", joined_url(issuer_url, "/oid4vci/credential"), body={}, timeout=timeout)
+    if credential.status is None or credential.status < 400 or credential.status > 499:
+        raise SmokeFailure(f"OID4VCI credential endpoint without bearer returned {credential.detail}")
+
+
 def result_payload(response: "HttpResult") -> dict[str, Any]:
     if response.status != 200 or not isinstance(response.body, dict):
         raise SmokeFailure(f"scenario step returned {response.detail}")
@@ -354,6 +460,32 @@ class HttpResult:
         return self.error or "no response"
 
 
+@dataclass(frozen=True)
+class RedirectResult:
+    status: int | None
+    location: str | None = None
+    error: str = ""
+
+    @property
+    def detail(self) -> str:
+        if self.status is not None:
+            return f"HTTP {self.status}"
+        return self.error or "no response"
+
+
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> None:
+        return None
+
+
 def wait_for_http(method: str, url: str, timeout: float) -> HttpResult:
     deadline = time.monotonic() + timeout
     last = HttpResult(None, {}, "timeout")
@@ -375,9 +507,29 @@ def request_json(method: str, url: str, body: Any | None = None, timeout: float 
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return HttpResult(response.status, parse_body(response.read()))
     except urllib.error.HTTPError as error:
-        return HttpResult(error.code, parse_body(error.read()))
+        body = parse_body(error.read())
+        error.close()
+        return HttpResult(error.code, body)
     except Exception as error:  # noqa: BLE001
         return HttpResult(None, {}, error.__class__.__name__)
+
+
+def request_no_redirect(method: str, url: str, timeout: float = 8.0) -> RedirectResult:
+    request = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "User-Agent": "solmara-hosted-smoke/1.0"},
+        method=method,
+    )
+    opener = urllib.request.build_opener(NoRedirectHandler)
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            return RedirectResult(response.status, response.headers.get("Location"))
+    except urllib.error.HTTPError as error:
+        location = error.headers.get("Location")
+        error.close()
+        return RedirectResult(error.code, location)
+    except Exception as error:  # noqa: BLE001
+        return RedirectResult(None, None, error.__class__.__name__)
 
 
 def parse_body(raw: bytes) -> Any:

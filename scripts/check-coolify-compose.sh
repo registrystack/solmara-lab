@@ -20,5 +20,12 @@ for compose in $(find . -maxdepth 1 -name 'compose.coolify*.yaml' -print | sort)
   SOLMARA_ESIGNET_SEED_IMAGE="${SOLMARA_ESIGNET_SEED_IMAGE:-ghcr.io/registrystack/solmara-lab-esignet-seed@sha256:0000000000000000000000000000000000000000000000000000000000000000}" \
   SOLMARA_ESIGNET_POSTGRES_IMAGE="${SOLMARA_ESIGNET_POSTGRES_IMAGE:-ghcr.io/registrystack/solmara-lab-esignet-postgres@sha256:0000000000000000000000000000000000000000000000000000000000000000}" \
   SOLMARA_ESIGNET_UI_IMAGE="${SOLMARA_ESIGNET_UI_IMAGE:-ghcr.io/registrystack/solmara-lab-esignet-ui@sha256:0000000000000000000000000000000000000000000000000000000000000000}" \
+  CONFIG_REPO_REF="${CONFIG_REPO_REF:-local-compose-check}" \
+  WALT_DB_PASSWORD="${WALT_DB_PASSWORD:-local-compose-check}" \
+  WALT_AUTH_ENCRYPTION_KEY="${WALT_AUTH_ENCRYPTION_KEY:-local-compose-check}" \
+  WALT_AUTH_SIGN_KEY="${WALT_AUTH_SIGN_KEY:-local-compose-check}" \
+  WALT_AUTH_TOKEN_KEY="${WALT_AUTH_TOKEN_KEY:-local-compose-check}" \
+  WALT_KTOR_SIGNING_KEY="${WALT_KTOR_SIGNING_KEY:-local-compose-check}" \
+  WALT_KTOR_VERIFICATION_KEY="${WALT_KTOR_VERIFICATION_KEY:-local-compose-check}" \
   docker compose --env-file versions.env --env-file .env -f "$compose" config >/dev/null
 done

@@ -45,6 +45,8 @@ JWK_KIDS = {
     "PENSION_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:pension#issuer-key-1",
     "NAGDI_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:nagdi#issuer-key-1",
     "CITIZEN_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:citizen#issuer-key-1",
+    "CITIZEN_ISSUER_NOTARY_ISSUER_JWK": "did:web:citizen-issuer-notary.solmara.registrystack.org#issuer-key-1",
+    "CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK": "did:web:citizen-issuer-notary.solmara.registrystack.org#access-token-key-1",
 }
 
 
@@ -58,6 +60,11 @@ def fingerprint(value: str) -> str:
 
 def b64url(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def b64url_int(value: int) -> str:
+    width = max(1, (value.bit_length() + 7) // 8)
+    return b64url(value.to_bytes(width, "big"))
 
 
 def local_ed25519_jwk(kid: str) -> str:
@@ -85,6 +92,76 @@ def local_ed25519_jwk(kid: str) -> str:
         "d": b64url(private_seed),
     }
     return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
+
+
+def read_der_length(data: bytes, offset: int) -> tuple[int, int]:
+    first = data[offset]
+    offset += 1
+    if first < 0x80:
+        return first, offset
+    size = first & 0x7F
+    length = int.from_bytes(data[offset : offset + size], "big")
+    return length, offset + size
+
+
+def read_der_tlv(data: bytes, offset: int, expected_tag: int | None = None) -> tuple[int, bytes, int]:
+    tag = data[offset]
+    if expected_tag is not None and tag != expected_tag:
+        raise ValueError(f"expected ASN.1 tag {expected_tag:#x}, got {tag:#x}")
+    length, value_offset = read_der_length(data, offset + 1)
+    end = value_offset + length
+    return tag, data[value_offset:end], end
+
+
+def read_der_int(data: bytes, offset: int) -> tuple[int, int]:
+    _, value, end = read_der_tlv(data, offset, 0x02)
+    return int.from_bytes(value.lstrip(b"\x00"), "big"), end
+
+
+def local_rsa_key_material(kid: str) -> tuple[str, str]:
+    private_pem = subprocess.run(
+        ["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    private_der = subprocess.run(
+        ["openssl", "rsa", "-traditional", "-outform", "DER"],
+        input=private_pem,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    _, sequence, _ = read_der_tlv(private_der, 0, 0x30)
+    offset = 0
+    _, offset = read_der_int(sequence, offset)
+    modulus, offset = read_der_int(sequence, offset)
+    public_exponent, offset = read_der_int(sequence, offset)
+    private_exponent, offset = read_der_int(sequence, offset)
+    prime_p, offset = read_der_int(sequence, offset)
+    prime_q, offset = read_der_int(sequence, offset)
+    exponent_p, offset = read_der_int(sequence, offset)
+    exponent_q, offset = read_der_int(sequence, offset)
+    coefficient, _ = read_der_int(sequence, offset)
+    jwk = {
+        "kty": "RSA",
+        "kid": kid,
+        "use": "sig",
+        "alg": "RS256",
+        "n": b64url_int(modulus),
+        "e": b64url_int(public_exponent),
+        "d": b64url_int(private_exponent),
+        "p": b64url_int(prime_p),
+        "q": b64url_int(prime_q),
+        "dp": b64url_int(exponent_p),
+        "dq": b64url_int(exponent_q),
+        "qi": b64url_int(coefficient),
+    }
+    return base64.b64encode(private_pem).decode("ascii"), json.dumps(
+        jwk,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 def local_rsa_private_key_b64() -> str:
@@ -139,6 +216,9 @@ def main() -> int:
     postgres_user = "solmara_registry"
     postgres_password = raw_key()
     postgres_db = "solmara_lab"
+    citizen_issuer_esignet_private_key_b64, citizen_issuer_esignet_rp_jwk = local_rsa_key_material(
+        "solmara-citizen-issuer-key-1"
+    )
     values: dict[str, str] = {
         "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
         "REGISTRY_RELAY_AUDIT_HASH_SECRET": raw_key(),
@@ -160,6 +240,8 @@ def main() -> int:
         "PORTAL_ESIGNET_REDIRECT_URI": "http://127.0.0.1:4300/auth/callback",
         "PORTAL_ESIGNET_SCOPE": "openid profile",
         "PORTAL_ESIGNET_SUBJECT_CLAIM": "individual_id",
+        "CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64": citizen_issuer_esignet_private_key_b64,
+        "CITIZEN_ISSUER_ESIGNET_RP_JWK": citizen_issuer_esignet_rp_jwk,
         "SOLMARA_ESIGNET_PUBLIC_BASE_URL": "http://127.0.0.1:4308",
         "SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL": "http://127.0.0.1:4309",
         "SOLMARA_POSTGRES_USER": postgres_user,

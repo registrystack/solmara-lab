@@ -61,6 +61,7 @@ services:
       - pension-notary-state:/notary/pension-notary-state
       - nagdi-notary-state:/notary/nagdi-notary-state
       - citizen-notary-state:/notary/citizen-notary-state
+      - citizen-issuer-notary-state:/notary/citizen-issuer-notary-state
 
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
@@ -427,6 +428,30 @@ services:
       redis:
         condition: service_healthy
 
+  citizen-issuer-notary:
+    <<: *notary-common
+    profiles: ["wallet"]
+    command: ["--config", "/etc/registry-notary/citizen-issuer.yaml"]
+    environment:
+      <<: *notary-environment
+      CRA_CITIZEN_SOURCE_RAW: ${CRA_CITIZEN_SOURCE_RAW}
+      NIA_CITIZEN_SOURCE_RAW: ${NIA_CITIZEN_SOURCE_RAW}
+      CITIZEN_ISSUER_NOTARY_ISSUER_JWK: ${CITIZEN_ISSUER_NOTARY_ISSUER_JWK}
+      CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK: ${CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK}
+      CITIZEN_ISSUER_ESIGNET_RP_JWK: ${CITIZEN_ISSUER_ESIGNET_RP_JWK}
+    ports:
+      - "${SOLMARA_CITIZEN_ISSUER_NOTARY_PORT:-4325}:8080"
+    volumes:
+      - ./notaries/citizen-issuer.yaml:/etc/registry-notary/citizen-issuer.yaml:ro
+      - citizen-issuer-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      cra-civil-relay:
+        condition: service_started
+      nia-population-relay:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
   portal:
     build:
       context: ./portal
@@ -489,3 +514,4 @@ volumes:
   pension-notary-state:
   nagdi-notary-state:
   citizen-notary-state:
+  citizen-issuer-notary-state:
