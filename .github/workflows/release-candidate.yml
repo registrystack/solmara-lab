@@ -39,6 +39,7 @@ jobs:
           repository: jeremi/esignet-relay-authenticator
           ref: ${{ env.ESIGNET_RELAY_AUTHENTICATOR_REF }}
           path: vendor/esignet-relay-authenticator
+          ssh-key: ${{ secrets.ESIGNET_RELAY_AUTHENTICATOR_SSH_KEY }}
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-node@v4
         with:
@@ -197,4 +198,7 @@ jobs:
           } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Stop stack
         if: always()
-        run: just down
+        run: |
+          if command -v just >/dev/null 2>&1; then
+            just down
+          fi
