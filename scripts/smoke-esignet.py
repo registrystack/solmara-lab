@@ -121,11 +121,23 @@ def check_esignet_discovery(targets: SmokeTargets, timeout: float) -> None:
         f"{targets.esignet_url}/v1/esignet/oidc/.well-known/openid-configuration",
         timeout=timeout,
     )
+    root_doc = wait_for_json("GET", f"{targets.esignet_url}/.well-known/openid-configuration", timeout=timeout)
+    root_oauth_doc = wait_for_json(
+        "GET",
+        f"{targets.esignet_url}/.well-known/oauth-authorization-server",
+        timeout=timeout,
+    )
     ui_doc = wait_for_json("GET", f"{targets.esignet_ui_url}/.well-known/openid-configuration", timeout=timeout)
     service_issuer = service_doc.get("issuer")
+    root_issuer = root_doc.get("issuer")
+    root_oauth_issuer = root_oauth_doc.get("issuer")
     ui_issuer = ui_doc.get("issuer")
     if not isinstance(service_issuer, str) or not service_issuer:
         raise SmokeFailure("service discovery omitted issuer")
+    if root_issuer != service_issuer:
+        raise SmokeFailure("root OpenID discovery issuer does not match service discovery issuer")
+    if root_oauth_issuer != service_issuer:
+        raise SmokeFailure("root OAuth authorization-server issuer does not match service discovery issuer")
     if ui_issuer != service_issuer:
         raise SmokeFailure("UI discovery issuer does not match service discovery issuer")
 

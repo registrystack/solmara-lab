@@ -19,7 +19,7 @@ project.
 |---|---|---|
 | `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, static metadata |
 | `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay, NIA relay, NIA Postgres |
-| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, eSignet UI, eSignet Postgres, Redis, seed jobs |
+| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, public eSignet edge proxy, eSignet UI, eSignet Postgres, Redis, seed jobs |
 | `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay, programme MIS relay, child benefit notary, Redis |
 | `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF relay, pension notary, Redis |
 | `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI relay, NAgDI notary, Redis |
@@ -239,7 +239,7 @@ names that Coolify stores internally.
 | `home` | `https://solmara.registrystack.org:4301` |
 | `portal` | `https://portal.solmara.registrystack.org:4000` |
 | `static-metadata` | `https://metadata.solmara.registrystack.org:8080` |
-| `esignet` | `https://esignet.solmara.registrystack.org:8088` |
+| `esignet-edge` | `https://esignet.solmara.registrystack.org:3000` |
 | `esignet-ui` | `https://esignet-ui.solmara.registrystack.org:3000` |
 | `caddy` | `https://wallet.solmara.registrystack.org:7101` |
 | `cra-civil-relay` | `https://cra-relay.solmara.registrystack.org:8080` |
@@ -316,6 +316,8 @@ The command runs:
 - OID4VCI issuer checks for issuer metadata, VCT metadata, credential offer,
   nonce issuance, refusal of unknown credential configurations, eSignet login
   redirect, and unauthenticated credential refusal.
+- eSignet discovery checks for issuer-root OpenID and OAuth metadata, plus the
+  MOSIP `/v1/esignet/...` discovery path.
 - A Visitor Center scenario-proxy check that lists the stories, runs the child
   benefit positive path, confirms credential issuance, and runs the purpose
   denial path.

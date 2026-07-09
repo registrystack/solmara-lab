@@ -112,6 +112,17 @@ class SmokeEsignetTests(unittest.TestCase):
             with self.assertRaises(smoke_esignet.SmokeFailure):
                 smoke_esignet.check_attribute_release(targets, "token-value", LEGACY_SUBJECT, "2300018263", timeout=2)
 
+    def test_discovery_requires_root_and_mosip_paths_to_share_issuer(self) -> None:
+        issuer_doc = {"issuer": "https://esignet.solmara.registrystack.org"}
+        routes = {
+            ("GET", "/v1/esignet/oidc/.well-known/openid-configuration"): (200, issuer_doc),
+            ("GET", "/.well-known/openid-configuration"): (200, issuer_doc),
+            ("GET", "/.well-known/oauth-authorization-server"): (200, issuer_doc),
+        }
+        with StubServer(routes) as server:
+            targets = smoke_esignet.SmokeTargets(server.url, server.url, server.url)
+            smoke_esignet.check_esignet_discovery(targets, timeout=2)
+
 
 if __name__ == "__main__":
     unittest.main()
