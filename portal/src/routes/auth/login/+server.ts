@@ -1,22 +1,29 @@
-// GET /auth/login : MOCK-ONLY login stub for Phase 0.
+// GET /auth/login.
 //
-// Phase 1 replaces this with real eSignet Authorization Code + PKCE: this handler
-// will generate a PKCE verifier/challenge, store the verifier server-side, and
-// redirect to the eSignet authorize endpoint. The login is ALWAYS real in Phase 1
-// (spec 5.7); there is no forged or simulated login in the live build.
-//
-// For Phase 0 the mock provider needs a session, so this stub redirects straight
-// to the callback, which establishes the canned Elena Dela Cruz (2300018263) session.
-// No token is ever generated, forged, or logged here.
+// In eSignet mode this starts Authorization Code + PKCE and redirects to the
+// configured eSignet authorize endpoint. In mock mode it redirects straight to
+// the callback, which establishes a server-side persona session. No token is
+// forged, stored in the browser, or logged here.
 
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { createEsignetLogin, esignetConfigFor, EsignetConfigError } from '$lib/server/esignet';
 
-export const GET: RequestHandler = ({ url }) => {
-  // Phase 1: build PKCE + redirect to eSignet authorize. Phase 0: go to callback.
+export const GET: RequestHandler = ({ cookies, url }) => {
+  try {
+    const esignet = esignetConfigFor(url);
+    if (esignet) {
+      throw redirect(302, createEsignetLogin(cookies, esignet).toString());
+    }
+  } catch (err) {
+    if (err instanceof EsignetConfigError) throw error(500, 'eSignet login is not configured');
+    throw err;
+  }
+
+  // Mock mode: go to callback.
   // A `persona` hint from the visitor center handoff is carried through so the
-  // callback can bind that persona's mock session. Phase 1 ignores it: the
-  // subject comes from real UserInfo, never a query parameter.
+  // callback can bind that persona's mock session. eSignet mode ignores it: the
+  // subject comes from UserInfo, never a query parameter.
   const persona = url.searchParams.get('persona');
   throw redirect(302, persona ? `/auth/callback?persona=${encodeURIComponent(persona)}` : '/auth/callback');
 };

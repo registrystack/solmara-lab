@@ -93,6 +93,19 @@ services:
       PORT: 4000
       PORTAL_PROVIDER: live
       PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET}
+      PORTAL_AUTH_PROVIDER: esignet
+      PORTAL_SECURE_COOKIES: "true"
+      PORTAL_ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
+      PORTAL_ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
+      PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64}
+      PORTAL_ESIGNET_ISSUER: https://esignet.solmara.registrystack.org
+      PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT: https://esignet-ui.solmara.registrystack.org/authorize
+      PORTAL_ESIGNET_TOKEN_ENDPOINT: https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token
+      PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE: https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token
+      PORTAL_ESIGNET_USERINFO_ENDPOINT: https://esignet.solmara.registrystack.org/v1/esignet/oidc/userinfo
+      PORTAL_ESIGNET_REDIRECT_URI: https://portal.solmara.registrystack.org/auth/callback
+      PORTAL_ESIGNET_SCOPE: openid profile
+      PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
       CHILD_BENEFIT_NOTARY_URL: https://child-benefit-notary.solmara.registrystack.org
       CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
       PENSION_NOTARY_URL: https://pension-notary.solmara.registrystack.org

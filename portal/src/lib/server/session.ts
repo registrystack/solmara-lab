@@ -1,11 +1,11 @@
-// Server-side session for Phase 0. A MOCK session: subject = 2300018263 (Elena
-// Dela Cruz), established by the /auth/login + /auth/callback stubs WITHOUT real
-// eSignet. Phase 1 replaces these stubs with real eSignet Authorization Code +
-// PKCE; the session shape (subject bound server-side) does not change.
+// Server-side portal sessions. Mock mode binds a canned/persona subject without
+// eSignet; eSignet mode binds the subject returned by UserInfo. The session
+// shape stays the same in both modes.
 //
 // We NEVER forge or store a token here: a mock session carries only the subject
-// and display name, never bearer material. The real BFF holds eSignet tokens in
-// the server session; the browser never sees them. Server-only module.
+// and display name, never bearer material. In eSignet mode the BFF derives the
+// same session shape from UserInfo and does not store access tokens here.
+// Server-only module.
 
 import type { Cookies } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
@@ -41,7 +41,7 @@ const sessions = new Map<string, StoredSession>();
 // canned Elena Dela Cruz session. Callers pass a persona ONLY after validating
 // it against the published roster (see `personas.ts`); the subject is still
 // bound server-side, never read from the cookie value.
-export function setMockSession(cookies: Cookies, session: PortalSession = MOCK_SESSION): void {
+export function setPortalSession(cookies: Cookies, session: PortalSession): void {
   reclaimExpiredSessions();
   const sessionId = randomUUID();
   sessions.set(sessionId, {
@@ -55,6 +55,10 @@ export function setMockSession(cookies: Cookies, session: PortalSession = MOCK_S
     secure: process.env.PORTAL_SECURE_COOKIES === 'true',
     maxAge: SESSION_MAX_AGE_SECONDS
   });
+}
+
+export function setMockSession(cookies: Cookies, session: PortalSession = MOCK_SESSION): void {
+  setPortalSession(cookies, session);
 }
 
 export function getSessionId(cookies: Cookies): string | null {

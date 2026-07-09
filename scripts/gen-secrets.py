@@ -23,6 +23,7 @@ RAW_HASH_PAIRS = [
     ("NIA_CHILD_BENEFIT_SOURCE_RAW", "NIA_CHILD_BENEFIT_SOURCE_HASH"),
     ("NIA_PENSION_SOURCE_RAW", "NIA_PENSION_SOURCE_HASH"),
     ("NIA_CITIZEN_SOURCE_RAW", "NIA_CITIZEN_SOURCE_HASH"),
+    ("SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW", "SOLMARA_ESIGNET_IDENTITY_RELEASE_HASH"),
     ("SRO_CHILD_BENEFIT_SOURCE_RAW", "SRO_CHILD_BENEFIT_SOURCE_HASH"),
     ("SRO_CITIZEN_SOURCE_RAW", "SRO_CITIZEN_SOURCE_HASH"),
     ("PROGRAMME_CHILD_BENEFIT_SOURCE_RAW", "PROGRAMME_CHILD_BENEFIT_SOURCE_HASH"),
@@ -86,6 +87,16 @@ def local_ed25519_jwk(kid: str) -> str:
     return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
 
 
+def local_rsa_private_key_b64() -> str:
+    private_pem = subprocess.run(
+        ["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    return base64.b64encode(private_pem).decode("ascii")
+
+
 def ensure_postgres_tls() -> None:
     POSTGRES_SSL_DIR.mkdir(parents=True, exist_ok=True)
     key_path = POSTGRES_SSL_DIR / "server.key"
@@ -133,11 +144,29 @@ def main() -> int:
         "REGISTRY_RELAY_AUDIT_HASH_SECRET": raw_key(),
         "REGISTRY_NOTARY_AUDIT_HASH_SECRET": raw_key(),
         "REGISTRY_NOTARY_REPLAY_REDIS_URL": "redis://redis:6379/0",
+        "REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD": raw_key(),
+        "REGISTRY_ESIGNET_KYC_TOKEN_SECRET": raw_key(),
+        "REGISTRY_ESIGNET_PSUT_SECRET": raw_key(),
         "PORTAL_SESSION_SECRET": raw_key(),
+        "PORTAL_AUTH_PROVIDER": "mock",
+        "PORTAL_ESIGNET_CLIENT_ID": "solmara-portal",
+        "PORTAL_ESIGNET_CLIENT_KEY_ID": "solmara-portal-key-1",
+        "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64": local_rsa_private_key_b64(),
+        "PORTAL_ESIGNET_ISSUER": "http://127.0.0.1:4308",
+        "PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT": "http://127.0.0.1:4309/authorize",
+        "PORTAL_ESIGNET_TOKEN_ENDPOINT": "http://esignet:8088/v1/esignet/oauth/v2/token",
+        "PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE": "http://127.0.0.1:4308/v1/esignet/oauth/v2/token",
+        "PORTAL_ESIGNET_USERINFO_ENDPOINT": "http://esignet:8088/v1/esignet/oidc/userinfo",
+        "PORTAL_ESIGNET_REDIRECT_URI": "http://127.0.0.1:4300/auth/callback",
+        "PORTAL_ESIGNET_SCOPE": "openid profile",
+        "PORTAL_ESIGNET_SUBJECT_CLAIM": "individual_id",
+        "SOLMARA_ESIGNET_PUBLIC_BASE_URL": "http://127.0.0.1:4308",
+        "SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL": "http://127.0.0.1:4309",
         "SOLMARA_POSTGRES_USER": postgres_user,
         "SOLMARA_POSTGRES_PASSWORD": postgres_password,
         "SOLMARA_POSTGRES_DB": postgres_db,
         "SOLMARA_NIA_DATABASE_URL": f"postgres://{postgres_user}:{postgres_password}@postgres:5432/{postgres_db}?sslmode=require",
+        "SOLMARA_ESIGNET_POSTGRES_PASSWORD": raw_key(),
         "CHILD_BENEFIT_NOTARY_URL": "http://127.0.0.1:4321",
         "PENSION_NOTARY_URL": "http://127.0.0.1:4322",
         "NAGDI_NOTARY_URL": "http://127.0.0.1:4323",

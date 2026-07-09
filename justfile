@@ -59,6 +59,7 @@ compose:
     @if [ ! -f .env ]; then echo ".env is missing; run 'just gen-secrets' first" >&2; exit 1; fi
     @if [ -f compose.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null; fi
     @if [ -f compose.hosted.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
+    @if [ -f compose.esignet.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml config >/dev/null; fi
     scripts/check-coolify-compose.sh
 
 # Start the local topology.
@@ -69,9 +70,21 @@ up:
 down:
     @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml down
 
+# Start the local topology with eSignet-backed portal login.
+up-esignet:
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
+
+# Stop the local eSignet topology without removing local volumes.
+down-esignet:
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml down
+
 # Stop the local topology and remove this checkout's local volumes.
 reset:
     @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml down -v
+
+# Stop the local eSignet topology and remove this checkout's local eSignet volumes.
+reset-esignet:
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml down -v
 
 # Run story and federation smokes against the running local topology.
 smoke:
@@ -80,6 +93,10 @@ smoke:
 # Run only live HTTP checks against the running local topology.
 smoke-live:
     scripts/smoke-live.py
+
+# Smoke eSignet discovery and the NIA attribute-release profile.
+smoke-esignet *args:
+    uv run scripts/smoke-esignet.py {{args}}
 
 # Probe Relay source endpoints used by live Notary smoke.
 relay-source-smoke:
@@ -96,6 +113,10 @@ portal-live-e2e:
 # Run browser e2e against the Visitor's Center.
 home-live-e2e:
     @cd home && SOLMARA_HOME_E2E_MODE=live PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_HOME_PORT:-4301}" pnpm e2e
+
+# Run public hosted health, endpoint, scenario, and portal smoke checks.
+hosted-smoke *args:
+    uv run scripts/smoke-hosted.py {{args}}
 
 # Verify pinned Registry Stack images match a published release tag.
 release-pins tag="v0.8.4":

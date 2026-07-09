@@ -1,0 +1,180 @@
+services:
+  esignet-database:
+    build:
+      context: .
+      dockerfile: docker/esignet-postgres/Dockerfile
+    image: ${SOLMARA_ESIGNET_POSTGRES_IMAGE:-solmara-lab-esignet-postgres:local}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?SOLMARA_ESIGNET_POSTGRES_PASSWORD is required; run just gen-secrets}
+    volumes:
+      - esignet-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  esignet-redis:
+    image: ${ESIGNET_REDIS_IMAGE:-redis:6.0}
+    command: ["redis-server"]
+    volumes:
+      - esignet-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  esignet:
+    build:
+      context: .
+      dockerfile: docker/esignet-relay/Dockerfile
+      additional_contexts:
+        esignet_relay_authenticator_src: ${ESIGNET_RELAY_AUTHENTICATOR_SOURCE_DIR:-../esignet-relay-authenticator}
+    image: ${SOLMARA_ESIGNET_RELAY_IMAGE:-solmara-lab-esignet-relay:local}
+    user: root
+    environment:
+      active_profile_env: default,local
+      spring_config_label_env: ""
+      spring_config_url_env: ""
+      hsm_client_zip_url_env: ""
+      hsm_local_dir_env: hsm-client
+      loader_path_env: /home/mosip/additional_jars/
+      work_dir: /home/mosip
+      container_user: mosip
+      plugin_name_env: esignet-mock-plugin.jar,esignet-relay-authenticator.jar
+      plugin_url_env: ""
+      plugins_path_env: /home/mosip/plugins
+      amr_acr_mapping_file_path_env: /home/mosip/amr_acr_mapping.json
+      KAFKA_ENABLED: "false"
+      SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      SPRING_CACHE_TYPE: redis
+      SPRING_DATA_REDIS_HOST: esignet-redis
+      SPRING_REDIS_PASSWORD: ""
+      MOSIP_ESIGNET_HOST: esignet
+      MOSIP_ESIGNET_DISCOVERY_ISSUER_ID: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}
+      MOSIP_ESIGNET_DISCOVERY_KEY_VALUES: "{'issuer':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}','authorization_endpoint':'${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-http://127.0.0.1:4309}/authorize','token_endpoint':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}/v1/esignet/oauth/v2/token','userinfo_endpoint':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}/v1/esignet/oidc/userinfo','jwks_uri':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}/v1/esignet/oauth/.well-known/jwks.json','token_endpoint_auth_methods_supported':{'private_key_jwt'},'token_endpoint_auth_signing_alg_values_supported':{'RS256','PS256','ES256'}}"
+      MOSIP_ESIGNET_OAUTH_KEY_VALUES: "{'issuer':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}','authorization_endpoint':'${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-http://127.0.0.1:4309}/authorize','token_endpoint':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}/v1/esignet/oauth/v2/token','jwks_uri':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}/v1/esignet/oauth/.well-known/jwks.json','token_endpoint_auth_methods_supported':{'private_key_jwt'},'token_endpoint_auth_signing_alg_values_supported':{'RS256','PS256','ES256'}}"
+      MOSIP_ESIGNET_DATABASE_URL: jdbc:postgresql://esignet-database:5432/mosip_esignet?currentSchema=esignet
+      MOSIP_ESIGNET_DATABASE_USERNAME: postgres
+      MOSIP_ESIGNET_DATABASE_PASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?SOLMARA_ESIGNET_POSTGRES_PASSWORD is required; run just gen-secrets}
+      MOSIP_ESIGNET_INTEGRATION_SCAN_BASE_PACKAGE: io.mosip.esignet.mock.integration,io.registry.esignet.relay
+      MOSIP_ESIGNET_INTEGRATION_AUTHENTICATOR: RelayAuthenticationService
+      MOSIP_ESIGNET_INTEGRATION_KEY_BINDER: MockKeyBindingWrapperService
+      MOSIP_ESIGNET_OPENID_SCOPE_CLAIMS: "{'profile' : {'name','given_name','family_name','gender','birthdate','individual_id'}}"
+      REGISTRY_RELAY_BASE_URL: http://nia-population-relay:8080
+      REGISTRY_RELAY_ATTRIBUTE_RELEASE_PROFILE_ID: solmara-nia-userinfo
+      REGISTRY_RELAY_ATTRIBUTE_RELEASE_PROFILE_VERSION: v1
+      REGISTRY_RELAY_ATTRIBUTE_RELEASE_PURPOSE: https://id.registrystack.org/solmara/purpose/esignet-identity-verification
+      REGISTRY_RELAY_AUTH_CREDENTIAL_KIND: api_key
+      REGISTRY_RELAY_AUTH_BEARER_TOKEN: ${SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW:?SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW is required; run just gen-secrets}
+      REGISTRY_RELAY_SUBJECT_ID_TYPE: national_id
+      REGISTRY_RELAY_DEFAULT_CLAIMS: individual_id,name,given_name,family_name,birthdate,gender
+      REGISTRY_ESIGNET_AUTH_SUPPORTED_FACTORS: OTP
+      REGISTRY_ESIGNET_AUTH_OTP_CHANNELS: email,phone
+      REGISTRY_ESIGNET_AUTH_OTP_STATIC_ENABLED: "true"
+      REGISTRY_ESIGNET_AUTH_OTP_STATIC_VALUE: "111111"
+      REGISTRY_ESIGNET_KYC_TOKEN_HMAC_SECRET: ${REGISTRY_ESIGNET_KYC_TOKEN_SECRET:?REGISTRY_ESIGNET_KYC_TOKEN_SECRET is required; run just gen-secrets}
+      REGISTRY_ESIGNET_PSUT_HMAC_SECRET: ${REGISTRY_ESIGNET_PSUT_SECRET:?REGISTRY_ESIGNET_PSUT_SECRET is required; run just gen-secrets}
+      REGISTRY_ESIGNET_USER_INFO_ISSUER: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}
+      REGISTRY_ESIGNET_KYC_SIGNING_KEYSTORE_PATH: /home/mosip/kyc-signing/kyc-signing.p12
+      REGISTRY_ESIGNET_KYC_SIGNING_KEYSTORE_TYPE: PKCS12
+      REGISTRY_ESIGNET_KYC_SIGNING_KEYSTORE_PASSWORD: ${REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD:?REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD is required; run just gen-secrets}
+      REGISTRY_ESIGNET_KYC_SIGNING_KEY_ALIAS: esignet-relay-kyc
+      REGISTRY_ESIGNET_KYC_SIGNING_KEY_PASSWORD: ${REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD:?REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD is required; run just gen-secrets}
+      MOSIP_KERNEL_KEYMANAGER_HSM_CONFIG_PATH: /home/mosip/keystore/esignet_local.p12
+    ports:
+      - "${SOLMARA_ESIGNET_PORT:-4308}:8088"
+    volumes:
+      - esignet-keystore:/home/mosip/keystore
+      - esignet-kyc-signing:/home/mosip/kyc-signing
+    depends_on:
+      esignet-database:
+        condition: service_healthy
+      esignet-redis:
+        condition: service_healthy
+      nia-population-relay:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://esignet:8088/v1/esignet/oidc/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 90s
+
+  esignet-ui:
+    build:
+      context: .
+      dockerfile: docker/esignet-ui/Dockerfile
+      args:
+        ESIGNET_NGINX_CONF: config/esignet/nginx.conf
+    image: ${SOLMARA_ESIGNET_UI_IMAGE:-solmara-lab-esignet-ui:local}
+    user: root
+    environment:
+      container_user: mosip
+      DEFAULT_WELLKNOWN: "%5B%7B%22name%22%3A%22OpenID%20Configuration%22%2C%22value%22%3A%22%2F.well-known%2Fopenid-configuration%22%7D%2C%7B%22name%22%3A%22Jwks%20Json%22%2C%22value%22%3A%22%2F.well-known%2Fjwks.json%22%7D%2C%7B%22name%22%3A%22Authorization%20Server%22%2C%22value%22%3A%22%2F.well-known%2Foauth-authorization-server%22%7D%5D"
+      SIGN_IN_WITH_ESIGNET_PLUGIN_URL: https://raw.githubusercontent.com/mosip/artifactory-ref-impl/977607990661e864c2adddb9d7de50ea6c651b8f/artifacts/src/mosip-plugins/sign-in-with-esignet/sign-in-with-esignet.zip
+      i18n_url_env: ""
+      theme_url_env: ""
+      images_url_env: ""
+    ports:
+      - "${SOLMARA_ESIGNET_UI_PORT:-4309}:3000"
+    depends_on:
+      esignet:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://esignet-ui:3000/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  esignet-seed:
+    build:
+      context: .
+      dockerfile: docker/esignet-seed/Dockerfile
+    image: ${SOLMARA_ESIGNET_SEED_IMAGE:-solmara-lab-esignet-seed:local}
+    environment:
+      PGHOST: esignet-database
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?SOLMARA_ESIGNET_POSTGRES_PASSWORD is required; run just gen-secrets}
+      ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
+      ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
+      ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64 is required; run just gen-secrets}
+      ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}/auth/callback","http://localhost:${SOLMARA_PORTAL_PORT:-4300}/auth/callback"]'
+      ESIGNET_REDIS_HOST: esignet-redis
+      ESIGNET_ACCOUNT_SOURCE_LABEL: NIA population Relay profile solmara-nia-userinfo
+      ESIGNET_DEMO_OTP: "111111"
+    entrypoint: ["seed-esignet.py"]
+    depends_on:
+      esignet-database:
+        condition: service_healthy
+      esignet:
+        condition: service_healthy
+    restart: "no"
+
+  portal:
+    environment:
+      PORTAL_AUTH_PROVIDER: esignet
+      PORTAL_ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
+      PORTAL_ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
+      PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64 is required; run just gen-secrets}
+      PORTAL_ESIGNET_ISSUER: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}
+      PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT: ${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-http://127.0.0.1:4309}/authorize
+      PORTAL_ESIGNET_TOKEN_ENDPOINT: http://esignet:8088/v1/esignet/oauth/v2/token
+      PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}/v1/esignet/oauth/v2/token
+      PORTAL_ESIGNET_USERINFO_ENDPOINT: http://esignet:8088/v1/esignet/oidc/userinfo
+      PORTAL_ESIGNET_REDIRECT_URI: http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}/auth/callback
+      PORTAL_ESIGNET_SCOPE: openid profile
+      PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
+    depends_on:
+      esignet-seed:
+        condition: service_completed_successfully
+
+volumes:
+  esignet-pgdata:
+  esignet-keystore:
+  esignet-kyc-signing:
+  esignet-redis-data:

@@ -26,9 +26,19 @@ jobs:
       SOLMARA_IMAGE_REGISTRY: ghcr.io/registrystack
       SOLMARA_IMAGE_TAG: ${{ inputs.solmara_image_tag || github.sha }}
       POSTGRES_IMAGE: postgres:16-alpine
+      ESIGNET_POSTGRES_IMAGE: postgres:16
+      ESIGNET_BASE_IMAGE: mosipid/esignet-with-plugins:1.8.0
+      ESIGNET_UI_IMAGE: mosipid/oidc-ui:1.8.0
+      ESIGNET_RELAY_AUTHENTICATOR_REF: 9c066ae897cd3966333d7d75fc77db2e6dc7342c
       STATIC_METADATA_IMAGE: python:3.12-alpine
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout eSignet relay authenticator
+        uses: actions/checkout@v4
+        with:
+          repository: jeremi/esignet-relay-authenticator
+          ref: ${{ env.ESIGNET_RELAY_AUTHENTICATOR_REF }}
+          path: vendor/esignet-relay-authenticator
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-node@v4
         with:
@@ -133,12 +143,53 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-portal:${{ env.SOLMARA_IMAGE_TAG }}
+      - name: Build and push eSignet relay image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/esignet-relay/Dockerfile
+          build-contexts: |
+            esignet_relay_authenticator_src=./vendor/esignet-relay-authenticator
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-relay:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            ESIGNET_BASE_IMAGE=${{ env.ESIGNET_BASE_IMAGE }}
+      - name: Build and push eSignet Postgres image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/esignet-postgres/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-postgres:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            POSTGRES_IMAGE=${{ env.ESIGNET_POSTGRES_IMAGE }}
+      - name: Build and push eSignet UI image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/esignet-ui/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-ui:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            ESIGNET_UI_IMAGE=${{ env.ESIGNET_UI_IMAGE }}
+            ESIGNET_NGINX_CONF=config/esignet/nginx-hosted.conf
+      - name: Build and push eSignet seed image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/esignet-seed/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed:${{ env.SOLMARA_IMAGE_TAG }}
       - name: Report image digests
         run: |
           {
             echo "### Solmara image digests"
             echo
-            for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal; do
+            for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal solmara-lab-esignet-relay solmara-lab-esignet-postgres solmara-lab-esignet-ui solmara-lab-esignet-seed; do
               ref="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
               digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
               echo "- ${SOLMARA_IMAGE_REGISTRY}/${image}@${digest}"

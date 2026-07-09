@@ -1,23 +1,32 @@
-// GET /auth/callback : MOCK-ONLY callback stub for Phase 0.
+// GET /auth/callback.
 //
-// Phase 1 replaces this with the real eSignet code exchange: read ?code + ?state,
-// verify the PKCE verifier stored at /auth/login, exchange the code with
-// private-key-jwt (the client private key stays server-side, never shipped to the
-// browser, never logged), keep the access/ID token + UserInfo in a server session
-// cookie, and prefill identity from UserInfo. The browser never sees raw tokens.
-//
-// For Phase 0 this establishes the canned Elena Dela Cruz (2300018263) session WITHOUT
-// real eSignet so the mock provider has a server-bound subject. No token is ever
-// forged, stored, or logged.
+// In eSignet mode this verifies login state, exchanges the code with
+// private-key JWT, fetches UserInfo, and stores only the derived subject/display
+// name in the server-side portal session. In mock mode it establishes a
+// server-side persona session. No token is forged, stored in the browser, or
+// logged here.
 
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { setMockSession } from '$lib/server/session';
+import { completeEsignetLogin, esignetConfigFor, EsignetAuthError, EsignetConfigError } from '$lib/server/esignet';
+import { setMockSession, setPortalSession } from '$lib/server/session';
 import { resolvePersona } from '$lib/server/personas';
 
-export const GET: RequestHandler = ({ cookies, url }) => {
-  // Phase 1: exchange ?code, verify PKCE, store tokens + UserInfo server-side.
-  // Phase 0: set a subject-bound mock session and continue to the catalog. A
+export const GET: RequestHandler = async ({ cookies, fetch, url }) => {
+  try {
+    const esignet = esignetConfigFor(url);
+    if (esignet) {
+      const session = await completeEsignetLogin(cookies, url, esignet, fetch);
+      setPortalSession(cookies, session);
+      throw redirect(302, '/services');
+    }
+  } catch (err) {
+    if (err instanceof EsignetConfigError) throw error(500, 'eSignet login is not configured');
+    if (err instanceof EsignetAuthError) throw error(401, 'eSignet login failed');
+    throw err;
+  }
+
+  // Mock mode: set a subject-bound mock session and continue to the catalog. A
   // valid persona hint from the visitor center binds that persona; an unknown or
   // absent hint falls back to the default Elena Dela Cruz session, so a query
   // parameter can never forge a session for someone off the published roster.

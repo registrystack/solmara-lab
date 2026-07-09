@@ -43,6 +43,13 @@ auth:
       name: PORTAL_RELAY_TOKEN_HASH
     scopes:
     - nia_population:metadata
+  - id: esignet_identity_release
+    fingerprint:
+      provider: env
+      name: SOLMARA_ESIGNET_IDENTITY_RELEASE_HASH
+    scopes:
+    - nia_population:metadata
+    - nia_population:identity_release
 audit:
   sink: file
   path: /var/lib/registry-relay/audit/audit.jsonl
@@ -92,11 +99,19 @@ datasets:
       - name: person_id
         type: string
         nullable: true
+      - name: legacy_nid
+        type: string
+        nullable: true
+        sensitive: true
       - name: given_name
         type: string
         nullable: false
         sensitive: true
       - name: family_name
+        type: string
+        nullable: false
+        sensitive: true
+      - name: sex
         type: string
         nullable: false
         sensitive: true
@@ -130,6 +145,14 @@ datasets:
       sensitive: true
     - name: civil_person_id
       from: person_id
+    - name: legacy_nid
+      sensitive: true
+    - name: given_name
+      sensitive: true
+    - name: family_name
+      sensitive: true
+    - name: sex
+      sensitive: true
     - name: birth_date
     - name: identity_status
     - name: alive
@@ -150,14 +173,62 @@ datasets:
         - https://id.registrystack.org/solmara/purpose/pension-payment-review
         - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
         - https://id.registrystack.org/solmara/purpose/citizen-self-service
+        - https://id.registrystack.org/solmara/purpose/esignet-identity-verification
       allowed_filters:
       - field: id
         ops:
         - eq
         - in
+      - field: legacy_nid
+        ops:
+        - eq
       - field: identity_status
         ops:
         - eq
       - field: alive
         ops:
         - eq
+    attribute_release_profiles:
+    - id: solmara-nia-userinfo
+      version: v1
+      title: SolmaraID UserInfo
+      description: Minimal identity attributes for the Solmara eSignet authenticator.
+      purpose: https://id.registrystack.org/solmara/purpose/esignet-identity-verification
+      release_scope: nia_population:identity_release
+      subject:
+        input: individual_id
+        source_field: legacy_nid
+        id_type: national_id
+        cardinality: one
+      release_conditions:
+        expression:
+          cel: source.identity_status == 'active' && source.alive == true
+      claims:
+      - name: individual_id
+        source_field: id
+        required: true
+        sensitivity: direct_identifier
+      - name: name
+        expression:
+          cel: source.given_name + ' ' + source.family_name
+        required: true
+        sensitivity: direct_identifier
+      - name: given_name
+        source_field: given_name
+        required: true
+        sensitivity: direct_identifier
+      - name: family_name
+        source_field: family_name
+        required: true
+        sensitivity: direct_identifier
+      - name: birthdate
+        source_field: birth_date
+        required: true
+        sensitivity: personal
+      - name: gender
+        source_field: sex
+        required: false
+        sensitivity: personal
+      response:
+        include_source_metadata: false
+        max_age_seconds: 300

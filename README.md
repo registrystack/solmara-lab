@@ -60,6 +60,9 @@ just smoke      # story previews plus live Relay, Notary, and Compose portal che
 just smoke-live # live Notary checks only
 just portal-compose-smoke # HTTP smoke against the Compose portal and live BFF
 just portal-live-e2e # browser e2e against the running local stack
+just hosted-smoke # public hosted health, endpoint, scenario, and portal checks
+just up-esignet # local stack with eSignet-backed portal login
+just smoke-esignet # eSignet discovery plus NIA UserInfo release smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
 just release-pins v0.8.4 # compare versions.env against published GHCR tags
@@ -85,12 +88,15 @@ Stack `v0.8.4` Relay requirements.
 
 ## Hosted Deployment
 
-Coolify uses one hosted compose file for the lab edge plus one compose file per
-pseudo-government authority:
+See [`docs/hosted-deployment.md`](docs/hosted-deployment.md) for the full
+runbook. Coolify uses one hosted compose file for the lab edge plus one compose
+file per pseudo-government authority:
 
 - `compose.coolify.yaml` for the Visitor Center, portal, scenario runner, and
   static metadata.
 - `compose.coolify.interior.yaml` for CRA, NIA, and the NIA Postgres store.
+- `compose.coolify.esignet.yaml` for eSignet, eSignet UI, and its backing
+  Postgres/Redis/seed services.
 - `compose.coolify.social-development.yaml` for SRO, MoSD programme MIS, and
   the child benefit notary.
 - `compose.coolify.labour-pensions.yaml` for SIPF and the pension notary.
@@ -100,16 +106,34 @@ pseudo-government authority:
 The hosted compose files remove host port bindings and avoid repo bind mounts
 because Coolify does not seed bind-mount sources from the Git checkout. They do
 not define custom Docker networks; cross-authority calls use the public
-`*.solmara.registrystack.org` TLS endpoints. Run
-`uv run scripts/render-hosted-configs.py` after editing Relay or Notary configs
-so the hosted config overlays stay current.
+`*.solmara.registrystack.org` TLS endpoints. Authority compose files preserve
+Relay audit/cache volumes and Notary audit state volumes, with a small
+`volume-permissions` sidecar that makes those volumes writable by the product
+runtime users.
+
+Run `uv run scripts/render-hosted-configs.py` after editing Relay or Notary
+configs so the hosted config overlays stay current.
+
+Run `just hosted-smoke` after each hosted deploy from a trusted shell with the
+demo tokens available in `.env` or the process environment. It checks public
+routes, Relay source endpoints, Notary scenario evaluations, published-token
+refusals, the Visitor Center scenario proxy, and the portal live BFF. Add
+`SOLMARA_HOSTED_SMOKE_BROWSER=1` when you also want hosted Playwright coverage
+for the Visitor Center and portal.
 
 The `release-candidate` workflow builds digest-pinned Solmara-owned images for
 the hosted wrappers and app services, then writes the digest refs to the
 workflow summary for Coolify env vars:
 `SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
 `SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
-`SOLMARA_PORTAL_IMAGE`, and `SOLMARA_SCENARIO_RUNNER_IMAGE`.
+`SOLMARA_PORTAL_IMAGE`, `SOLMARA_SCENARIO_RUNNER_IMAGE`,
+`SOLMARA_ESIGNET_RELAY_IMAGE`, `SOLMARA_ESIGNET_POSTGRES_IMAGE`,
+`SOLMARA_ESIGNET_UI_IMAGE`, and `SOLMARA_ESIGNET_SEED_IMAGE`.
+
+For local eSignet testing, run `just up-esignet` instead of `just up`, then
+sign in through the portal with Elena's fixture `legacy_nid` and static OTP
+`111111`. Run `just smoke-esignet` to verify eSignet discovery and the NIA
+`solmara-nia-userinfo` attribute-release profile.
 
 Set `UMAMI_WEBSITE_ID` in the hosted environment to enable analytics for the
 Visitor Center through the Registry Stack Umami instance.
