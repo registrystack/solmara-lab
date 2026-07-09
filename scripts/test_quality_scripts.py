@@ -122,11 +122,16 @@ class QualityScriptTests(unittest.TestCase):
                 services = compose["services"]
                 init_service = services["volume-permissions"]
                 init_volume_names = {mount.split(":", 1)[0] for mount in init_service.get("volumes") or []}
+                self.assertEqual(init_service.get("restart"), "unless-stopped")
+                self.assertIn("healthcheck", init_service)
 
                 for service_name, mounts in service_mounts.items():
                     service = services[service_name]
                     service_volumes = set(service.get("volumes") or [])
-                    self.assertIn("volume-permissions", service.get("depends_on") or {})
+                    self.assertEqual(
+                        (service.get("depends_on") or {}).get("volume-permissions", {}).get("condition"),
+                        "service_healthy",
+                    )
                     for mount in mounts:
                         with self.subTest(service=service_name, mount=mount):
                             volume_name = mount.split(":", 1)[0]
