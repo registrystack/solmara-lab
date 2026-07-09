@@ -120,14 +120,19 @@ class QualityScriptTests(unittest.TestCase):
                 compose = yaml.safe_load((ROOT / compose_name).read_text(encoding="utf-8"))
                 declared_volumes = set((compose.get("volumes") or {}).keys())
                 services = compose["services"]
+                init_service = services["volume-permissions"]
+                init_volume_names = {mount.split(":", 1)[0] for mount in init_service.get("volumes") or []}
 
                 for service_name, mounts in service_mounts.items():
                     service = services[service_name]
                     service_volumes = set(service.get("volumes") or [])
+                    self.assertIn("volume-permissions", service.get("depends_on") or {})
                     for mount in mounts:
                         with self.subTest(service=service_name, mount=mount):
+                            volume_name = mount.split(":", 1)[0]
                             self.assertIn(mount, service_volumes)
-                            self.assertIn(mount.split(":", 1)[0], declared_volumes)
+                            self.assertIn(volume_name, declared_volumes)
+                            self.assertIn(volume_name, init_volume_names)
 
     def test_story_preview_smoke_passes_current_tree(self) -> None:
         result = subprocess.run(

@@ -9,6 +9,9 @@ x-relay-common: &relay-common
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: unless-stopped
   environment: *relay-environment
+  depends_on:
+    volume-permissions:
+      condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
     interval: 30s
@@ -16,6 +19,18 @@ x-relay-common: &relay-common
     retries: 3
 
 services:
+  volume-permissions:
+    image: ${VOLUME_INIT_IMAGE:-busybox:1.36}
+    command:
+      - sh
+      - -c
+      - chown -R 65532:65532 /relay/*
+    volumes:
+      - cra-civil-cache:/relay/cra-civil-cache
+      - cra-civil-audit:/relay/cra-civil-audit
+      - nia-population-cache:/relay/nia-population-cache
+      - nia-population-audit:/relay/nia-population-audit
+
   postgres:
     image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
     entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
@@ -66,6 +81,8 @@ services:
       NIA_CITIZEN_SOURCE_HASH: ${NIA_CITIZEN_SOURCE_HASH}
       PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
     depends_on:
+      volume-permissions:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     volumes:
