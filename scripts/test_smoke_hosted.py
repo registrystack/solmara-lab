@@ -113,6 +113,8 @@ class HostedSmokeTests(unittest.TestCase):
         targets = smoke_hosted.default_targets("https://solmara.registrystack.org/")
         self.assertEqual(targets.home_url, "https://solmara.registrystack.org")
         self.assertEqual(targets.portal_url, "https://portal.solmara.registrystack.org")
+        self.assertEqual(targets.esignet_url, "https://esignet.solmara.registrystack.org")
+        self.assertEqual(targets.esignet_ui_url, "https://esignet-ui.solmara.registrystack.org")
         self.assertIn("https://cra-relay.solmara.registrystack.org", {relay.base_url for relay in targets.relays})
         self.assertIn(
             "https://child-benefit-notary.solmara.registrystack.org",
@@ -125,6 +127,9 @@ class HostedSmokeTests(unittest.TestCase):
         self.assertEqual(env["CHILD_BENEFIT_NOTARY_URL"], "https://child-benefit-notary.solmara.registrystack.org")
         self.assertEqual(env["SOLMARA_CRA_RELAY_URL"], "https://cra-relay.solmara.registrystack.org")
         self.assertEqual(env["SOLMARA_PORTAL_URL"], "https://portal.solmara.registrystack.org")
+        self.assertEqual(env["SOLMARA_ESIGNET_PUBLIC_BASE_URL"], "https://esignet.solmara.registrystack.org")
+        self.assertEqual(env["SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL"], "https://esignet-ui.solmara.registrystack.org")
+        self.assertEqual(env["SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED"], "1")
         self.assertEqual(env["CHILD_BENEFIT_NOTARY_TOKEN"], "keep-local")
 
     def test_normalize_argv_accepts_just_separator(self) -> None:

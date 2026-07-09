@@ -19,6 +19,7 @@ OUTPUT = ROOT / "output" / "smoke" / "portal-compose.json"
 
 def main() -> int:
     base_url = os.environ.get("SOLMARA_PORTAL_URL", f"http://127.0.0.1:{os.environ.get('SOLMARA_PORTAL_PORT', '4300')}")
+    expect_auth_required = truthy(os.environ.get("SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED"))
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
@@ -40,7 +41,10 @@ def main() -> int:
             "fieldId": "registered-farmer",
         },
     )
-    if evaluate.status != 200:
+    if expect_auth_required:
+        if evaluate.status != 401:
+            failures.append(f"portal live evaluate should require sign-in, got {evaluate.status or evaluate.error}")
+    elif evaluate.status != 200:
         failures.append(f"portal live evaluate returned {evaluate.status or evaluate.error}; body={compact(evaluate.body)}")
     elif not isinstance(evaluate.body, dict) or evaluate.body.get("state") != "verified":
         failures.append(f"portal live evaluate returned unexpected body={compact(evaluate.body)}")
@@ -52,7 +56,11 @@ def main() -> int:
                 "root_status": root.status,
                 "login_status": login.status,
                 "evaluate_status": evaluate.status,
-                "evaluate_state": evaluate.body.get("state") if isinstance(evaluate.body, dict) else None,
+                "evaluate_state": (
+                    "auth_required"
+                    if expect_auth_required and evaluate.status == 401
+                    else evaluate.body.get("state") if isinstance(evaluate.body, dict) else None
+                ),
             },
             indent=2,
             sort_keys=True,
@@ -64,10 +72,10 @@ def main() -> int:
     if failures:
         for failure in failures:
             print(f"smoke-portal-compose: {failure}", file=sys.stderr)
-        print(f"smoke-portal-compose: wrote {OUTPUT.relative_to(ROOT)}", file=sys.stderr)
+        print(f"smoke-portal-compose: wrote {display_path(OUTPUT)}", file=sys.stderr)
         return 1
 
-    print(f"smoke-portal-compose: portal live BFF smoke passed; wrote {OUTPUT.relative_to(ROOT)}")
+    print(f"smoke-portal-compose: portal live BFF smoke passed; wrote {display_path(OUTPUT)}")
     return 0
 
 
@@ -105,13 +113,28 @@ def request_json(
         with opener.open(request, timeout=timeout) as response:
             return HttpResult(response.status, parse_body(response.read()))
     except urllib.error.HTTPError as error:
-        return HttpResult(error.code, parse_body(error.read()))
+        try:
+            body = parse_body(error.read())
+        finally:
+            error.close()
+        return HttpResult(error.code, body)
     except Exception as error:
         return HttpResult(None, {}, error.__class__.__name__)
 
 
 def joined_url(base_url: str, path: str) -> str:
     return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def truthy(value: str | None) -> bool:
+    return value is not None and value.lower() in {"1", "true", "yes", "on"}
+
+
+def display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
 
 
 def parse_body(raw: bytes) -> Any:

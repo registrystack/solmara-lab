@@ -40,6 +40,8 @@ class HostedTargets:
     home_url: str
     portal_url: str
     metadata_url: str
+    esignet_url: str
+    esignet_ui_url: str
     relays: tuple[ServiceTarget, ...]
     notaries: tuple[ServiceTarget, ...]
 
@@ -57,6 +59,23 @@ def main(argv: list[str] | None = None) -> int:
     checks: list[tuple[str, Any]] = [
         ("public routes and service health", lambda: check_public_routes(targets, args.timeout)),
         ("Visitor Center scenario runner proxy", lambda: check_home_demo(targets.home_url, args.timeout)),
+        (
+            "eSignet backend",
+            lambda: run_command(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "smoke-esignet.py"),
+                    "--relay-url",
+                    relay_url(targets, "SOLMARA_NIA_RELAY_URL"),
+                    "--esignet-url",
+                    targets.esignet_url,
+                    "--esignet-ui-url",
+                    targets.esignet_ui_url,
+                ],
+                env,
+                cwd=ROOT,
+            ),
+        ),
         (
             "Relay source endpoints",
             lambda: run_command(
@@ -178,6 +197,8 @@ def default_targets(domain: str, scheme: str = "https") -> HostedTargets:
         home_url=public_url(clean_domain),
         portal_url=subdomain("portal"),
         metadata_url=subdomain("metadata"),
+        esignet_url=subdomain("esignet"),
+        esignet_ui_url=subdomain("esignet-ui"),
         relays=(
             ServiceTarget("CRA civil relay", subdomain("cra-relay"), env_name="SOLMARA_CRA_RELAY_URL"),
             ServiceTarget("NIA population relay", subdomain("nia-relay"), env_name="SOLMARA_NIA_RELAY_URL"),
@@ -227,6 +248,9 @@ def hosted_env(base_env: os._Environ[str] | dict[str, str], targets: HostedTarge
             "PORTAL_SOCIAL_RELAY_URL": relay_url(targets, "SOLMARA_SRO_RELAY_URL"),
             "PORTAL_AGRI_RELAY_URL": relay_url(targets, "SOLMARA_NAGDI_RELAY_URL"),
             "PORTAL_CERTS_RELAY_URL": relay_url(targets, "SOLMARA_CRA_RELAY_URL"),
+            "SOLMARA_ESIGNET_PUBLIC_BASE_URL": targets.esignet_url,
+            "SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL": targets.esignet_ui_url,
+            "SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED": "1",
         }
     )
     for target in (*targets.relays, *targets.notaries):
