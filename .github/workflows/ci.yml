@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      - name: Enable pnpm
+        run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -20,8 +22,6 @@ jobs:
           cache-dependency-path: portal/pnpm-lock.yaml
       - name: Install just
         uses: extractions/setup-just@v2
-      - name: Install pnpm
-        run: corepack enable
       - name: Setup
         run: just setup
       - name: Publish metadata
