@@ -25,6 +25,7 @@ for term in "${forbidden[@]}"; do
     --exclude-dir=build \
     --exclude-dir=output \
     --exclude-dir=test-results \
+    --exclude-dir=vendor \
     --exclude='*.pyc' \
     --exclude='AGENTS.md' \
     --exclude='check-fiction.sh' \

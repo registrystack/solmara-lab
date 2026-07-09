@@ -17,6 +17,7 @@ EXCLUDED_DIRS = {
     "node_modules",
     "output",
     "test-results",
+    "vendor",
 }
 EXCLUDED_FILES = {"AGENTS.md", "check-fiction.sh", "check-nid-aliases.py"}
 
