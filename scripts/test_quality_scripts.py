@@ -37,6 +37,18 @@ def load_compose_project_name():
     return module
 
 
+def load_config_secret_check():
+    spec = importlib.util.spec_from_file_location(
+        "check_config_secrets", ROOT / "scripts" / "check-config-secrets.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load check-config-secrets.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["check_config_secrets"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 class QualityScriptTests(unittest.TestCase):
     def test_authority_notary_cel_ceiling_is_explicit_and_generated(self) -> None:
         projects = (
@@ -144,6 +156,22 @@ class QualityScriptTests(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_secret_lint_scans_runtime_and_limits_workload_volume_exemption(self) -> None:
+        module = load_config_secret_check()
+        scanned = {path.relative_to(ROOT).as_posix() for path in module.iter_files()}
+        self.assertIn(
+            "runtime/registry-projects/local/cra-civil/notary/notary.yaml",
+            scanned,
+        )
+        self.assertTrue(
+            module.line_is_allowed(
+                "      - cra-workload-token:/run/secrets:ro"
+            )
+        )
+        self.assertFalse(
+            module.line_is_allowed("token: leaked-cra-notary-workload-token:value")
+        )
 
     def test_registry_projects_are_explicit_and_use_the_pinned_registryctl(self) -> None:
         required_version = next(
