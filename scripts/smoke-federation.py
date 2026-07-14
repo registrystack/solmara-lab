@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Smoke the live child-benefit federation protocol and result boundary."""
+"""Smoke child-benefit application composition over authority Notaries.
+
+The Child Benefit Federator is an application evidence collector, not a
+Notary. It uses the ordinary Registry Notary HTTP API to collect minimized
+predicates from the CRA, NIA, SRO, and Programme authority Notaries.
+"""
 
 from __future__ import annotations
 
-import importlib
+import json
 import os
 import shlex
 import sys
@@ -14,40 +19,55 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scenarios.common import FEDERATED_BUNDLE_FORMAT, auth_headers, evaluation_body, http_json, joined_url  # noqa: E402
+from scenarios.common import (  # noqa: E402
+    CHILD_BENEFIT_AS_OF_DATE,
+    PURPOSES,
+    auth_headers,
+    evaluation_body,
+    http_json,
+    joined_url,
+)
 
 
 POSITIVE_SUBJECT = "2300010248"
-UNSUPPORTED_PURPOSE = "https://id.registrystack.org/solmara/purpose/unsupported-federation-smoke"
-FEDERATION_PATH = "/federation/v1/evaluations"
+APPLICATION_URL_ENV = "CHILD_BENEFIT_FEDERATOR_URL"
+APPLICATION_URL_DEFAULT = "http://127.0.0.1:4321"
+APPLICATION_TOKEN_ENV = "CHILD_BENEFIT_FEDERATOR_TOKEN"
+UNSUPPORTED_PURPOSE = "https://id.registrystack.org/solmara/purpose/unsupported-application-smoke"
+EXPECTED_CLAIM_OWNERS = {
+    "birth-is-registered": "cra-notary",
+    "child-age-under-5": "cra-notary",
+    "population-record-active": "nia-notary",
+    "household-below-poverty-threshold": "sro-notary",
+    "not-already-enrolled": "programme-notary",
+}
 
 
 def main() -> int:
     load_dotenv(ROOT / ".env")
-    federation = load_federation_module()
-    claims = list(federation.CLAIM_ROUTES)
-    route = federation.CLAIM_ROUTES["birth-is-registered"]
+    token = os.environ.get(APPLICATION_TOKEN_ENV, "")
+    if not token:
+        print(
+            f"smoke-federation: missing {APPLICATION_TOKEN_ENV}; run `just generate` before live smoke",
+            file=sys.stderr,
+        )
+        return 1
 
-    failures = protocol_failures(federation, route, POSITIVE_SUBJECT)
-    failures.extend(bundle_failures(federation, POSITIVE_SUBJECT, claims))
-    failures.extend(raw_household_denial_failures(federation, POSITIVE_SUBJECT))
+    base_url = os.environ.get(APPLICATION_URL_ENV, APPLICATION_URL_DEFAULT)
+    claims = list(EXPECTED_CLAIM_OWNERS)
+    failures = application_evidence_failures(base_url, token, POSITIVE_SUBJECT, claims)
+    failures.extend(wrong_purpose_failures(base_url, token, POSITIVE_SUBJECT))
+    failures.extend(raw_household_denial_failures(base_url, token, POSITIVE_SUBJECT))
     if failures:
         for failure in failures:
             print(f"smoke-federation: {failure}", file=sys.stderr)
         return 1
 
     print(
-        "smoke-federation: signed authority success, exact-request replay denial, "
-        "unsupported-purpose denial, and error-state checks passed"
+        "smoke-federation: authority-owned evidence, application non-composition, "
+        "unsupported-purpose denial, and raw-source denial checks passed"
     )
     return 0
-
-
-def load_federation_module() -> Any:
-    scenario_runner = ROOT / "scenario-runner"
-    if str(scenario_runner) not in sys.path:
-        sys.path.insert(0, str(scenario_runner))
-    return importlib.import_module("child_benefit_federator")
 
 
 def load_dotenv(path: Path) -> None:
@@ -68,75 +88,117 @@ def load_dotenv(path: Path) -> None:
         os.environ[key] = parts[0] if parts else ""
 
 
-def protocol_failures(federation: Any, route: dict[str, str], subject: str) -> list[str]:
-    failures: list[str] = []
-    url = joined_url(os.environ.get(route["url_env"], route["default_url"]), FEDERATION_PATH)
+def application_evidence_failures(
+    base_url: str, token: str, subject: str, claims: list[str]
+) -> list[str]:
+    response = http_json(
+        "POST",
+        joined_url(base_url, "/v1/evaluations"),
+        auth_headers(token, PURPOSES["child_benefit"], "application/json"),
+        evaluation_body(
+            subject,
+            claims,
+            scheme="solmara_uin",
+            format="application/json",
+            variables={"as_of_date": CHILD_BENEFIT_AS_OF_DATE},
+        ),
+    )
+    return validated_evidence_failures(response.status, response.body, subject, claims)
 
-    try:
-        request_jti = federation.ulid()
-        payload = federation.federation_payload(route, subject, federation.CHILD_PURPOSE, request_jti)
-        signed_request = federation.sign_jwt(payload)
-    except Exception as error:
-        return [f"could not sign authority request ({error.__class__.__name__}); run `just generate` before live smoke"]
 
-    status, headers, body = federation.post_jwt(url, signed_request)
+def validated_evidence_failures(
+    status: int | None, body: Any, subject: str, claims: list[str]
+) -> list[str]:
     if status != 200:
-        failures.append(f"signed authority request returned HTTP {status}, expected 200")
-    elif not isinstance(body, str):
-        failures.append("signed authority request returned an unsigned response")
+        return [f"positive application request returned HTTP {status}, expected 200"]
+    if not isinstance(body, dict):
+        return ["positive application response was not a JSON object"]
+
+    failures: list[str] = []
+    for obsolete in ("federation_trace", "federator", "federation"):
+        if obsolete in body:
+            failures.append(f"positive application response retained obsolete {obsolete}")
+
+    orchestration = body.get("orchestration")
+    if not isinstance(orchestration, dict):
+        failures.append("positive application response omitted orchestration ownership")
     else:
-        verified = federation.verify_peer_response(route, request_jti, body, headers.get("content-type", ""))
-        verification_error = federation.verification_error_code(verified)
-        if verification_error:
-            failures.append(f"signed authority response failed verification ({verification_error})")
-        else:
-            failures.extend(validated_claim_failures(route, verified))
+        if orchestration.get("service_id") != "child-benefit-federator":
+            failures.append("positive application response identified the wrong application")
+        if orchestration.get("decision") != "not_composed":
+            failures.append("positive application response crossed the programme decision boundary")
 
-    replay_status, replay_headers, replay_body = federation.post_jwt(url, signed_request)
-    failures.extend(
-        denial_failures(
-            "exact signed request replay",
-            replay_status,
-            replay_headers,
-            replay_body,
-            expected_status=409,
-            expected_code="federation.replay",
-        )
+    results = body.get("results")
+    result_by_claim = (
+        {
+            item.get("claim_id"): item
+            for item in results
+            if isinstance(item, dict) and isinstance(item.get("claim_id"), str)
+        }
+        if isinstance(results, list)
+        else {}
     )
+    if (
+        not isinstance(results, list)
+        or set(result_by_claim) != set(claims)
+        or len(results) != len(claims)
+    ):
+        failures.append("positive application response did not return exactly the requested predicates")
+    for claim_id in claims:
+        result = result_by_claim.get(claim_id)
+        if not isinstance(result, dict):
+            continue
+        if any(key in result for key in ("error", "source_record", "raw")):
+            failures.append(f"{claim_id} leaked an error or raw source representation")
+        if result.get("satisfied") is not True or result.get("disclosure") != "predicate":
+            failures.append(f"positive application response did not satisfy {claim_id} as a predicate")
+        if result.get("notary_service_id") != EXPECTED_CLAIM_OWNERS[claim_id]:
+            failures.append(f"{claim_id} was not attributed to its authority Notary")
 
-    try:
-        unsupported_jti = federation.ulid()
-        unsupported_payload = federation.federation_payload(route, subject, UNSUPPORTED_PURPOSE, unsupported_jti)
-        unsupported_request = federation.sign_jwt(unsupported_payload)
-    except Exception as error:
-        failures.append(f"could not sign unsupported-purpose request ({error.__class__.__name__})")
-        return failures
+    source_trace = body.get("source_trace")
+    expected_services = {EXPECTED_CLAIM_OWNERS[claim_id] for claim_id in claims}
+    traced_services: set[str] = set()
+    if not isinstance(source_trace, list):
+        failures.append("positive application response omitted its ordinary source trace")
+    else:
+        for item in source_trace:
+            if not isinstance(item, dict):
+                failures.append("positive application source trace contained an invalid entry")
+                continue
+            service_id = item.get("service_id")
+            if isinstance(service_id, str):
+                traced_services.add(service_id)
+            summary = item.get("response_summary")
+            if not isinstance(summary, dict) or summary.get("status") != 200:
+                failures.append(f"{service_id or 'unknown authority'} source trace did not record HTTP 200")
+        if traced_services != expected_services:
+            failures.append("positive application source trace did not cover the requested authority Notaries")
 
-    unsupported_status, unsupported_headers, unsupported_body = federation.post_jwt(url, unsupported_request)
-    failures.extend(
-        denial_failures(
-            "unsupported-purpose request",
-            unsupported_status,
-            unsupported_headers,
-            unsupported_body,
-            expected_status=403,
-            expected_code="federation.forbidden",
-        )
-    )
+    if subject in json.dumps(body, sort_keys=True):
+        failures.append("positive application response echoed the raw subject identifier")
     return failures
 
 
-def validated_claim_failures(route: dict[str, str], payload: Any) -> list[str]:
-    if not isinstance(payload, dict):
-        return ["verified authority response was not a JSON object"]
-    result = payload.get("result")
-    claims = result.get("claims") if isinstance(result, dict) else None
-    claim = claims.get(route["claim_id"]) if isinstance(claims, dict) else None
-    if not isinstance(claim, dict):
-        return [f'verified authority response omitted {route["claim_id"]}']
-    if claim.get("satisfied") is not True or claim.get("disclosure") != "predicate":
-        return [f'verified authority response did not satisfy {route["claim_id"]} as a predicate']
-    return []
+def wrong_purpose_failures(base_url: str, token: str, subject: str) -> list[str]:
+    response = http_json(
+        "POST",
+        joined_url(base_url, "/v1/evaluations"),
+        auth_headers(token, UNSUPPORTED_PURPOSE, "application/json"),
+        evaluation_body(
+            subject,
+            ["birth-is-registered"],
+            scheme="solmara_uin",
+            format="application/json",
+        ),
+    )
+    return denial_failures(
+        "unsupported-purpose request",
+        response.status,
+        response.headers,
+        response.body,
+        expected_status=403,
+        expected_code="pdp.purpose_not_permitted",
+    )
 
 
 def denial_failures(
@@ -153,104 +215,41 @@ def denial_failures(
         failures.append(f"{label} returned HTTP {status}, expected {expected_status}")
     content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
     if content_type != "application/problem+json":
-        failures.append(f"{label} returned {content_type or 'no content type'}, expected application/problem+json")
+        failures.append(
+            f"{label} returned {content_type or 'no content type'}, expected application/problem+json"
+        )
     code = body.get("code") if isinstance(body, dict) else None
     if code != expected_code:
         failures.append(f"{label} returned problem code {code!r}, expected {expected_code!r}")
     return failures
 
 
-def bundle_failures(federation: Any, subject: str, claims: list[str]) -> list[str]:
-    token = os.environ.get(federation.FEDERATOR_TOKEN_ENV, "")
-    if not token:
-        return [f"missing {federation.FEDERATOR_TOKEN_ENV}; run `just generate` before live smoke"]
-    base_url = os.environ.get("CHILD_BENEFIT_FEDERATOR_URL", "http://127.0.0.1:4321")
+def raw_household_denial_failures(
+    base_url: str, token: str, subject: str
+) -> list[str]:
     response = http_json(
         "POST",
         joined_url(base_url, "/v1/evaluations"),
-        auth_headers(token, federation.CHILD_PURPOSE, FEDERATED_BUNDLE_FORMAT),
-        evaluation_body(subject, claims, scheme="solmara_uin", format=FEDERATED_BUNDLE_FORMAT),
-    )
-    return validated_bundle_failures(response.status, response.body, claims)
-
-
-def validated_bundle_failures(status: int | None, body: Any, claims: list[str]) -> list[str]:
-    if status != 200:
-        return [f"positive federated bundle returned HTTP {status}, expected 200"]
-    if not isinstance(body, dict):
-        return ["positive federated bundle was not a JSON object"]
-
-    failures: list[str] = []
-    results = body.get("results")
-    result_by_claim = {
-        item.get("claim_id"): item
-        for item in results
-        if isinstance(item, dict) and isinstance(item.get("claim_id"), str)
-    } if isinstance(results, list) else {}
-    if len(result_by_claim) != len(claims) or set(result_by_claim) != set(claims):
-        failures.append("positive federated bundle did not return exactly the requested authority predicates")
-    for claim_id in claims:
-        result = result_by_claim.get(claim_id)
-        if not isinstance(result, dict):
-            continue
-        if any(key in result for key in ("error", "federation_error", "federation_status")):
-            failures.append(f"{claim_id} represented an authority error as a predicate result")
-        if result.get("satisfied") is not True or result.get("value") is not True:
-            failures.append(f"positive federated bundle returned {claim_id} as false or indeterminate")
-
-    trace = body.get("federation_trace")
-    if not isinstance(trace, list) or len(trace) != len(claims):
-        failures.append("positive federated bundle did not include one authority trace per predicate")
-    else:
-        for item in trace:
-            claim_id = item.get("claim_id", "unknown claim") if isinstance(item, dict) else "unknown claim"
-            response_source = item.get("response_source") if isinstance(item, dict) else None
-            if not isinstance(response_source, dict) or response_source.get("status") != 200:
-                failures.append(f"{claim_id} authority trace did not record HTTP 200")
-                continue
-            response_body = response_source.get("body")
-            if not isinstance(response_body, dict) or "error" in response_body:
-                failures.append(f"{claim_id} authority trace contains an outage or response-verification error")
-
-    federator = body.get("federator")
-    if not isinstance(federator, dict) or federator.get("decision") != "not_composed":
-        failures.append("positive federated bundle did not preserve the federator's non-composition boundary")
-    return failures
-
-
-def raw_household_denial_failures(federation: Any, subject: str) -> list[str]:
-    token = os.environ.get(federation.FEDERATOR_TOKEN_ENV, "")
-    if not token:
-        return [f"missing {federation.FEDERATOR_TOKEN_ENV}; run `just generate` before live smoke"]
-    base_url = os.environ.get("CHILD_BENEFIT_FEDERATOR_URL", "http://127.0.0.1:4321")
-    response = http_json(
-        "POST",
-        joined_url(base_url, "/v1/evaluations"),
-        auth_headers(token, federation.CHILD_PURPOSE, FEDERATED_BUNDLE_FORMAT),
+        auth_headers(token, PURPOSES["child_benefit"], "application/json"),
         evaluation_body(
             subject,
             ["household-poverty-score"],
             scheme="solmara_uin",
             disclosure="value",
-            format=FEDERATED_BUNDLE_FORMAT,
+            format="application/json",
         ),
     )
-    failures: list[str] = []
-    if response.status != 403:
-        failures.append(f"raw household request returned HTTP {response.status}, expected 403")
-    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    if content_type != "application/problem+json":
-        failures.append(
-            f"raw household request returned {content_type or 'no content type'}, expected application/problem+json"
-        )
-    code = response.body.get("code") if isinstance(response.body, dict) else None
-    if code != "pdp.purpose_not_permitted":
-        failures.append(
-            f"raw household request returned problem code {code!r}, expected 'pdp.purpose_not_permitted'"
-        )
-    serialized = str(response.body)
-    if "household-poverty-score" in serialized or "raw_household_score" in serialized:
-        failures.append("raw household denial reflected a protected source field")
+    failures = denial_failures(
+        "raw household request",
+        response.status,
+        response.headers,
+        response.body,
+        expected_status=403,
+        expected_code="pdp.purpose_not_permitted",
+    )
+    serialized = json.dumps(response.body, sort_keys=True)
+    if "raw_household_score" in serialized or subject in serialized:
+        failures.append("raw household denial reflected protected source data")
     return failures
 
 

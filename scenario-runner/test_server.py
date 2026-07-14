@@ -165,6 +165,10 @@ class ScenarioRunnerServerTest(unittest.TestCase):
             result["request_source"]["body"]["format"],
             "application/json",
         )
+        self.assertEqual(
+            result["request_source"]["body"]["variables"],
+            {"as_of_date": common.CHILD_BENEFIT_AS_OF_DATE},
+        )
         self.assertIn(
             "population-record-active", result["request_source"]["body"]["claims"]
         )
@@ -644,6 +648,7 @@ class ChildBenefitFederatorTest(unittest.TestCase):
                     "type": "Person",
                     "identifiers": [{"scheme": "solmara_uin", "value": "2300010248"}],
                 },
+                {"as_of_date": common.CHILD_BENEFIT_AS_OF_DATE},
             )
         finally:
             child_benefit_federator.http_json = original_http_json
@@ -652,6 +657,11 @@ class ChildBenefitFederatorTest(unittest.TestCase):
         self.assertEqual(
             calls[0][2]["claims"], ["birth-is-registered", "child-age-under-5"]
         )
+        self.assertEqual(
+            calls[0][2]["variables"],
+            {"as_of_date": common.CHILD_BENEFIT_AS_OF_DATE},
+        )
+        self.assertTrue(all("variables" not in body for _, _, body in calls[1:]))
         self.assertEqual(calls[1][2]["claims"], ["population-record-active"])
         self.assertEqual(calls[2][2]["claims"], ["household-below-poverty-threshold"])
         self.assertEqual(calls[3][2]["claims"], ["not-already-enrolled"])
@@ -692,6 +702,7 @@ class ChildBenefitFederatorTest(unittest.TestCase):
                     "2300010248",
                     ["birth-is-registered"],
                     common.PURPOSES["child_benefit"],
+                    {},
                     {},
                 )
         finally:

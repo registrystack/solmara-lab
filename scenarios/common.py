@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 
 CLAIM_RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
+CHILD_BENEFIT_AS_OF_DATE = "2026-07-14"
 FEDERATED_BUNDLE_FORMAT = "application/vnd.solmara.federated-predicate-bundle+json"
 SD_JWT_VC_FORMAT = "application/dc+sd-jwt"
 HOLDER_PROOF_TYP = "kb+jwt"
@@ -82,13 +83,17 @@ def evaluation_body(
     scheme: str,
     disclosure: str = "predicate",
     format: str = CLAIM_RESULT_FORMAT,
+    variables: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    body = {
         "target": {"type": "Person", "identifiers": [{"scheme": scheme, "value": subject}]},
         "claims": claim_ids,
         "disclosure": disclosure,
         "format": format,
     }
+    if variables is not None:
+        body["variables"] = variables
+    return body
 
 
 def b64url_nopad(data: bytes) -> str:

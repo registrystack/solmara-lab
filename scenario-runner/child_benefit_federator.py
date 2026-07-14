@@ -14,12 +14,14 @@ import json
 import os
 import secrets
 import time
+from datetime import date
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import unquote, urlparse
 
 from scenarios.common import (
+    CHILD_BENEFIT_AS_OF_DATE,
     CLAIM_RESULT_FORMAT,
     PURPOSES,
     StepHttpResult,
@@ -180,12 +182,14 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
             return
 
         subject = subject_id(body)
+        variables = request_variables(body, requested)
         unknown = [claim for claim in requested if claim not in CLAIM_ROUTES]
         if (
             not subject
             or not requested
             or unknown
             or len(requested) != len(set(requested))
+            or variables is None
         ):
             self.write_problem(
                 HTTPStatus.BAD_REQUEST,
@@ -196,7 +200,13 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            evidence = collect_evidence(subject, requested, purpose, body.get("target"))
+            evidence = collect_evidence(
+                subject,
+                requested,
+                purpose,
+                body.get("target"),
+                variables,
+            )
         except AuthorityUpstreamError as error:
             self.write_problem(
                 HTTPStatus.BAD_GATEWAY,
@@ -296,7 +306,11 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
 
 
 def collect_evidence(
-    subject: str, claims: list[str], purpose: str, target: Any
+    subject: str,
+    claims: list[str],
+    purpose: str,
+    target: Any,
+    variables: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     by_claim: dict[str, dict[str, Any]] = {}
     source_trace: list[dict[str, Any]] = []
@@ -304,7 +318,13 @@ def collect_evidence(
         route_claims = [claim for claim in claims if claim in route["claims"]]
         if not route_claims:
             continue
-        source = call_authority_notary(route, subject, route_claims, purpose)
+        source = call_authority_notary(
+            route,
+            subject,
+            route_claims,
+            purpose,
+            variables or {},
+        )
         by_claim.update({result["claim_id"]: result for result in source["results"]})
         source_trace.append(source["trace"])
     return {
@@ -326,6 +346,7 @@ def call_authority_notary(
     subject: str,
     claims: list[str],
     purpose: str,
+    variables: dict[str, str],
 ) -> dict[str, Any]:
     client_id = route["client_id"]
     token = service_token(client_id)
@@ -334,8 +355,18 @@ def call_authority_notary(
             route, None, f"missing_{service_token_env(client_id).lower()}"
         )
     url = service_url(client_id, "/v1/evaluations")
+    request_variables = None
+    if "child-age-under-5" in claims:
+        as_of_date = variables.get("as_of_date")
+        if not as_of_date:
+            raise AuthorityUpstreamError(route, None, "missing_as_of_date")
+        request_variables = {"as_of_date": as_of_date}
     body = evaluation_body(
-        subject, claims, scheme="solmara_uin", format=CLAIM_RESULT_FORMAT
+        subject,
+        claims,
+        scheme="solmara_uin",
+        format=CLAIM_RESULT_FORMAT,
+        variables=request_variables,
     )
     headers = auth_headers(token, purpose, CLAIM_RESULT_FORMAT)
     response = http_json("POST", url, headers, body)
@@ -453,6 +484,26 @@ def requested_claims(body: dict[str, Any]) -> list[str]:
     if not isinstance(raw, list):
         return []
     return [claim for claim in raw if isinstance(claim, str)]
+
+
+def request_variables(
+    body: dict[str, Any], requested: list[str]
+) -> dict[str, str] | None:
+    raw = body.get("variables", {})
+    if not isinstance(raw, dict) or set(raw) - {"as_of_date"}:
+        return None
+    if "child-age-under-5" not in requested:
+        return {}
+    value = raw.get("as_of_date")
+    if not isinstance(value, str) or len(value) != 10:
+        return None
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.isoformat() != value:
+        return None
+    return {"as_of_date": value}
 
 
 def public_target(target: Any) -> dict[str, Any]:

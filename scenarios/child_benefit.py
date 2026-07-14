@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from .common import (
+    CHILD_BENEFIT_AS_OF_DATE,
     PURPOSES,
     auth_headers,
     evaluation_body,
@@ -185,6 +186,7 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
             CLAIMS,
             scheme="solmara_uin",
             format="application/json",
+            variables={"as_of_date": CHILD_BENEFIT_AS_OF_DATE},
         )
     )
     if step_id != "discover" and not subject:
