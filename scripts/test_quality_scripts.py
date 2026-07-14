@@ -38,6 +38,44 @@ def load_compose_project_name():
 
 
 class QualityScriptTests(unittest.TestCase):
+    def test_authority_notary_cel_ceiling_is_explicit_and_generated(self) -> None:
+        projects = (
+            "cra-civil",
+            "nia-population",
+            "sro-social",
+            "mosd-programme",
+            "sipf-pensions",
+            "nagdi-agriculture",
+        )
+        for environment in ("local", "hosted"):
+            for project in projects:
+                with self.subTest(environment=environment, project=project):
+                    authored = yaml.safe_load(
+                        (
+                            ROOT
+                            / "projects"
+                            / project
+                            / "environments"
+                            / f"{environment}.yaml"
+                        ).read_text(encoding="utf-8")
+                    )
+                    generated = yaml.safe_load(
+                        (
+                            ROOT
+                            / "runtime"
+                            / "registry-projects"
+                            / environment
+                            / project
+                            / "notary"
+                            / "notary.yaml"
+                        ).read_text(encoding="utf-8")
+                    )
+                    self.assertEqual(
+                        authored["notary_cel"],
+                        {"worker_memory_bytes": 1_073_741_824},
+                    )
+                    self.assertEqual(generated["cel"], authored["notary_cel"])
+
     def test_federation_key_rotation_is_isolated_and_refuses_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "federation.env"

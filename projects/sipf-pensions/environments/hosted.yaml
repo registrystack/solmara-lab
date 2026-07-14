@@ -48,6 +48,8 @@ relay_state:
 notary_state:
   postgresql:
     root_certificate_path: /etc/solmara/postgres/root.crt
+notary_cel:
+  worker_memory_bytes: 1073741824
 deployment:
   profile: hosted_lab
   relay: { service: sipf-pensions-relay }

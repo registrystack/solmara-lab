@@ -21,6 +21,8 @@ auth:
     id: pension-review-desk
     scopes:
     - evidence:cra:pension:read
+cel:
+  worker_memory_bytes: 1073741824
 deployment:
   profile: hosted_lab
 evidence:

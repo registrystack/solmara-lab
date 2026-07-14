@@ -9,6 +9,8 @@ auth:
     id: child-benefit-federator
     scopes:
     - mosd_programme:evidence_verification
+cel:
+  worker_memory_bytes: 1073741824
 deployment:
   profile: local
 evidence:

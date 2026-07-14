@@ -10,6 +10,8 @@ auth:
     scopes:
     - evidence:sipf:pension-payment:read
     - evidence:sipf:survivor-benefit:read
+cel:
+  worker_memory_bytes: 1073741824
 deployment:
   profile: hosted_lab
 evidence:
