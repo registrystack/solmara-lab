@@ -2,6 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 import {
   CLAIM_RESULT,
+  FEDERATED_BUNDLE,
   CHILD_BENEFIT_PURPOSE,
   PENSION_PAYMENT_PURPOSE,
   VOUCHER_PURPOSE,
@@ -17,10 +18,10 @@ import {
   summaryFor,
 } from './lib/common.js';
 
-const childBenefitNotaryUrl = env('CHILD_BENEFIT_NOTARY_URL', 'http://127.0.0.1:4321');
+const childBenefitFederatorUrl = env('CHILD_BENEFIT_FEDERATOR_URL', 'http://127.0.0.1:4321');
 const pensionNotaryUrl = env('PENSION_NOTARY_URL', 'http://127.0.0.1:4322');
 const nagdiNotaryUrl = env('NAGDI_NOTARY_URL', 'http://127.0.0.1:4323');
-const childBenefitToken = requiredEnv('CHILD_BENEFIT_NOTARY_TOKEN');
+const childBenefitToken = requiredEnv('CHILD_BENEFIT_FEDERATOR_TOKEN');
 const pensionToken = requiredEnv('PENSION_NOTARY_TOKEN');
 const nagdiToken = requiredEnv('NAGDI_NOTARY_TOKEN');
 
@@ -51,12 +52,13 @@ export default function () {
   const cases = [
     {
       name: 'child_benefit_review',
-      url: `${childBenefitNotaryUrl}/v1/evaluations`,
+      url: `${childBenefitFederatorUrl}/v1/evaluations`,
       token: childBenefitToken,
       subject: uinSubjects[(__VU + __ITER) % uinSubjects.length],
       scheme: 'solmara_uin',
       purpose: CHILD_BENEFIT_PURPOSE,
       claim: 'birth-is-registered',
+      format: FEDERATED_BUNDLE,
     },
     {
       name: 'pension_payment_review',
@@ -66,6 +68,7 @@ export default function () {
       scheme: 'solmara_uin',
       purpose: PENSION_PAYMENT_PURPOSE,
       claim: 'person-is-deceased',
+      format: CLAIM_RESULT,
     },
     {
       name: 'voucher_eligibility_review',
@@ -75,13 +78,14 @@ export default function () {
       scheme: 'farmer_id',
       purpose: VOUCHER_PURPOSE,
       claim: 'eligible-for-climate-smart-input-voucher',
+      format: CLAIM_RESULT,
     },
   ];
   const item = cases[(__VU + __ITER) % cases.length];
   const response = http.post(
     item.url,
-    evaluationPayload(item.subject, item.claim, 'predicate', CLAIM_RESULT, item.scheme),
-    { headers: jsonHeaders(item.token, item.purpose, CLAIM_RESULT) },
+    evaluationPayload(item.subject, item.claim, 'predicate', item.format, item.scheme),
+    { headers: jsonHeaders(item.token, item.purpose, item.format) },
   );
   const body = parseJson(response);
   const ok = check(response, {

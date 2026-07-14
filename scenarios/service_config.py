@@ -8,9 +8,9 @@ from urllib.parse import urljoin
 
 
 SERVICE_ENDPOINTS = {
-    "child-benefit-notary": {
-        "url_env": "CHILD_BENEFIT_NOTARY_URL",
-        "token_env": "CHILD_BENEFIT_NOTARY_TOKEN",
+    "child-benefit-federator": {
+        "url_env": "CHILD_BENEFIT_FEDERATOR_URL",
+        "token_env": "CHILD_BENEFIT_FEDERATOR_TOKEN",
         "default_url": "http://127.0.0.1:4321",
     },
     "pension-notary": {

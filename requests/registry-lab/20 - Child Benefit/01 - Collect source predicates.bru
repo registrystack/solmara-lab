@@ -1,19 +1,19 @@
 meta {
-  name: 01 - Evaluate eligibility
+  name: 01 - Collect source predicates
   type: http
   seq: 1
 }
 
 post {
-  url: {{child_benefit_notary_url}}/v1/evaluations
+  url: {{child_benefit_federator_url}}/v1/evaluations
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{CHILD_BENEFIT_NOTARY_TOKEN}}
+  x-api-key: {{CHILD_BENEFIT_FEDERATOR_TOKEN}}
   Data-Purpose: {{child_benefit_purpose}}
-  Accept: application/vnd.registry-notary.claim-result+json
+  Accept: application/vnd.solmara.federated-predicate-bundle+json
 }
 
 body:json {
@@ -29,11 +29,12 @@ body:json {
     },
     "claims": [
       "birth-is-registered",
+      "population-record-active",
       "child-age-under-5",
       "household-below-poverty-threshold",
       "not-already-enrolled"
     ],
     "disclosure": "predicate",
-    "format": "application/vnd.registry-notary.claim-result+json"
+    "format": "application/vnd.solmara.federated-predicate-bundle+json"
   }
 }

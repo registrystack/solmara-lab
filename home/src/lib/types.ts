@@ -142,6 +142,15 @@ export type ResponseSource = {
   note?: string;
 };
 
+export type FederationTraceItem = {
+  authority?: string;
+  service_id?: string;
+  claim_id?: string;
+  profile?: string;
+  request_source?: RequestSource;
+  response_source?: ResponseSource;
+};
+
 export type CredentialSummary = {
   status: 'issued' | 'not_issued' | 'not_attempted';
   profile: string;
@@ -163,6 +172,7 @@ export type StepRunResult = {
   friendly: { title: string; message: string; status: string; facts: { label: string; value: unknown }[] };
   request_source: RequestSource;
   response_source: ResponseSource;
+  federation_trace?: FederationTraceItem[];
   credential_source?: RequestSource;
   credential_response_source?: ResponseSource;
   credential?: CredentialSummary;

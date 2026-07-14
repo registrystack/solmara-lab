@@ -1,6 +1,14 @@
 // Provenance kinds -> field types (portal spec section 5.3, UX section 3).
 export type FieldKind = 'self' | 'verify' | 'fetch' | 'decision';
-export type NotaryId = 'civil' | 'social' | 'agri' | 'certs';
+export type NotaryId =
+  | 'civil'
+  | 'social'
+  | 'agri'
+  | 'certs'
+  | 'childCivil'
+  | 'population'
+  | 'socialRegistry'
+  | 'programme';
 
 // Lifecycle state of an EvidenceField (UX section 4 + Phase 0 DoD).
 export type FieldState =
@@ -38,10 +46,9 @@ export type ServiceForm = {
 
 // ---- Wire-facing shapes ----
 // ClaimResult and ProofTrace are the STABLE portal-facing projection. The raw
-// Notary request/response JSON lives inside ProofTrace.request.body /
-// response.body and MUST be structurally identical to registry-notary
-// POST /v1/evaluations (derived from the OpenAPI by the provider agent). Renderer
-// and proof agents treat those bodies as opaque records and pretty-print them.
+// Upstream request/response JSON lives inside ProofTrace.request.body /
+// response.body and follows the owning service contract. Renderer and proof
+// agents treat those bodies as opaque records and pretty-print them.
 
 export type ClaimResult = {
   state: FieldState;
@@ -65,8 +72,7 @@ export type ProofTrace = {
   notDisclosed: string;   // ALWAYS present
   status: ProofStatus;
   ts: string;
-  // depth 2 - wire (redacted; allowlist only). body must be structurally identical
-  // to the real Notary JSON.
+  // depth 2 - wire (redacted; allowlist only). Body follows the owning service.
   request: { method: string; url: string; body: Record<string, unknown> };
   response?: { status: number; body: Record<string, unknown> };
   // depth 3 - crypto

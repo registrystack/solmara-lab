@@ -51,12 +51,52 @@
   ],
   "data_services": [
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
-      "id": "child-benefit-notary-api",
-      "iri": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "conforms_to": "https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1",
+      "description": {
+        "en": "Returns application/vnd.solmara.federated-predicate-bundle+json bundles assembled from signed source-Notary predicates without composing an eligibility decision."
+      },
+      "endpoint_description": "https://child-benefit-federator.solmara.registrystack.org/v1/claims",
+      "endpoint_url": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
+      "id": "child-benefit-federator-api",
+      "iri": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
       "title": {
-        "en": "Child benefit evidence API"
+        "en": "Child benefit federated predicate bundle API"
+      }
+    },
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "id": "civil-child-benefit-notary-api",
+      "iri": "https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "title": {
+        "en": "CRA child benefit evidence API"
+      }
+    },
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "id": "nia-child-benefit-notary-api",
+      "iri": "https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "title": {
+        "en": "NIA child benefit evidence API"
+      }
+    },
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "id": "sro-child-benefit-notary-api",
+      "iri": "https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "title": {
+        "en": "SRO child benefit evidence API"
+      }
+    },
+    {
+      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
+      "endpoint_url": "https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "id": "programme-child-benefit-notary-api",
+      "iri": "https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "title": {
+        "en": "Programme MIS child benefit evidence API"
       }
     },
     {
@@ -458,6 +498,22 @@
       }
     },
     {
+      "description": {
+        "en": "A transient bundle of source-owned child benefit predicates with no copied source rows or eligibility decision."
+      },
+      "id": "child-benefit-federated-predicate-bundle-evidence",
+      "information_concepts": [
+        "ps:Person"
+      ],
+      "iri": "https://id.registrystack.org/solmara/evidence-types/child-benefit-federated-predicate-bundle",
+      "proves": [
+        "child-benefit-review-requirement"
+      ],
+      "title": {
+        "en": "Child benefit federated predicate bundle"
+      }
+    },
+    {
       "id": "death-registration-evidence",
       "information_concepts": [
         "ps:crvs/Death"
@@ -571,7 +627,11 @@
     {
       "competent_authority": "mosd-programme-mis",
       "data_services": [
-        "child-benefit-notary-api"
+        "child-benefit-federator-api",
+        "civil-child-benefit-notary-api",
+        "nia-child-benefit-notary-api",
+        "sro-child-benefit-notary-api",
+        "programme-child-benefit-notary-api"
       ],
       "description": {
         "en": "MoSD review of child benefit eligibility using minimized registry evidence."

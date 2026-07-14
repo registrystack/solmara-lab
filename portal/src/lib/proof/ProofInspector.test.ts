@@ -71,6 +71,21 @@ const denialTrace: ProofTrace = {
   }
 };
 
+const federatedTrace: ProofTrace = {
+  ...verifiedTrace,
+  id: 'event-federated',
+  authority: 'population',
+  proof: {
+    signedBy: 'National Identity Agency source-owned Notary',
+    algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
+    issuerKey:
+      'did:web:nia-child-benefit-notary.solmara.registrystack.org#federation-key-1',
+    holderBound: 'Purpose- and subject-bound child-benefit federation request',
+    credential: 'Federated predicate bundle',
+    auditId: 'bundle:fcb_test'
+  }
+};
+
 describe('ProofInspector', () => {
   describe('Depth 1 - always visible without expansion', () => {
     it('renders the "Not disclosed:" line at depth 1 without any expansion', () => {
@@ -146,6 +161,21 @@ describe('ProofInspector', () => {
       const redactedEl = container.querySelector('.redacted');
       expect(redactedEl).toBeInTheDocument();
       expect(container.innerHTML).toContain('(redacted)');
+    });
+  });
+
+  describe('Federated predicate proof', () => {
+    it('shows the bundle artifact without presenting a synthetic SD-JWT credential', async () => {
+      render(ProofInspector, { props: { traces: [federatedTrace] } });
+
+      await fireEvent.click(screen.getByText(/Request and response/));
+      await fireEvent.click(screen.getByText(/Cryptographic proof/));
+
+      expect(screen.getByText('Federated predicate bundle')).toBeInTheDocument();
+      expect(
+        screen.getByText('National Identity Agency source-owned Notary')
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Raw SD-JWT')).not.toBeInTheDocument();
     });
   });
 

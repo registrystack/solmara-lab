@@ -33,7 +33,7 @@ const CODE_META: Record<
     typeUri: 'https://id.registrystack.org/problems/registry-notary/federation/forbidden',
     meaning:
       'A delegated evaluation asked another authority for something outside the agreed scope of the delegation. The receiving Notary refuses the federated call rather than widen the delegation.',
-    coverage: 'Asserted by the federation smoke tests; no wave 1 guided story runs a delegated call yet.'
+    coverage: 'Asserted by the federation smoke tests; the child-benefit story uses delegated peer calls for source predicates.'
   },
   'federation.replay': {
     title: 'Federated proof replayed',
@@ -41,7 +41,7 @@ const CODE_META: Record<
     typeUri: 'https://id.registrystack.org/problems/registry-notary/federation/replay',
     meaning:
       'A delegated proof was presented more than once. The Notary rejects the repeated attempt so a captured proof cannot be replayed against another authority.',
-    coverage: 'Asserted by the federation smoke tests; no wave 1 guided story runs a delegated call yet.'
+    coverage: 'Asserted by the federation smoke tests; replay remains a lower-level smoke rather than a guided story step.'
   }
 };
 

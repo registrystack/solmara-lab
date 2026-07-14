@@ -1,0 +1,24 @@
+{
+  "@context": {
+    "odrl": "http://www.w3.org/ns/odrl/2/"
+  },
+  "id": "solmara-child-benefit-federated-predicate-bundle-policy",
+  "permission": [
+    {
+      "action": "use",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+          ]
+        }
+      ]
+    }
+  ],
+  "profile": "https://www.w3.org/TR/odrl-model/",
+  "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-federated-predicate-bundle",
+  "type": "odrl:Set",
+  "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-federated-predicate-bundle-policy"
+}

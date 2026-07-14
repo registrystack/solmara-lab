@@ -3,9 +3,8 @@
 // per field/claim, with deterministic latency and a top-to-bottom stagger.
 //
 // The depth-2 request/response bodies inside each ProofTrace are built by ./wire
-// to be structurally identical to the real Notary POST /v1/evaluations. Volatile
-// fields (evaluation ids, timestamps) are stamped per call so they are present
-// but value-variable. "mock then wire" never becomes "mock then rewrite".
+// from the owning service contract. Notary services keep their evaluation shape;
+// child benefit uses the federated predicate bundle shape.
 
 import type { EvaluateContext, EvidenceProvider } from '$lib/providers/EvidenceProvider';
 import type { ClaimResult, Field, ProofStatus, ProofTrace } from '$lib/types';
@@ -17,12 +16,14 @@ import {
 } from './scenarios';
 import {
   authorityLabel,
+  buildFederatedPredicateRequest,
+  buildFederatedPredicateResponse,
   buildRawRequest,
   buildRawResponse,
   makeEvaluationId,
   notaryUrl,
-  type RawEvaluateRequest,
-  type RawEvaluationResponse
+  type RawProviderRequest,
+  type RawProviderResponse
 } from './wire';
 
 // Optional knobs for delegated / denial selection the BFF passes via ctx-derived
@@ -33,7 +34,7 @@ export type EvaluateOptions = {
   // the field's normal mapping is bypassed so every UX state is reachable.
   scenarioKey?: string;
   // for delegated fields, whether the guardian-link hop has already succeeded.
-  // The provider DENIES a delegated civil read if this is false, proving the gate.
+  // The provider DENIES a dependent source read if this is false, proving the gate.
   guardianLinkVerified?: boolean;
 };
 
@@ -43,8 +44,8 @@ export type EvaluateOptions = {
 export type MockEvaluation = {
   result: ClaimResult;
   raw: {
-    request: { method: string; url: string; body: RawEvaluateRequest };
-    response: { status: number; body: RawEvaluationResponse | DenialBody };
+    request: { method: string; url: string; body: RawProviderRequest };
+    response: { status: number; body: RawProviderResponse | DenialBody };
   };
   proof: {
     headline: string;
@@ -89,6 +90,16 @@ function buildCrypto(
   evaluationId: string,
   issuedAt: Date
 ): NonNullable<ProofTrace['proof']> {
+  if (scenario.service === 'childBenefit') {
+    return {
+      signedBy: `${authorityLabel(scenario)} source-owned Notary`,
+      algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
+      issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
+      holderBound: 'Purpose- and subject-bound child-benefit federation request',
+      credential: 'Federated predicate bundle',
+      auditId: `bundle:fcb_${evaluationId}`
+    };
+  }
   return {
     signedBy: authorityLabel(scenario),
     algorithm: 'EdDSA-Ed25519',
@@ -125,8 +136,8 @@ export class MockEvidenceProvider implements EvidenceProvider {
     const key = resolveScenarioKey(field, opts);
     const scenario = SCENARIOS[key];
 
-    // Delegated civil reads (hop two) are only authorized AFTER the social
-    // caregiver-link verify (hop one) succeeds. An unproven link is denied
+    // Delegated source reads are only authorized AFTER the caregiver-link
+    // verify succeeds. An unproven link is denied
     // before any dependent source read, proving the relationship-first gate.
     if (scenario.delegated && opts?.guardianLinkVerified !== true) {
       // Deny by default: a delegated dependent read is authorized ONLY with an
@@ -146,10 +157,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
     // timing.latencyMs to drive the animation budget.
     await delay(Math.min(scenario.latencyMs, 5));
 
-    const rawRequest = buildRawRequest(scenario, subject, {
-      actorIdHash: scenario.delegated ? hashActor(ctx.subject) : undefined,
-      delegationRef: scenario.delegated ? 'rnref:v1:REL-1001-MOTHER' : undefined
-    });
+    const rawRequest = buildProviderRequest(scenario, subject, ctx.subject);
 
     // Denial / error scenarios perform NO source read: there is no 200 body.
     if (scenario.httpStatus === 403) {
@@ -159,7 +167,15 @@ export class MockEvidenceProvider implements EvidenceProvider {
       return this.#errored(field, scenario, ctx, key, evaluationId, issuedAt, rawRequest);
     }
 
-    const rawResponse = buildRawResponse(scenario, evaluationId, issuedAt);
+    const rawResponse =
+      scenario.service === 'childBenefit'
+        ? buildFederatedPredicateResponse(
+            scenario,
+            evaluationId,
+            issuedAt,
+            (rawRequest as ReturnType<typeof buildFederatedPredicateRequest>).target
+          )
+        : buildRawResponse(scenario, evaluationId, issuedAt);
 
     const result: ClaimResult = {
       state: scenario.state,
@@ -207,10 +223,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
     // inspector shows what was asked, then the 403 with no source read. The target
     // is redacted before it ever reaches the feed.
     const subject = scenario.denial ? PERSONA.karim : (scenario.subjectPersona ? PERSONA[scenario.subjectPersona] : PERSONA.mateo);
-    const rawRequest = buildRawRequest(scenario, subject, {
-      actorIdHash: scenario.delegated ? hashActor(_ctx.subject) : undefined,
-      delegationRef: scenario.delegated ? 'rnref:v1:REL-1001-MOTHER' : undefined
-    });
+    const rawRequest = buildProviderRequest(scenario, subject, _ctx.subject);
     const denialBody: DenialBody = {
       error: code,
       error_description:
@@ -260,7 +273,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
     _key: string,
     evaluationId: string,
     issuedAt: Date,
-    rawRequest: RawEvaluateRequest
+    rawRequest: RawProviderRequest
   ): MockEvaluation {
     const seq = this.#seq; // already incremented by the caller
     const errBody: DenialBody = {
@@ -295,6 +308,20 @@ export class MockEvidenceProvider implements EvidenceProvider {
       }
     };
   }
+}
+
+function buildProviderRequest(
+  scenario: ScenarioResult,
+  subject: string,
+  actorSubject: string
+): RawProviderRequest {
+  if (scenario.service === 'childBenefit') {
+    return buildFederatedPredicateRequest(scenario, subject);
+  }
+  return buildRawRequest(scenario, subject, {
+    actorIdHash: scenario.delegated ? hashActor(actorSubject) : undefined,
+    delegationRef: scenario.delegated ? 'rnref:v1:REL-1001-MOTHER' : undefined
+  });
 }
 
 // A keyed-hash placeholder for an actor id. Never the raw principal; matches the

@@ -93,12 +93,13 @@ runbook. Coolify uses one hosted compose file for the lab edge plus one compose
 file per pseudo-government authority:
 
 - `compose.coolify.yaml` for the Visitor Center, portal, scenario runner, and
-  static metadata.
-- `compose.coolify.interior.yaml` for CRA, NIA, and the NIA Postgres store.
+  static metadata, including the non-composing child-benefit federator.
+- `compose.coolify.interior.yaml` for CRA, NIA, their two source-owned
+  child-benefit Notaries, and the NIA Postgres store.
 - `compose.coolify.esignet.yaml` for eSignet, eSignet UI, and its backing
   Postgres/Redis/seed services.
 - `compose.coolify.social-development.yaml` for SRO, MoSD programme MIS, and
-  the child benefit notary.
+  their two source-owned child-benefit Notaries.
 - `compose.coolify.labour-pensions.yaml` for SIPF and the pension notary.
 - `compose.coolify.agriculture.yaml` for NAgDI and the agriculture notary.
 - `compose.coolify.citizen-services.yaml` for the citizen services notary.

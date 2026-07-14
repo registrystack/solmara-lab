@@ -57,7 +57,10 @@ services:
       - sipf-pensions-audit:/relay/sipf-pensions-audit
       - nagdi-agriculture-cache:/relay/nagdi-agriculture-cache
       - nagdi-agriculture-audit:/relay/nagdi-agriculture-audit
-      - child-benefit-notary-state:/notary/child-benefit-notary-state
+      - civil-child-benefit-notary-state:/notary/civil-child-benefit-notary-state
+      - nia-child-benefit-notary-state:/notary/nia-child-benefit-notary-state
+      - sro-child-benefit-notary-state:/notary/sro-child-benefit-notary-state
+      - programme-child-benefit-notary-state:/notary/programme-child-benefit-notary-state
       - pension-notary-state:/notary/pension-notary-state
       - nagdi-notary-state:/notary/nagdi-notary-state
       - citizen-notary-state:/notary/citizen-notary-state
@@ -119,8 +122,8 @@ services:
       SCENARIO_RUNNER_HOST: 0.0.0.0
       SCENARIO_RUNNER_PORT: 8080
       SOLMARA_LAB_MODE: local
-      CHILD_BENEFIT_NOTARY_URL: http://child-benefit-notary:8080
-      CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
+      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
       PENSION_NOTARY_URL: http://pension-notary:8080
       PENSION_NOTARY_TOKEN: ${PENSION_NOTARY_TOKEN}
       NAGDI_NOTARY_URL: http://nagdi-notary:8080
@@ -133,7 +136,7 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      child-benefit-notary:
+      child-benefit-federator:
         condition: service_healthy
       pension-notary:
         condition: service_healthy
@@ -164,7 +167,11 @@ services:
       PROGRAMME_MIS_RELAY_URL: http://programme-mis-relay:8080
       SIPF_PENSIONS_RELAY_URL: http://sipf-pensions-relay:8080
       NAGDI_AGRICULTURE_RELAY_URL: http://nagdi-agriculture-relay:8080
-      CHILD_BENEFIT_NOTARY_URL: http://child-benefit-notary:8080
+      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
+      CIVIL_CHILD_BENEFIT_NOTARY_URL: http://civil-child-benefit-notary:8080
+      NIA_CHILD_BENEFIT_NOTARY_URL: http://nia-child-benefit-notary:8080
+      SRO_CHILD_BENEFIT_NOTARY_URL: http://sro-child-benefit-notary:8080
+      PROGRAMME_CHILD_BENEFIT_NOTARY_URL: http://programme-child-benefit-notary:8080
       PENSION_NOTARY_URL: http://pension-notary:8080
       NAGDI_NOTARY_URL: http://nagdi-notary:8080
       PORTAL_CITIZEN_NOTARY_URL: http://citizen-notary:8080
@@ -173,7 +180,7 @@ services:
       # the same synthetic notary tokens the scenarios use. Never add a token
       # that is not meant to be public.
       HOME_PUBLISHED_TOKENS: >-
-        {"child-benefit-notary":"${CHILD_BENEFIT_NOTARY_TOKEN}",
+        {"child-benefit-federator":"${CHILD_BENEFIT_FEDERATOR_TOKEN}",
         "pension-notary":"${PENSION_NOTARY_TOKEN}",
         "nagdi-notary":"${NAGDI_NOTARY_TOKEN}",
         "citizen-notary":"${PORTAL_CITIZEN_NOTARY_TOKEN}"}
@@ -319,32 +326,116 @@ services:
       volume-permissions:
         condition: service_completed_successfully
 
-  child-benefit-notary:
+  civil-child-benefit-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/child-benefit.yaml"]
+    command: ["--config", "/etc/registry-notary/child-benefit-civil.yaml"]
     environment:
       <<: *notary-environment
-      CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
       CRA_CHILD_BENEFIT_SOURCE_RAW: ${CRA_CHILD_BENEFIT_SOURCE_RAW}
-      NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
-      SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
-      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
-      CHILD_BENEFIT_NOTARY_ISSUER_JWK: ${CHILD_BENEFIT_NOTARY_ISSUER_JWK}
+      CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
+      CIVIL_CHILD_BENEFIT_PAIRWISE_SECRET: ${CIVIL_CHILD_BENEFIT_PAIRWISE_SECRET}
     ports:
-      - "${SOLMARA_CHILD_BENEFIT_NOTARY_PORT:-4321}:8080"
+      - "${SOLMARA_CIVIL_CHILD_BENEFIT_NOTARY_PORT:-4325}:8080"
     volumes:
-      - ./notaries/child-benefit.yaml:/etc/registry-notary/child-benefit.yaml:ro
-      - child-benefit-notary-state:/var/lib/registry-notary/config-state
+      - ./notaries/child-benefit-civil.yaml:/etc/registry-notary/child-benefit-civil.yaml:ro
+      - civil-child-benefit-notary-state:/var/lib/registry-notary/config-state
     depends_on:
       cra-civil-relay:
         condition: service_started
+      redis:
+        condition: service_healthy
+
+  nia-child-benefit-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/child-benefit-population.yaml"]
+    environment:
+      <<: *notary-environment
+      NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
+      NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
+      NIA_CHILD_BENEFIT_PAIRWISE_SECRET: ${NIA_CHILD_BENEFIT_PAIRWISE_SECRET}
+    ports:
+      - "${SOLMARA_NIA_CHILD_BENEFIT_NOTARY_PORT:-4326}:8080"
+    volumes:
+      - ./notaries/child-benefit-population.yaml:/etc/registry-notary/child-benefit-population.yaml:ro
+      - nia-child-benefit-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
       nia-population-relay:
         condition: service_started
+      redis:
+        condition: service_healthy
+
+  sro-child-benefit-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/child-benefit-social.yaml"]
+    environment:
+      <<: *notary-environment
+      SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
+      SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
+      SRO_CHILD_BENEFIT_PAIRWISE_SECRET: ${SRO_CHILD_BENEFIT_PAIRWISE_SECRET}
+    ports:
+      - "${SOLMARA_SRO_CHILD_BENEFIT_NOTARY_PORT:-4327}:8080"
+    volumes:
+      - ./notaries/child-benefit-social.yaml:/etc/registry-notary/child-benefit-social.yaml:ro
+      - sro-child-benefit-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
       sro-social-relay:
         condition: service_started
+      redis:
+        condition: service_healthy
+
+  programme-child-benefit-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/child-benefit-programme.yaml"]
+    environment:
+      <<: *notary-environment
+      PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+      PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
+      PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET: ${PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET}
+    ports:
+      - "${SOLMARA_PROGRAMME_CHILD_BENEFIT_NOTARY_PORT:-4328}:8080"
+    volumes:
+      - ./notaries/child-benefit-programme.yaml:/etc/registry-notary/child-benefit-programme.yaml:ro
+      - programme-child-benefit-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
       programme-mis-relay:
         condition: service_started
       redis:
+        condition: service_healthy
+
+  child-benefit-federator:
+    build:
+      context: .
+      dockerfile: scenario-runner/Dockerfile
+    image: ${SOLMARA_CHILD_BENEFIT_FEDERATOR_IMAGE:-solmara-lab-scenario-runner:local}
+    command: ["python", "scenario-runner/child_benefit_federator.py"]
+    environment:
+      CHILD_BENEFIT_FEDERATOR_HOST: 0.0.0.0
+      CHILD_BENEFIT_FEDERATOR_PORT: 8080
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
+      CHILD_BENEFIT_FEDERATOR_REQUEST_JWK: ${CHILD_BENEFIT_FEDERATOR_REQUEST_JWK}
+      CIVIL_CHILD_BENEFIT_NOTARY_URL: http://civil-child-benefit-notary:8080
+      NIA_CHILD_BENEFIT_NOTARY_URL: http://nia-child-benefit-notary:8080
+      SRO_CHILD_BENEFIT_NOTARY_URL: http://sro-child-benefit-notary:8080
+      PROGRAMME_CHILD_BENEFIT_NOTARY_URL: http://programme-child-benefit-notary:8080
+    ports:
+      - "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PORT:-4321}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      civil-child-benefit-notary:
+        condition: service_healthy
+      nia-child-benefit-notary:
+        condition: service_healthy
+      sro-child-benefit-notary:
+        condition: service_healthy
+      programme-child-benefit-notary:
         condition: service_healthy
 
   pension-notary:
@@ -440,7 +531,7 @@ services:
       CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK: ${CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK}
       CITIZEN_ISSUER_ESIGNET_RP_JWK: ${CITIZEN_ISSUER_ESIGNET_RP_JWK}
     ports:
-      - "${SOLMARA_CITIZEN_ISSUER_NOTARY_PORT:-4325}:8080"
+      - "${SOLMARA_CITIZEN_ISSUER_NOTARY_PORT:-4329}:8080"
     volumes:
       - ./notaries/citizen-issuer.yaml:/etc/registry-notary/citizen-issuer.yaml:ro
       - citizen-issuer-notary-state:/var/lib/registry-notary/config-state
@@ -462,8 +553,8 @@ services:
       PORTAL_PROVIDER: live
       PORTAL_AUTH_PROVIDER: ${PORTAL_AUTH_PROVIDER:-mock}
       PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET}
-      CHILD_BENEFIT_NOTARY_URL: http://child-benefit-notary:8080
-      CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
+      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
       PENSION_NOTARY_URL: http://pension-notary:8080
       PENSION_NOTARY_TOKEN: ${PENSION_NOTARY_TOKEN}
       NAGDI_NOTARY_URL: http://nagdi-notary:8080
@@ -485,7 +576,7 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      child-benefit-notary:
+      child-benefit-federator:
         condition: service_healthy
       pension-notary:
         condition: service_healthy
@@ -510,7 +601,10 @@ volumes:
   sipf-pensions-audit:
   nagdi-agriculture-cache:
   nagdi-agriculture-audit:
-  child-benefit-notary-state:
+  civil-child-benefit-notary-state:
+  nia-child-benefit-notary-state:
+  sro-child-benefit-notary-state:
+  programme-child-benefit-notary-state:
   pension-notary-state:
   nagdi-notary-state:
   citizen-notary-state:

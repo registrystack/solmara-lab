@@ -7,7 +7,7 @@
 
 <svelte:head>
   <title>Anatomy · Solmara Visitor's Center</title>
-  <meta name="description" content="What an institution actually runs: one Relay per authority, Notaries per purpose, and the entire config for each ministry linked in the repo." />
+  <meta name="description" content="What an institution actually runs: one Relay per authority, source-owned Notaries, federators, and the entire config for each ministry linked in the repo." />
 </svelte:head>
 
 <main class="page-band reference-page">
@@ -16,8 +16,8 @@
     <h1>The whole country on a laptop</h1>
     <p class="lede">
       This is what a Solmara authority actually runs, parsed from the running compose topology. Every
-      authority operates its own Relay (a read-only API over data it already holds) and the Notaries
-      (services that certify evidence) sit in front, one per purpose. Each ministry links to its
+      authority operates its own Relay (a read-only API over data it already holds) and source-owned
+      Notaries certify minimized evidence close to those registries. Each ministry links to its
       entire configuration in the repository, so there is nothing hidden.
     </p>
 

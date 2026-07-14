@@ -15,34 +15,41 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ASSEMBLY = ROOT / "metadata" / "assembly.yaml"
+CHILD_BENEFIT_PURPOSE = "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+CHILD_BENEFIT_BUNDLE_MEDIA_TYPE = "application/vnd.solmara.federated-predicate-bundle+json"
+CHILD_BENEFIT_FEDERATOR_URL = "https://child-benefit-federator.solmara.registrystack.org"
 
 DATASET_OFFERING_DEFAULTS = {
     "cra-civil": {
         "evidence_type": "birth-registration-evidence",
         "entity": "civil_person",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/crvs/Birth", "https://publicschema.org/crvs/Death"],
     },
     "nia-population": {
         "evidence_type": "population-status-evidence",
         "entity": "person",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/Person"],
     },
     "sro-social": {
         "evidence_type": "household-poverty-evidence",
         "entity": "household",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/Household", "https://publicschema.org/SocioEconomicProfile"],
     },
     "mosd-programme": {
         "evidence_type": "beneficiary-enrollment-evidence",
         "entity": "enrollment",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/sp/Enrollment"],
     },
     "sipf-pensions": {
@@ -167,6 +174,10 @@ def build_bundle(manifest: dict[str, Any], fragment_index: dict[str, dict[str, A
         livestock["semantics"]["concepts"] = ["https://publicschema.org/livestock-type"]
         offerings.append(livestock)
 
+    bundle_offering_id = "solmara.child-benefit.federated-predicate-bundle"
+    if not any(offering["id"] == bundle_offering_id for offering in offerings):
+        offerings.append(child_benefit_bundle_offering(authorities))
+
     policies = [policy_for_offering(offering) for offering in offerings]
     catalog = {
         "schema_version": "registry-manifest-catalog/v1",
@@ -229,6 +240,7 @@ def normalize_entity(entity: str | dict[str, Any], purposes: list[str], defaults
 
 def normalize_source_offering(dataset: dict[str, Any], offering: dict[str, Any], authorities: dict[str, Any]) -> dict[str, Any]:
     default = synthetic_offering(dataset, authorities, evidence_type=offering.get("evidence_type"), entity=offering.get("entity"))
+    policy = offering.get("policy") if isinstance(offering.get("policy"), dict) else {}
     default.update(
         {
             "id": offering["id"],
@@ -238,7 +250,7 @@ def normalize_source_offering(dataset: dict[str, Any], offering: dict[str, Any],
             "lookup_keys": offering.get("lookup_keys", []),
             "public_services": offering.get("procedure_contexts", default["public_services"]),
             "access": offering.get("access", default["access"]),
-            "purposes": offering.get("purposes", dataset["purposes"]),
+            "purposes": policy.get("purpose", dataset["purposes"]),
         }
     )
     default["policy"] = f"{default['id']}-policy"
@@ -259,7 +271,7 @@ def synthetic_offering(
     authority_id = authority.get("id", dataset["id"])
     endpoint = defaults.get("endpoint", "https://metadata.solmara.registrystack.org/evidence/v1")
     offering_id = f"{dataset['id']}-{evidence_type.replace('-evidence', '')}-offering"
-    purposes = dataset.get("purposes", [])
+    purposes = defaults.get("purposes", dataset.get("purposes", []))
     return {
         "id": offering_id,
         "iri": f"https://id.registrystack.org/solmara/evidence-offerings/{slug(offering_id)}",
@@ -283,6 +295,44 @@ def synthetic_offering(
             "application_profiles": ["cpsv-ap"],
         },
         "policy": f"{offering_id}-policy",
+    }
+
+
+def child_benefit_bundle_offering(authorities: dict[str, Any]) -> dict[str, Any]:
+    offering_id = "solmara.child-benefit.federated-predicate-bundle"
+    return {
+        "id": offering_id,
+        "iri": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-federated-predicate-bundle",
+        "title": "Child Benefit Source Predicate Federation Bundle",
+        "description": (
+            "A transient bundle of signed, source-owned child benefit predicates. "
+            "It contains no copied source rows and no composed eligibility decision."
+        ),
+        "dataset": "mosd-programme",
+        "entity": "enrollment",
+        "evidence_type": "child-benefit-federated-predicate-bundle-evidence",
+        "issuing_authority": authorities["mosd-programme-mis"],
+        "lookup_keys": ["uin"],
+        "public_services": ["child-benefit-review"],
+        "access": {
+            "kind": "federated-predicate-bundle-api",
+            "conforms_to": "https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1",
+            "endpoint_url": f"{CHILD_BENEFIT_FEDERATOR_URL}/v1/evaluations",
+            "discovery_url": f"{CHILD_BENEFIT_FEDERATOR_URL}/v1/claims",
+            "media_type": CHILD_BENEFIT_BUNDLE_MEDIA_TYPE,
+            "ruleset": "source-owned-child-benefit-predicates-v1",
+        },
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "semantics": {
+            "concepts": [
+                "https://publicschema.org/Person",
+                "https://publicschema.org/crvs/Birth",
+                "https://publicschema.org/Household",
+                "https://publicschema.org/sp/Enrollment",
+            ],
+            "application_profiles": ["cpsv-ap"],
+        },
+        "policy": "solmara-child-benefit-federated-predicate-bundle-policy",
     }
 
 

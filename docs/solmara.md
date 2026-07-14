@@ -91,8 +91,8 @@ Solmara uses three domain layers:
 | Machine identifiers | `https://id.registrystack.org/solmara/...` | Purpose IRIs, credential `vct` values, schema `$id` values, and issuer identifiers. |
 | Service endpoints | `<service>.solmara.registrystack.org` | Real TLS endpoints for hosted lab services. |
 
-Issuer identifiers are did:web values under the same identifier host, for
-example `did:web:id.registrystack.org:solmara:notary:child-benefit`. Credential
+Notary node identifiers use `did:web` at their service host, for example
+`did:web:civil-child-benefit-notary.solmara.registrystack.org`. Credential
 holder binding uses `did:jwk`.
 
 ## Ministries And Registries
@@ -120,8 +120,12 @@ needs them. Wave 1 runs seven registries.
 | 16 | Vehicle and driving licence registry | Ministry of Transport | World bible only | None |
 | 17 | Customs trader registry | Ministry of Finance, Customs Service | World bible only | None |
 
-Wave 1 notaries are `child-benefit-notary`, `pension-notary`, `nagdi-notary`,
-and `citizen-notary`.
+Wave 1 notaries are the source-owned child benefit Notaries
+`civil-child-benefit-notary`, `nia-child-benefit-notary`,
+`sro-child-benefit-notary`, `programme-child-benefit-notary`, plus
+`pension-notary`, `nagdi-notary`, and `citizen-notary`. The
+`child-benefit-federator` coordinates the child-benefit predicate calls but
+does not make the final eligibility decision.
 
 ## Persona Roster
 
@@ -131,8 +135,8 @@ must stay stable.
 
 | Persona | Primary id | District | Wave 1 expected outcome |
 |---|---|---|---|
-| Mateo Santos | `2300010248` | Ketterin | Child benefit positive child: registered birth, under 5, eligible household, not enrolled. |
-| Elena Dela Cruz | `2300018263` | Ketterin | Mateo guardian: may preview enrollment eligibility credential for Mateo. |
+| Mateo Santos | `2300010248` | Ketterin | Child benefit positive child: registered birth, active population record, under 5, eligible household, not enrolled. |
+| Elena Dela Cruz | `2300018263` | Ketterin | Mateo guardian: may request the source-owned predicate bundle for programme review. |
 | Luis Okafor | `2300027390` | Ketterin | Household head for child benefit positive path. |
 | Hana Aquino | `2300036523` | Lydessa | Child benefit denied: household above poverty threshold. |
 | Priya Mensah | `2300045650` | Lydessa | Guardian for above-threshold child household. |
@@ -160,10 +164,10 @@ The wave 1 registry landscape demonstrates cross-registry life-event services:
 
 | Story | Registries | Outcome |
 |---|---|---|
-| Birth to child benefit | Civil registration, population, social registry, beneficiary registry | Enrollment eligibility SD-JWT VC for an eligible child. |
+| Birth to child benefit | Civil registration, population, social registry, beneficiary registry | Federated source predicate bundle for programme eligibility review. |
 | Death to pension stop plus survivor benefit | Civil registration, population, pensions, beneficiary registry | Stop predicate for the deceased member and survivor eligibility VC for the spouse. |
 | Farmer climate-smart voucher and livestock movement | Farmer registry, livestock registry | Voucher eligibility credential and livestock movement permit evidence. |
 
-Every wave 1 story must show metadata discovery, governed evaluation, credential
-issue or preview, a forbidden raw read or wrong-purpose attempt, and a denial
-with a stable problem code.
+Every wave 1 story must show metadata discovery, governed evaluation, a
+credential or federation bundle moment, a forbidden raw read or wrong-purpose
+attempt, and a denial with a stable problem code.

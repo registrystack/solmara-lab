@@ -9,17 +9,17 @@
     {
       "media_type": "application/json",
       "path": "metadata/catalog.json",
-      "sha256": "sha256:66fd359b4ee775d031815421c5d3bd6ef8be38d95ff81df21a9ab897e514320c"
+      "sha256": "sha256:a471fb7a95353dd05a9b6454dcddbb183a838f929d7a6d501e5d79daba0254c3"
     },
     {
       "media_type": "application/json",
       "path": "metadata/cpsv-ap",
-      "sha256": "sha256:bcd5656ee79d7dd3611fc78a05fabc4f7810dc86ac60de3045ac3c1cf7cbc7c4"
+      "sha256": "sha256:6005f935af9ca1a3a2b3b241f62b0682029d229288bb2eea7d83efc05b0bb39e"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/cpsv-ap.jsonld",
-      "sha256": "sha256:bcd5656ee79d7dd3611fc78a05fabc4f7810dc86ac60de3045ac3c1cf7cbc7c4"
+      "sha256": "sha256:6005f935af9ca1a3a2b3b241f62b0682029d229288bb2eea7d83efc05b0bb39e"
     },
     {
       "media_type": "application/ld+json",
@@ -29,17 +29,17 @@
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings.json",
-      "sha256": "sha256:8a40e8705566aefcfa737a94433325097ac81fb7b42f1d375221b976741b307e"
+      "sha256": "sha256:282af837b0d2f4a6e592353f9ed8e29aa6d0869daff6276a12593d7df21f3e36"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/cra-birth-registration-offering.json",
-      "sha256": "sha256:6b5992fe54ff6e67c6162476a56ef23ee14cab9dbdf69f7469977b1339048f6f"
+      "sha256": "sha256:09ee44bddc8c34526d478782ffb4b1885bbcb7aa062296376ba3fe530c7cfc2d"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/mosd-programme-beneficiary-enrollment-offering.json",
-      "sha256": "sha256:78ccf1502861b178eb86e85eab4fd9801429e34da50c288175cc92e989b648d1"
+      "sha256": "sha256:452ba0f8ac78e0e1869cae0eabb35aa43f50de9205ea2af39c4809998d857287"
     },
     {
       "media_type": "application/json",
@@ -54,7 +54,7 @@
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/nia-population-population-status-offering.json",
-      "sha256": "sha256:5b37e8e482d445d927c7c7f525c28492b5b41b5e78cb6b34232b977a95d17e15"
+      "sha256": "sha256:6ac1bd5e6d787d554b9fb46292aa425f078e968f1bb474836addede8e64c38e0"
     },
     {
       "media_type": "application/json",
@@ -63,13 +63,18 @@
     },
     {
       "media_type": "application/json",
+      "path": "metadata/evidence-offerings/solmara.child-benefit.federated-predicate-bundle.json",
+      "sha256": "sha256:5d6642c7b7635c0ea7ffefcd55520913277e89538999e361442ad4bc5b4ee3d4"
+    },
+    {
+      "media_type": "application/json",
       "path": "metadata/evidence-offerings/sro-social-household-poverty-offering.json",
-      "sha256": "sha256:44da796ac1ed967f89a0a5d6cd5dc2d99461093f9dfc6c6ed443df550abb8a2b"
+      "sha256": "sha256:f4800bc8d2cfd2bb7714d30a593c67e0ff9487bffdf111755b40c0743b79e045"
     },
     {
       "media_type": "application/yaml",
       "path": "metadata/metadata.yaml",
-      "sha256": "sha256:7c95a6e8f7996b29bb85eabedb2329ade914ebd0ac799c44c9e4f36ecc904753"
+      "sha256": "sha256:a6c95ae41000b4096f28e182aaac5a80078cc1e36b6653078724bc3ec4a5edbf"
     },
     {
       "media_type": "application/json",
@@ -79,17 +84,17 @@
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies.jsonld",
-      "sha256": "sha256:a058bc0ff1c08bbbc33c0d9f71a733af97c6033d0608f5e3f29c298ca824752b"
+      "sha256": "sha256:69399ec96d92fdf04d96be46539c418eb44858e0e6231f0c858f49fc83ea13ef"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/cra-birth-registration-offering-policy.jsonld",
-      "sha256": "sha256:401512532bfb0420068631c84e4fb6b560bdef55813aead1c69df6dbce83a3b6"
+      "sha256": "sha256:5765930b8ba06eb475e1cbea73299bb218da725b0ad0d632d46d2772b0a557ee"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/mosd-programme-beneficiary-enrollment-offering-policy.jsonld",
-      "sha256": "sha256:980e23cd78f4244ffa6890d457587a95922be192af1435dbb7ca8a6858f86738"
+      "sha256": "sha256:2f10bcafccfb352e80cd01d48acd0a5552ee26bc2ba42b599fe7fbef08a82d84"
     },
     {
       "media_type": "application/ld+json",
@@ -104,7 +109,7 @@
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/nia-population-population-status-offering-policy.jsonld",
-      "sha256": "sha256:aa78904780e72ef893dfae0ff1c9a00973c9d3f86cc4f00b88fc0a26f0ca87cf"
+      "sha256": "sha256:2d3a0ff6df7f37513a0ec334e933ae27a3412db2a5e2fd569a1f6be5081bbb9d"
     },
     {
       "media_type": "application/ld+json",
@@ -113,8 +118,13 @@
     },
     {
       "media_type": "application/ld+json",
+      "path": "metadata/policies/solmara-child-benefit-federated-predicate-bundle-policy.jsonld",
+      "sha256": "sha256:99c234b02d5226932b2189a9ddde5c0ca9b80b5392cdb73f37ac5469e886867b"
+    },
+    {
+      "media_type": "application/ld+json",
       "path": "metadata/policies/sro-social-household-poverty-offering-policy.jsonld",
-      "sha256": "sha256:d1e5e57c8f8d17c4de77ac246dc1b9fdccad478f79821980cc918236c1d7f794"
+      "sha256": "sha256:2b99e4de49c24e68fb5b203cc43709aa285faad8dd2f0a3760c59846ccc6ae63"
     },
     {
       "media_type": "application/ld+json",

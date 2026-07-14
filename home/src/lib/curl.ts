@@ -1,9 +1,9 @@
 import type { RequestSource } from '$lib/types';
 
 /**
- * Render a request as a copy-as-curl snippet. Headers are already redacted by
- * the scenario runner, and URLs are already rewritten to host-reachable ones
- * server-side, so this is a pure presentation helper safe to run in the browser.
+ * Render a request as a copy-as-curl snippet. Headers are prepared server-side:
+ * redacted by default, with only allowlisted synthetic lab tokens republished
+ * for the visitor center. URLs are already rewritten to host-reachable ones.
  */
 export function toCurl(source: RequestSource | undefined, overrideHeaders: Record<string, string> = {}): string {
   if (!source || !source.url) return '';

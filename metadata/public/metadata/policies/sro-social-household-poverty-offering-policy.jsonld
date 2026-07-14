@@ -11,8 +11,7 @@
           "leftOperand": "purpose",
           "operator": "isAnyOf",
           "rightOperand": [
-            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review"
           ]
         }
       ]

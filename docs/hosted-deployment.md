@@ -17,10 +17,10 @@ project.
 
 | Coolify app name | Compose file | Services |
 |---|---|---|
-| `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, static metadata |
-| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay, NIA relay, NIA Postgres |
+| `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, child benefit federator, static metadata |
+| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay and child benefit Notary, NIA relay and child benefit Notary, NIA Postgres, Redis |
 | `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, public eSignet edge proxy, eSignet UI, eSignet Postgres, Redis, seed jobs |
-| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay, programme MIS relay, child benefit notary, Redis |
+| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay and child benefit Notary, programme MIS relay and child benefit Notary, Redis |
 | `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF relay, pension notary, Redis |
 | `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI relay, NAgDI notary, Redis |
 | `solmara-lab-citizen-services` | `compose.coolify.citizen-services.yaml` | citizen services notary, citizen OID4VCI issuer notary, Redis |
@@ -52,7 +52,11 @@ The current public hostname pattern is `*.solmara.registrystack.org`.
 | Programme MIS relay | `https://mosd-programme-relay.solmara.registrystack.org` |
 | SIPF pensions relay | `https://sipf-relay.solmara.registrystack.org` |
 | NAgDI agriculture relay | `https://nagdi-relay.solmara.registrystack.org` |
-| Child benefit notary | `https://child-benefit-notary.solmara.registrystack.org` |
+| Child benefit federator | `https://child-benefit-federator.solmara.registrystack.org` |
+| CRA child benefit Notary | `https://civil-child-benefit-notary.solmara.registrystack.org` |
+| NIA child benefit Notary | `https://nia-child-benefit-notary.solmara.registrystack.org` |
+| SRO child benefit Notary | `https://sro-child-benefit-notary.solmara.registrystack.org` |
+| Programme child benefit Notary | `https://programme-child-benefit-notary.solmara.registrystack.org` |
 | Pension notary | `https://pension-notary.solmara.registrystack.org` |
 | NAgDI notary | `https://nagdi-notary.solmara.registrystack.org` |
 | Citizen services notary | `https://citizen-notary.solmara.registrystack.org` |
@@ -170,7 +174,8 @@ Portal and Visitor Center:
 - `PORTAL_ESIGNET_SCOPE`
 - `PORTAL_ESIGNET_SUBJECT_CLAIM`
 - `PORTAL_RELAY_TOKEN`
-- `CHILD_BENEFIT_NOTARY_TOKEN`
+- `CHILD_BENEFIT_FEDERATOR_TOKEN`
+- `CHILD_BENEFIT_FEDERATOR_REQUEST_JWK`
 - `PENSION_NOTARY_TOKEN`
 - `NAGDI_NOTARY_TOKEN`
 - `PORTAL_CITIZEN_NOTARY_TOKEN`
@@ -204,6 +209,50 @@ Relay token hashes and notary source tokens:
 - Store raw API tokens only as environment variables.
 - Committed configs must keep using `token_env`, `private_jwk_env`,
   `hash_secret_env`, and fingerprint references.
+
+Child benefit federation credentials are split by application:
+
+- The core app needs `CHILD_BENEFIT_FEDERATOR_REQUEST_JWK` and
+  `CHILD_BENEFIT_FEDERATOR_TOKEN`.
+- The interior app needs `CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
+  `CRA_CHILD_BENEFIT_SOURCE_RAW`,
+  `CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`,
+  `CIVIL_CHILD_BENEFIT_PAIRWISE_SECRET`,
+  `NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
+  `NIA_CHILD_BENEFIT_SOURCE_RAW`,
+  `NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`, and
+  `NIA_CHILD_BENEFIT_PAIRWISE_SECRET`.
+- The social development app needs `SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
+  `SRO_CHILD_BENEFIT_SOURCE_RAW`,
+  `SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`,
+  `SRO_CHILD_BENEFIT_PAIRWISE_SECRET`,
+  `PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
+  `PROGRAMME_CHILD_BENEFIT_SOURCE_RAW`,
+  `PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`, and
+  `PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET`.
+
+Generate only the five federation JWKs into a new restricted file. This command
+does not rewrite `.env`, rotate unrelated credentials, or regenerate local TLS:
+
+```bash
+CHILD_BENEFIT_PUBLIC_DOMAIN=solmara.registrystack.org \
+  uv run --locked scripts/gen-secrets.py \
+  --federation-output .env.federation-rotation
+```
+
+Upload each named JWK to its owning app, complete the coordinated rotation, and
+then securely delete `.env.federation-rotation`. The generator refuses to
+overwrite an existing output file.
+
+The embedded JWK `kid` must exactly match the configured public DID. The
+federator request key uses
+`did:web:child-benefit-federator.solmara.registrystack.org#request-key-1`.
+Each authority response key uses its public service DID with
+`#federation-key-1`, for example
+`did:web:civil-child-benefit-notary.solmara.registrystack.org#federation-key-1`.
+Do not reuse locally generated `.lab.registrystack.org` federation JWKs in the
+hosted apps. Registry Notary rejects a configured signing key when the JWK
+`kid` does not match.
 
 eSignet uses the NIA population registry only through the
 `solmara-nia-userinfo` attribute-release profile:
@@ -248,7 +297,11 @@ names that Coolify stores internally.
 | `programme-mis-relay` | `https://mosd-programme-relay.solmara.registrystack.org:8080` |
 | `sipf-pensions-relay` | `https://sipf-relay.solmara.registrystack.org:8080` |
 | `nagdi-agriculture-relay` | `https://nagdi-relay.solmara.registrystack.org:8080` |
-| `child-benefit-notary` | `https://child-benefit-notary.solmara.registrystack.org:8080` |
+| `child-benefit-federator` | `https://child-benefit-federator.solmara.registrystack.org:8080` |
+| `civil-child-benefit-notary` | `https://civil-child-benefit-notary.solmara.registrystack.org:8080` |
+| `nia-child-benefit-notary` | `https://nia-child-benefit-notary.solmara.registrystack.org:8080` |
+| `sro-child-benefit-notary` | `https://sro-child-benefit-notary.solmara.registrystack.org:8080` |
+| `programme-child-benefit-notary` | `https://programme-child-benefit-notary.solmara.registrystack.org:8080` |
 | `pension-notary` | `https://pension-notary.solmara.registrystack.org:8080` |
 | `nagdi-notary` | `https://nagdi-notary.solmara.registrystack.org:8080` |
 | `citizen-notary` | `https://citizen-notary.solmara.registrystack.org:8080` |
@@ -312,15 +365,16 @@ just hosted-smoke
 The command runs:
 
 - Public route and `/healthz` checks for the Visitor Center, portal, metadata,
-  Walt wallet, six relays, and five notaries.
+  Walt wallet, six relays, eight Notaries, and the child benefit federator.
 - OID4VCI issuer checks for issuer metadata, VCT metadata, credential offer,
   nonce issuance, refusal of unknown credential configurations, eSignet login
   redirect, and unauthenticated credential refusal.
 - eSignet discovery checks for issuer-root OpenID and OAuth metadata, plus the
   MOSIP `/v1/esignet/...` discovery path.
 - A Visitor Center scenario-proxy check that lists the stories, runs the child
-  benefit positive path, confirms credential issuance, and runs the purpose
-  denial path.
+  benefit positive path, confirms all five source-owned predicates and the
+  four-Notary federation trace without an eligibility decision or credential,
+  and runs the purpose denial path.
 - Authenticated Relay source probes.
 - Authenticated Notary scenario checks.
 - Published demo-token refusal checks.
@@ -403,9 +457,9 @@ Do not change audit write policy to make the error disappear.
 
 Coolify stores compose service domain keys with underscores, but the domain API
 input must use the compose service names. If a patch uses
-`child_benefit_notary` instead of `child-benefit-notary`, Coolify may accept the
-request without creating the intended service router. Patch domains with the
-hyphenated service names and redeploy.
+`child_benefit_federator` instead of `child-benefit-federator`, Coolify may
+accept the request without creating the intended service router. Patch domains
+with the hyphenated service names and redeploy.
 
 ### Hosted config still calls Compose DNS
 

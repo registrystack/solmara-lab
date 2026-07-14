@@ -8,6 +8,7 @@ export const SURVIVOR_BENEFIT_PURPOSE = 'https://id.registrystack.org/solmara/pu
 export const VOUCHER_PURPOSE = 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review';
 export const LIVESTOCK_PURPOSE = 'https://id.registrystack.org/solmara/purpose/livestock-movement-control';
 export const CLAIM_RESULT = 'application/vnd.registry-notary.claim-result+json';
+export const FEDERATED_BUNDLE = 'application/vnd.solmara.federated-predicate-bundle+json';
 export const SD_JWT = 'application/dc+sd-jwt';
 
 export const unexpectedStatus = new Counter('registry_lab_unexpected_status_total');

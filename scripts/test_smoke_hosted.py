@@ -91,8 +91,29 @@ def hosted_routes() -> dict[tuple[str, str], Any]:
             200,
             {
                 "result": {
-                    "response_source": {"status": 200, "body": {"results": []}},
-                    "credential": {"status": "issued"},
+                    "response_source": {
+                        "status": 200,
+                        "body": {
+                            "federator": {
+                                "service_id": "child-benefit-federator",
+                                "decision": "not_composed",
+                            },
+                            "results": [
+                                {"claim_id": "birth-is-registered", "satisfied": True},
+                                {"claim_id": "population-record-active", "satisfied": True},
+                                {"claim_id": "child-age-under-5", "satisfied": True},
+                                {"claim_id": "household-below-poverty-threshold", "satisfied": True},
+                                {"claim_id": "not-already-enrolled", "satisfied": True},
+                            ],
+                            "federation_trace": [
+                                {"service_id": "civil-child-benefit-notary"},
+                                {"service_id": "nia-child-benefit-notary"},
+                                {"service_id": "civil-child-benefit-notary"},
+                                {"service_id": "sro-child-benefit-notary"},
+                                {"service_id": "programme-child-benefit-notary"},
+                            ],
+                        },
+                    },
                 }
             },
         ),
@@ -173,9 +194,16 @@ class HostedSmokeTests(unittest.TestCase):
         self.assertEqual(targets.wallet_url, "https://wallet.solmara.registrystack.org")
         self.assertIn("https://cra-relay.solmara.registrystack.org", {relay.base_url for relay in targets.relays})
         self.assertIn(
-            "https://child-benefit-notary.solmara.registrystack.org",
+            "https://child-benefit-federator.solmara.registrystack.org",
             {notary.base_url for notary in targets.notaries},
         )
+        child_source_urls = {
+            "https://civil-child-benefit-notary.solmara.registrystack.org",
+            "https://nia-child-benefit-notary.solmara.registrystack.org",
+            "https://sro-child-benefit-notary.solmara.registrystack.org",
+            "https://programme-child-benefit-notary.solmara.registrystack.org",
+        }
+        self.assertTrue(child_source_urls <= {notary.base_url for notary in targets.notaries})
         self.assertIn(
             "https://citizen-issuer-notary.solmara.registrystack.org",
             {notary.base_url for notary in targets.notaries},
@@ -183,8 +211,27 @@ class HostedSmokeTests(unittest.TestCase):
 
     def test_hosted_env_overrides_public_service_urls_without_tokens(self) -> None:
         targets = smoke_hosted.default_targets("solmara.registrystack.org")
-        env = smoke_hosted.hosted_env({"CHILD_BENEFIT_NOTARY_TOKEN": "keep-local"}, targets)
-        self.assertEqual(env["CHILD_BENEFIT_NOTARY_URL"], "https://child-benefit-notary.solmara.registrystack.org")
+        env = smoke_hosted.hosted_env({"CHILD_BENEFIT_FEDERATOR_TOKEN": "keep-local"}, targets)
+        self.assertEqual(
+            env["CHILD_BENEFIT_FEDERATOR_URL"],
+            "https://child-benefit-federator.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["CIVIL_CHILD_BENEFIT_NOTARY_URL"],
+            "https://civil-child-benefit-notary.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["NIA_CHILD_BENEFIT_NOTARY_URL"],
+            "https://nia-child-benefit-notary.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["SRO_CHILD_BENEFIT_NOTARY_URL"],
+            "https://sro-child-benefit-notary.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["PROGRAMME_CHILD_BENEFIT_NOTARY_URL"],
+            "https://programme-child-benefit-notary.solmara.registrystack.org",
+        )
         self.assertEqual(env["SOLMARA_CRA_RELAY_URL"], "https://cra-relay.solmara.registrystack.org")
         self.assertEqual(env["SOLMARA_PORTAL_URL"], "https://portal.solmara.registrystack.org")
         self.assertEqual(env["SOLMARA_ESIGNET_PUBLIC_BASE_URL"], "https://esignet.solmara.registrystack.org")
@@ -195,7 +242,7 @@ class HostedSmokeTests(unittest.TestCase):
             "https://citizen-issuer-notary.solmara.registrystack.org",
         )
         self.assertEqual(env["SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED"], "1")
-        self.assertEqual(env["CHILD_BENEFIT_NOTARY_TOKEN"], "keep-local")
+        self.assertEqual(env["CHILD_BENEFIT_FEDERATOR_TOKEN"], "keep-local")
 
     def test_normalize_argv_accepts_just_separator(self) -> None:
         self.assertEqual(smoke_hosted.normalize_argv(["--", "--browser"]), ["--browser"])
@@ -204,6 +251,14 @@ class HostedSmokeTests(unittest.TestCase):
     def test_home_demo_accepts_expected_scenario_flow(self) -> None:
         with StubServer(hosted_routes()) as server:
             smoke_hosted.check_home_demo(server.url, timeout=2)
+
+    def test_home_demo_rejects_composed_child_benefit_decision(self) -> None:
+        routes = hosted_routes()
+        positive = routes[("POST", "/api/scenarios/birth-to-child-benefit/steps/positive/run")][1]
+        positive["result"]["response_source"]["body"]["federator"]["decision"] = "eligible"
+        with StubServer(routes) as server:
+            with self.assertRaises(smoke_hosted.SmokeFailure):
+                smoke_hosted.check_home_demo(server.url, timeout=2)
 
     def test_home_demo_requires_stable_denial_code(self) -> None:
         routes = hosted_routes()

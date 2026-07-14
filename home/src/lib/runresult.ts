@@ -64,6 +64,14 @@ export function requestPurpose(result: StepRunResult | null | undefined): string
  * from the actual request line, purpose header, and response status.
  */
 export function hopsFromResult(result: StepRunResult | null | undefined): string[] {
+  if (Array.isArray(result?.federation_trace) && result.federation_trace.length) {
+    return result.federation_trace.map((peer) => {
+      const authority = peer.authority ?? peer.service_id ?? 'Source Notary';
+      const claim = peer.claim_id ?? peer.profile ?? 'claim';
+      const status = peer.response_source?.status;
+      return status ? `${authority}: ${claim} returned HTTP ${status}` : `${authority}: ${claim}`;
+    });
+  }
   const first = claimResults(result)[0]?.raw ?? {};
   const provenance = first.provenance;
   if (Array.isArray(provenance) && provenance.length) {

@@ -7,7 +7,7 @@ const purposes: Purpose[] = [
     iri: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
     slug: 'child-benefit-review',
     advertisedBy: 'CRA',
-    enforcedBy: 'child-benefit-notary',
+    enforcedBy: 'child-benefit-federator',
     story: 'Birth to child benefit',
     denialCodes: ['pdp.purpose_not_permitted', 'federation.forbidden'],
     plainLanguage: 'permits child benefit evidence'

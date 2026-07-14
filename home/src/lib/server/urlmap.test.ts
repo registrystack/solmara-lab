@@ -4,8 +4,11 @@ import { buildPublicUrlMap, mapPublicUrl, rewriteRequestUrls } from './urlmap';
 describe('public URL map', () => {
   it('rewrites compose-internal notary hostnames to host-reachable localhost ports', () => {
     const map = buildPublicUrlMap();
-    expect(mapPublicUrl('http://child-benefit-notary:8080/v1/evaluations', map)).toBe(
+    expect(mapPublicUrl('http://child-benefit-federator:8080/v1/evaluations', map)).toBe(
       'http://localhost:4321/v1/evaluations'
+    );
+    expect(mapPublicUrl('http://civil-child-benefit-notary:8080/federation/v1/evaluations', map)).toBe(
+      'http://localhost:4325/federation/v1/evaluations'
     );
     expect(mapPublicUrl('http://pension-notary:8080/v1/claims', map)).toBe(
       'http://localhost:4322/v1/claims'
@@ -30,8 +33,8 @@ describe('public URL map', () => {
   it('leaves already host-reachable URLs untouched', () => {
     const map = buildPublicUrlMap();
     expect(mapPublicUrl('http://localhost:4321/v1/claims', map)).toBe('http://localhost:4321/v1/claims');
-    expect(mapPublicUrl('https://child-benefit-notary.solmara.registrystack.org/v1/claims', map)).toBe(
-      'https://child-benefit-notary.solmara.registrystack.org/v1/claims'
+    expect(mapPublicUrl('https://child-benefit-federator.solmara.registrystack.org/v1/claims', map)).toBe(
+      'https://child-benefit-federator.solmara.registrystack.org/v1/claims'
     );
   });
 
@@ -43,10 +46,12 @@ describe('public URL map', () => {
 
   it('merges an env-provided JSON override over the defaults', () => {
     const map = buildPublicUrlMap(
-      JSON.stringify({ 'child-benefit-notary:8080': 'https://child-benefit-notary.solmara.registrystack.org' })
+      JSON.stringify({
+        'child-benefit-federator:8080': 'https://child-benefit-federator.solmara.registrystack.org'
+      })
     );
-    expect(mapPublicUrl('http://child-benefit-notary:8080/v1/claims', map)).toBe(
-      'https://child-benefit-notary.solmara.registrystack.org/v1/claims'
+    expect(mapPublicUrl('http://child-benefit-federator:8080/v1/claims', map)).toBe(
+      'https://child-benefit-federator.solmara.registrystack.org/v1/claims'
     );
     // untouched defaults still apply
     expect(mapPublicUrl('http://pension-notary:8080/v1/claims', map)).toBe(
@@ -57,14 +62,24 @@ describe('public URL map', () => {
   it('rewrites request_source and credential_source urls inside a run result', () => {
     const map = buildPublicUrlMap();
     const result = {
-      request_source: { method: 'POST', url: 'http://child-benefit-notary:8080/v1/evaluations', headers: {} },
-      credential_source: { method: 'POST', url: 'http://child-benefit-notary:8080/v1/credentials', headers: {} },
+      request_source: { method: 'POST', url: 'http://child-benefit-federator:8080/v1/evaluations', headers: {} },
+      credential_source: { method: 'POST', url: 'http://pension-notary:8080/v1/credentials', headers: {} },
+      federation_trace: [
+        {
+          request_source: {
+            method: 'POST',
+            url: 'http://civil-child-benefit-notary:8080/federation/v1/evaluations',
+            headers: {}
+          }
+        }
+      ],
       response_source: { status: 200 }
     };
     const mapped = rewriteRequestUrls(result, map);
     expect(mapped.request_source.url).toBe('http://localhost:4321/v1/evaluations');
-    expect(mapped.credential_source.url).toBe('http://localhost:4321/v1/credentials');
+    expect(mapped.credential_source.url).toBe('http://localhost:4322/v1/credentials');
+    expect(mapped.federation_trace[0].request_source.url).toBe('http://localhost:4325/federation/v1/evaluations');
     // does not mutate the original
-    expect(result.request_source.url).toBe('http://child-benefit-notary:8080/v1/evaluations');
+    expect(result.request_source.url).toBe('http://child-benefit-federator:8080/v1/evaluations');
   });
 });

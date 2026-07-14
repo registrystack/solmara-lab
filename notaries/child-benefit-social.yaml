@@ -1,0 +1,170 @@
+server:
+  bind: 0.0.0.0:8080
+  openapi_requires_auth: false
+  admin_listener:
+    mode: dedicated
+    bind: 0.0.0.0:8081
+
+instance:
+  id: solmara-sro-child-benefit-notary
+  environment: hosted_lab
+  owner: Social Registry Office
+  jurisdiction: XS
+  public_base_url: https://sro-child-benefit-notary.lab.registrystack.org
+
+auth:
+  mode: api_key
+  api_keys:
+    - id: sro_child_benefit_client
+      fingerprint:
+        provider: env
+        name: SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH
+      scopes:
+        - sro_social:evidence_verification
+      authorization_details:
+        type: registry-notary/evidence-authorization/v1
+        schema_version: v1
+        legal_basis_ref: https://id.registrystack.org/solmara/legal-basis/child-benefit-act
+        consent_ref: https://id.registrystack.org/solmara/consent/child-benefit-review
+        jurisdiction: XS
+        assurance_level: substantial
+
+audit:
+  sink: file
+  path: /var/lib/registry-notary/config-state/audit.jsonl
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+
+replay:
+  storage: redis
+  redis:
+    url_env: REGISTRY_NOTARY_REPLAY_REDIS_URL
+    key_prefix: solmara-sro-child-benefit-notary
+    connect_timeout_ms: 1000
+    operation_timeout_ms: 500
+
+deployment:
+  profile: hosted_lab
+
+cel:
+  worker_count: 8
+  worker_memory_bytes: 1073741824
+
+evidence:
+  enabled: true
+  service_id: sro-child-benefit-notary
+  api_base_url: http://sro-child-benefit-notary:8080
+  allowed_purposes:
+    - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  source_connections:
+    social:
+      base_url: http://sro-social-relay:8080
+      allow_insecure_private_network: true
+      token_env: SRO_CHILD_BENEFIT_SOURCE_RAW
+  signing_keys:
+    sro-child-benefit-federation:
+      provider: local_jwk_env
+      private_jwk_env: SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK
+      alg: EdDSA
+      kid: did:web:sro-child-benefit-notary.lab.registrystack.org#federation-key-1
+      status: active
+  claims:
+    - id: household-below-poverty-threshold
+      title: Household below poverty threshold
+      version: "2026-07"
+      subject_type: household
+      value:
+        type: boolean
+      semantics:
+        concept: https://publicschema.org/SocioEconomicProfile
+        predicate: https://id.registrystack.org/solmara/claim/household-below-poverty-threshold
+      source_bindings:
+        membership:
+          connector: registry_data_api
+          connection: social
+          required_scope: sro_social:evidence_verification
+          dataset: sro_social
+          entity: household_member
+          matching: &social_child_benefit_matching
+            allowed_purposes:
+              - https://id.registrystack.org/solmara/purpose/child-benefit-review
+            permitted_jurisdictions: [XS]
+            require_legal_basis: true
+            require_consent: true
+          lookup:
+            input: target.identifiers.solmara_uin
+            field: uin
+            op: eq
+            cardinality: one
+          fields:
+            household_id:
+              field: household_id
+              type: string
+              required: true
+        household:
+          connector: registry_data_api
+          connection: social
+          required_scope: sro_social:evidence_verification
+          dataset: sro_social
+          entity: household
+          matching: *social_child_benefit_matching
+          lookup:
+            input: source.membership.household_id
+            field: id
+            op: eq
+            cardinality: one
+          fields:
+            poverty_band:
+              field: poverty_band
+              type: string
+              required: true
+      rule:
+        type: cel
+        expression: "source.household.poverty_band == 'priority'"
+      disclosure:
+        default: predicate
+        allowed:
+          - predicate
+          - redacted
+      formats:
+        - application/vnd.registry-notary.claim-result+json
+
+federation:
+  enabled: true
+  node_id: did:web:sro-child-benefit-notary.lab.registrystack.org
+  issuer: https://sro-child-benefit-notary.lab.registrystack.org
+  jwks_uri: https://sro-child-benefit-notary.lab.registrystack.org/.well-known/evidence/jwks.json
+  federation_api: https://sro-child-benefit-notary.lab.registrystack.org/federation/v1
+  supported_protocol_versions:
+    - registry-notary-federation/v0.1
+  signing:
+    signing_key: sro-child-benefit-federation
+  pairwise_subject_hash:
+    secret_env: SRO_CHILD_BENEFIT_PAIRWISE_SECRET
+  response_shaping:
+    minimum_denial_latency_ms: 10
+  emergency_denylist:
+    node_ids: []
+    kids: []
+  peers:
+    - node_id: did:web:child-benefit-federator.lab.registrystack.org
+      issuer: https://child-benefit-federator.lab.registrystack.org
+      jwks_uri: http://child-benefit-federator:8080/.well-known/jwks.json
+      allow_insecure_private_network: true
+      allowed_protocol_versions:
+        - registry-notary-federation/v0.1
+      allowed_purposes:
+        - https://id.registrystack.org/solmara/purpose/child-benefit-review
+      allowed_profiles:
+        - household_below_poverty_threshold
+      source_scopes:
+        - sro_social:evidence_verification
+  evaluation_profiles:
+    - id: household_below_poverty_threshold
+      ruleset: household-below-poverty-threshold-v1
+      claim_id: household-below-poverty-threshold
+      subject_id_type: solmara_uin
+      disclosure: predicate
+      legal_basis_ref: https://id.registrystack.org/solmara/legal-basis/child-benefit-act
+      consent_ref: https://id.registrystack.org/solmara/consent/child-benefit-review
+      jurisdiction: XS
+      assurance_level: substantial

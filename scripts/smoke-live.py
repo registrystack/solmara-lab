@@ -40,17 +40,17 @@ class ScenarioCase:
 
 SERVICES = (
     NotaryService(
-        "Child Benefit Notary",
-        "CHILD_BENEFIT_NOTARY_URL",
+        "Child Benefit Federator",
+        "CHILD_BENEFIT_FEDERATOR_URL",
         "http://127.0.0.1:4321",
-        "CHILD_BENEFIT_NOTARY_TOKEN",
+        "CHILD_BENEFIT_FEDERATOR_TOKEN",
         PURPOSES["child_benefit"],
         (
             "birth-is-registered",
+            "population-record-active",
             "child-age-under-5",
             "household-below-poverty-threshold",
             "not-already-enrolled",
-            "eligible-for-child-benefit",
         ),
     ),
     NotaryService(
@@ -94,6 +94,7 @@ SCENARIO_CASES = (
         200,
         {
             "birth-is-registered": True,
+            "population-record-active": True,
             "child-age-under-5": True,
             "household-below-poverty-threshold": True,
             "not-already-enrolled": True,
@@ -113,7 +114,7 @@ SCENARIO_CASES = (
         200,
         {"household-below-poverty-threshold": False},
     ),
-    ScenarioCase("child unregistered control", "child_benefit", "unregistered-control", range(400, 500), {}),
+    ScenarioCase("child unregistered control", "child_benefit", "unregistered-control", 200, {"birth-is-registered": False}),
     ScenarioCase(
         "child duplicate enrollment control",
         "child_benefit",

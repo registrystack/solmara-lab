@@ -1,8 +1,6 @@
-// Wire-shape builders. These produce the depth-2 request/response bodies that
-// MUST be structurally identical (same key set, types, ordering) to the real
-// Notary POST /v1/evaluations:
-//   request  = EvaluateRequest        (registry-notary.openapi.json)
-//   response = EvaluationResponse     -> { results: [ClaimResultView] }
+// Wire-shape builders. Registry Notary services use EvaluateRequest and
+// EvaluationResponse. Child benefit uses the federated predicate bundle
+// request and response contract.
 //
 // Volatile fields (evaluation_id, issued_at, expires_at) are stamped here from
 // the passed clock/ids so they are present but value-variable. The live provider
@@ -36,7 +34,36 @@ export type RawEvaluateRequest = {
   on_behalf_of?: { actor: { type: string; id_hash: string }; delegation_ref: string };
 };
 
-const CLAIM_RESULT_FORMAT = 'application/vnd.registry-notary.claim-result+json';
+export const CLAIM_RESULT_FORMAT = 'application/vnd.registry-notary.claim-result+json';
+export const FEDERATED_PREDICATE_BUNDLE_FORMAT =
+  'application/vnd.solmara.federated-predicate-bundle+json';
+
+export type RawFederatedPredicateRequest = {
+  target: { type: 'Person'; identifiers: { scheme: 'solmara_uin'; value: string }[] };
+  claims: string[];
+  disclosure: 'predicate';
+  format: typeof FEDERATED_PREDICATE_BUNDLE_FORMAT;
+  purpose?: never;
+  relationship?: never;
+  on_behalf_of?: never;
+};
+
+export type RawProviderRequest = RawEvaluateRequest | RawFederatedPredicateRequest;
+
+export function buildFederatedPredicateRequest(
+  scenario: ScenarioResult,
+  subject: string
+): RawFederatedPredicateRequest {
+  return {
+    target: {
+      type: 'Person',
+      identifiers: [{ scheme: 'solmara_uin', value: subject }]
+    },
+    claims: [scenario.claimId],
+    disclosure: 'predicate',
+    format: FEDERATED_PREDICATE_BUNDLE_FORMAT
+  };
+}
 
 // Build the RAW EvaluateRequest the BFF would send. `subject` is the national id
 // the BFF resolved server-side (never client-supplied). For delegated reads the
@@ -125,6 +152,83 @@ export type ClaimResultView = {
 
 export type RawEvaluationResponse = { results: ClaimResultView[] };
 
+export type FederatedPredicateResult = {
+  claim_id: string;
+  claim_version: string;
+  format: string;
+  issued_at: string;
+  notary_service_id: string;
+  authority: string;
+  federation_profile: string;
+  satisfied: boolean;
+  value: boolean;
+  disclosure: 'predicate';
+  federation: {
+    issuer: string;
+    subject: string;
+    request_jti: string;
+    profile: string;
+  };
+};
+
+export type RawFederatedPredicateResponse = {
+  schema_version: 'solmara-child-benefit-federator/v1';
+  bundle_id: string;
+  federator: {
+    service_id: 'child-benefit-federator';
+    issuer: 'https://child-benefit-federator.solmara.registrystack.org';
+    decision: 'not_composed';
+  };
+  purpose: string;
+  target: RawFederatedPredicateRequest['target'];
+  results: FederatedPredicateResult[];
+  federation_trace: object[];
+};
+
+export type RawProviderResponse = RawEvaluationResponse | RawFederatedPredicateResponse;
+
+export function buildFederatedPredicateResponse(
+  scenario: ScenarioResult,
+  evaluationId: string,
+  issuedAt: Date,
+  target: RawFederatedPredicateRequest['target']
+): RawFederatedPredicateResponse {
+  const serviceId = NOTARY_SERVICE_ID[scenario.notary];
+  const authorityHost = serviceId;
+  return {
+    schema_version: 'solmara-child-benefit-federator/v1',
+    bundle_id: `fcb_${evaluationId}`,
+    federator: {
+      service_id: 'child-benefit-federator',
+      issuer: 'https://child-benefit-federator.solmara.registrystack.org',
+      decision: 'not_composed'
+    },
+    purpose: scenario.purpose,
+    target,
+    results: [
+      {
+        claim_id: scenario.claimId,
+        claim_version: scenario.claimVersion,
+        format: CLAIM_RESULT_FORMAT,
+        issued_at: issuedAt.toISOString(),
+        notary_service_id: serviceId,
+        authority: AUTHORITY_LABEL[scenario.notary],
+        federation_profile: scenario.claimId.replaceAll('-', '_'),
+        satisfied: scenario.satisfied === true,
+        value: scenario.satisfied === true,
+        disclosure: 'predicate',
+        federation: {
+          issuer: `https://${authorityHost}.solmara.registrystack.org`,
+          subject: `did:web:${authorityHost}.solmara.registrystack.org`,
+          request_jti: evaluationId,
+          profile: scenario.claimId.replaceAll('-', '_')
+        }
+      }
+    ],
+    federation_trace: []
+  };
+}
+
 // Build the RAW 200 EvaluationResponse. issuedAt is an ISO string; expiresAt is
 // issuedAt + freshnessDays (can be in the past for the stale scenario).
 export function buildRawResponse(
@@ -192,6 +296,9 @@ export function buildRawResponse(
 // The HTTP method + URL the proof inspector shows. URL carries the notary host
 // but never a raw subject (subjects go in the body target, which is redacted).
 export function notaryUrl(scenario: ScenarioResult): string {
+  if (scenario.service === 'childBenefit') {
+    return 'https://child-benefit-federator.solmara.registrystack.org/v1/evaluations';
+  }
   return `https://citizen-notary.solmara.registrystack.org/v1/evaluations`;
 }
 

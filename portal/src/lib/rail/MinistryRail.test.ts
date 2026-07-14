@@ -112,6 +112,10 @@ describe('MinistryRail node data attributes', () => {
     expect(container.querySelector('[data-node="agri"]')).not.toBeNull();
     expect(container.querySelector('[data-node="social"]')).not.toBeNull();
     expect(container.querySelector('[data-node="certs"]')).not.toBeNull();
+    expect(container.querySelector('[data-node="childCivil"]')).not.toBeNull();
+    expect(container.querySelector('[data-node="population"]')).not.toBeNull();
+    expect(container.querySelector('[data-node="socialRegistry"]')).not.toBeNull();
+    expect(container.querySelector('[data-node="programme"]')).not.toBeNull();
   });
 
   it('idle nodes carry data-state="idle"', () => {

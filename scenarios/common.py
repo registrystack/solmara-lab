@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 
 CLAIM_RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
+FEDERATED_BUNDLE_FORMAT = "application/vnd.solmara.federated-predicate-bundle+json"
 SD_JWT_VC_FORMAT = "application/dc+sd-jwt"
 HOLDER_PROOF_TYP = "kb+jwt"
 HOLDER_PROOF_ALG = "EdDSA"
@@ -51,7 +52,10 @@ def env_url(env_name: str, default: str, path: str) -> str:
 
 
 def request_source(method: str, url: str, headers: dict[str, str], body: Any | None = None) -> dict[str, Any]:
-    source: dict[str, Any] = {"method": method, "url": url, "headers": redact_headers(headers)}
+    source_headers = dict(headers)
+    if body is not None:
+        source_headers.setdefault("Content-Type", "application/json")
+    source: dict[str, Any] = {"method": method, "url": url, "headers": redact_headers(source_headers)}
     if body is not None:
         source["body"] = body
     return source

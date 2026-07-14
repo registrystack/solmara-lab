@@ -25,7 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scenarios.common import (  # noqa: E402
-    CLAIM_RESULT_FORMAT,
+    FEDERATED_BUNDLE_FORMAT,
     PURPOSES,
     auth_headers,
     evaluation_body,
@@ -34,9 +34,9 @@ from scenarios.common import (  # noqa: E402
 )
 
 # The published demo tokens the engineer door exposes: name -> (url env, token env).
-CHILD_URL_ENV = "CHILD_BENEFIT_NOTARY_URL"
+CHILD_URL_ENV = "CHILD_BENEFIT_FEDERATOR_URL"
 CHILD_URL_DEFAULT = "http://127.0.0.1:4321"
-CHILD_TOKEN_ENV = "CHILD_BENEFIT_NOTARY_TOKEN"
+CHILD_TOKEN_ENV = "CHILD_BENEFIT_FEDERATOR_TOKEN"
 
 POSITIVE_SUBJECT = "2300010248"
 CLAIM_IDS = ["birth-is-registered"]
@@ -66,8 +66,8 @@ def main() -> int:
     failures: list[str] = []
 
     # 1. Wrong purpose: ask the child benefit notary under a pension purpose.
-    wrong_headers = auth_headers(token, PURPOSES["pension_payment"], CLAIM_RESULT_FORMAT)
-    wrong_body = evaluation_body(POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", format=CLAIM_RESULT_FORMAT)
+    wrong_headers = auth_headers(token, PURPOSES["pension_payment"], FEDERATED_BUNDLE_FORMAT)
+    wrong_body = evaluation_body(POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", format=FEDERATED_BUNDLE_FORMAT)
     wrong = http_json("POST", eval_url, wrong_headers, wrong_body, timeout=8.0)
     wrong_code = problem_code(wrong.body)
     if wrong.status != 403:
@@ -76,9 +76,9 @@ def main() -> int:
         failures.append(f"wrong-purpose: expected code pdp.purpose_not_permitted, got '{wrong_code}'")
 
     # 2. Raw-row read attempt: ask for the raw source row under a permitted purpose.
-    raw_headers = auth_headers(token, PURPOSES["child_benefit"], CLAIM_RESULT_FORMAT)
+    raw_headers = auth_headers(token, PURPOSES["child_benefit"], FEDERATED_BUNDLE_FORMAT)
     raw_body = evaluation_body(
-        POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", disclosure="raw", format=CLAIM_RESULT_FORMAT
+        POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", disclosure="raw", format=FEDERATED_BUNDLE_FORMAT
     )
     raw = http_json("POST", eval_url, raw_headers, raw_body, timeout=8.0)
     raw_code = problem_code(raw.body)

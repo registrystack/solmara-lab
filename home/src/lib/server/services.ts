@@ -175,16 +175,68 @@ export const SERVICES: ServiceDef[] = [
     ]
   },
   {
-    id: 'child-benefit-notary',
-    label: 'Child benefit notary',
-    role: 'notary',
+    id: 'child-benefit-federator',
+    label: 'Child benefit federator',
+    role: 'shared',
     purpose: 'child-benefit-review',
-    blurb: 'Evaluates child benefit eligibility claims and issues the enrollment-eligibility credential.',
-    probeEnv: 'CHILD_BENEFIT_NOTARY_URL',
+    blurb: 'Collects source-owned child-benefit predicates through signed Notary federation. It does not make the eligibility decision.',
+    probeEnv: 'CHILD_BENEFIT_FEDERATOR_URL',
     probeDefault: 'http://127.0.0.1:4321',
+    probePath: '/health',
+    semantics: 'health',
+    configPaths: [{ label: 'Federator service', path: 'scenario-runner/child_benefit_federator.py' }]
+  },
+  {
+    id: 'civil-child-benefit-notary',
+    label: 'CRA child benefit notary',
+    role: 'notary',
+    authority: 'Civil Registration Authority',
+    purpose: 'child-benefit-review',
+    blurb: 'Answers birth registration and age predicates from the civil registry.',
+    probeEnv: 'CIVIL_CHILD_BENEFIT_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4325',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'notaries/child-benefit.yaml' }]
+    configPaths: [{ label: 'Notary config', path: 'notaries/child-benefit-civil.yaml' }]
+  },
+  {
+    id: 'nia-child-benefit-notary',
+    label: 'NIA child benefit notary',
+    role: 'notary',
+    authority: 'National Identity Agency',
+    purpose: 'child-benefit-review',
+    blurb: 'Answers the active population-record predicate from the population register.',
+    probeEnv: 'NIA_CHILD_BENEFIT_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4326',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Notary config', path: 'notaries/child-benefit-population.yaml' }]
+  },
+  {
+    id: 'sro-child-benefit-notary',
+    label: 'SRO child benefit notary',
+    role: 'notary',
+    authority: 'Social Registry Office',
+    purpose: 'child-benefit-review',
+    blurb: 'Answers the household poverty-threshold predicate from the social registry.',
+    probeEnv: 'SRO_CHILD_BENEFIT_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4327',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Notary config', path: 'notaries/child-benefit-social.yaml' }]
+  },
+  {
+    id: 'programme-child-benefit-notary',
+    label: 'Programme MIS child benefit notary',
+    role: 'notary',
+    authority: 'Ministry of Social Development Programme MIS',
+    purpose: 'child-benefit-review',
+    blurb: 'Answers the duplicate-enrollment predicate from programme records.',
+    probeEnv: 'PROGRAMME_CHILD_BENEFIT_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4328',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Notary config', path: 'notaries/child-benefit-programme.yaml' }]
   },
   {
     id: 'pension-notary',
@@ -254,8 +306,9 @@ export function statusProbes(portalUrl: string, readEnv: Record<string, string |
 
 /**
  * Group the topology for the anatomy page: relays under their authority,
- * notaries under the purpose they enforce, and the shared services. Config paths
- * become repo links, with the in-repo relative path preserved as visible text.
+ * source-owned Notaries under their evidence purpose, and shared services such
+ * as the child-benefit federator. Config paths become repo links, with the
+ * in-repo relative path preserved as visible text.
  */
 export function topologyGroups(repoUrl: string): TopologyGroup[] {
   const shared = SERVICES.filter((service) => service.role === 'shared');
@@ -271,9 +324,9 @@ export function topologyGroups(repoUrl: string): TopologyGroup[] {
     },
     {
       key: 'notaries',
-      title: 'Notaries grouped by purpose',
+      title: 'Source-owned Notaries',
       blurb:
-        'A Notary certifies evidence for a specific purpose. It reads from the Relays it needs, evaluates the claim, and issues a purpose-limited credential without ever handing back raw register rows.',
+        'A Notary sits close to the registry it certifies. Child benefit now uses one Notary per source authority, so federation gathers predicates without moving raw rows or composing the final benefit decision.',
       services: notaries.map((service) => toTopologyService(service, repoUrl))
     },
     {

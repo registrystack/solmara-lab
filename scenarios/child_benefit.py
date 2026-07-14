@@ -6,11 +6,9 @@ from __future__ import annotations
 from typing import Any
 
 from .common import (
-    CLAIM_RESULT_FORMAT,
+    FEDERATED_BUNDLE_FORMAT,
     PURPOSES,
-    SD_JWT_VC_FORMAT,
     auth_headers,
-    credential_attempt,
     evaluation_body,
     friendly_result,
     http_json,
@@ -23,9 +21,8 @@ from .service_config import service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "birth-to-child-benefit"
-SERVICE_NAME = "Child Benefit Notary"
-SERVICE_ID = "child-benefit-notary"
-CREDENTIAL_STEPS = {"positive"}
+SERVICE_NAME = "Child Benefit Federator"
+SERVICE_ID = "child-benefit-federator"
 POSITIVE_SUBJECT = "2300010248"
 DECEASED_CONTROL = "2300091305"
 ABOVE_THRESHOLD_CONTROL = "2300036523"
@@ -33,47 +30,47 @@ UNREGISTERED_CONTROL = "2300073046"
 DUPLICATE_CONTROL = "2300054788"
 CLAIMS = [
     "birth-is-registered",
+    "population-record-active",
     "child-age-under-5",
     "household-below-poverty-threshold",
     "not-already-enrolled",
 ]
-CREDENTIAL_PROFILE = "child_benefit_eligibility_sd_jwt"
 FRIENDLY = {
     "discover": {
         "met": ("The catalogue lists what may be asked.", "Claim definitions only. No resident data has moved yet."),
     },
     "positive": {
         "met": (
-            "Yes. Mateo can be reviewed for child benefit.",
-            "All four eligibility facts came back met. No register rows left their ministries.",
+            "Mateo's source predicates are ready for review.",
+            "The federator collected five source-owned facts. It did not make the benefit decision.",
         ),
         "unmet": (
-            "Not eligible on the facts returned.",
-            "One or more eligibility checks came back not met for this case.",
+            "Review cannot proceed on the facts returned.",
+            "One or more source-owned checks came back not met. The programme policy layer decides what happens next.",
         ),
     },
     "deceased-control": {
         "unmet": (
             "Rejected, exactly as designed.",
-            "The eligibility checks fail for the deceased control case, so enrollment stops here.",
+            "The civil predicate fails for the deceased control case. The federation layer only returns that fact.",
         ),
     },
     "poverty-control": {
         "unmet": (
             "Rejected: the household is above the threshold.",
-            "The poverty check came back not met. The caseworker never sees the household's actual income.",
+            "The social registry predicate came back not met. The caseworker never sees the household's actual income.",
         ),
     },
     "unregistered-control": {
         "unmet": (
-            "No birth record found. Registration comes first.",
-            "Instead of failing silently, the family is routed to birth registration.",
+            "No birth predicate could be satisfied. Registration comes first.",
+            "The civil authority returns only the minimized predicate result, not a source row.",
         ),
     },
     "duplicate-control": {
         "unmet": (
             "Rejected: already enrolled.",
-            "The duplicate check came back not met, preventing a double payment.",
+            "The programme MIS predicate came back not met, preventing a double payment.",
         ),
     },
 }
@@ -84,7 +81,7 @@ def story() -> dict[str, Any]:
         "id": SCENARIO_ID,
         "title": "Birth to child benefit",
         "short_title": "Child benefit",
-        "proves": "Civil, population, social registry, and beneficiary evidence can decide child-benefit eligibility without copying source rows.",
+        "proves": "Civil, population, social registry, and beneficiary evidence can be federated as source-owned predicates without copying source rows.",
         "domain": "Social protection",
         "availability": "hosted",
         "intro": "A caseworker reviews child benefit eligibility from minimized Solmara evidence.",
@@ -92,8 +89,8 @@ def story() -> dict[str, Any]:
         "subject": {"name": "Mateo Santos", "identifier": POSITIVE_SUBJECT},
         "requester": {"name": "Child benefit desk", "purpose": PURPOSES["child_benefit"]},
         "steps": [
-            {"id": "discover", "label": "Discover claims", "prompt": "Read the Notary claim catalogue.", "button": "Discover", "request_summary": "GET /v1/claims"},
-            {"id": "positive", "label": "Evaluate eligible child", "prompt": "Run the positive control.", "button": "Evaluate", "request_summary": "POST child-benefit claims for the positive UIN."},
+            {"id": "discover", "label": "Discover predicates", "prompt": "Read the federation predicate catalogue.", "button": "Discover", "request_summary": "GET /v1/claims"},
+            {"id": "positive", "label": "Federate eligible child predicates", "prompt": "Run the positive control.", "button": "Evaluate", "request_summary": "POST child-benefit predicate bundle for the positive UIN."},
             {"id": "deceased-control", "label": "Deceased control", "prompt": "Confirm a deceased child is rejected.", "button": "Evaluate", "request_summary": "POST child-benefit claims for the deceased control UIN."},
             {"id": "poverty-control", "label": "Income threshold control", "prompt": "Confirm an above-threshold household is rejected.", "button": "Evaluate", "request_summary": "POST child-benefit claims for the threshold control UIN."},
             {"id": "unregistered-control", "label": "Unregistered birth control", "prompt": "Route an unregistered birth to registration first.", "button": "Evaluate", "request_summary": "POST child-benefit claims for the unregistered control UIN."},
@@ -101,7 +98,7 @@ def story() -> dict[str, Any]:
             {"id": "purpose-denial", "label": "Purpose denial", "prompt": "Try the same request with an unsupported purpose.", "button": "Try denial", "request_summary": "POST with an unsupported Data-Purpose header."},
         ],
         "receipt": [
-            {"label": "Credential", "value": "enrollment-eligibility SD-JWT VC preview"},
+            {"label": "Federation", "value": "Source-owned predicates, no eligibility composition"},
             {"label": "Raw rows copied", "value": "No"},
         ],
     }
@@ -127,9 +124,8 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     }.get(step_id)
     purpose = request_purpose(config, step_id)
     token = service_token(SERVICE_ID)
-    evaluation_format = SD_JWT_VC_FORMAT if step_id in CREDENTIAL_STEPS else CLAIM_RESULT_FORMAT
-    headers = auth_headers(token, purpose, evaluation_format if step_id != "discover" else "application/json")
-    body = None if step_id == "discover" else evaluation_body(subject or "", CLAIMS, scheme="solmara_uin", format=evaluation_format)
+    headers = auth_headers(token, purpose, FEDERATED_BUNDLE_FORMAT if step_id != "discover" else "application/json")
+    body = None if step_id == "discover" else evaluation_body(subject or "", CLAIMS, scheme="solmara_uin", format=FEDERATED_BUNDLE_FORMAT)
     if step_id != "discover" and not subject:
         return standard_error_result(step_id)
     request = request_source("GET" if step_id == "discover" else "POST", url, headers, body)
@@ -138,14 +134,14 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     if not token:
         return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(SERVICE_ID), request)
     result = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
+    response_body = result.body if isinstance(result.body, dict) else {}
     payload = {
         "step_id": step_id,
         "friendly": friendly_result(step_id, result, FRIENDLY),
         "request_source": request,
         "response_source": source_response(result),
+        "federation_trace": response_body.get("federation_trace", []),
     }
-    if step_id in CREDENTIAL_STEPS and result.status and 200 <= result.status < 300:
-        payload.update(credential_attempt(service_url(SERVICE_ID, "/v1/credentials"), token, purpose, result, CREDENTIAL_PROFILE, CLAIMS, SERVICE_ID))
     return payload
 
 

@@ -22,7 +22,8 @@ Security checklist for reviewer:
 2. Raw tokens appear only in generated .env, never committed configs.
 3. Notary source connections use token_env and scoped Relay tokens.
 4. Redactable fields are not disclosed through predicate channels.
-5. Federation smokes cover success, replay denial, and unsupported-purpose denial.
+5. Run `just smoke` against the live stack: its federation gate verifies signed authority success,
+   exact-request replay denial, unsupported-purpose denial, and rejection of error-as-false results.
 6. Audit hash secrets are environment-backed.
 7. Fiction lint is green.
 CHECKLIST

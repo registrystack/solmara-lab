@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EvaluateContext } from '$lib/providers/EvidenceProvider';
 import type { Field } from '$lib/types';
 import { MockEvidenceProvider, PERSONA } from './index';
+import { FEDERATED_PREDICATE_BUNDLE_FORMAT } from './wire';
 
 const provider = new MockEvidenceProvider();
 const ctx: EvaluateContext = { subject: PERSONA.elena };
@@ -33,6 +34,19 @@ describe('MockEvidenceProvider.evaluate', () => {
     expect(ev.result.state).toBe('verified');
     const view = ev.raw.response.body as { results: { value: unknown }[] };
     expect(view.results[0].value).toBe(true);
+  });
+
+  it('returns the missing population source predicate', async () => {
+    const ev = await provider.evaluateDetailed(field('population-record-active'), ctx, {
+      guardianLinkVerified: true
+    });
+    expect(ev.result).toMatchObject({
+      state: 'verified',
+      display: 'Population record active: yes',
+      authority: 'population'
+    });
+    const view = ev.raw.response.body as { results: { claim_id: string; value: unknown }[] };
+    expect(view.results[0]).toMatchObject({ claim_id: 'population-record-active', value: true });
   });
 
   it('returns a fetched object summary for a certificate', async () => {
@@ -98,8 +112,8 @@ describe('delegated two-hop gate', () => {
     });
     expect(ev.result.state).toBe('verified');
     expect(ev.raw.response.status).toBe(200);
-    // delegated reads carry the on_behalf_of envelope and target the dependent
-    expect(ev.raw.request.body.on_behalf_of).toBeDefined();
+    // The portal gate authorizes the read before the clean federator request is built.
+    expect(ev.raw.request.body.on_behalf_of).toBeUndefined();
     expect(ev.raw.request.body.target.identifiers[0].value).toBe(PERSONA.mateo);
   });
 });
@@ -174,15 +188,31 @@ describe('structural match to the Notary OpenAPI', () => {
     expect(prov).toHaveProperty('derived_from');
   });
 
-  it('delegated request carries the on_behalf_of envelope shape', async () => {
+  it('uses the exact federated predicate bundle request and source-owned proof contract', async () => {
     const ev = await provider.evaluateDetailed(field('date-of-birth'), ctx, {
       guardianLinkVerified: true
     });
-    const oba = ev.raw.request.body.on_behalf_of;
-    expect(oba).toBeDefined();
-    expect(Object.keys(oba!)).toEqual(['actor', 'delegation_ref']);
-    expect(Object.keys(oba!.actor)).toEqual(['type', 'id_hash']);
-    // id_hash is a keyed hash, never a raw principal
-    expect(oba!.actor.id_hash).toMatch(/^hmac-sha256:/);
+    expect(ev.raw.request).toEqual({
+      method: 'POST',
+      url: 'https://child-benefit-federator.solmara.registrystack.org/v1/evaluations',
+      body: {
+        target: {
+          type: 'Person',
+          identifiers: [{ scheme: 'solmara_uin', value: PERSONA.mateo }]
+        },
+        claims: ['child-age-under-5'],
+        disclosure: 'predicate',
+        format: FEDERATED_PREDICATE_BUNDLE_FORMAT
+      }
+    });
+    expect(ev.proof.crypto).toMatchObject({
+      signedBy: 'Civil Registration Authority source-owned Notary',
+      algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
+      issuerKey:
+        'did:web:civil-child-benefit-notary.solmara.registrystack.org#federation-key-1',
+      holderBound: 'Purpose- and subject-bound child-benefit federation request',
+      credential: 'Federated predicate bundle'
+    });
+    expect(JSON.stringify(ev.proof.crypto)).not.toMatch(/SD-JWT|notary:citizen/);
   });
 });

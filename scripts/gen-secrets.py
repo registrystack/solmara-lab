@@ -3,18 +3,22 @@
 
 from __future__ import annotations
 
+import argparse
+import base64
 import hashlib
 import json
-import base64
+import os
 import secrets
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 from compose_project_name import compose_project_name
 
 ROOT = Path(__file__).resolve().parents[1]
 POSTGRES_SSL_DIR = ROOT / "config" / "postgres" / "ssl"
+CHILD_BENEFIT_PUBLIC_DOMAIN = os.environ.get("CHILD_BENEFIT_PUBLIC_DOMAIN", "lab.registrystack.org")
 
 RAW_HASH_PAIRS = [
     ("CRA_CHILD_BENEFIT_SOURCE_RAW", "CRA_CHILD_BENEFIT_SOURCE_HASH"),
@@ -33,15 +37,26 @@ RAW_HASH_PAIRS = [
     ("SIPF_CITIZEN_SOURCE_RAW", "SIPF_CITIZEN_SOURCE_HASH"),
     ("NAGDI_NOTARY_SOURCE_RAW", "NAGDI_NOTARY_SOURCE_HASH"),
     ("NAGDI_CITIZEN_SOURCE_RAW", "NAGDI_CITIZEN_SOURCE_HASH"),
-    ("CHILD_BENEFIT_NOTARY_TOKEN", "CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
+    ("CIVIL_CHILD_BENEFIT_NOTARY_TOKEN", "CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
+    ("NIA_CHILD_BENEFIT_NOTARY_TOKEN", "NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
+    ("SRO_CHILD_BENEFIT_NOTARY_TOKEN", "SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
+    ("PROGRAMME_CHILD_BENEFIT_NOTARY_TOKEN", "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
     ("PENSION_NOTARY_TOKEN", "PENSION_CLIENT_TOKEN_HASH"),
     ("NAGDI_NOTARY_TOKEN", "NAGDI_CLIENT_TOKEN_HASH"),
     ("PORTAL_CITIZEN_NOTARY_TOKEN", "CITIZEN_PORTAL_BFF_TOKEN_HASH"),
     ("PORTAL_RELAY_TOKEN", "PORTAL_RELAY_TOKEN_HASH"),
 ]
 
+FEDERATION_JWK_KIDS = {
+    "CHILD_BENEFIT_FEDERATOR_REQUEST_JWK": f"did:web:child-benefit-federator.{CHILD_BENEFIT_PUBLIC_DOMAIN}#request-key-1",
+    "CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK": f"did:web:civil-child-benefit-notary.{CHILD_BENEFIT_PUBLIC_DOMAIN}#federation-key-1",
+    "NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK": f"did:web:nia-child-benefit-notary.{CHILD_BENEFIT_PUBLIC_DOMAIN}#federation-key-1",
+    "SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK": f"did:web:sro-child-benefit-notary.{CHILD_BENEFIT_PUBLIC_DOMAIN}#federation-key-1",
+    "PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK": f"did:web:programme-child-benefit-notary.{CHILD_BENEFIT_PUBLIC_DOMAIN}#federation-key-1",
+}
+
 JWK_KIDS = {
-    "CHILD_BENEFIT_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:child-benefit#issuer-key-1",
+    **FEDERATION_JWK_KIDS,
     "PENSION_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:pension#issuer-key-1",
     "NAGDI_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:nagdi#issuer-key-1",
     "CITIZEN_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:citizen#issuer-key-1",
@@ -211,7 +226,41 @@ def env_line(key: str, value: str) -> str:
     return f"{key}={shlex.quote(value)}"
 
 
-def main() -> int:
+def write_env_file(output: Path, values: dict[str, str], header: str) -> None:
+    lines = [header, *[env_line(key, values[key]) for key in sorted(values)]]
+    output.write_text("\n".join(lines) + "\n")
+    output.chmod(0o600)
+
+
+def federation_jwk_values() -> dict[str, str]:
+    return {
+        "CHILD_BENEFIT_PUBLIC_DOMAIN": CHILD_BENEFIT_PUBLIC_DOMAIN,
+        **{name: local_ed25519_jwk(kid) for name, kid in FEDERATION_JWK_KIDS.items()},
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--federation-output",
+        type=Path,
+        metavar="PATH",
+        help="write only fresh child-benefit federation JWKs to a new 0600 env file",
+    )
+    args = parser.parse_args(argv)
+    if args.federation_output is not None:
+        output = args.federation_output
+        if output.exists():
+            print(f"Refusing to overwrite existing federation key file: {output}", file=sys.stderr)
+            return 1
+        write_env_file(
+            output,
+            federation_jwk_values(),
+            "# Generated federation JWKs. Upload to the named deployment apps, then securely delete this file.",
+        )
+        print(f"Wrote {output}")
+        return 0
+
     ensure_postgres_tls()
     postgres_user = "solmara_registry"
     postgres_password = raw_key()
@@ -249,7 +298,13 @@ def main() -> int:
         "SOLMARA_POSTGRES_DB": postgres_db,
         "SOLMARA_NIA_DATABASE_URL": f"postgres://{postgres_user}:{postgres_password}@postgres:5432/{postgres_db}?sslmode=require",
         "SOLMARA_ESIGNET_POSTGRES_PASSWORD": raw_key(),
-        "CHILD_BENEFIT_NOTARY_URL": "http://127.0.0.1:4321",
+        "CHILD_BENEFIT_FEDERATOR_TOKEN": raw_key(),
+        "CHILD_BENEFIT_FEDERATOR_URL": "http://127.0.0.1:4321",
+        "CHILD_BENEFIT_PUBLIC_DOMAIN": CHILD_BENEFIT_PUBLIC_DOMAIN,
+        "CIVIL_CHILD_BENEFIT_NOTARY_URL": "http://127.0.0.1:4325",
+        "NIA_CHILD_BENEFIT_NOTARY_URL": "http://127.0.0.1:4326",
+        "SRO_CHILD_BENEFIT_NOTARY_URL": "http://127.0.0.1:4327",
+        "PROGRAMME_CHILD_BENEFIT_NOTARY_URL": "http://127.0.0.1:4328",
         "PENSION_NOTARY_URL": "http://127.0.0.1:4322",
         "NAGDI_NOTARY_URL": "http://127.0.0.1:4323",
         "PORTAL_CITIZEN_NOTARY_URL": "http://127.0.0.1:4324",
@@ -257,6 +312,10 @@ def main() -> int:
         "PORTAL_SOCIAL_RELAY_URL": "http://127.0.0.1:4313",
         "PORTAL_AGRI_RELAY_URL": "http://127.0.0.1:4316",
         "PORTAL_CERTS_RELAY_URL": "http://127.0.0.1:4311",
+        "CIVIL_CHILD_BENEFIT_PAIRWISE_SECRET": raw_key(),
+        "NIA_CHILD_BENEFIT_PAIRWISE_SECRET": raw_key(),
+        "SRO_CHILD_BENEFIT_PAIRWISE_SECRET": raw_key(),
+        "PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET": raw_key(),
     }
 
     for raw_name, hash_name in RAW_HASH_PAIRS:
@@ -268,11 +327,7 @@ def main() -> int:
         values[name] = local_ed25519_jwk(kid)
 
     output = ROOT / ".env"
-    lines = [
-        "# Generated by scripts/gen-secrets.py. Do not commit.",
-        *[env_line(key, values[key]) for key in sorted(values)],
-    ]
-    output.write_text("\n".join(lines) + "\n")
+    write_env_file(output, values, "# Generated by scripts/gen-secrets.py. Do not commit.")
     print(f"Wrote {output}")
     return 0
 

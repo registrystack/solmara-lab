@@ -136,6 +136,16 @@ evidence_types:
       - child-benefit-review-requirement
     information_concepts:
       - ps:sp/Enrollment
+  - id: child-benefit-federated-predicate-bundle-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/child-benefit-federated-predicate-bundle
+    title:
+      en: Child benefit federated predicate bundle
+    description:
+      en: A transient bundle of source-owned child benefit predicates with no copied source rows or eligibility decision.
+    proves:
+      - child-benefit-review-requirement
+    information_concepts:
+      - ps:Person
   - id: death-registration-evidence
     iri: https://id.registrystack.org/solmara/evidence-types/death-registration
     title:
@@ -176,7 +186,11 @@ public_services:
     holds_requirements:
       - child-benefit-review-requirement
     data_services:
-      - child-benefit-notary-api
+      - child-benefit-federator-api
+      - civil-child-benefit-notary-api
+      - nia-child-benefit-notary-api
+      - sro-child-benefit-notary-api
+      - programme-child-benefit-notary-api
   - id: pension-survivor-review
     iri: https://id.registrystack.org/solmara/services/pension-survivor-review
     title:
@@ -214,11 +228,38 @@ public_services:
     data_services:
       - nagdi-notary-api
 data_services:
-  - id: child-benefit-notary-api
-    iri: https://child-benefit-notary.solmara.registrystack.org/evidence/v1
+  - id: child-benefit-federator-api
+    iri: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
     title:
-      en: Child benefit evidence API
-    endpoint_url: https://child-benefit-notary.solmara.registrystack.org/evidence/v1
+      en: Child benefit federated predicate bundle API
+    description:
+      en: Returns application/vnd.solmara.federated-predicate-bundle+json bundles assembled from signed source-Notary predicates without composing an eligibility decision.
+    endpoint_url: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://child-benefit-federator.solmara.registrystack.org/v1/claims
+    conforms_to: https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1
+  - id: civil-child-benefit-notary-api
+    iri: https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    title:
+      en: CRA child benefit evidence API
+    endpoint_url: https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+  - id: nia-child-benefit-notary-api
+    iri: https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    title:
+      en: NIA child benefit evidence API
+    endpoint_url: https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+  - id: sro-child-benefit-notary-api
+    iri: https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    title:
+      en: SRO child benefit evidence API
+    endpoint_url: https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+  - id: programme-child-benefit-notary-api
+    iri: https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1
+    title:
+      en: Programme MIS child benefit evidence API
+    endpoint_url: https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: pension-notary-api
     iri: https://pension-notary.solmara.registrystack.org/evidence/v1
@@ -283,12 +324,12 @@ datasets:
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://child-benefit-notary.solmara.registrystack.org/evidence/v1
-          discovery_url: https://child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service
+          endpoint_url: https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1
+          discovery_url: https://civil-child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service
           ruleset: birth-is-registered
-        purposes:
-          - https://id.registrystack.org/solmara/purpose/child-benefit-review
-          - https://id.registrystack.org/solmara/purpose/citizen-self-service
+        policy:
+          purpose:
+            - https://id.registrystack.org/solmara/purpose/child-benefit-review
   - id: nia-population
     title:
       en: Population register
@@ -321,9 +362,29 @@ datasets:
       - name: farmer_voucher
       - name: livestock_movement
 evaluation_profiles:
-  - id: eligible-for-child-benefit
-    ruleset: eligible-for-child-benefit-v1
-    claim_id: eligible-for-child-benefit
+  - id: birth-is-registered
+    ruleset: birth-is-registered-v1
+    claim_id: birth-is-registered
+    subject_id_type: uin
+    max_source_observed_age_seconds: 86400
+  - id: population-record-active
+    ruleset: population-record-active-v1
+    claim_id: population-record-active
+    subject_id_type: uin
+    max_source_observed_age_seconds: 86400
+  - id: child-age-under-5
+    ruleset: child-age-under-5-v1
+    claim_id: child-age-under-5
+    subject_id_type: uin
+    max_source_observed_age_seconds: 86400
+  - id: household-below-poverty-threshold
+    ruleset: household-below-poverty-threshold-v1
+    claim_id: household-below-poverty-threshold
+    subject_id_type: uin
+    max_source_observed_age_seconds: 86400
+  - id: not-already-enrolled
+    ruleset: not-already-enrolled-v1
+    claim_id: not-already-enrolled
     subject_id_type: uin
     max_source_observed_age_seconds: 86400
   - id: survivor-benefit-eligibility

@@ -8,7 +8,11 @@
     civil: 'Civil',
     social: 'Social',
     agri: 'Agriculture',
-    certs: 'Certificates'
+    certs: 'Certificates',
+    childCivil: 'Civil Registry',
+    population: 'Population',
+    socialRegistry: 'Social Registry',
+    programme: 'Programme MIS'
   };
 </script>
 
@@ -123,5 +127,13 @@
   }
   .seal[data-authority='certs'] {
     background: var(--color-ministry-civil);
+  }
+  .seal[data-authority='childCivil'],
+  .seal[data-authority='population'] {
+    background: var(--color-ministry-civil);
+  }
+  .seal[data-authority='socialRegistry'],
+  .seal[data-authority='programme'] {
+    background: var(--color-ministry-social);
   }
 </style>

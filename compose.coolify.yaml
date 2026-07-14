@@ -17,8 +17,8 @@ services:
       SCENARIO_RUNNER_HOST: 0.0.0.0
       SCENARIO_RUNNER_PORT: 8080
       SOLMARA_LAB_MODE: hosted
-      CHILD_BENEFIT_NOTARY_URL: https://child-benefit-notary.solmara.registrystack.org
-      CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
+      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
       PENSION_NOTARY_URL: https://pension-notary.solmara.registrystack.org
       PENSION_NOTARY_TOKEN: ${PENSION_NOTARY_TOKEN}
       NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
@@ -30,8 +30,32 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    depends_on:
+      child-benefit-federator:
+        condition: service_healthy
     labels:
       solmara.lab.visibility: internal
+
+  child-benefit-federator:
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    command: ["python", "scenario-runner/child_benefit_federator.py"]
+    environment:
+      CHILD_BENEFIT_FEDERATOR_HOST: 0.0.0.0
+      CHILD_BENEFIT_FEDERATOR_PORT: 8080
+      CHILD_BENEFIT_PUBLIC_DOMAIN: solmara.registrystack.org
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
+      CHILD_BENEFIT_FEDERATOR_REQUEST_JWK: ${CHILD_BENEFIT_FEDERATOR_REQUEST_JWK}
+      CIVIL_CHILD_BENEFIT_NOTARY_URL: https://civil-child-benefit-notary.solmara.registrystack.org
+      NIA_CHILD_BENEFIT_NOTARY_URL: https://nia-child-benefit-notary.solmara.registrystack.org
+      SRO_CHILD_BENEFIT_NOTARY_URL: https://sro-child-benefit-notary.solmara.registrystack.org
+      PROGRAMME_CHILD_BENEFIT_NOTARY_URL: https://programme-child-benefit-notary.solmara.registrystack.org
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      solmara.lab.host: child-benefit-federator.solmara.registrystack.org
 
   home:
     image: ${SOLMARA_HOME_IMAGE:?set digest-pinned Solmara home image}
@@ -50,17 +74,25 @@ services:
       PROGRAMME_MIS_RELAY_URL: https://mosd-programme-relay.solmara.registrystack.org
       SIPF_PENSIONS_RELAY_URL: https://sipf-relay.solmara.registrystack.org
       NAGDI_AGRICULTURE_RELAY_URL: https://nagdi-relay.solmara.registrystack.org
-      CHILD_BENEFIT_NOTARY_URL: https://child-benefit-notary.solmara.registrystack.org
+      CHILD_BENEFIT_FEDERATOR_URL: https://child-benefit-federator.solmara.registrystack.org
+      CIVIL_CHILD_BENEFIT_NOTARY_URL: https://civil-child-benefit-notary.solmara.registrystack.org
+      NIA_CHILD_BENEFIT_NOTARY_URL: https://nia-child-benefit-notary.solmara.registrystack.org
+      SRO_CHILD_BENEFIT_NOTARY_URL: https://sro-child-benefit-notary.solmara.registrystack.org
+      PROGRAMME_CHILD_BENEFIT_NOTARY_URL: https://programme-child-benefit-notary.solmara.registrystack.org
       PENSION_NOTARY_URL: https://pension-notary.solmara.registrystack.org
       NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
       PORTAL_CITIZEN_NOTARY_URL: https://citizen-notary.solmara.registrystack.org
       HOME_PUBLISHED_TOKENS: >-
-        {"child-benefit-notary":"${CHILD_BENEFIT_NOTARY_TOKEN}",
+        {"child-benefit-federator":"${CHILD_BENEFIT_FEDERATOR_TOKEN}",
         "pension-notary":"${PENSION_NOTARY_TOKEN}",
         "nagdi-notary":"${NAGDI_NOTARY_TOKEN}",
         "citizen-notary":"${PORTAL_CITIZEN_NOTARY_TOKEN}"}
       SOLMARA_PUBLIC_URL_MAP: >-
-        {"child-benefit-notary:8080":"https://child-benefit-notary.solmara.registrystack.org",
+        {"child-benefit-federator:8080":"https://child-benefit-federator.solmara.registrystack.org",
+        "civil-child-benefit-notary:8080":"https://civil-child-benefit-notary.solmara.registrystack.org",
+        "nia-child-benefit-notary:8080":"https://nia-child-benefit-notary.solmara.registrystack.org",
+        "sro-child-benefit-notary:8080":"https://sro-child-benefit-notary.solmara.registrystack.org",
+        "programme-child-benefit-notary:8080":"https://programme-child-benefit-notary.solmara.registrystack.org",
         "pension-notary:8080":"https://pension-notary.solmara.registrystack.org",
         "nagdi-notary:8080":"https://nagdi-notary.solmara.registrystack.org",
         "citizen-notary:8080":"https://citizen-notary.solmara.registrystack.org",
@@ -106,8 +138,8 @@ services:
       PORTAL_ESIGNET_REDIRECT_URI: https://portal.solmara.registrystack.org/auth/callback
       PORTAL_ESIGNET_SCOPE: openid profile
       PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
-      CHILD_BENEFIT_NOTARY_URL: https://child-benefit-notary.solmara.registrystack.org
-      CHILD_BENEFIT_NOTARY_TOKEN: ${CHILD_BENEFIT_NOTARY_TOKEN}
+      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
       PENSION_NOTARY_URL: https://pension-notary.solmara.registrystack.org
       PENSION_NOTARY_TOKEN: ${PENSION_NOTARY_TOKEN}
       NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org

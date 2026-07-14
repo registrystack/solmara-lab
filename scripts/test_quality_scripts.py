@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -35,6 +38,55 @@ def load_compose_project_name():
 
 
 class QualityScriptTests(unittest.TestCase):
+    def test_federation_key_rotation_is_isolated_and_refuses_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "federation.env"
+            environment = {
+                **os.environ,
+                "CHILD_BENEFIT_PUBLIC_DOMAIN": "rotation.example.test",
+            }
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / "gen-secrets.py"),
+                "--federation-output",
+                str(output),
+            ]
+            generated = subprocess.run(
+                command,
+                cwd=ROOT,
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+
+            values = {}
+            for line in output.read_text(encoding="utf-8").splitlines():
+                if not line or line.startswith("#"):
+                    continue
+                key, value = line.split("=", 1)
+                values[key] = value.strip("'")
+            self.assertEqual(values["CHILD_BENEFIT_PUBLIC_DOMAIN"], "rotation.example.test")
+            jwks = {key: json.loads(value) for key, value in values.items() if key.endswith("_JWK")}
+            self.assertEqual(len(jwks), 5)
+            for jwk in jwks.values():
+                self.assertIn(".rotation.example.test#", jwk["kid"])
+                self.assertEqual(jwk["kty"], "OKP")
+                self.assertIn("d", jwk)
+
+            refused = subprocess.run(
+                command,
+                cwd=ROOT,
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(refused.returncode, 1)
+            self.assertIn("Refusing to overwrite", refused.stderr)
+
     def test_fiction_lint_passes_current_tree(self) -> None:
         result = subprocess.run(
             [str(ROOT / "scripts" / "check-fiction.sh")],
@@ -76,6 +128,12 @@ class QualityScriptTests(unittest.TestCase):
                     "nia-population-cache:/var/lib/registry-relay/cache",
                     "nia-population-audit:/var/lib/registry-relay/audit",
                 ],
+                "civil-child-benefit-notary": [
+                    "civil-child-benefit-notary-state:/var/lib/registry-notary/config-state",
+                ],
+                "nia-child-benefit-notary": [
+                    "nia-child-benefit-notary-state:/var/lib/registry-notary/config-state",
+                ],
             },
             "compose.coolify.social-development.yaml": {
                 "sro-social-relay": [
@@ -86,8 +144,11 @@ class QualityScriptTests(unittest.TestCase):
                     "programme-mis-cache:/var/lib/registry-relay/cache",
                     "programme-mis-audit:/var/lib/registry-relay/audit",
                 ],
-                "child-benefit-notary": [
-                    "child-benefit-notary-state:/var/lib/registry-notary/config-state",
+                "sro-child-benefit-notary": [
+                    "sro-child-benefit-notary-state:/var/lib/registry-notary/config-state",
+                ],
+                "programme-child-benefit-notary": [
+                    "programme-child-benefit-notary-state:/var/lib/registry-notary/config-state",
                 ],
             },
             "compose.coolify.labour-pensions.yaml": {
@@ -142,6 +203,97 @@ class QualityScriptTests(unittest.TestCase):
                             self.assertIn(volume_name, declared_volumes)
                             self.assertIn(volume_name, init_volume_names)
 
+    def test_hosted_child_benefit_topology_is_source_owned(self) -> None:
+        core = yaml.safe_load((ROOT / "compose.coolify.yaml").read_text(encoding="utf-8"))
+        core_services = core["services"]
+        self.assertIn("child-benefit-federator", core_services)
+        self.assertNotIn("child-benefit-notary", core_services)
+        federator = core_services["child-benefit-federator"]
+        federator_env = federator["environment"]
+        self.assertEqual(federator_env["CHILD_BENEFIT_PUBLIC_DOMAIN"], "solmara.registrystack.org")
+        self.assertEqual(
+            federator["labels"]["solmara.lab.host"],
+            "child-benefit-federator.solmara.registrystack.org",
+        )
+
+        expected = (
+            (
+                "compose.coolify.interior.yaml",
+                "civil-child-benefit-notary",
+                "cra-civil-relay",
+                "child-benefit-civil.yaml",
+                "civil",
+                "CIVIL_CHILD_BENEFIT_NOTARY_URL",
+                "CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+            ),
+            (
+                "compose.coolify.interior.yaml",
+                "nia-child-benefit-notary",
+                "nia-population-relay",
+                "child-benefit-population.yaml",
+                "population",
+                "NIA_CHILD_BENEFIT_NOTARY_URL",
+                "NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+            ),
+            (
+                "compose.coolify.social-development.yaml",
+                "sro-child-benefit-notary",
+                "sro-social-relay",
+                "child-benefit-social.yaml",
+                "social",
+                "SRO_CHILD_BENEFIT_NOTARY_URL",
+                "SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+            ),
+            (
+                "compose.coolify.social-development.yaml",
+                "programme-child-benefit-notary",
+                "programme-mis-relay",
+                "child-benefit-programme.yaml",
+                "programme",
+                "PROGRAMME_CHILD_BENEFIT_NOTARY_URL",
+                "PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+            ),
+        )
+        for compose_name, service_id, relay_id, config_name, source_id, url_env, jwk_env in expected:
+            with self.subTest(service=service_id):
+                compose = yaml.safe_load((ROOT / compose_name).read_text(encoding="utf-8"))
+                services = compose["services"]
+                self.assertNotIn("child-benefit-notary", services)
+                service = services[service_id]
+                self.assertEqual(
+                    (service.get("depends_on") or {}).get(relay_id, {}).get("condition"),
+                    "service_healthy",
+                )
+                self.assertEqual(service["labels"]["solmara.lab.host"], f"{service_id}.solmara.registrystack.org")
+                self.assertIn(jwk_env, service["environment"])
+
+                public_url = f"https://{service_id}.solmara.registrystack.org"
+                self.assertEqual(federator_env[url_env], public_url)
+                config = yaml.safe_load((ROOT / "hosted" / "notaries" / config_name).read_text(encoding="utf-8"))
+                self.assertEqual(config["instance"]["public_base_url"], public_url)
+                self.assertEqual(set(config["evidence"]["source_connections"]), {source_id})
+                self.assertEqual(config["federation"]["node_id"], f"did:web:{service_id}.solmara.registrystack.org")
+                self.assertEqual(config["federation"]["issuer"], public_url)
+                signing_key_id = config["federation"]["signing"]["signing_key"]
+                signing_key = config["evidence"]["signing_keys"][signing_key_id]
+                self.assertEqual(signing_key["private_jwk_env"], jwk_env)
+                self.assertEqual(
+                    signing_key["kid"],
+                    f"did:web:{service_id}.solmara.registrystack.org#federation-key-1",
+                )
+                peers = config["federation"]["peers"]
+                self.assertEqual(len(peers), 1)
+                self.assertEqual(peers[0]["node_id"], "did:web:child-benefit-federator.solmara.registrystack.org")
+                self.assertEqual(peers[0]["issuer"], "https://child-benefit-federator.solmara.registrystack.org")
+                self.assertEqual(
+                    peers[0]["jwks_uri"],
+                    "https://child-benefit-federator.solmara.registrystack.org/.well-known/jwks.json",
+                )
+                self.assertNotIn("allow_insecure_localhost", peers[0])
+                self.assertNotIn("allow_insecure_private_network", peers[0])
+
+        self.assertFalse((ROOT / "hosted" / "notaries" / "child-benefit.yaml").exists())
+
     def test_story_preview_smoke_passes_current_tree(self) -> None:
         result = subprocess.run(
             [str(ROOT / "scripts" / "smoke-story-previews.py")],
@@ -157,7 +309,7 @@ class QualityScriptTests(unittest.TestCase):
         values = smoke_live.claim_values(
             {
                 "results": [
-                    {"claim_id": "eligible-for-child-benefit", "value": True},
+                    {"claim_id": "population-record-active", "value": True},
                     {"claim_id": "not-already-enrolled", "satisfied": False},
                 ]
             }
@@ -165,7 +317,7 @@ class QualityScriptTests(unittest.TestCase):
 
         self.assertEqual(
             values,
-            {"eligible-for-child-benefit": True, "not-already-enrolled": False},
+            {"population-record-active": True, "not-already-enrolled": False},
         )
 
     def test_live_smoke_extracts_catalog_claim_ids(self) -> None:
@@ -175,6 +327,57 @@ class QualityScriptTests(unittest.TestCase):
             smoke_live.catalog_claim_ids({"data": [{"id": "person-is-deceased"}, {"id": "survivor-is-eligible"}]}),
             {"person-is-deceased", "survivor-is-eligible"},
         )
+
+    def test_child_benefit_offerings_advertise_only_the_endpoint_purpose(self) -> None:
+        expected_purposes = ["https://id.registrystack.org/solmara/purpose/child-benefit-review"]
+        offering_ids = (
+            "cra-birth-registration-offering",
+            "nia-population-population-status-offering",
+            "sro-social-household-poverty-offering",
+            "mosd-programme-beneficiary-enrollment-offering",
+        )
+
+        for offering_id in offering_ids:
+            with self.subTest(offering=offering_id):
+                path = ROOT / "metadata" / "public" / "metadata" / "evidence-offerings" / f"{offering_id}.json"
+                offering = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(offering["purposes"], expected_purposes)
+
+    def test_child_benefit_federated_bundle_is_publicly_discoverable(self) -> None:
+        catalog_path = ROOT / "metadata" / "public" / "metadata" / "catalog.json"
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        services = {service["id"]: service for service in catalog["data_services"]}
+        federator = services["child-benefit-federator-api"]
+
+        self.assertEqual(
+            federator["endpoint_url"],
+            "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
+        )
+        child_service = next(service for service in catalog["public_services"] if service["id"] == "child-benefit-review")
+        self.assertIn("child-benefit-federator-api", child_service["data_services"])
+
+        offering_path = (
+            ROOT
+            / "metadata"
+            / "public"
+            / "metadata"
+            / "evidence-offerings"
+            / "solmara.child-benefit.federated-predicate-bundle.json"
+        )
+        offering = json.loads(offering_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            offering["access"]["endpoint_url"],
+            "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
+        )
+        self.assertEqual(
+            offering["access"]["media_type"],
+            "application/vnd.solmara.federated-predicate-bundle+json",
+        )
+        self.assertEqual(
+            offering["purposes"],
+            ["https://id.registrystack.org/solmara/purpose/child-benefit-review"],
+        )
+        self.assertEqual(offering["public_services"], ["child-benefit-review"])
 
     def test_compose_project_name_is_stable_and_checkout_scoped(self) -> None:
         compose_names = load_compose_project_name()
@@ -187,7 +390,7 @@ class QualityScriptTests(unittest.TestCase):
 
     def test_notary_bru_requests_match_configured_auth_and_disclosure(self) -> None:
         requests = [
-            ROOT / "requests" / "registry-lab" / "20 - Child Benefit" / "01 - Evaluate eligibility.bru",
+            ROOT / "requests" / "registry-lab" / "20 - Child Benefit" / "01 - Collect source predicates.bru",
             ROOT / "requests" / "registry-lab" / "30 - Pension Survivor" / "01 - Evaluate pension stop.bru",
             ROOT / "requests" / "registry-lab" / "30 - Pension Survivor" / "02 - Survivor eligibility.bru",
             ROOT / "requests" / "registry-lab" / "40 - NAgDI Voucher" / "01 - Voucher eligibility.bru",

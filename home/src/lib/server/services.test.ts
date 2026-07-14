@@ -2,21 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { statusProbes, topologyGroups } from './services';
 
 describe('status probe table', () => {
-  it('covers the whole topology: shared services, six relays, four notaries', () => {
+  it('covers the whole topology: shared services, six relays, seven notaries', () => {
     const probes = statusProbes('http://127.0.0.1:4300');
     const relays = probes.filter((probe) => probe.role === 'relay');
     const notaries = probes.filter((probe) => probe.role === 'notary');
     const shared = probes.filter((probe) => probe.role === 'shared');
     expect(relays).toHaveLength(6);
-    expect(notaries).toHaveLength(4);
-    expect(shared.length).toBeGreaterThanOrEqual(3);
-    expect(probes.length).toBeGreaterThanOrEqual(13);
+    expect(notaries).toHaveLength(7);
+    expect(shared.length).toBeGreaterThanOrEqual(4);
+    expect(probes.length).toBeGreaterThanOrEqual(17);
   });
 
-  it('probes notaries on an auth-gated data path and relays on their gated root', () => {
+  it('probes the federator on health, notaries on claims, and relays on their gated root', () => {
     const probes = statusProbes('http://127.0.0.1:4300');
-    const notary = probes.find((probe) => probe.id === 'child-benefit-notary');
+    const federator = probes.find((probe) => probe.id === 'child-benefit-federator');
+    const notary = probes.find((probe) => probe.id === 'civil-child-benefit-notary');
     const relay = probes.find((probe) => probe.id === 'cra-civil-relay');
+    expect(federator?.probeUrl).toContain('/health');
     expect(notary?.probeUrl).toContain('/v1/claims');
     expect(relay?.probeUrl?.endsWith('/')).toBe(true);
   });
@@ -31,10 +33,10 @@ describe('status probe table', () => {
 
   it('reads probe origins from the env table, overriding the localhost defaults', () => {
     const probes = statusProbes('http://127.0.0.1:4300', {
-      CHILD_BENEFIT_NOTARY_URL: 'http://child-benefit-notary:8080'
+      CHILD_BENEFIT_FEDERATOR_URL: 'http://child-benefit-federator:8080'
     });
-    expect(probes.find((probe) => probe.id === 'child-benefit-notary')?.probeUrl).toBe(
-      'http://child-benefit-notary:8080/v1/claims'
+    expect(probes.find((probe) => probe.id === 'child-benefit-federator')?.probeUrl).toBe(
+      'http://child-benefit-federator:8080/health'
     );
     // A service with no override keeps its localhost default.
     expect(probes.find((probe) => probe.id === 'pension-notary')?.probeUrl).toBe('http://127.0.0.1:4322/v1/claims');
@@ -53,7 +55,7 @@ describe('topology groups', () => {
     const keys = groups.map((group) => group.key);
     expect(keys).toEqual(['relays', 'notaries', 'shared']);
     expect(groups[0].services).toHaveLength(6);
-    expect(groups[1].services).toHaveLength(4);
+    expect(groups[1].services).toHaveLength(7);
   });
 
   it('links every ministry config to the repo with the in-repo path preserved', () => {

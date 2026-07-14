@@ -106,6 +106,41 @@ describe('redactBody / request / response', () => {
     expect(result).toHaveProperty('satisfied', true);
     expect(result).toHaveProperty('issued_at', '2026-05-24T12:00:00Z');
   });
+
+  it('keeps federated bundle provenance while removing its target identifier', () => {
+    const red = redactResponse({
+      status: 200,
+      body: {
+        schema_version: 'solmara-child-benefit-federator/v1',
+        bundle_id: 'fcb_01TEST',
+        federator: {
+          service_id: 'child-benefit-federator',
+          issuer: 'https://child-benefit-federator.solmara.registrystack.org',
+          decision: 'not_composed'
+        },
+        target: {
+          type: 'Person',
+          identifiers: [{ scheme: 'solmara_uin', value: '2300010248' }]
+        },
+        results: [
+          {
+            claim_id: 'population-record-active',
+            notary_service_id: 'nia-child-benefit-notary',
+            authority: 'National Identity Agency',
+            satisfied: true
+          }
+        ]
+      }
+    });
+
+    expect(JSON.stringify(red)).not.toContain('2300010248');
+    expect(red.body).toHaveProperty('bundle_id', 'fcb_01TEST');
+    expect(red.body).toHaveProperty('federator.decision', 'not_composed');
+    expect(red.body).toHaveProperty(
+      'results.0.notary_service_id',
+      'nia-child-benefit-notary'
+    );
+  });
 });
 
 describe('SSE serialization is identifier-free end to end', () => {

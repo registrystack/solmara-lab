@@ -11,7 +11,7 @@ problem codes. Smoke tests must not assert denial message text.
 
 | Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
 |---|---|---|---|---|
-| `https://id.registrystack.org/solmara/purpose/child-benefit-review` | Civil Registration Authority, National Identity Agency, Social Registry Office, MoSD programme MIS | `child-benefit-notary` | Birth to child benefit | `pdp.purpose_not_permitted`; `federation.forbidden` for delegated calls outside scope |
+| `https://id.registrystack.org/solmara/purpose/child-benefit-review` | Civil Registration Authority, National Identity Agency, Social Registry Office, MoSD programme MIS | `child-benefit-federator` plus source-owned child-benefit Notaries | Birth to child benefit | `pdp.purpose_not_permitted`; `federation.forbidden` for delegated calls outside scope |
 | `https://id.registrystack.org/solmara/purpose/pension-payment-review` | Civil Registration Authority, Social Insurance and Pensions Fund | `pension-notary` | Death to pension stop | `pdp.purpose_not_permitted`; `federation.forbidden`; `federation.replay` |
 | `https://id.registrystack.org/solmara/purpose/survivor-benefit-determination` | Civil Registration Authority, Social Insurance and Pensions Fund | `pension-notary` | Survivor benefit | `pdp.purpose_not_permitted`; `federation.forbidden`; `federation.replay` |
 | `https://id.registrystack.org/solmara/purpose/voucher-eligibility-review` | National Agricultural Data Institute | `nagdi-notary` | Farmer climate-smart voucher | `pdp.purpose_not_permitted` |
@@ -57,7 +57,7 @@ for a different selected persona.
 
 | Story | Evidence offering | Credential `vct` |
 |---|---|---|
-| Birth to child benefit | `solmara.child-benefit.enrollment-eligibility` | `https://id.registrystack.org/solmara/vct/child-benefit-enrollment-eligibility` |
+| Birth to child benefit | `solmara.child-benefit.federated-predicate-bundle` | Not issued by the federator |
 | Death to pension stop | `solmara.pension.payment-stop-review` | `https://id.registrystack.org/solmara/vct/pension-payment-stop-review` |
 | Survivor benefit | `solmara.pension.survivor-benefit-eligibility` | `https://id.registrystack.org/solmara/vct/survivor-benefit-eligibility` |
 | Farmer climate-smart voucher | `solmara.nagdi.climate-smart-voucher-eligibility` | `https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility` |

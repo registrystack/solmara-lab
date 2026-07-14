@@ -9,16 +9,20 @@ import {
 import { NOTARY_ISSUER_KEY } from '$lib/providers/mock/scenarios';
 import {
   authorityLabel,
+  buildFederatedPredicateRequest,
   buildRawRequest,
+  CLAIM_RESULT_FORMAT,
+  FEDERATED_PREDICATE_BUNDLE_FORMAT,
   makeEvaluationId,
-  type RawEvaluationResponse
+  type RawEvaluationResponse,
+  type RawProviderResponse
 } from '$lib/providers/mock/wire';
 
 export type LiveProviderEnv = {
   PORTAL_CITIZEN_NOTARY_URL?: string;
   PORTAL_CITIZEN_NOTARY_TOKEN?: string;
-  CHILD_BENEFIT_NOTARY_URL?: string;
-  CHILD_BENEFIT_NOTARY_TOKEN?: string;
+  CHILD_BENEFIT_FEDERATOR_URL?: string;
+  CHILD_BENEFIT_FEDERATOR_TOKEN?: string;
   PENSION_NOTARY_URL?: string;
   PENSION_NOTARY_TOKEN?: string;
   NAGDI_NOTARY_URL?: string;
@@ -36,8 +40,6 @@ type LiveService = 'childBenefit' | 'pension' | 'nagdi' | 'citizen';
 type LiveNotaryRef = { url?: string; token?: string; urlEnv: string; tokenEnv: string };
 type DenialBody = { error: string; error_description: string };
 
-const CLAIM_RESULT_FORMAT = 'application/vnd.registry-notary.claim-result+json';
-
 export class LiveEvidenceProvider implements DetailedEvidenceProvider {
   #seq = 0;
   #notaries: Record<LiveService, LiveNotaryRef>;
@@ -48,10 +50,10 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
   constructor(env: LiveProviderEnv, fetcher: Fetcher = fetch) {
     this.#notaries = {
       childBenefit: {
-        url: env.CHILD_BENEFIT_NOTARY_URL,
-        token: env.CHILD_BENEFIT_NOTARY_TOKEN,
-        urlEnv: 'CHILD_BENEFIT_NOTARY_URL',
-        tokenEnv: 'CHILD_BENEFIT_NOTARY_TOKEN'
+        url: env.CHILD_BENEFIT_FEDERATOR_URL,
+        token: env.CHILD_BENEFIT_FEDERATOR_TOKEN,
+        urlEnv: 'CHILD_BENEFIT_FEDERATOR_URL',
+        tokenEnv: 'CHILD_BENEFIT_FEDERATOR_TOKEN'
       },
       pension: {
         url: env.PENSION_NOTARY_URL,
@@ -101,26 +103,42 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
     const evaluationId = makeEvaluationId(seq);
     const issuedAt = new Date();
     const subject = resolveSubject(scenarioKey, scenario, ctx);
-    const requestScenario = requestCompatibleScenario(scenario);
-    const rawRequest = buildRawRequest(requestScenario, subject);
-    const relayUrl = this.#relayUrls[scenario.notary];
+    const federated = scenario.service === 'childBenefit';
+    const rawRequest = federated
+      ? buildFederatedPredicateRequest(scenario, subject)
+      : buildRawRequest(requestCompatibleScenario(scenario), subject);
     const notary = this.#notaryFor(scenario.service);
 
-    await this.#fetchJson(joinedUrl(relayUrl, '/metadata/catalog'), {
-      method: 'GET',
-      headers: relayHeaders(this.#relayToken, scenario.purpose, 'application/json')
-    });
+    if (federated) {
+      await this.#fetchJson(joinedUrl(notary.url, '/v1/claims'), {
+        method: 'GET',
+        headers: notaryHeaders(notary.token, scenario.purpose, 'application/json')
+      });
+    } else {
+      const relayUrl = this.#relayUrls[scenario.notary];
+      await this.#fetchJson(joinedUrl(relayUrl, '/metadata/catalog'), {
+        method: 'GET',
+        headers: relayHeaders(this.#relayToken, scenario.purpose, 'application/json')
+      });
+    }
 
     const notaryResponse = await this.#fetchJson(joinedUrl(notary.url, '/v1/evaluations'), {
       method: 'POST',
       headers: {
-        ...notaryHeaders(notary.token, scenario.purpose, CLAIM_RESULT_FORMAT),
+        ...notaryHeaders(
+          notary.token,
+          scenario.purpose,
+          federated ? FEDERATED_PREDICATE_BUNDLE_FORMAT : CLAIM_RESULT_FORMAT
+        ),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(rawRequest)
     });
-    const responseBody = normalizeEvaluationResponse(notaryResponse.body, scenario.claimId);
-    const firstResult = responseBody.results[0] ?? {};
+    const normalized = normalizeEvaluationResponse(notaryResponse.body, scenario.claimId);
+    const responseBody = (federated
+      ? { ...notaryResponse.body, results: normalized.results }
+      : normalized) as RawProviderResponse;
+    const firstResult = normalized.results[0] ?? {};
     const status = proofStatus(notaryResponse.status, firstResult.satisfied);
     const result: ClaimResult = {
       state: status === 'false' ? 'false' : status === 'denied' || status === 'error' ? 'error' : scenario.state,
@@ -142,16 +160,14 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
         notDisclosed: scenario.notDisclosed,
         status,
         authority: scenario.notary,
-        crypto: {
-          signedBy: authorityLabel(scenario),
-          algorithm: 'EdDSA-Ed25519',
-          issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
-          holderBound: scenario.delegated
-            ? 'Holder-bound to the portal session actor, subject the dependent'
-            : 'Holder-bound to the signed-in citizen',
-          credential: 'SD-JWT VC',
-          auditId: `audit:${evaluationId}:${issuedAt.getTime().toString(36)}`
-        }
+        crypto: liveCrypto(
+          scenario,
+          evaluationId,
+          issuedAt,
+          typeof notaryResponse.body.bundle_id === 'string'
+            ? notaryResponse.body.bundle_id
+            : undefined
+        )
       },
       timing: { latencyMs: 0, staggerOrder: scenario.staggerOrder, slow: false }
     };
@@ -184,10 +200,13 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
     const evaluationId = makeEvaluationId(seq);
     const issuedAt = new Date();
     const subject = scenarioKey === 'denial' ? PERSONA.karim : ctx.delegatedTarget ?? ctx.selectedSubject ?? ctx.subject;
-    const rawRequest = buildRawRequest(scenario, subject, {
-      actorIdHash: hashActor(ctx.subject),
-      delegationRef: 'rnref:v1:REL-1001-MOTHER'
-    });
+    const rawRequest =
+      scenario.service === 'childBenefit'
+        ? buildFederatedPredicateRequest(scenario, subject)
+        : buildRawRequest(scenario, subject, {
+            actorIdHash: hashActor(ctx.subject),
+            delegationRef: 'rnref:v1:REL-1001-MOTHER'
+          });
     const body: DenialBody = {
       error: code,
       error_description: scenario.denial?.message ?? 'requester is not authorized for this target'
@@ -216,18 +235,50 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
         notDisclosed: scenario.notDisclosed,
         status: 'denied',
         authority: scenario.notary,
-        crypto: {
-          signedBy: authorityLabel(scenario),
-          algorithm: 'EdDSA-Ed25519',
-          issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
-          holderBound: 'Holder-bound to the portal session actor, subject the dependent',
-          credential: 'SD-JWT VC',
-          auditId: `audit:${evaluationId}:${issuedAt.getTime().toString(36)}`
-        }
+        crypto: liveCrypto(scenario, evaluationId, issuedAt, undefined, true)
       },
       timing: { latencyMs: 0, staggerOrder: scenario.staggerOrder, slow: false }
     };
   }
+}
+
+function liveCrypto(
+  scenario: (typeof SCENARIOS)[string],
+  evaluationId: string,
+  issuedAt: Date,
+  bundleId?: string,
+  deniedBeforeSource = false
+): NonNullable<ProofTrace['proof']> {
+  if (scenario.service === 'childBenefit') {
+    if (deniedBeforeSource) {
+      return {
+        signedBy: 'Portal authorization gate; no source Notary called',
+        algorithm: 'No signature; request stopped before federation',
+        issuerKey: 'Not applicable',
+        holderBound: 'Portal session actor and selected dependent',
+        credential: 'No federated predicate bundle returned',
+        auditId: `denial:${evaluationId}`
+      };
+    }
+    return {
+      signedBy: `${authorityLabel(scenario)} source-owned Notary`,
+      algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
+      issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
+      holderBound: 'Purpose- and subject-bound child-benefit federation request',
+      credential: 'Federated predicate bundle',
+      auditId: `bundle:${bundleId ?? `fcb_${evaluationId}`}`
+    };
+  }
+  return {
+    signedBy: authorityLabel(scenario),
+    algorithm: 'EdDSA-Ed25519',
+    issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
+    holderBound: scenario.delegated
+      ? 'Holder-bound to the portal session actor, subject the dependent'
+      : 'Holder-bound to the signed-in citizen',
+    credential: 'SD-JWT VC',
+    auditId: `audit:${evaluationId}:${issuedAt.getTime().toString(36)}`
+  };
 }
 
 function requestCompatibleScenario(scenario: (typeof SCENARIOS)[string]): (typeof SCENARIOS)[string] {

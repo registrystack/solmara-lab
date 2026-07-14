@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -22,7 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scenario-runner"))
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
+import child_benefit_federator  # noqa: E402
 from server import ScenarioRunnerHandler  # noqa: E402
 from scenarios import child_benefit, citizen, common, farmer_voucher, pension_survivor  # noqa: E402
 from scenarios.common import StepHttpResult  # noqa: E402
@@ -33,12 +36,16 @@ def b64url_decode(segment: str) -> bytes:
     return base64.urlsafe_b64decode(padded)
 
 
+def b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
 class ScenarioRunnerServerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         os.environ["SCENARIO_RUNNER_HOST"] = "127.0.0.1"
         for name in (
-            "CHILD_BENEFIT_NOTARY_TOKEN",
+            "CHILD_BENEFIT_FEDERATOR_TOKEN",
             "PENSION_NOTARY_TOKEN",
             "NAGDI_NOTARY_TOKEN",
             "PORTAL_CITIZEN_NOTARY_TOKEN",
@@ -81,6 +88,7 @@ class ScenarioRunnerServerTest(unittest.TestCase):
             {"config": {"purpose_override": purpose}},
         )
         self.assertEqual(payload["result"]["request_source"]["headers"]["Data-Purpose"], purpose)
+        self.assertEqual(payload["result"]["request_source"]["headers"]["Content-Type"], "application/json")
 
     def test_child_benefit_denial_step_ignores_override(self) -> None:
         payload = self.post_json(
@@ -92,67 +100,41 @@ class ScenarioRunnerServerTest(unittest.TestCase):
             "https://id.registrystack.org/solmara/purpose/unsupported-demo-purpose",
         )
 
-    def test_child_benefit_positive_attempts_real_credential_endpoint(self) -> None:
+    def test_child_benefit_positive_calls_federator_without_credential_composition(self) -> None:
         calls: list[str] = []
         original_http_json = child_benefit.http_json
-        original_common_http_json = common.http_json
-        os.environ["CHILD_BENEFIT_NOTARY_TOKEN"] = "runtime-token"
+        os.environ["CHILD_BENEFIT_FEDERATOR_TOKEN"] = "runtime-token"
 
         def fake_http_json(method: str, url: str, headers: dict, body: dict | None = None, timeout: float = 8.0) -> StepHttpResult:
             calls.append(url)
-            if url.endswith("/v1/evaluations"):
-                return StepHttpResult(
-                    200,
-                    {"results": [{"evaluation_id": "eval-123", "claim_id": "birth-is-registered", "satisfied": True}]},
-                    {"content-type": "application/json"},
-                )
             return StepHttpResult(
-                400,
-                {"code": "credential.holder_proof_required", "title": "Holder proof required"},
-                {"content-type": "application/problem+json"},
+                200,
+                {
+                    "federator": {"service_id": "child-benefit-federator", "decision": "not_composed"},
+                    "results": [
+                        {"claim_id": "birth-is-registered", "satisfied": True},
+                        {"claim_id": "population-record-active", "satisfied": True},
+                    ],
+                    "federation_trace": [{"authority": "Civil Registration Authority", "claim_id": "birth-is-registered"}],
+                },
+                {"content-type": "application/json"},
             )
 
         try:
             child_benefit.http_json = fake_http_json
-            common.http_json = fake_http_json
             result = child_benefit.run_step({}, "positive")
         finally:
             child_benefit.http_json = original_http_json
-            common.http_json = original_common_http_json
-            os.environ.pop("CHILD_BENEFIT_NOTARY_TOKEN", None)
+            os.environ.pop("CHILD_BENEFIT_FEDERATOR_TOKEN", None)
 
-        self.assertTrue(any(call.endswith("/v1/credentials") for call in calls))
-        self.assertEqual(result["request_source"]["body"]["format"], "application/dc+sd-jwt")
-        self.assertEqual(result["credential"]["status"], "not_issued")
-        self.assertEqual(result["credential"]["reason"], "credential.holder_proof_required")
-
-    def test_child_benefit_positive_credential_request_carries_holder_proof(self) -> None:
-        os.environ["CHILD_BENEFIT_NOTARY_TOKEN"] = "runtime-token"
-
-        def fake_http_json(method: str, url: str, headers: dict, body: dict | None = None, timeout: float = 8.0) -> StepHttpResult:
-            if url.endswith("/v1/evaluations"):
-                return StepHttpResult(
-                    200,
-                    {"results": [{"evaluation_id": "eval-123", "claim_id": "birth-is-registered", "satisfied": True}]},
-                    {"content-type": "application/json"},
-                )
-            return StepHttpResult(400, {"code": "credential.holder_proof_required"}, {"content-type": "application/problem+json"})
-
-        original_http_json = child_benefit.http_json
-        original_common_http_json = common.http_json
-        try:
-            child_benefit.http_json = fake_http_json
-            common.http_json = fake_http_json
-            result = child_benefit.run_step({}, "positive")
-        finally:
-            child_benefit.http_json = original_http_json
-            common.http_json = original_common_http_json
-            os.environ.pop("CHILD_BENEFIT_NOTARY_TOKEN", None)
-
-        credential_body = result["credential_source"]["body"]
-        self.assertEqual(credential_body["holder"]["binding"], "did")
-        self.assertTrue(credential_body["holder"]["id"].startswith("did:jwk:"))
-        self.assertEqual(len(credential_body["holder"]["proof"].split(".")), 3)
+        self.assertTrue(all(call.endswith("/v1/evaluations") for call in calls))
+        self.assertNotIn("credential", result)
+        self.assertEqual(
+            result["request_source"]["body"]["format"],
+            "application/vnd.solmara.federated-predicate-bundle+json",
+        )
+        self.assertIn("population-record-active", result["request_source"]["body"]["claims"])
+        self.assertEqual(result["federation_trace"][0]["authority"], "Civil Registration Authority")
 
     def test_pension_survivor_purpose_override_reaches_request_source(self) -> None:
         purpose = "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
@@ -307,6 +289,353 @@ class HolderProofTest(unittest.TestCase):
         self.assertEqual(result["credential_source"]["headers"]["x-api-key"], "[runtime token hidden]")
         # And the outgoing body actually carried the same holder object (nothing lost in transit).
         self.assertEqual(captured["body"]["holder"], body["holder"])
+
+
+class ChildBenefitFederatorTest(unittest.TestCase):
+    def test_catalog_lists_source_owned_predicates_without_eligibility_composition(self) -> None:
+        catalog = child_benefit_federator.claim_catalog()
+        ids = {entry["id"] for entry in catalog["claims"]}
+
+        self.assertIn("birth-is-registered", ids)
+        self.assertIn("population-record-active", ids)
+        self.assertIn("household-below-poverty-threshold", ids)
+        self.assertNotIn("eligible-for-child-benefit", ids)
+        self.assertEqual(catalog["bundle_media_type"], common.FEDERATED_BUNDLE_FORMAT)
+        self.assertEqual(catalog["composition"]["eligible-for-child-benefit"], "not_returned_by_federator")
+        self.assertEqual(catalog["data"], catalog["claims"])
+
+    def test_federation_payload_targets_the_source_notary_profile(self) -> None:
+        route = child_benefit_federator.CLAIM_ROUTES["population-record-active"]
+        payload = child_benefit_federator.federation_payload(
+            route,
+            "2300010248",
+            common.PURPOSES["child_benefit"],
+            "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S0",
+        )
+
+        self.assertEqual(payload["iss"], child_benefit_federator.FEDERATOR_ISSUER)
+        self.assertEqual(payload["sub"], child_benefit_federator.FEDERATOR_NODE_ID)
+        self.assertEqual(payload["aud"], route["node_id"])
+        self.assertEqual(payload["profile"], "population_record_active")
+        self.assertEqual(payload["request"]["subject"], {"id": "2300010248", "id_type": "solmara_uin"})
+        self.assertEqual(payload["request"]["claims"], ["population-record-active"])
+
+    def test_peer_response_must_verify_before_federator_accepts_it(self) -> None:
+        route = child_benefit_federator.CLAIM_ROUTES["birth-is-registered"]
+        private_key = Ed25519PrivateKey.generate()
+        public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        kid = f'{route["node_id"]}#test-key'
+        request_jti = "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S1"
+        now = int(time.time())
+        payload = {
+            "iss": route["issuer"],
+            "sub": route["node_id"],
+            "aud": child_benefit_federator.FEDERATOR_NODE_ID,
+            "iat": now,
+            "nbf": now,
+            "exp": now + 300,
+            "jti": "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S2",
+            "request_jti": request_jti,
+            "protocol": child_benefit_federator.FEDERATION_PROTOCOL,
+            "action": "evaluate",
+            "profile": route["profile"],
+            "result": {"claims": {"birth-is-registered": {"satisfied": True, "disclosure": "predicate", "value": True}}},
+        }
+        header = {"alg": "EdDSA", "typ": child_benefit_federator.FEDERATION_RESPONSE_TYP, "kid": kid}
+        signing_input = (
+            f"{b64url_encode(json.dumps(header, separators=(',', ':'), sort_keys=True).encode())}."
+            f"{b64url_encode(json.dumps(payload, separators=(',', ':'), sort_keys=True).encode())}"
+        )
+        token = f"{signing_input}.{b64url_encode(private_key.sign(signing_input.encode('ascii')))}"
+        original_jwk_for_kid = child_benefit_federator.jwk_for_kid
+        child_benefit_federator.jwk_for_kid = lambda _route, _kid: {
+            "kid": kid,
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": b64url_encode(public_key),
+        }
+
+        try:
+            verified = child_benefit_federator.verify_peer_response(route, request_jti, token, "application/jwt")
+            rejected = child_benefit_federator.verify_peer_response(route, request_jti, f"{signing_input}.AA", "application/jwt")
+        finally:
+            child_benefit_federator.jwk_for_kid = original_jwk_for_kid
+
+        self.assertEqual(verified["request_jti"], request_jti)
+        self.assertEqual(verified["result"]["claims"]["birth-is-registered"]["satisfied"], True)
+        self.assertEqual(rejected["error"]["code"], "bad_response_signature")
+
+    def test_public_trace_allowlists_verified_response_fields(self) -> None:
+        route = child_benefit_federator.CLAIM_ROUTES["birth-is-registered"]
+        peer = {
+            "iss": route["issuer"],
+            "sub": route["node_id"],
+            "aud": child_benefit_federator.FEDERATOR_NODE_ID,
+            "iat": 1,
+            "nbf": 1,
+            "exp": 2,
+            "jti": "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S2",
+            "request_jti": "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S1",
+            "protocol": child_benefit_federator.FEDERATION_PROTOCOL,
+            "action": "evaluate",
+            "profile": route["profile"],
+            "subject_ref": "stable-pairwise-subject-ref",
+            "evaluation_id": "authority-internal-evaluation-id",
+            "source_observed_at": "2026-07-14T00:00:00Z",
+            "future_peer_field": {"raw_household_score": 42},
+            "result": {
+                "claims": {
+                    "birth-is-registered": {
+                        "satisfied": True,
+                        "disclosure": "predicate",
+                        "value": True,
+                        "source_row": {"birth_brn": "BRN-SECRET"},
+                    }
+                }
+            },
+        }
+
+        summary = child_benefit_federator.verified_response_summary(route, peer)
+        serialized = json.dumps(summary, sort_keys=True)
+
+        self.assertTrue(summary["signature_verified"])
+        self.assertEqual(summary["claim"]["satisfied"], True)
+        for forbidden in (
+            "stable-pairwise-subject-ref",
+            "authority-internal-evaluation-id",
+            "source_observed_at",
+            "future_peer_field",
+            "raw_household_score",
+            "BRN-SECRET",
+        ):
+            self.assertNotIn(forbidden, serialized)
+
+    def test_peer_response_requires_bounded_temporal_claims_and_jti(self) -> None:
+        route = child_benefit_federator.CLAIM_ROUTES["birth-is-registered"]
+        private_key = Ed25519PrivateKey.generate()
+        public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        kid = f'{route["node_id"]}#test-key'
+        request_jti = "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S1"
+        now = int(time.time())
+        base_payload = {
+            "iss": route["issuer"],
+            "sub": route["node_id"],
+            "aud": child_benefit_federator.FEDERATOR_NODE_ID,
+            "iat": now,
+            "nbf": now,
+            "exp": now + child_benefit_federator.MAX_RESPONSE_LIFETIME_SECONDS,
+            "jti": "01J9Z6Q6Q6Q6Q6Q6Q6Q6Q6Q6S2",
+            "request_jti": request_jti,
+            "protocol": child_benefit_federator.FEDERATION_PROTOCOL,
+            "action": "evaluate",
+            "profile": route["profile"],
+            "result": {"claims": {"birth-is-registered": {"satisfied": True, "disclosure": "predicate"}}},
+        }
+
+        def sign(payload: dict[str, Any]) -> str:
+            header = {"alg": "EdDSA", "typ": child_benefit_federator.FEDERATION_RESPONSE_TYP, "kid": kid}
+            signing_input = (
+                f"{b64url_encode(json.dumps(header, separators=(',', ':'), sort_keys=True).encode())}."
+                f"{b64url_encode(json.dumps(payload, separators=(',', ':'), sort_keys=True).encode())}"
+            )
+            return f"{signing_input}.{b64url_encode(private_key.sign(signing_input.encode('ascii')))}"
+
+        original_jwk_for_kid = child_benefit_federator.jwk_for_kid
+        child_benefit_federator.jwk_for_kid = lambda _route, _kid: {
+            "kid": kid,
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": b64url_encode(public_key),
+        }
+        try:
+            for claim in ("iat", "nbf", "exp", "jti"):
+                payload = dict(base_payload)
+                payload.pop(claim)
+                rejected = child_benefit_federator.verify_peer_response(
+                    route, request_jti, sign(payload), "application/jwt"
+                )
+                self.assertIsNotNone(child_benefit_federator.verification_error_code(rejected), claim)
+
+            overlong = dict(base_payload, exp=now + child_benefit_federator.MAX_RESPONSE_LIFETIME_SECONDS + 1)
+            rejected = child_benefit_federator.verify_peer_response(
+                route, request_jti, sign(overlong), "application/jwt"
+            )
+        finally:
+            child_benefit_federator.jwk_for_kid = original_jwk_for_kid
+
+        self.assertEqual(child_benefit_federator.verification_error_code(rejected), "invalid_response_lifetime")
+
+    def test_unsigned_or_failed_peer_response_is_not_a_false_predicate(self) -> None:
+        route = child_benefit_federator.CLAIM_ROUTES["birth-is-registered"]
+        original_post_jwt = child_benefit_federator.post_jwt
+        original_sign_jwt = child_benefit_federator.sign_jwt
+        child_benefit_federator.sign_jwt = lambda _payload: "signed-request"
+        try:
+            child_benefit_federator.post_jwt = lambda _url, _token: (
+                200,
+                {"content-type": "application/json"},
+                {"result": {"claims": {"birth-is-registered": {"satisfied": False, "disclosure": "predicate"}}}},
+            )
+            with self.assertRaises(child_benefit_federator.FederationUpstreamError) as unsigned:
+                child_benefit_federator.call_peer_notary(route, "2300010248", common.PURPOSES["child_benefit"])
+
+            child_benefit_federator.post_jwt = lambda _url, _token: (503, {"content-type": "application/json"}, {})
+            with self.assertRaises(child_benefit_federator.FederationUpstreamError) as unavailable:
+                child_benefit_federator.call_peer_notary(route, "2300010248", common.PURPOSES["child_benefit"])
+        finally:
+            child_benefit_federator.post_jwt = original_post_jwt
+            child_benefit_federator.sign_jwt = original_sign_jwt
+
+        self.assertEqual(unsigned.exception.code, "unsigned_peer_response")
+        self.assertEqual(unavailable.exception.status, 503)
+
+    def test_request_body_has_a_hard_size_limit(self) -> None:
+        handler = object.__new__(child_benefit_federator.ChildBenefitFederatorHandler)
+        handler.headers = {"Content-Length": str(child_benefit_federator.MAX_REQUEST_BODY_BYTES + 1)}
+        handler.rfile = io.BytesIO(b"")
+
+        with self.assertRaises(child_benefit_federator.RequestBodyError) as rejected:
+            handler.read_body()
+
+        self.assertEqual(rejected.exception.status, 413)
+
+    def test_federator_key_must_match_the_configured_public_domain(self) -> None:
+        env_name = child_benefit_federator.FEDERATOR_JWK_ENV
+        original = os.environ.get(env_name)
+        os.environ[env_name] = json.dumps(
+            {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "kid": "did:web:child-benefit-federator.wrong.example#request-key-1",
+                "x": "AA",
+                "d": "AA",
+            }
+        )
+        try:
+            with self.assertRaisesRegex(RuntimeError, "CHILD_BENEFIT_PUBLIC_DOMAIN"):
+                child_benefit_federator.private_jwk()
+        finally:
+            if original is None:
+                os.environ.pop(env_name, None)
+            else:
+                os.environ[env_name] = original
+
+    def test_duplicate_claims_are_rejected_before_federation(self) -> None:
+        token = "test-federator-token"
+        os.environ[child_benefit_federator.FEDERATOR_TOKEN_ENV] = token
+        server = ThreadingHTTPServer(("127.0.0.1", 0), child_benefit_federator.ChildBenefitFederatorHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        body = {
+            "target": {"identifiers": [{"scheme": "solmara_uin", "value": "2300010248"}]},
+            "claims": ["birth-is-registered", "birth-is-registered"],
+            "disclosure": "predicate",
+            "format": common.FEDERATED_BUNDLE_FORMAT,
+        }
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_address[1]}/v1/evaluations",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "x-api-key": token,
+                "Data-Purpose": common.PURPOSES["child_benefit"],
+                "Content-Type": "application/json",
+                "Accept": common.FEDERATED_BUNDLE_FORMAT,
+            },
+            method="POST",
+        )
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as rejected:
+                urllib.request.urlopen(request, timeout=5)
+            payload = json.loads(rejected.exception.read().decode("utf-8"))
+            rejected.exception.close()
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+            os.environ.pop(child_benefit_federator.FEDERATOR_TOKEN_ENV, None)
+
+        self.assertEqual(rejected.exception.code, 400)
+        self.assertEqual(payload["code"], "request.invalid")
+
+    def test_raw_household_request_is_denied_as_problem_details(self) -> None:
+        token = "test-federator-token"
+        os.environ[child_benefit_federator.FEDERATOR_TOKEN_ENV] = token
+        server = ThreadingHTTPServer(("127.0.0.1", 0), child_benefit_federator.ChildBenefitFederatorHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        body = {
+            "target": {"identifiers": [{"scheme": "solmara_uin", "value": "2300010248"}]},
+            "claims": ["household-poverty-score"],
+            "disclosure": "value",
+            "format": common.FEDERATED_BUNDLE_FORMAT,
+        }
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_address[1]}/v1/evaluations",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "x-api-key": token,
+                "Data-Purpose": common.PURPOSES["child_benefit"],
+                "Content-Type": "application/json",
+                "Accept": common.FEDERATED_BUNDLE_FORMAT,
+            },
+            method="POST",
+        )
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as rejected:
+                urllib.request.urlopen(request, timeout=5)
+            content_type = rejected.exception.headers.get_content_type()
+            payload = json.loads(rejected.exception.read().decode("utf-8"))
+            rejected.exception.close()
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+            os.environ.pop(child_benefit_federator.FEDERATOR_TOKEN_ENV, None)
+
+        self.assertEqual(rejected.exception.code, 403)
+        self.assertEqual(content_type, "application/problem+json")
+        self.assertEqual(payload["code"], "pdp.purpose_not_permitted")
+        self.assertNotIn("household-poverty-score", json.dumps(payload))
+
+    def test_success_response_uses_the_bundle_media_type(self) -> None:
+        token = "test-federator-token"
+        os.environ[child_benefit_federator.FEDERATOR_TOKEN_ENV] = token
+        original_evaluate_bundle = child_benefit_federator.evaluate_bundle
+        child_benefit_federator.evaluate_bundle = lambda *_args: {
+            "schema_version": child_benefit_federator.API_VERSION,
+            "results": [],
+            "federation_trace": [],
+        }
+        server = ThreadingHTTPServer(("127.0.0.1", 0), child_benefit_federator.ChildBenefitFederatorHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        body = {
+            "target": {"identifiers": [{"scheme": "solmara_uin", "value": "2300010248"}]},
+            "claims": ["birth-is-registered"],
+            "disclosure": "predicate",
+            "format": common.FEDERATED_BUNDLE_FORMAT,
+        }
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_address[1]}/v1/evaluations",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "x-api-key": token,
+                "Data-Purpose": common.PURPOSES["child_benefit"],
+                "Content-Type": "application/json",
+                "Accept": common.FEDERATED_BUNDLE_FORMAT,
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.headers.get_content_type(), common.FEDERATED_BUNDLE_FORMAT)
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            server.server_close()
+            child_benefit_federator.evaluate_bundle = original_evaluate_bundle
+            os.environ.pop(child_benefit_federator.FEDERATOR_TOKEN_ENV, None)
 
 
 class StdlibOnlyImportTest(unittest.TestCase):

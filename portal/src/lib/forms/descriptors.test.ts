@@ -55,15 +55,23 @@ describe('service form descriptors', () => {
     expect(manualField(getForm('farmer-voucher')!)).toBeUndefined();
   });
 
-  it('flags the delegated civil reads in child-benefit only', () => {
+  it('exposes the five delegated source predicates in child-benefit only', () => {
     const del = delegatedFields(getForm('child-benefit')!);
     expect(del.map((f) => f.id).sort()).toEqual([
       'birth-event-exists',
       'date-of-birth',
-      'eligible-for-child-benefit',
       'household-composition',
+      'not-already-enrolled',
+      'population-record-active'
+    ]);
+    expect(del.map((field) => field.claim)).toEqual([
+      'birth-is-registered',
+      'population-record-active',
+      'child-age-under-5',
+      'household-below-poverty-threshold',
       'not-already-enrolled'
     ]);
+    expect(del.some((field) => field.claim === 'eligible-for-child-benefit')).toBe(false);
     for (const field of del) expect(field.delegated?.dependentRef).toBe('selected-child');
     expect(delegatedFields(getForm('farmer-voucher')!)).toHaveLength(0);
   });

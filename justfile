@@ -92,7 +92,7 @@ smoke:
 
 # Run only live HTTP checks against the running local topology.
 smoke-live:
-    scripts/smoke-live.py
+    uv run --locked scripts/smoke-live.py
 
 # Smoke eSignet discovery and the NIA attribute-release profile.
 smoke-esignet *args:

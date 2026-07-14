@@ -54,7 +54,8 @@ services:
       - sro-social-audit:/relay/sro-social-audit
       - programme-mis-cache:/relay/programme-mis-cache
       - programme-mis-audit:/relay/programme-mis-audit
-      - child-benefit-notary-state:/notary/child-benefit-notary-state
+      - sro-child-benefit-notary-state:/notary/sro-child-benefit-notary-state
+      - programme-child-benefit-notary-state:/notary/programme-child-benefit-notary-state
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/ready"]
       interval: 5s
@@ -99,25 +100,52 @@ services:
     labels:
       solmara.lab.host: mosd-programme-relay.solmara.registrystack.org
 
-  child-benefit-notary:
+  sro-child-benefit-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/child-benefit.yaml"]
+    command: ["--config", "/etc/registry-notary/child-benefit-social.yaml"]
     environment:
       <<: *notary-environment
-      CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CHILD_BENEFIT_CLIENT_TOKEN_HASH}
-      CHILD_BENEFIT_NOTARY_ISSUER_JWK: ${CHILD_BENEFIT_NOTARY_ISSUER_JWK}
-      CRA_CHILD_BENEFIT_SOURCE_RAW: ${CRA_CHILD_BENEFIT_SOURCE_RAW}
-      NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
+      SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
       SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
-      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+      SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
+      SRO_CHILD_BENEFIT_PAIRWISE_SECRET: ${SRO_CHILD_BENEFIT_PAIRWISE_SECRET}
     volumes:
-      - child-benefit-notary-state:/var/lib/registry-notary/config-state
+      - sro-child-benefit-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      volume-permissions:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      sro-social-relay:
+        condition: service_healthy
     labels:
-      solmara.lab.host: child-benefit-notary.solmara.registrystack.org
+      solmara.lab.host: sro-child-benefit-notary.solmara.registrystack.org
+
+  programme-child-benefit-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/registry-notary/child-benefit-programme.yaml"]
+    environment:
+      <<: *notary-environment
+      PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+      PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
+      PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET: ${PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET}
+    volumes:
+      - programme-child-benefit-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      volume-permissions:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      programme-mis-relay:
+        condition: service_healthy
+    labels:
+      solmara.lab.host: programme-child-benefit-notary.solmara.registrystack.org
 
 volumes:
   sro-social-cache:
   sro-social-audit:
   programme-mis-cache:
   programme-mis-audit:
-  child-benefit-notary-state:
+  sro-child-benefit-notary-state:
+  programme-child-benefit-notary-state:

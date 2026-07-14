@@ -25,6 +25,19 @@ EXPECTED_SCENARIOS = {
     "farmer-climate-smart-voucher",
     "citizen-self-service",
 }
+EXPECTED_CHILD_BENEFIT_CLAIMS = {
+    "birth-is-registered",
+    "population-record-active",
+    "child-age-under-5",
+    "household-below-poverty-threshold",
+    "not-already-enrolled",
+}
+EXPECTED_CHILD_BENEFIT_NOTARIES = {
+    "civil-child-benefit-notary",
+    "nia-child-benefit-notary",
+    "sro-child-benefit-notary",
+    "programme-child-benefit-notary",
+}
 
 
 @dataclass(frozen=True)
@@ -216,9 +229,29 @@ def default_targets(domain: str, scheme: str = "https") -> HostedTargets:
         ),
         notaries=(
             ServiceTarget(
-                "child benefit notary",
-                subdomain("child-benefit-notary"),
-                env_name="CHILD_BENEFIT_NOTARY_URL",
+                "child benefit federator",
+                subdomain("child-benefit-federator"),
+                env_name="CHILD_BENEFIT_FEDERATOR_URL",
+            ),
+            ServiceTarget(
+                "CRA child benefit notary",
+                subdomain("civil-child-benefit-notary"),
+                env_name="CIVIL_CHILD_BENEFIT_NOTARY_URL",
+            ),
+            ServiceTarget(
+                "NIA child benefit notary",
+                subdomain("nia-child-benefit-notary"),
+                env_name="NIA_CHILD_BENEFIT_NOTARY_URL",
+            ),
+            ServiceTarget(
+                "SRO child benefit notary",
+                subdomain("sro-child-benefit-notary"),
+                env_name="SRO_CHILD_BENEFIT_NOTARY_URL",
+            ),
+            ServiceTarget(
+                "programme child benefit notary",
+                subdomain("programme-child-benefit-notary"),
+                env_name="PROGRAMME_CHILD_BENEFIT_NOTARY_URL",
             ),
             ServiceTarget("pension notary", subdomain("pension-notary"), env_name="PENSION_NOTARY_URL"),
             ServiceTarget("NAgDI notary", subdomain("nagdi-notary"), env_name="NAGDI_NOTARY_URL"),
@@ -326,9 +359,36 @@ def check_home_demo(home_url: str, timeout: float) -> None:
     positive_status = nested(positive_result, "response_source", "status")
     if positive.status != 200 or positive_status != 200:
         raise SmokeFailure(f"child positive step returned outer={positive.status}, inner={positive_status}")
-    credential_status = nested(positive_result, "credential", "status")
-    if credential_status != "issued":
-        raise SmokeFailure(f"child positive step did not issue credential, status={credential_status!r}")
+    positive_body = nested(positive_result, "response_source", "body")
+    if not isinstance(positive_body, dict):
+        raise SmokeFailure("child positive step did not return a predicate bundle")
+    federator = positive_body.get("federator")
+    if not isinstance(federator, dict) or federator.get("service_id") != "child-benefit-federator":
+        raise SmokeFailure("child positive step did not identify the public federator")
+    if federator.get("decision") != "not_composed":
+        raise SmokeFailure("child positive step composed an eligibility decision")
+    results = positive_body.get("results")
+    claim_ids = {
+        result.get("claim_id")
+        for result in results
+        if isinstance(result, dict) and isinstance(result.get("claim_id"), str)
+    } if isinstance(results, list) else set()
+    if claim_ids != EXPECTED_CHILD_BENEFIT_CLAIMS:
+        raise SmokeFailure(f"child positive step returned unexpected predicates, claim_ids={sorted(claim_ids)!r}")
+    if "eligible-for-child-benefit" in claim_ids:
+        raise SmokeFailure("child positive step returned a composed eligibility claim")
+    trace = positive_body.get("federation_trace")
+    source_notaries = {
+        item.get("service_id")
+        for item in trace
+        if isinstance(item, dict) and isinstance(item.get("service_id"), str)
+    } if isinstance(trace, list) else set()
+    if source_notaries != EXPECTED_CHILD_BENEFIT_NOTARIES:
+        raise SmokeFailure(
+            f"child positive step returned an incomplete federation trace, source_notaries={sorted(source_notaries)!r}"
+        )
+    if "credential" in positive_result:
+        raise SmokeFailure("child positive step unexpectedly issued a credential")
 
     denial = request_json(
         "POST",

@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 
 /**
  * The scenario runner reports compose-internal service URLs (for example
- * `http://child-benefit-notary:8080/...`) because that is what it actually
+ * `http://child-benefit-federator:8080/...`) because that is what it actually
  * calls inside the compose network. None of those hostnames resolve from a
  * visitor's browser, so every user-facing URL and copy-as-curl snippet is
  * rewritten through this single table before it leaves the server.
@@ -14,7 +14,11 @@ import { env } from '$env/dynamic/private';
  * `*.solmara.registrystack.org` URLs.
  */
 const DEFAULT_LOCAL_MAP: Record<string, string> = {
-  'child-benefit-notary:8080': 'http://localhost:4321',
+  'child-benefit-federator:8080': 'http://localhost:4321',
+  'civil-child-benefit-notary:8080': 'http://localhost:4325',
+  'nia-child-benefit-notary:8080': 'http://localhost:4326',
+  'sro-child-benefit-notary:8080': 'http://localhost:4327',
+  'programme-child-benefit-notary:8080': 'http://localhost:4328',
   'pension-notary:8080': 'http://localhost:4322',
   'nagdi-notary:8080': 'http://localhost:4323',
   'citizen-notary:8080': 'http://localhost:4324',
@@ -82,6 +86,17 @@ export function rewriteRequestUrls<T extends Record<string, unknown>>(result: T,
     if (source && typeof source === 'object' && typeof (source as { url?: unknown }).url === 'string') {
       clone[key] = { ...(source as object), url: mapPublicUrl((source as { url: string }).url, map) };
     }
+  }
+  if (Array.isArray(clone.federation_trace)) {
+    clone.federation_trace = clone.federation_trace.map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      const trace = { ...(item as Record<string, unknown>) };
+      const request = trace.request_source;
+      if (request && typeof request === 'object' && typeof (request as { url?: unknown }).url === 'string') {
+        trace.request_source = { ...(request as object), url: mapPublicUrl((request as { url: string }).url, map) };
+      }
+      return trace;
+    });
   }
   return clone as T;
 }

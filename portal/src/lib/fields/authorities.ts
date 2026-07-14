@@ -33,6 +33,34 @@ export const SOLMARA_AUTHORITIES: Record<NotaryId, SolmaraAuthority> = {
     label: 'Civil Registration Authority',
     serviceId: 'citizen-notary',
     issuerKey: 'did:web:id.registrystack.org:solmara:notary:citizen#key-1'
+  },
+  childCivil: {
+    id: 'childCivil',
+    label: 'Civil Registration Authority',
+    serviceId: 'civil-child-benefit-notary',
+    issuerKey:
+      'did:web:civil-child-benefit-notary.solmara.registrystack.org#federation-key-1'
+  },
+  population: {
+    id: 'population',
+    label: 'National Identity Agency',
+    serviceId: 'nia-child-benefit-notary',
+    issuerKey:
+      'did:web:nia-child-benefit-notary.solmara.registrystack.org#federation-key-1'
+  },
+  socialRegistry: {
+    id: 'socialRegistry',
+    label: 'Social Registry Office',
+    serviceId: 'sro-child-benefit-notary',
+    issuerKey:
+      'did:web:sro-child-benefit-notary.solmara.registrystack.org#federation-key-1'
+  },
+  programme: {
+    id: 'programme',
+    label: 'MoSD Programme MIS',
+    serviceId: 'programme-child-benefit-notary',
+    issuerKey:
+      'did:web:programme-child-benefit-notary.solmara.registrystack.org#federation-key-1'
   }
 };
 
