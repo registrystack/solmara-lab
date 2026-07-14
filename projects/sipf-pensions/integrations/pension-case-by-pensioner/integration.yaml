@@ -11,7 +11,7 @@ input:
 
 capability:
   snapshot:
-    entity: pension_cases
+    entity: pension
     exact:
       pensioner_uin: { input: uin }
     freshness: 24h

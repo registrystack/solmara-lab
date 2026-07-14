@@ -44,12 +44,12 @@ consultation:
       path: artifacts/integration-packs/pension-case-by-survivor.json
       sha256: sha256:0e5d17671c4bb70f2de35ebd92dc7fc745fa96539c89aaecb823014ea570b0c0
     private_bindings:
-    - hash: sha256:aa1a18785d33f5c3891c0a2edbf99265244949de66061f7a8c8f11ce928e25d2
+    - hash: sha256:bb4cc129e912026dedd882ef6835e8f7f0abeffac3807a536e1e942ee3db7a24
       path: artifacts/private-bindings/sipf-pension-payment-review-pension.json
-      sha256: sha256:4ed1741c3223f3758af0740d17959ecfb501cf69c6016bd8fed59b28a4c7e8e7
-    - hash: sha256:8c4a9799c2c173c8326c68b68784e51506f3f1df7c6172692888a0a54cf12244
+      sha256: sha256:35435048efb3ee65cd02a91012ba05ac9864c9ffa05a6adaeb21a55f4d6349e9
+    - hash: sha256:2e9f89aace01ab09a6bbbe32e739ade537b40ececc7b27c91ca25a92b548a449
       path: artifacts/private-bindings/sipf-survivor-benefit-survivor.json
-      sha256: sha256:0405a1a8ead03181c63ec3a7c75165c9371668b1ac31f184ddb0e825eb6b406e
+      sha256: sha256:9205df42801ad0ef6b4387536dff65f889a249679dd41d90c940b360119a614a
     public_contracts:
     - hash: sha256:260cfd31c53f359c17c44323b5e5437189670cce6c71e961795031641c3cc9f8
       path: artifacts/consultation-contracts/sipf-pension-payment-review-pension.json
@@ -83,14 +83,14 @@ datasets:
     materialization: snapshot
     refresh:
       mode: manual
-  description: Materialized pension_cases entity
+  description: Materialized pension entity
   entities: []
-  id: pension_cases
+  id: pension
   owner: solmara-sipf-pensions
   sensitivity: personal
   tables:
   - access:
-      aggregate_scope: pension_cases:aggregate
+      aggregate_scope: pension:aggregate
       metadata_scope: registry-internal:materialization
     aggregates: []
     api:
@@ -98,9 +98,9 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_3ff728616b859327ab4c3e21fb80b19e9e6744081026b127b654c4b85aa81528
+    id: materialization_c82d723f1da1e4226f17722a39f0bed947d328c71b4eed188d0f76347fbf68f8
     materialization: snapshot
-    primary_key: pension_case_id
+    primary_key: pensioner_uin
     refresh:
       mode: manual
     schema:
@@ -109,14 +109,48 @@ datasets:
         nullable: false
         sensitive: false
         type: string
-      - name: pension_case_id
-        nullable: false
-        sensitive: false
-        type: string
       - name: pensioner_uin
         nullable: false
         sensitive: false
         type: string
+      strict: true
+    source:
+      connection_env: SOLMARA_SIPF_DATABASE_URL
+      table:
+        name: sipf_pension_payment
+        schema: public
+      type: postgres
+  title: pension
+  update_frequency: as_needed
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized survivor entity
+  entities: []
+  id: survivor
+  owner: solmara-sipf-pensions
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: survivor:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_63674a55f428141f8c2444317547b5344a544b27f037ef94b28bfcb1809eeb2b
+    materialization: snapshot
+    primary_key: spouse_uin
+    refresh:
+      mode: manual
+    schema:
+      fields:
       - name: spouse_uin
         nullable: false
         sensitive: false
@@ -127,14 +161,12 @@ datasets:
         type: boolean
       strict: true
     source:
-      format:
-        csv:
-          delimiter: null
-          header_row: 1
-          quote: null
-      path: /var/lib/solmara/ministries/labour-pensions/fixtures/pension_case.csv
-      type: file
-  title: pension_cases
+      connection_env: SOLMARA_SIPF_DATABASE_URL
+      table:
+        name: sipf_survivor_benefit
+        schema: public
+      type: postgres
+  title: survivor
   update_frequency: as_needed
 deployment:
   profile: local

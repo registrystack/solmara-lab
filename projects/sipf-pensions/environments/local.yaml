@@ -1,17 +1,26 @@
 version: 1
 entities:
-  pension_cases:
+  pension:
     provider:
-      type: csv
-      path: /var/lib/solmara/ministries/labour-pensions/fixtures/pension_case.csv
-      header_row: 1
+      type: postgres
+      connection: { secret: SOLMARA_SIPF_DATABASE_URL }
+      schema: public
+      table: sipf_pension_payment
     columns:
-      pension_case_id: pension_case_id
       pensioner_uin: pensioner_uin
-      spouse_uin: spouse_uin
       payment_status: payment_status
+    source_revision: sipf-pension-payment-projection-v1
+    generation: 2026-07-14
+  survivor:
+    provider:
+      type: postgres
+      connection: { secret: SOLMARA_SIPF_DATABASE_URL }
+      schema: public
+      table: sipf_survivor_benefit
+    columns:
+      spouse_uin: spouse_uin
       survivor_eligible: survivor_eligible
-    source_revision: sipf-pension-case-projection-v1
+    source_revision: sipf-survivor-benefit-projection-v1
     generation: 2026-07-14
 issuance:
   issuer: did:web:id.registrystack.org:solmara:authority:sipf

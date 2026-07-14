@@ -1,27 +1,19 @@
 version: 1
-id: pension_cases
+id: pension
 revision: 1
-primary_key: pension_case_id
+primary_key: pensioner_uin
 schema:
   type: object
   additionalProperties: false
-  required: [pension_case_id, pensioner_uin, spouse_uin, payment_status, survivor_eligible]
+  required: [pensioner_uin, payment_status]
   properties:
-    pension_case_id:
-      type: string
-      maxLength: 32
     pensioner_uin:
       type: string
       maxLength: 16
       pattern: "^[0-9]{10}$"
-    spouse_uin:
-      type: string
-      maxLength: 16
     payment_status:
       type: string
       maxLength: 32
-    survivor_eligible:
-      type: boolean
 materialization:
   max_records: 1000000
   max_bytes: 256MiB

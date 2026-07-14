@@ -575,31 +575,16 @@ def build_nagdi(uins: dict[str, str], by_uin: dict[str, dict[str, object]], hous
 
 def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[str, list[dict[str, object]]]:
     birth_by_person = {row["child_person_id"]: row for row in rows["birth_event"]}
-    death_by_person = {row["deceased_person_id"]: row for row in rows["death_event"]}
-    marriage_by_person: dict[object, dict[str, object]] = {}
-    for row in rows["marriage_event"]:
-        marriage_by_person[row["spouse_1_person_id"]] = row
-        marriage_by_person[row["spouse_2_person_id"]] = row
 
     civil_projection = []
     for person in rows["civil_person"]:
         birth = birth_by_person.get(person["person_id"], {})
-        death = death_by_person.get(person["person_id"], {})
-        marriage = marriage_by_person.get(person["person_id"], {})
-        civil_projection.append(add_meta({
-            "person_id": person["person_id"],
+        civil_projection.append({
             "uin": person["uin"],
-            "given_name": person["given_name"],
-            "family_name": person["family_name"],
             "birth_date": person["birth_date"],
             "birth_brn": birth.get("brn", ""),
-            "death_drn": death.get("drn", ""),
-            "marriage_mrn": marriage.get("mrn", ""),
             "deceased": str(person["life_status"] == "deceased").lower(),
-            "death_date": person["death_date"],
-            "cause_of_death": death.get("cause_of_death", ""),
-            "district_code": person["birth_place_district_code"],
-        }, "CRA-RELAY-PROJECTION"))
+        })
 
     people_by_uin = {row["uin"]: row for row in rows["population_person"]}
     profile_by_household = {row["household_id"]: row for row in rows["socio_economic_profile"]}
@@ -631,30 +616,23 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
         for member in members_by_household.get(household["household_id"], []):
             if member["membership_status"] != "active":
                 continue
-            child_benefit_household_projection.append(add_meta({
+            child_benefit_household_projection.append({
                 "uin": member["uin"],
                 "poverty_band": score["score_band"],
-            }, "SRO-CHILD-BENEFIT-PROJECTION"))
+            })
 
     active_enrollment_by_uin = {
         row["uin"]: row
         for row in rows["enrollment"]
         if row["enrollment_status"] == "active"
     }
-    entitlement_by_enrollment = {row["enrollment_id"]: row for row in rows["entitlement"]}
     programme_projection = []
     for decision in rows["eligibility_decision"]:
         active = active_enrollment_by_uin.get(decision["uin"])
-        entitlement = entitlement_by_enrollment.get(active["enrollment_id"], {}) if active else {}
-        programme_projection.append(add_meta({
-            "enrollment_id": decision["decision_id"],
+        programme_projection.append({
             "uin": decision["uin"],
-            "programme_id": decision["program_code"],
-            "enrollment_status": active["enrollment_status"] if active else "none",
-            "entitlement_status": entitlement.get("entitlement_status", "none"),
             "duplicate_flag": str(bool(active)).lower(),
-            "benefit_start_date": active["enrollment_date"] if active else "",
-        }, "MOSD-RELAY-PROJECTION"))
+        })
 
     survivor_by_deceased = {row["deceased_uin"]: row for row in rows["sipf_survivor_link"]}
     account_by_no = {row["account_no"]: row for row in rows["sipf_contribution_account"]}
@@ -679,10 +657,8 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
     farmers_by_id = {row["farmer_id"]: row for row in rows["Farmers"]}
     farmer_projection = []
     for farmer_id, farmer in farmers_by_id.items():
-        farmer_projection.append(add_meta({
+        farmer_projection.append({
             "farmer_id": farmer_id,
-            "uin": farmer["uin"],
-            "district_code": farmer["district_code"],
             "farmer_registered": str(farmer["farmer_status"] == "active").lower(),
             "data_use_authorized": str(farmer_id != "FR-1002").lower(),
             "active_smallholder_farmer": "true",
@@ -691,7 +667,7 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
             "district_climate_risk_active": str(farmer_id != "FR-1003").lower(),
             "voucher_entitlement_current": str(farmer_id == "FR-1001").lower(),
             "voucher_not_redeemed": str(farmer_id != "FR-1003").lower(),
-        }, "NAGDI-RELAY-PROJECTION"))
+        })
 
     farmer_by_livestock_holding = {
         row["livestock_holding_id"]: row["farmer_id"]
@@ -704,17 +680,15 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
     livestock_projection = []
     for herd in rows["Herds"]:
         farmer_id = farmer_by_premises[herd["premises_id"]]
-        livestock_projection.append(add_meta({
+        livestock_projection.append({
             "herd_id": herd["herd_id"],
             "farmer_id": farmer_id,
-            "species": herd["species"],
-            "registered_livestock_holder": "true",
             "registered_herd": "true",
             "herd_vaccination_current": str(farmer_id != "FR-1005").lower(),
             "origin_district_not_quarantined_for_species": str(farmer_id != "FR-1004").lower(),
             "destination_district_open": "true",
             "no_conflicting_open_movement_permit": "true",
-        }, "NAGDI-RELAY-PROJECTION"))
+        })
 
     return {
         "civil_person_projection": civil_projection,

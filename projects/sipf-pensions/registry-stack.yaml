@@ -10,8 +10,10 @@ integrations:
     file: integrations/pension-case-by-survivor/integration.yaml
 
 entities:
-  pension_cases:
-    file: entities/pension_cases.yaml
+  pension:
+    file: entities/pension.yaml
+  survivor:
+    file: entities/survivor.yaml
 
 services:
   sipf-pension-payment-review:

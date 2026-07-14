@@ -1,0 +1,20 @@
+version: 1
+id: survivor
+revision: 1
+primary_key: spouse_uin
+schema:
+  type: object
+  additionalProperties: false
+  required: [spouse_uin, survivor_eligible]
+  properties:
+    spouse_uin:
+      type: string
+      maxLength: 16
+      pattern: "^[0-9]{10}$"
+    survivor_eligible:
+      type: boolean
+materialization:
+  max_records: 1000000
+  max_bytes: 256MiB
+  refresh: manual
+  retain_generations: 2
