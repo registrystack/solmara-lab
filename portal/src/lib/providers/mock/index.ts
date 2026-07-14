@@ -4,24 +4,28 @@
 //
 // The depth-2 request/response bodies inside each ProofTrace are built by ./wire
 // from the owning service contract. Notary services keep their evaluation shape;
-// child benefit uses the federated predicate bundle shape.
+// child benefit uses its ordinary source-attributed JSON application shape.
 
 import type { EvaluateContext, EvidenceProvider } from '$lib/providers/EvidenceProvider';
 import type { ClaimResult, Field, ProofStatus, ProofTrace } from '$lib/types';
+import { PERSONA, SCENARIOS, type ScenarioResult } from './scenarios';
 import {
-  NOTARY_ISSUER_KEY,
-  PERSONA,
-  SCENARIOS,
-  type ScenarioResult
-} from './scenarios';
+  authorityPlan,
+  isApplicationOwnedPlan,
+  type AuthorityPlan
+} from '$lib/providers/authority-plan';
 import {
   authorityLabel,
-  buildFederatedPredicateRequest,
-  buildFederatedPredicateResponse,
+  buildClaimResultView,
+  buildChildBenefitRequest,
+  buildChildBenefitResponse,
+  buildEvaluationRequest,
   buildRawRequest,
   buildRawResponse,
   makeEvaluationId,
   notaryUrl,
+  type RawApplicationRequest,
+  type RawApplicationResponse,
   type RawProviderRequest,
   type RawProviderResponse
 } from './wire';
@@ -88,28 +92,60 @@ function resolveSubject(scenario: ScenarioResult, ctx: EvaluateContext, key: str
 function buildCrypto(
   scenario: ScenarioResult,
   evaluationId: string,
-  issuedAt: Date
+  plan: AuthorityPlan[]
 ): NonNullable<ProofTrace['proof']> {
   if (scenario.service === 'childBenefit') {
     return {
-      signedBy: `${authorityLabel(scenario)} source-owned Notary`,
-      algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
-      issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
-      holderBound: 'Purpose- and subject-bound child-benefit federation request',
-      credential: 'Federated predicate bundle',
-      auditId: `bundle:fcb_${evaluationId}`
+      signedBy: `${authorityLabel(scenario)} source result collected by child-benefit-federator`,
+      algorithm: 'Ordinary JSON response; no application signature asserted',
+      issuerKey: 'Not applicable for an application evidence set',
+      holderBound: 'Purpose- and subject-bound child-benefit evidence request',
+      credential: 'Minimized source-attributed predicate result',
+      auditId: `evidence-set:cbe_${evaluationId}`
+    };
+  }
+  if (isApplicationOwnedPlan(plan)) {
+    const authorities = [...new Set(plan.map((authority) => authority.authority))];
+    return {
+      signedBy: `No credential issued; ${authorities.join(' and ')} returned separate claim evaluations`,
+      algorithm: 'Independent Registry Notary claim-result responses',
+      issuerKey: 'Not applicable for claim-result evaluation',
+      holderBound: 'Not credential-bound; the BFF selected the purpose and subject',
+      credential: 'Application decision only; no credential issued by the portal',
+      auditId: plan
+        .map((_authority, index) => `evaluation:${evaluationId}-${index + 1}`)
+        .join('; ')
     };
   }
   return {
-    signedBy: authorityLabel(scenario),
-    algorithm: 'EdDSA-Ed25519',
-    issuerKey: NOTARY_ISSUER_KEY[scenario.notary],
-    holderBound: scenario.delegated
-      ? 'Holder-bound to Elena Dela Cruz (guardian), subject the dependent'
-      : 'Holder-bound to the signed-in citizen (cnf wallet key)',
-    credential: 'SD-JWT VC',
-    // audit id is volatile, derived from the evaluation id + a stamp.
-    auditId: `audit:${evaluationId}:${issuedAt.getTime().toString(36)}`
+    signedBy: `No credential issued; ${authorityLabel(scenario)} returned a claim result`,
+    algorithm: 'Registry Notary claim-result response',
+    issuerKey: 'Not applicable for claim-result evaluation',
+    holderBound: 'Not credential-bound; the BFF selected the purpose and subject',
+    credential: 'Claim result only; no credential issued',
+    auditId: `evaluation:${evaluationId}`
+  };
+}
+
+function blockedCrypto(evaluationId: string): NonNullable<ProofTrace['proof']> {
+  return {
+    signedBy: 'Portal authorization gate; no authority Notary called',
+    algorithm: 'No signature; request stopped before source access',
+    issuerKey: 'Not applicable',
+    holderBound: 'Portal session actor and server-selected subject',
+    credential: 'No credential or evidence result returned',
+    auditId: `denial:${evaluationId}`
+  };
+}
+
+function unavailableCrypto(scenario: ScenarioResult): NonNullable<ProofTrace['proof']> {
+  return {
+    signedBy: `No claim result; ${authorityLabel(scenario)} was unavailable`,
+    algorithm: 'No response proof available',
+    issuerKey: 'Not applicable',
+    holderBound: 'The BFF selected the purpose and subject',
+    credential: 'No credential or evidence result returned',
+    auditId: 'No evaluation identifier returned'
   };
 }
 
@@ -149,7 +185,12 @@ export class MockEvidenceProvider implements EvidenceProvider {
     const subject = resolveSubject(scenario, ctx, key);
     const seq = ++this.#seq;
     const evaluationId = makeEvaluationId(seq);
-    const issuedAt = new Date();
+    const issuedAt =
+      scenario.state === 'stale'
+        ? new Date(`${scenario.asOf}T00:00:00.000Z`)
+        : new Date();
+    const plan = scenario.service === 'childBenefit' ? [] : authorityPlan(key, scenario);
+    const applicationOwned = isApplicationOwnedPlan(plan);
 
     // Deterministic latency: honour the per-scenario delay so the UI can show the
     // top-to-bottom stagger and the SLOW threshold. We do not actually block the
@@ -157,30 +198,36 @@ export class MockEvidenceProvider implements EvidenceProvider {
     // timing.latencyMs to drive the animation budget.
     await delay(Math.min(scenario.latencyMs, 5));
 
-    const rawRequest = buildProviderRequest(scenario, subject, ctx.subject);
+    const applicationExchange = applicationOwned
+      ? buildApplicationExchange(scenario, plan, subject, evaluationId, issuedAt)
+      : undefined;
+    const rawRequest =
+      applicationExchange?.request ?? buildProviderRequest(scenario, subject, ctx.subject);
 
     // Denial / error scenarios perform NO source read: there is no 200 body.
     if (scenario.httpStatus === 403) {
       return this.#denied(field, scenario, ctx, key, scenario.denial?.code ?? 'subject_mismatch');
     }
     if (scenario.httpStatus === 503) {
-      return this.#errored(field, scenario, ctx, key, evaluationId, issuedAt, rawRequest);
+      return this.#errored(field, scenario, ctx, key, rawRequest);
     }
 
     const rawResponse =
-      scenario.service === 'childBenefit'
-        ? buildFederatedPredicateResponse(
+      applicationExchange?.response ??
+      (scenario.service === 'childBenefit'
+        ? buildChildBenefitResponse(
             scenario,
             evaluationId,
             issuedAt,
-            (rawRequest as ReturnType<typeof buildFederatedPredicateRequest>).target
+            // The service branch above guarantees the child application request shape.
+            (rawRequest as ReturnType<typeof buildChildBenefitRequest>).target
           )
-        : buildRawResponse(scenario, evaluationId, issuedAt);
+        : buildRawResponse(scenario, evaluationId, issuedAt));
 
     const result: ClaimResult = {
       state: scenario.state,
       display: scenario.display,
-      authority: scenario.notary,
+      ...(!applicationOwned ? { authority: scenario.notary } : {}),
       asOf: scenario.asOf,
       ...(scenario.reasonCode ? { reasonCode: scenario.reasonCode } : {}),
       traceId: `event ${seq}`
@@ -189,7 +236,13 @@ export class MockEvidenceProvider implements EvidenceProvider {
     return {
       result,
       raw: {
-        request: { method: 'POST', url: notaryUrl(scenario), body: rawRequest },
+        request: {
+          method: applicationOwned ? 'MULTI' : 'POST',
+          url: applicationOwned
+            ? 'solmara://citizen-portal/application-composition'
+            : notaryUrl(scenario),
+          body: rawRequest
+        },
         response: { status: scenario.httpStatus, body: rawResponse }
       },
       proof: {
@@ -197,8 +250,8 @@ export class MockEvidenceProvider implements EvidenceProvider {
         answered: scenario.answered,
         notDisclosed: scenario.notDisclosed,
         status: scenario.status,
-        authority: scenario.notary,
-        crypto: buildCrypto(scenario, evaluationId, issuedAt)
+        authority: applicationOwned ? undefined : scenario.notary,
+        crypto: buildCrypto(scenario, evaluationId, plan)
       },
       timing: {
         latencyMs: scenario.latencyMs,
@@ -218,7 +271,6 @@ export class MockEvidenceProvider implements EvidenceProvider {
   ): MockEvaluation {
     const seq = ++this.#seq;
     const evaluationId = makeEvaluationId(seq);
-    const issuedAt = new Date();
     // We still show the REQUEST the BFF attempted, with the stranger target, so the
     // inspector shows what was asked, then the 403 with no source read. The target
     // is redacted before it ever reaches the feed.
@@ -235,26 +287,29 @@ export class MockEvidenceProvider implements EvidenceProvider {
         code === 'relationship_not_proven'
           ? 'Denied: guardian link not proven, no dependent record was read'
           : scenario.display,
-      authority: scenario.notary,
       reasonCode: code,
       traceId: `event ${seq}`
     };
     return {
       result,
       raw: {
-        request: { method: 'POST', url: notaryUrl(scenario), body: rawRequest },
+        request: {
+          method: 'POST',
+          url: 'solmara://citizen-portal/blocked-before-authority-call',
+          body: rawRequest
+        },
         response: { status: 403, body: denialBody }
       },
       proof: {
         headline:
           code === 'relationship_not_proven'
-            ? `Denied by ${authorityLabel(scenario)}: the guardian link was not proven, so no dependent record was read`
-            : scenario.headline,
-        answered: scenario.answered,
+            ? `Portal denied the request before calling ${authorityLabel(scenario)}: the guardian link was not proven, so no dependent record was read`
+            : 'Portal denied the cross-person request before any authority call',
+        answered: `Portal authorization gate stopped the request before any authority call: 403 ${code}`,
         notDisclosed: scenario.notDisclosed,
         status: 'denied',
-        authority: scenario.notary,
-        crypto: buildCrypto(scenario, evaluationId, issuedAt)
+        authority: undefined,
+        crypto: blockedCrypto(evaluationId)
       },
       timing: {
         latencyMs: scenario.latencyMs,
@@ -271,8 +326,6 @@ export class MockEvidenceProvider implements EvidenceProvider {
     scenario: ScenarioResult,
     _ctx: EvaluateContext,
     _key: string,
-    evaluationId: string,
-    issuedAt: Date,
     rawRequest: RawProviderRequest
   ): MockEvaluation {
     const seq = this.#seq; // already incremented by the caller
@@ -299,7 +352,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
         notDisclosed: scenario.notDisclosed,
         status: 'error',
         authority: scenario.notary,
-        crypto: buildCrypto(scenario, evaluationId, issuedAt)
+        crypto: unavailableCrypto(scenario)
       },
       timing: {
         latencyMs: scenario.latencyMs,
@@ -310,13 +363,77 @@ export class MockEvidenceProvider implements EvidenceProvider {
   }
 }
 
+function buildApplicationExchange(
+  scenario: ScenarioResult,
+  plan: AuthorityPlan[],
+  subject: string,
+  evaluationId: string,
+  issuedAt: Date
+): { request: RawApplicationRequest; response: RawApplicationResponse } {
+  const purposes = [...new Set(plan.map((authority) => authority.purpose))];
+  const request: RawApplicationRequest = {
+    purpose:
+      purposes.length === 1
+        ? (purposes[0] ?? '')
+        : 'application-composed-from-source-authorized-purposes',
+    disclosure: 'decision',
+    composition: 'application',
+    requests: plan.map((authority) => ({
+      authority: authority.authority,
+      service_id: authority.serviceId,
+      body: buildEvaluationRequest(
+        authority.claimId,
+        subject,
+        authority.purpose,
+        authority.scheme ?? 'solmara_uin'
+      )
+    }))
+  };
+  const results = plan.map((authority, index) =>
+    buildClaimResultView(
+      {
+        claimId: authority.claimId,
+        claimVersion: scenario.claimVersion,
+        serviceId: authority.serviceId,
+        subjectType: 'person',
+        satisfied: true,
+        value: true,
+        disclosure: 'predicate',
+        sourceCount: 1,
+        identifierScheme: authority.scheme ?? 'solmara_uin',
+        freshnessDays: scenario.freshnessDays
+      },
+      `${evaluationId}-${index + 1}`,
+      issuedAt
+    )
+  );
+  return {
+    request,
+    response: {
+      schema_version: 'solmara-portal-evidence/v1',
+      orchestration: {
+        service_id: 'citizen-portal',
+        decision: 'application_composed'
+      },
+      results,
+      source_trace: plan.map((authority) => ({
+        authority: authority.authority,
+        service_id: authority.serviceId,
+        status: 200,
+        claims: [authority.claimId]
+      })),
+      derived_decisions: { [scenario.claimId]: scenario.satisfied }
+    }
+  };
+}
+
 function buildProviderRequest(
   scenario: ScenarioResult,
   subject: string,
   actorSubject: string
 ): RawProviderRequest {
   if (scenario.service === 'childBenefit') {
-    return buildFederatedPredicateRequest(scenario, subject);
+    return buildChildBenefitRequest(scenario, subject);
   }
   return buildRawRequest(scenario, subject, {
     actorIdHash: scenario.delegated ? hashActor(actorSubject) : undefined,

@@ -170,17 +170,17 @@ const socialCash: ServiceForm = {
       kind: 'verify',
       claim: 'survivor-is-eligible',
       notary: 'social',
-      purpose: PURPOSES.pensionPaymentReview,
+      purpose: PURPOSES.survivorBenefitDetermination,
       disclose: 'Not disclosed: the full marriage record'
     },
     {
-      id: 'household-size',
-      label: 'Beneficiary conflict check',
+      id: 'pension-payment-active',
+      label: 'Pension payment active?',
       kind: 'verify',
-      claim: 'survivor-is-eligible',
+      claim: 'pension-payment-active',
       notary: 'social',
       purpose: PURPOSES.pensionPaymentReview,
-      disclose: 'Not disclosed: other programme payment history'
+      disclose: 'Not disclosed: payment amount or payment history'
     },
     {
       id: 'social-requested-amount',
@@ -193,7 +193,7 @@ const socialCash: ServiceForm = {
       id: 'combined-support-eligibility',
       label: 'Eligibility decision',
       kind: 'decision',
-      claim: 'survivor-is-eligible',
+      claim: 'survivor-benefit-eligible',
       notary: 'social',
       purpose: PURPOSES.survivorBenefitDetermination,
       disclose: 'Not disclosed: the raw inputs each authority used',

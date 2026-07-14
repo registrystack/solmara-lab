@@ -17,7 +17,7 @@ const verifiedTrace: ProofTrace = {
   ts: '2026-06-21T12:04:09.000Z',
   request: {
     method: 'POST',
-    url: 'https://agri-citizen-notary.solmara.example/v1/evaluations',
+    url: 'https://nagdi-notary.solmara.example/v1/evaluations',
     body: {
       claim: 'farmer-registered',
       purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
@@ -33,12 +33,12 @@ const verifiedTrace: ProofTrace = {
     }
   },
   proof: {
-    signedBy: 'Agriculture Ministry Notary',
-    algorithm: 'EdDSA/Ed25519',
-    issuerKey: 'did:web:agri-citizen-notary.solmara.example',
-    holderBound: '2300010248 (session-bound, not echoed)',
-    credential: 'SD-JWT VC',
-    auditId: 'AUD-20260621-AGR-0042'
+    signedBy: 'No credential issued; National Agricultural Data Institute returned a claim evaluation',
+    algorithm: 'Registry Notary claim-result response; no credential signature asserted',
+    issuerKey: 'Not applicable for claim-result evaluation',
+    holderBound: 'Not credential-bound; the portal selected the purpose and subject',
+    credential: 'Claim result only; no credential issued',
+    auditId: 'Not available in this canned gallery trace'
   }
 };
 
@@ -54,7 +54,7 @@ const denialTrace: ProofTrace = {
   ts: '2026-06-21T12:04:15.000Z',
   request: {
     method: 'POST',
-    url: 'https://civil-citizen-notary.solmara.example/v1/evaluations',
+    url: 'https://cra-notary.solmara.example/v1/evaluations',
     body: {
       claim: 'person-is-deceased',
       purpose: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
@@ -71,18 +71,17 @@ const denialTrace: ProofTrace = {
   }
 };
 
-const federatedTrace: ProofTrace = {
+const applicationEvidenceTrace: ProofTrace = {
   ...verifiedTrace,
-  id: 'event-federated',
+  id: 'event-application-evidence',
   authority: 'population',
   proof: {
     signedBy: 'National Identity Agency source-owned Notary',
-    algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
-    issuerKey:
-      'did:web:nia-child-benefit-notary.solmara.registrystack.org#federation-key-1',
-    holderBound: 'Purpose- and subject-bound child-benefit federation request',
-    credential: 'Federated predicate bundle',
-    auditId: 'bundle:fcb_test'
+    algorithm: 'Ordinary JSON response; no application signature asserted',
+    issuerKey: 'Not applicable for an application evidence set',
+    holderBound: 'The application selected the purpose and subject',
+    credential: 'Minimized source-attributed predicate result',
+    auditId: 'evidence-set:cbe_test'
   }
 };
 
@@ -113,6 +112,15 @@ describe('ProofInspector', () => {
       expect(
         screen.getByText('Agriculture answered: farmer-registered = true')
       ).toBeInTheDocument();
+    });
+
+    it('does not present canned evaluations or UserInfo as signed credentials', () => {
+      const serialized = JSON.stringify(CANNED_TRACES);
+      expect(serialized).not.toMatch(/SD-JWT|EdDSA\/Ed25519/);
+      expect(serialized).toContain('no credential signature asserted');
+      expect(CANNED_TRACES.find((trace) => trace.fieldId === 'household-below-poverty-threshold')?.authority).toBe(
+        'socialRegistry'
+      );
     });
 
     it('renders "Not disclosed:" for all canned traces without expansion', () => {
@@ -164,14 +172,14 @@ describe('ProofInspector', () => {
     });
   });
 
-  describe('Federated predicate proof', () => {
-    it('shows the bundle artifact without presenting a synthetic SD-JWT credential', async () => {
-      render(ProofInspector, { props: { traces: [federatedTrace] } });
+  describe('Application evidence proof', () => {
+    it('shows the evidence artifact without presenting a synthetic SD-JWT credential', async () => {
+      render(ProofInspector, { props: { traces: [applicationEvidenceTrace] } });
 
       await fireEvent.click(screen.getByText(/Request and response/));
       await fireEvent.click(screen.getByText(/Cryptographic proof/));
 
-      expect(screen.getByText('Federated predicate bundle')).toBeInTheDocument();
+      expect(screen.getByText('Minimized source-attributed predicate result')).toBeInTheDocument();
       expect(
         screen.getByText('National Identity Agency source-owned Notary')
       ).toBeInTheDocument();

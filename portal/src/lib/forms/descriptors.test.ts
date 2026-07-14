@@ -87,8 +87,15 @@ describe('service form descriptors', () => {
       'person-is-alive',
       'disability-determination',
       'functioning-assessment',
-      'household-size'
+      'pension-payment-active'
     ]);
+  });
+
+  it('declares the survivor relationship under the purpose used by the SIPF request', () => {
+    const survivor = getForm('pension-survivor')?.fields.find(
+      (field) => field.id === 'functioning-assessment'
+    );
+    expect(survivor?.purpose).toContain('survivor-benefit-determination');
   });
 
   it('getForm returns undefined for an unknown slug', () => {

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { EvaluateContext } from '$lib/providers/EvidenceProvider';
 import type { Field } from '$lib/types';
 import { MockEvidenceProvider, PERSONA } from './index';
-import { FEDERATED_PREDICATE_BUNDLE_FORMAT } from './wire';
+import {
+  CHILD_BENEFIT_FORMAT,
+  type RawApplicationRequest,
+  type RawApplicationResponse,
+  type RawChildBenefitRequest,
+  type RawEvaluateRequest
+} from './wire';
 
 const provider = new MockEvidenceProvider();
 const ctx: EvaluateContext = { subject: PERSONA.elena };
@@ -23,6 +29,7 @@ describe('MockEvidenceProvider.evaluate', () => {
     const res = await provider.evaluate(field('disability-determination'), ctx);
     expect(res.state).toBe('verified');
     expect(res.display).toContain('Pension payment should stop');
+    expect(res.authority).toBeUndefined();
   });
 
   it('returns a delegated child age predicate', async () => {
@@ -32,8 +39,9 @@ describe('MockEvidenceProvider.evaluate', () => {
       guardianLinkVerified: true
     });
     expect(ev.result.state).toBe('verified');
-    const view = ev.raw.response.body as { results: { value: unknown }[] };
-    expect(view.results[0].value).toBe(true);
+    // The child application returns minimized predicates without a duplicate value field.
+    const view = ev.raw.response.body as { results: { satisfied: boolean }[] };
+    expect(view.results[0].satisfied).toBe(true);
   });
 
   it('returns the missing population source predicate', async () => {
@@ -45,22 +53,55 @@ describe('MockEvidenceProvider.evaluate', () => {
       display: 'Population record active: yes',
       authority: 'population'
     });
-    const view = ev.raw.response.body as { results: { claim_id: string; value: unknown }[] };
-    expect(view.results[0]).toMatchObject({ claim_id: 'population-record-active', value: true });
+    // The child application response is a predicate-only evidence set.
+    const view = ev.raw.response.body as {
+      results: { claim_id: string; satisfied: boolean }[];
+    };
+    expect(view.results[0]).toMatchObject({
+      claim_id: 'population-record-active',
+      satisfied: true
+    });
   });
 
-  it('returns a fetched object summary for a certificate', async () => {
-    const ev = await provider.evaluateDetailed(field('certificate-summary'), ctx);
-    expect(ev.result.state).toBe('fetched');
-    const view = ev.raw.response.body as { results: { value: Record<string, unknown> }[] };
-    expect(view.results[0].value).toMatchObject({ certificate_type: 'birth' });
+  it('returns a boolean citizen-record decision without inventing certificate facts', async () => {
+    const ev = await provider.evaluateDetailed(field('citizen-record-status'), ctx);
+    expect(ev.result.state).toBe('verified');
+    expect(ev.result.authority).toBeUndefined();
+    expect(ev.proof.authority).toBeUndefined();
+    const view = ev.raw.response.body as RawApplicationResponse;
+    expect(view.results.map((result) => result.provenance.generated_by.service_id)).toEqual([
+      'cra-notary',
+      'nia-notary'
+    ]);
+    expect(view.derived_decisions).toEqual({ 'citizen-self-service-ready': true });
+    expect(JSON.stringify(ev)).not.toMatch(/certificate_id|issued_on|CSR-BIRTH/);
   });
 
-  it('returns a multi-authority decision with reason codes', async () => {
+  it('mirrors live multi-authority requests instead of fabricating a Notary-owned decision', async () => {
     const ev = await provider.evaluateDetailed(field('combined-support-eligibility'), ctx);
     expect(ev.result.state).toBe('verified');
-    const view = ev.raw.response.body as { results: { provenance: { used: { source_count: number } } }[] };
-    expect(view.results[0].provenance.used.source_count).toBe(3);
+    expect(ev.result.authority).toBeUndefined();
+    expect(ev.proof.authority).toBeUndefined();
+    expect(ev.raw.request.method).toBe('MULTI');
+    const request = ev.raw.request.body as RawApplicationRequest;
+    const view = ev.raw.response.body as RawApplicationResponse;
+    expect(request.requests.map((source) => source.service_id)).toEqual([
+      'cra-notary',
+      'sipf-notary',
+      'sipf-notary'
+    ]);
+    expect(request.requests.map((source) => source.body.claims[0])).toEqual([
+      'person-is-deceased',
+      'pension-payment-active',
+      'survivor-is-eligible'
+    ]);
+    expect(view.results.map((result) => result.claim_id)).toEqual([
+      'person-is-deceased',
+      'pension-payment-active',
+      'survivor-is-eligible'
+    ]);
+    expect(view.derived_decisions).toEqual({ 'survivor-benefit-eligible': true });
+    expect(JSON.stringify(ev)).not.toContain('support_band');
   });
 });
 
@@ -75,8 +116,20 @@ describe('denial beat (cross-person stranger)', () => {
     expect(ev.raw.response.body).toHaveProperty('error', 'subject_mismatch');
     // the proof status is a denial; the rail will bounce
     expect(ev.proof.status).toBe('denied');
+    expect(ev.result.authority).toBeUndefined();
+    expect(ev.proof.authority).toBeUndefined();
+    expect(ev.proof.headline).toBe(
+      'Portal denied the cross-person request before any authority call'
+    );
+    expect(ev.raw.request.url).toBe('solmara://citizen-portal/blocked-before-authority-call');
+    expect(ev.proof.answered).toContain('before any authority call');
+    expect(ev.proof.crypto).toMatchObject({
+      signedBy: 'Portal authorization gate; no authority Notary called',
+      credential: 'No credential or evidence result returned'
+    });
     // the request targeted the stranger, never the session subject
-    const target = ev.raw.request.body.target;
+    // Denial scenarios use a single authority request, never an application batch.
+    const target = (ev.raw.request.body as RawEvaluateRequest).target;
     expect(target.identifiers[0].value).toBe(PERSONA.karim);
   });
 
@@ -84,6 +137,12 @@ describe('denial beat (cross-person stranger)', () => {
     const ev = await provider.evaluateDetailed(field('denial'), ctx);
     // there is no 200 results body at all, so no source was read
     expect(ev.raw.response.body).not.toHaveProperty('results');
+  });
+
+  it('preserves the configured disclosure on direct authority responses', async () => {
+    const ev = await provider.evaluateDetailed(field('voucher-eligibility'), ctx);
+    const view = ev.raw.response.body as { results: { disclosure: string }[] };
+    expect(view.results[0].disclosure).toBe('decision');
   });
 });
 
@@ -96,6 +155,7 @@ describe('delegated two-hop gate', () => {
     expect(ev.raw.response.status).toBe(403);
     expect(ev.raw.response.body).not.toHaveProperty('results');
     expect(ev.proof.status).toBe('denied');
+    expect(ev.proof.crypto.signedBy).toBe('Portal authorization gate; no authority Notary called');
   });
 
   it('denies a delegated civil read when the guardian flag is omitted (deny by default)', async () => {
@@ -113,8 +173,10 @@ describe('delegated two-hop gate', () => {
     expect(ev.result.state).toBe('verified');
     expect(ev.raw.response.status).toBe(200);
     // The portal gate authorizes the read before the clean federator request is built.
-    expect(ev.raw.request.body.on_behalf_of).toBeUndefined();
-    expect(ev.raw.request.body.target.identifiers[0].value).toBe(PERSONA.mateo);
+    // Child scenarios use the application request variant of the provider union.
+    const body = ev.raw.request.body as RawChildBenefitRequest;
+    expect(body.on_behalf_of).toBeUndefined();
+    expect(body.target.identifiers[0].value).toBe(PERSONA.mateo);
   });
 });
 
@@ -130,11 +192,18 @@ describe('resilience states', () => {
     expect(ev.result.state).toBe('error');
     expect(ev.raw.response.status).toBe(503);
     expect(ev.raw.response.body).not.toHaveProperty('results');
+    expect(ev.proof.crypto).toMatchObject({
+      signedBy: 'No claim result; Social Registry Office was unavailable',
+      credential: 'No credential or evidence result returned'
+    });
   });
 
   it('marks a fetched-but-old value as stale', async () => {
     const ev = await provider.evaluateDetailed(field('stale'), ctx);
     expect(ev.result.state).toBe('stale');
+    const view = ev.raw.response.body as { results: { issued_at: string; expires_at: string }[] };
+    expect(Date.parse(view.results[0].issued_at)).toBeLessThan(Date.parse(view.results[0].expires_at));
+    expect(Date.parse(view.results[0].expires_at)).toBeLessThan(Date.now());
   });
 
   it('never collapses an ambiguous match to false', async () => {
@@ -149,6 +218,7 @@ describe('structural match to the Notary OpenAPI', () => {
   // a drift from the OpenAPI fails loudly.
   it('request body matches EvaluateRequest key set', async () => {
     const ev = await provider.evaluateDetailed(field('registered-farmer'), ctx);
+    // The agriculture scenario uses a single Registry Notary request.
     const body = ev.raw.request.body as Record<string, unknown>;
     expect(Object.keys(body)).toEqual([
       'claims',
@@ -158,11 +228,12 @@ describe('structural match to the Notary OpenAPI', () => {
       'relationship',
       'target'
     ]);
-    expect(Object.keys((body.claims as Record<string, unknown>[])[0])).toEqual(['id', 'version']);
+    expect(body.claims).toEqual(['farmer-registered']);
   });
 
   it('200 response result matches the ClaimResultView required key set', async () => {
     const ev = await provider.evaluateDetailed(field('registered-farmer'), ctx);
+    // The agriculture scenario uses the mock ClaimResultView response variant.
     const view = (ev.raw.response.body as { results: Record<string, unknown>[] }).results[0];
     // every required key from the OpenAPI ClaimResultView is present
     for (const key of [
@@ -181,14 +252,15 @@ describe('structural match to the Notary OpenAPI', () => {
     ]) {
       expect(view).toHaveProperty(key);
     }
+    // Provenance is asserted structurally after the required top-level key check.
     const prov = view.provenance as Record<string, unknown>;
-    expect(prov).toHaveProperty('schema_version', 'registry-notary-claim-provenance/v1');
+    expect(prov).toHaveProperty('schema_version', 'registry-notary-claim-provenance/v2');
     expect(prov).toHaveProperty('generated_by');
     expect(prov).toHaveProperty('used');
     expect(prov).toHaveProperty('derived_from');
   });
 
-  it('uses the exact federated predicate bundle request and source-owned proof contract', async () => {
+  it('uses the ordinary child application evidence request and source-attributed proof contract', async () => {
     const ev = await provider.evaluateDetailed(field('date-of-birth'), ctx, {
       guardianLinkVerified: true
     });
@@ -202,17 +274,19 @@ describe('structural match to the Notary OpenAPI', () => {
         },
         claims: ['child-age-under-5'],
         disclosure: 'predicate',
-        format: FEDERATED_PREDICATE_BUNDLE_FORMAT
+        format: CHILD_BENEFIT_FORMAT
       }
     });
     expect(ev.proof.crypto).toMatchObject({
-      signedBy: 'Civil Registration Authority source-owned Notary',
-      algorithm: 'EdDSA-Ed25519 authority response JWT verified by the federator',
-      issuerKey:
-        'did:web:civil-child-benefit-notary.solmara.registrystack.org#federation-key-1',
-      holderBound: 'Purpose- and subject-bound child-benefit federation request',
-      credential: 'Federated predicate bundle'
+      signedBy:
+        'Civil Registration Authority source result collected by child-benefit-federator',
+      algorithm: 'Ordinary JSON response; no application signature asserted',
+      issuerKey: 'Not applicable for an application evidence set',
+      holderBound: 'Purpose- and subject-bound child-benefit evidence request',
+      credential: 'Minimized source-attributed predicate result'
     });
-    expect(JSON.stringify(ev.proof.crypto)).not.toMatch(/SD-JWT|notary:citizen/);
+    expect(JSON.stringify(ev.proof.crypto)).not.toMatch(
+      /federated|federation|SD-JWT|notary:citizen/
+    );
   });
 });

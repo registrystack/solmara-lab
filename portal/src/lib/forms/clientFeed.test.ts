@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { clientFeed } from './clientFeed.svelte';
+import type { ProofTrace } from '$lib/types';
 
 // The watchdog logic is unit-tested directly (markAlive / tickWatchdog take an
 // injected `now`) so we never need a live EventSource. This is the logic that the
@@ -31,5 +32,27 @@ describe('ClientFeed watchdog', () => {
     expect(clientFeed.connected).toBe(false);
     clientFeed.markAlive(20_000);
     expect(clientFeed.connected).toBe(true);
+  });
+
+  it('does not invent a Civil rail event for an application-owned trace', () => {
+    const trace: ProofTrace = {
+      id: 'event-application',
+      seq: 1,
+      headline: 'Portal decision from source predicates',
+      answered: 'Portal application answered: eligible = true',
+      notDisclosed: 'Not disclosed: source rows',
+      status: 'ok',
+      ts: '2026-07-15T00:00:00Z',
+      request: {
+        method: 'MULTI',
+        url: 'solmara://citizen-portal/application-composition',
+        body: { disclosure: 'decision' }
+      }
+    };
+
+    clientFeed.applyTrace(trace);
+
+    expect(clientFeed.traces).toHaveLength(1);
+    expect(clientFeed.railEvents).toHaveLength(0);
   });
 });

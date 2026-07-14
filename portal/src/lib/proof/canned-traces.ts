@@ -16,7 +16,7 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:05.000Z',
     request: {
       method: 'POST',
-      url: 'https://agri-citizen-notary.solmara.example/v1/evaluations',
+      url: 'https://nagdi-notary.solmara.example/v1/evaluations',
       body: {
         claim: 'farmer-registered',
         purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
@@ -39,7 +39,7 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:09.000Z',
     request: {
       method: 'POST',
-      url: 'https://agri-citizen-notary.solmara.example/v1/evaluations',
+      url: 'https://nagdi-notary.solmara.example/v1/evaluations',
       body: {
         claim: 'farmer-registered',
         purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
@@ -55,12 +55,12 @@ export const CANNED_TRACES: ProofTrace[] = [
       }
     },
     proof: {
-      signedBy: 'Agriculture Ministry Notary',
-      algorithm: 'EdDSA/Ed25519',
-      issuerKey: 'did:web:agri-citizen-notary.solmara.example',
-      holderBound: 'FR-1001 (session-bound, not echoed)',
-      credential: 'SD-JWT VC',
-      auditId: 'AUD-20260621-AGR-0042'
+      signedBy: 'No credential issued; National Agricultural Data Institute returned a claim evaluation',
+      algorithm: 'Registry Notary claim-result response; no credential signature asserted',
+      issuerKey: 'Not applicable for claim-result evaluation',
+      holderBound: 'Not credential-bound; the portal selected the purpose and subject',
+      credential: 'Claim result only; no credential issued',
+      auditId: 'Not available in this canned gallery trace'
     }
   },
 
@@ -69,7 +69,7 @@ export const CANNED_TRACES: ProofTrace[] = [
     id: 'event-3',
     seq: 3,
     fieldId: 'household-below-poverty-threshold',
-    authority: 'social',
+    authority: 'socialRegistry',
     headline:
       'Verified by Social Protection: household is below the programme threshold',
     answered: 'Social answered: household-below-poverty-threshold = true',
@@ -78,7 +78,7 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:12.000Z',
     request: {
       method: 'POST',
-      url: 'https://social-citizen-notary.solmara.example/v1/evaluations',
+      url: 'https://sro-notary.solmara.example/v1/evaluations',
       body: {
         claim: 'household-below-poverty-threshold',
         purpose: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
@@ -89,17 +89,17 @@ export const CANNED_TRACES: ProofTrace[] = [
       status: 200,
       body: {
         satisfied: true,
-        source_authority: 'Social Welfare',
+        source_authority: 'Social Registry Office',
         as_of: '2026-04-15'
       }
     },
     proof: {
-      signedBy: 'Social Welfare Ministry Notary',
-      algorithm: 'EdDSA/Ed25519',
-      issuerKey: 'did:web:social-citizen-notary.solmara.example',
-      holderBound: '2300018263 (session-bound, not echoed)',
-      credential: 'SD-JWT VC',
-      auditId: 'AUD-20260621-SOC-0017'
+      signedBy: 'Social Registry Office source-owned Notary',
+      algorithm: 'Authenticated claim-result evaluation; no credential signature asserted',
+      issuerKey: 'Not applicable for claim-result evaluation',
+      holderBound: 'Portal-selected purpose and subject',
+      credential: 'Minimized predicate claim result',
+      auditId: 'Not available in this canned gallery trace'
     }
   },
 
@@ -118,7 +118,7 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:15.000Z',
     request: {
       method: 'POST',
-      url: 'https://civil-citizen-notary.solmara.example/v1/evaluations',
+      url: 'https://cra-notary.solmara.example/v1/evaluations',
       body: {
         claim: 'person-is-deceased',
         purpose: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
@@ -167,12 +167,12 @@ export const CANNED_TRACES: ProofTrace[] = [
       }
     },
     proof: {
-      signedBy: 'eSignet / Civil Registry',
-      algorithm: 'EdDSA/Ed25519',
-      issuerKey: 'did:web:civil-citizen-notary.solmara.example',
-      holderBound: '2300018263 (session-bound, not echoed)',
-      credential: 'SD-JWT VC',
-      auditId: 'AUD-20260621-CIV-0001'
+      signedBy: 'No credential issued; eSignet UserInfo bound the portal session',
+      algorithm: 'OIDC UserInfo response; no credential signature asserted',
+      issuerKey: 'Not applicable for UserInfo',
+      holderBound: 'Portal session bound to the configured UserInfo subject claim',
+      credential: 'OIDC session identity, not a verifiable credential',
+      auditId: 'session-binding:event-0'
     }
   }
 ];

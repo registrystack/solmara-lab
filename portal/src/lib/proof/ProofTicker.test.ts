@@ -57,8 +57,8 @@ describe('ProofTicker', () => {
     render(ProofTicker, { props: { traces: CANNED_TRACES } });
     // Agriculture entries
     expect(screen.getAllByText('Agri').length).toBeGreaterThan(0);
-    // Social entries
-    expect(screen.getAllByText('Social').length).toBeGreaterThan(0);
+    // Social Registry entries
+    expect(screen.getAllByText('Social Registry').length).toBeGreaterThan(0);
     // Civil entries
     expect(screen.getAllByText('Civil').length).toBeGreaterThan(0);
   });
