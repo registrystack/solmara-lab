@@ -34,6 +34,31 @@ sipf-pensions
 nagdi-agriculture
 "
 
+build_projects() {
+  environment=$1
+  for project in $projects; do
+    echo "registryctl build: $project ($environment)"
+    "$REGISTRYCTL" build \
+      --project-dir "$ROOT/projects/$project" \
+      --environment "$environment"
+  done
+}
+
+stage_runtime() {
+  destination=$1
+  for environment in local hosted; do
+    build_projects "$environment"
+    for project in $projects; do
+      source="$ROOT/projects/$project/.registry-stack/build/$environment/private"
+      target="$destination/$environment/$project"
+      mkdir -p "$target/relay" "$target/notary"
+      cp -R "$source/relay/config/." "$target/relay/"
+      cp "$source/notary/config/notary.yaml" "$target/notary/notary.yaml"
+    done
+  done
+  chmod -R u=rwX,go=rX "$destination"
+}
+
 action=${1:-}
 case "$action" in
   test)
@@ -61,15 +86,25 @@ case "$action" in
         exit 2
         ;;
     esac
-    for project in $projects; do
-      echo "registryctl build: $project ($environment)"
-      "$REGISTRYCTL" build \
-        --project-dir "$ROOT/projects/$project" \
-        --environment "$environment"
-    done
+    build_projects "$environment"
+    ;;
+  sync-runtime)
+    temporary=$(mktemp -d "${TMPDIR:-/tmp}/solmara-registry-runtime.XXXXXX")
+    trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+    stage_runtime "$temporary/registry-projects"
+    target="$ROOT/runtime/registry-projects"
+    rm -rf "$target"
+    mkdir -p "$(dirname "$target")"
+    mv "$temporary/registry-projects" "$target"
+    ;;
+  check-runtime)
+    temporary=$(mktemp -d "${TMPDIR:-/tmp}/solmara-registry-runtime.XXXXXX")
+    trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+    stage_runtime "$temporary/registry-projects"
+    diff -ruN "$ROOT/runtime/registry-projects" "$temporary/registry-projects"
     ;;
   *)
-    echo "usage: $0 <test|check|build <local|hosted>>" >&2
+    echo "usage: $0 <test|check|build <local|hosted>|sync-runtime|check-runtime>" >&2
     exit 2
     ;;
 esac

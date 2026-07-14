@@ -1,0 +1,124 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: true
+    allowed_clients:
+    - nia-notary
+    audiences:
+    - registry-relay
+    issuer: http://127.0.0.1:8090
+    jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+catalog:
+  base_url: http://127.0.0.1:8080
+  publisher: solmara-nia-population
+  title: solmara-nia-population governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: minimization
+      path: artifacts/evidence/population-person-by-uin/minimization.json
+      sha256: sha256:af6daeecb8d517d40d9b631abf938dceac510f1a6fb9da8eebbb29034c2a2407
+    - class: negative_security
+      path: artifacts/evidence/population-person-by-uin/negative-security.json
+      sha256: sha256:bc4aecd3a77aa8f7f92699b4a39b5bd43e760fae1d4243856a6f1457781806ab
+    - class: conformance
+      path: artifacts/evidence/population-person-by-uin/conformance.json
+      sha256: sha256:db5fc1ce9ffa8420ca317c0fb27439f9e06431a4fc499e72b4d205110c76fe46
+    integration_packs:
+    - hash: sha256:b1b41ad5dc077760ecac87296a135143261b8c80aac97bde43f1d78ddcadaa83
+      path: artifacts/integration-packs/population-person-by-uin.json
+      sha256: sha256:1be1f2b32c7f7cd3e8454b1b221dcaa35b1850eabfc5be663c65b7ba4b6c0b76
+    private_bindings:
+    - hash: sha256:737fd7215d3698bfc86e4595b70ee0a95673dbc5a77ff85d265a984f67cb77cc
+      path: artifacts/private-bindings/nia-child-benefit-population.json
+      sha256: sha256:79b573a04dcf83bf4672274c2bcf07fe1b09ee4a4d8d8a09ddcdbb9d8f83d392
+    - hash: sha256:4ae7890e02c85a58486e30690f0c6d07916ba19231fa4656f9c3230c9119c91e
+      path: artifacts/private-bindings/nia-citizen-status-population.json
+      sha256: sha256:296e52233969d59e3a9cc553d2997ad70d9bea22965371a7e69ffae052934e8a
+    public_contracts:
+    - hash: sha256:c9019a3d70c356d0bd8cae5381d5592f8d24bdce4dc5a6571033481b59ed7b29
+      path: artifacts/consultation-contracts/nia-child-benefit-population.json
+      sha256: sha256:2b3fbb9a34f4233595457987733ddd26727b623c89b218919d52bf316731c3df
+    - hash: sha256:0e9bdc557393e69177c7318a3d63aaad2eb092ae5ce32161a28d82f44acc21bc
+      path: artifacts/consultation-contracts/nia-citizen-status-population.json
+      sha256: sha256:f83f5ef0df7ac345b3933cb1dab8ec9fac62ba6909a8a5c9a01d047ab3a8f3d5
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: nia-notary
+    principal_id: nia-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 1016450306001272100
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 6539803953464966811
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized population entity
+  entities: []
+  id: population
+  owner: solmara-nia-population
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: population:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_b7299cc6aaee7e5e75d15fdd92812bdf3e123983b1a2c90e6f11bb2030f60af0
+    materialization: snapshot
+    primary_key: uin
+    refresh:
+      mode: manual
+    schema:
+      fields:
+      - name: alive
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: identity_status
+        nullable: false
+        sensitive: false
+        type: string
+      - name: uin
+        nullable: false
+        sensitive: false
+        type: string
+      strict: true
+    source:
+      connection_env: SOLMARA_NIA_DATABASE_URL
+      table:
+        name: population_person
+        schema: public
+      type: postgres
+  title: population
+  update_frequency: as_needed
+deployment:
+  profile: local
+instance:
+  environment: local
+  id: nia-population-relay
+server:
+  bind: 127.0.0.1:8080
+standards: {}

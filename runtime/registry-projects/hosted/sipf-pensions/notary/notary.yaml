@@ -1,0 +1,141 @@
+audit:
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  api_keys:
+  - fingerprint:
+      name: SIPF_PENSION_CLIENT_TOKEN_HASH
+      provider: env
+    id: pension-review-desk
+    scopes:
+    - evidence:sipf:pension-payment:read
+    - evidence:sipf:survivor-benefit:read
+  mode: api_key
+deployment:
+  profile: hosted_lab
+evidence:
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/pension-payment-review
+  - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+  claims:
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        pension:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            payment_status:
+              max_bytes: 128
+              nullable: false
+              type: string
+          profile:
+            contract_hash: sha256:260cfd31c53f359c17c44323b5e5437189670cce6c71e961795031641c3cc9f8
+            id: solmara-sipf-pensions.sipf-pension-payment-review.pension
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: pension-payment-active
+    purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
+    required_scopes:
+    - evidence:sipf:pension-payment:read
+    rule:
+      bindings: {}
+      expression: pension.matched && pension.payment_status == 'active'
+      type: cel
+    subject_type: person
+    title: pension payment active
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - sipf-survivor-benefit.survivor-benefit-status
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        survivor:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            survivor_eligible:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:37bf62cc8667cc5d0075179ec2c4be97e7545026e3a0557e5acd1c89631969e2
+            id: solmara-sipf-pensions.sipf-survivor-benefit.survivor
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: survivor-is-eligible
+    purpose: https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+    required_scopes:
+    - evidence:sipf:survivor-benefit:read
+    rule:
+      bindings: {}
+      expression: survivor.matched && survivor.survivor_eligible == true
+      type: cel
+    subject_type: person
+    title: survivor is eligible
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  credential_profiles:
+    sipf-survivor-benefit.survivor-benefit-status:
+      allowed_claims:
+      - survivor-is-eligible
+      disclosure:
+        allowed:
+        - value
+        - predicate
+        - redacted
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:authority:sipf
+      signing_key: project-issuer
+      validity_seconds: 600
+      vct: https://id.registrystack.org/solmara/vct/survivor-benefit-status
+  enabled: true
+  max_credential_validity_seconds: 600
+  relay:
+    allow_insecure_localhost: false
+    allowed_private_cidrs: []
+    base_url: https://sipf-relay.solmara.registrystack.org
+    max_in_flight: 8
+    token_file: /run/secrets/sipf-notary-relay-token
+    workload_client_id: sipf-notary
+  service_id: sipf-notary
+  signing_keys:
+    project-issuer:
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:authority:sipf#issuer-key-1
+      private_jwk_env: SIPF_NOTARY_ISSUER_JWK
+      provider: local_jwk_env
+      status: active
+  variables: {}
+instance:
+  environment: hosted
+  id: sipf-notary
+server:
+  bind: 127.0.0.1:8081
+  request_timeout: 30s
+state:
+  postgresql:
+    connect_timeout_ms: 5000
+    max_connections: 16
+    operation_timeout_ms: 2000
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+  storage: postgresql

@@ -1,0 +1,146 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: true
+    allowed_clients:
+    - sipf-notary
+    audiences:
+    - registry-relay
+    issuer: http://127.0.0.1:8090
+    jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+catalog:
+  base_url: http://127.0.0.1:8080
+  publisher: solmara-sipf-pensions
+  title: solmara-sipf-pensions governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: conformance
+      path: artifacts/evidence/pension-case-by-survivor/conformance.json
+      sha256: sha256:036a62f001ad4028a5c732f10cbea5c09bbb8c42fdd2bdc40675942bf7fd990f
+    - class: minimization
+      path: artifacts/evidence/pension-case-by-survivor/minimization.json
+      sha256: sha256:1a5c2d191a2468a4898556ef0e1cc164847f8df69e86a09c8f4c73eb1c705e5f
+    - class: negative_security
+      path: artifacts/evidence/pension-case-by-survivor/negative-security.json
+      sha256: sha256:4ee198ac5719ce112ceb91f596e75dcbd933a8d6ceb0051910b876a3789147c7
+    - class: minimization
+      path: artifacts/evidence/pension-case-by-pensioner/minimization.json
+      sha256: sha256:7955c481459333ab942755b224be6da87f180ea87b3e6bb35e1b56ddcdab5660
+    - class: conformance
+      path: artifacts/evidence/pension-case-by-pensioner/conformance.json
+      sha256: sha256:835002ccbffb2a459808c4d2da2b7a631d7d6f0940c0aa73b0c7169cfb04299c
+    - class: negative_security
+      path: artifacts/evidence/pension-case-by-pensioner/negative-security.json
+      sha256: sha256:dd7bf51e1b1a639d515b9aad9e3b598aa7b4f54760b191a8c363e28abd4e8a2d
+    integration_packs:
+    - hash: sha256:2bbd5327759f179a1a80324c5b134f43f6339781138547b3bb61ed8d06ffcbda
+      path: artifacts/integration-packs/pension-case-by-pensioner.json
+      sha256: sha256:c2991a8c90ecfaad79f28d60801f0a2772b0851d44a6ddc09fdcb1cc16498750
+    - hash: sha256:4b59cd1e953bcddf378da658fefd38bc2483ca92bd186907e7423880582dd9b3
+      path: artifacts/integration-packs/pension-case-by-survivor.json
+      sha256: sha256:0e5d17671c4bb70f2de35ebd92dc7fc745fa96539c89aaecb823014ea570b0c0
+    private_bindings:
+    - hash: sha256:aa1a18785d33f5c3891c0a2edbf99265244949de66061f7a8c8f11ce928e25d2
+      path: artifacts/private-bindings/sipf-pension-payment-review-pension.json
+      sha256: sha256:4ed1741c3223f3758af0740d17959ecfb501cf69c6016bd8fed59b28a4c7e8e7
+    - hash: sha256:8c4a9799c2c173c8326c68b68784e51506f3f1df7c6172692888a0a54cf12244
+      path: artifacts/private-bindings/sipf-survivor-benefit-survivor.json
+      sha256: sha256:0405a1a8ead03181c63ec3a7c75165c9371668b1ac31f184ddb0e825eb6b406e
+    public_contracts:
+    - hash: sha256:260cfd31c53f359c17c44323b5e5437189670cce6c71e961795031641c3cc9f8
+      path: artifacts/consultation-contracts/sipf-pension-payment-review-pension.json
+      sha256: sha256:a878fb99e985404d12e6fd01d6bd23df84c1812f23b1d106f6c7d65f1c2f577a
+    - hash: sha256:37bf62cc8667cc5d0075179ec2c4be97e7545026e3a0557e5acd1c89631969e2
+      path: artifacts/consultation-contracts/sipf-survivor-benefit-survivor.json
+      sha256: sha256:78420b0136e52039d2da50b6080baefbf0ae402811b9006669fa46bfb83ed4d8
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: sipf-notary
+    principal_id: sipf-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 4444991830243562918
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 6117019989203477116
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized pension_cases entity
+  entities: []
+  id: pension_cases
+  owner: solmara-sipf-pensions
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: pension_cases:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_3ff728616b859327ab4c3e21fb80b19e9e6744081026b127b654c4b85aa81528
+    materialization: snapshot
+    primary_key: pension_case_id
+    refresh:
+      mode: manual
+    schema:
+      fields:
+      - name: payment_status
+        nullable: false
+        sensitive: false
+        type: string
+      - name: pension_case_id
+        nullable: false
+        sensitive: false
+        type: string
+      - name: pensioner_uin
+        nullable: false
+        sensitive: false
+        type: string
+      - name: spouse_uin
+        nullable: false
+        sensitive: false
+        type: string
+      - name: survivor_eligible
+        nullable: false
+        sensitive: false
+        type: boolean
+      strict: true
+    source:
+      format:
+        csv:
+          delimiter: null
+          header_row: 1
+          quote: null
+      path: /var/lib/solmara/ministries/labour-pensions/fixtures/pension_case.csv
+      type: file
+  title: pension_cases
+  update_frequency: as_needed
+deployment:
+  profile: local
+instance:
+  environment: local
+  id: sipf-pensions-relay
+server:
+  bind: 127.0.0.1:8080
+standards: {}

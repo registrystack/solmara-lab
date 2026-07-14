@@ -1,0 +1,136 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: false
+    allowed_clients:
+    - cra-notary
+    audiences:
+    - registry-relay
+    issuer: https://workload-issuer.solmara.registrystack.org
+    jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+catalog:
+  base_url: https://cra-relay.solmara.registrystack.org
+  publisher: solmara-cra-civil
+  title: solmara-cra-civil governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: negative_security
+      path: artifacts/evidence/civil-person-by-uin/negative-security.json
+      sha256: sha256:2613360dc2b35b1e02aa276bc52ff7ff35fc083dc4713d1036df405eb3523f0f
+    - class: minimization
+      path: artifacts/evidence/civil-person-by-uin/minimization.json
+      sha256: sha256:5fa0459553307e10c55a7613981afdc2a42c0ea02e2bb93fe76ad6f2d2fcd263
+    - class: conformance
+      path: artifacts/evidence/civil-person-by-uin/conformance.json
+      sha256: sha256:89240aa696a2d5ca7c9ecb82c97d2c0820cdda99e08e2c7a6231421e6ac8243f
+    integration_packs:
+    - hash: sha256:f4920ecf6f90431d38b7fcedc4fd300f4ebe519fa5ead9cc9bec3815c82242cd
+      path: artifacts/integration-packs/civil-person-by-uin.json
+      sha256: sha256:f40e80c4b2438f07c01708e3734c6fd19921d1a141c0422fae3dcd93de11444e
+    private_bindings:
+    - hash: sha256:dcb9aa071a4fff3e6e5e51da4399e9740fb6459b134673673de1b665ebaec61e
+      path: artifacts/private-bindings/cra-child-benefit-civil.json
+      sha256: sha256:a256b08677e23e6d4e048a8c48e606f55ffffb787624e0357a7d1dab27fe5613
+    - hash: sha256:d33798b7f9beeb80285e82eff6da78753951a1583073a0c15dc037c6e1f5b819
+      path: artifacts/private-bindings/cra-citizen-record-civil.json
+      sha256: sha256:2468dc0ae2fdcde84afec1cc713c1202d8180077400bc9f6f0d63c47386d10e8
+    - hash: sha256:1ec22e95d501dddccc8cb9a3fc2c2b501842f1c33ff10b28f7bf046e5f1d7686
+      path: artifacts/private-bindings/cra-pension-death-civil.json
+      sha256: sha256:a2e9a92245e2f1b8c0a7539ee3656719c367518fca19cbc57e42dd57a267b0bf
+    public_contracts:
+    - hash: sha256:15deae047b0016dcab07ce13a768a3da9f3838dca4a2efba6c55d750ae8bbc27
+      path: artifacts/consultation-contracts/cra-child-benefit-civil.json
+      sha256: sha256:54cc4be9c5b026c08aff19082bc166abef64eb8cd137f1485efe0f53dbe7828a
+    - hash: sha256:e8c93095948fe624ea881bcb0109705e058e411ff90e4b017e598ac88f7a4b97
+      path: artifacts/consultation-contracts/cra-citizen-record-civil.json
+      sha256: sha256:c724d43217804dc9575ffc3d78cf4386cede0c3354a9046be1d8b854bc175ecc
+    - hash: sha256:7c5b16a8695be8c34fe913452347252392fceb2c8da3a27cfe98ccb3b07a476b
+      path: artifacts/consultation-contracts/cra-pension-death-civil.json
+      sha256: sha256:923d56d38b66d40624728f1cf3bd322dfbbb8ea80c10ed202789fdabef1980d0
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: cra-notary
+    principal_id: cra-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 5222333210205388
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 3104283851243516304
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized civil_people entity
+  entities: []
+  id: civil_people
+  owner: solmara-cra-civil
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: civil_people:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_d590443b57a5a98a436f9a024384cd93f9ebb63da222090fc67770b067a6d68f
+    materialization: snapshot
+    primary_key: uin
+    refresh:
+      mode: manual
+    schema:
+      fields:
+      - name: birth_brn
+        nullable: true
+        sensitive: false
+        type: string
+      - name: birth_date
+        nullable: false
+        sensitive: false
+        type: date
+      - name: deceased
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: uin
+        nullable: false
+        sensitive: false
+        type: string
+      strict: true
+    source:
+      format:
+        csv:
+          delimiter: null
+          header_row: 1
+          quote: null
+      path: /var/lib/solmara/ministries/interior-civil/fixtures/civil_person_projection.csv
+      type: file
+  title: civil_people
+  update_frequency: as_needed
+deployment:
+  profile: hosted_lab
+instance:
+  environment: hosted
+  id: cra-civil-relay
+server:
+  bind: 127.0.0.1:8080
+standards: {}

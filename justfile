@@ -30,6 +30,14 @@ registry-projects-test:
 registry-projects-build environment="local":
     scripts/registry-projects.sh build {{environment}}
 
+# Refresh the committed runtime closure from all authored authority projects.
+registry-projects-sync:
+    scripts/registry-projects.sh sync-runtime
+
+# Prove the committed runtime closure matches the authored authority projects.
+registry-projects-runtime-check:
+    scripts/registry-projects.sh check-runtime
+
 # Generate only local secrets.
 gen-secrets:
     scripts/gen-secrets.py

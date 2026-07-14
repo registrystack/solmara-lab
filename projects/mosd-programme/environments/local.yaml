@@ -28,6 +28,10 @@ notary_relay:
   workload_client_id: programme-notary
   token_file: /run/secrets/programme-notary-relay-token
 
+relay_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+
 notary_state:
   postgresql:
     root_certificate_path: /etc/solmara/postgres/root.crt

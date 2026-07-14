@@ -1,0 +1,1 @@
+{"class":"minimization","integration":"solmara-sipf-pension-case-by-survivor","operations":{},"outputs":{"survivor_eligible":{"from":"snapshot.record.survivor_eligible","max_bytes":null,"maximum":null,"minimum":null,"nullable":false,"type":"boolean"}},"schema":"registry.project.integration-evidence.v1"}

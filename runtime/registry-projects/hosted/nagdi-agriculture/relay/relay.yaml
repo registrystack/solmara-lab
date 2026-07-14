@@ -1,0 +1,230 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: false
+    allowed_clients:
+    - nagdi-notary
+    audiences:
+    - registry-relay
+    issuer: https://workload-issuer.solmara.registrystack.org
+    jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+catalog:
+  base_url: https://nagdi-relay.solmara.registrystack.org
+  publisher: solmara-nagdi-agriculture
+  title: solmara-nagdi-agriculture governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: minimization
+      path: artifacts/evidence/livestock-movement-by-farmer/minimization.json
+      sha256: sha256:260f25e125f7e98d53c4daff92af0b92a6a3a3992f17914782cef9b2441356c5
+    - class: conformance
+      path: artifacts/evidence/livestock-movement-by-farmer/conformance.json
+      sha256: sha256:35117ed74d495cea90b696965796062183770f6f6481ffefc8924cae1031ea24
+    - class: conformance
+      path: artifacts/evidence/farmer-voucher-by-farmer/conformance.json
+      sha256: sha256:96bcc904223d22fb7bcbf27018dab660a1c0f5f58c7a08d53a6c1b43c6d9ca3f
+    - class: negative_security
+      path: artifacts/evidence/farmer-voucher-by-farmer/negative-security.json
+      sha256: sha256:aee98b658e32ced730958f390ab158801d7c0023420f476067aaf5a7e8d58e0d
+    - class: negative_security
+      path: artifacts/evidence/livestock-movement-by-farmer/negative-security.json
+      sha256: sha256:db2275b39b446020d10e7b729bf9d5c1c3e73651b5019f60809ef2af55d789ce
+    - class: minimization
+      path: artifacts/evidence/farmer-voucher-by-farmer/minimization.json
+      sha256: sha256:ff7da0d595c08d92a85ca406da498fb54b49046332466b28e8fd960912e9a32b
+    integration_packs:
+    - hash: sha256:11c8536f96c8ee6487c211b22ad6808969a50cae11c1defe4224031edacd31dc
+      path: artifacts/integration-packs/farmer-voucher-by-farmer.json
+      sha256: sha256:e5db33fd90a72478b892fb7bd20573cf46631b6c0b034c2d1c1241bae8d86071
+    - hash: sha256:0997815c7c98ffc7abfe5d012715cc04daafc2eea687ccc0e72590451df16655
+      path: artifacts/integration-packs/livestock-movement-by-farmer.json
+      sha256: sha256:b6236bae451a7ea0491832d5e5ddcd41576cd31c541e730be649b6d71d361f8e
+    private_bindings:
+    - hash: sha256:b953a67a7d09bb05cc7fe2c9fc3d485157e1d4ad34e97ea2dc9696427dba3ccb
+      path: artifacts/private-bindings/livestock-herd.json
+      sha256: sha256:015c146d47365372b478108372a919ed69960d5ab96e3c6c4f39047e8a6ad995
+    - hash: sha256:436ceb447bd6c4520fe58711f287513f67cae90b0046a6f494783e16ea54d799
+      path: artifacts/private-bindings/voucher-farmer.json
+      sha256: sha256:e1ec8cc4b2787baf074f7a9f5b138604aa35152a8efa501cc42565163e3e2914
+    public_contracts:
+    - hash: sha256:050322b9632a8055c7e55b228696b74d389149bca9f50988ac9725ff507bb3c7
+      path: artifacts/consultation-contracts/livestock-herd.json
+      sha256: sha256:66dd9860c26057fc8de33d8f42b5a34db43cec3ab397f53ab7174c1be8f04db8
+    - hash: sha256:45a344b5d1d0dee6dbcb2e083e8665993da321ea72d119375c1705bf60f31fc1
+      path: artifacts/consultation-contracts/voucher-farmer.json
+      sha256: sha256:b500decda43f529f37d57ce7749a5b1afac0e3d3ef745972393da5f95f69796a
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: nagdi-notary
+    principal_id: nagdi-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 4554467022379962639
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 7450858971948805253
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized nagdi_farmer entity
+  entities: []
+  id: nagdi_farmer
+  owner: solmara-nagdi-agriculture
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: nagdi_farmer:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_6a9462e5df105fc016c2a0a0d362cc88f18a70ec4e647a77631f7e7e27372b1d
+    materialization: snapshot
+    primary_key: farmer_id
+    refresh:
+      mode: manual
+    schema:
+      fields:
+      - name: active_farm_parcel
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: active_smallholder_farmer
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: crop_declared_for_season
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: data_use_authorized
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: district_climate_risk_active
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: farmer_id
+        nullable: false
+        sensitive: false
+        type: string
+      - name: farmer_registered
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: voucher_entitlement_current
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: voucher_not_redeemed
+        nullable: false
+        sensitive: false
+        type: boolean
+      strict: true
+    source:
+      format:
+        csv:
+          delimiter: null
+          header_row: 1
+          quote: null
+      path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/farmer_voucher.csv
+      type: file
+  title: nagdi_farmer
+  update_frequency: as_needed
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized nagdi_herd entity
+  entities: []
+  id: nagdi_herd
+  owner: solmara-nagdi-agriculture
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: nagdi_herd:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_f0e0d1550411df1d67ce70776964315077f5618b81ed933c0ebede74cffe78b5
+    materialization: snapshot
+    primary_key: herd_id
+    refresh:
+      mode: manual
+    schema:
+      fields:
+      - name: destination_district_open
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: farmer_id
+        nullable: false
+        sensitive: false
+        type: string
+      - name: herd_id
+        nullable: false
+        sensitive: false
+        type: string
+      - name: herd_vaccination_current
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: no_conflicting_open_movement_permit
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: origin_district_not_quarantined_for_species
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: registered_herd
+        nullable: false
+        sensitive: false
+        type: boolean
+      strict: true
+    source:
+      format:
+        csv:
+          delimiter: null
+          header_row: 1
+          quote: null
+      path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/livestock_movement.csv
+      type: file
+  title: nagdi_herd
+  update_frequency: as_needed
+deployment:
+  profile: hosted_lab
+instance:
+  environment: hosted
+  id: nagdi-agriculture-relay
+server:
+  bind: 127.0.0.1:8080
+standards: {}

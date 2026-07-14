@@ -1,0 +1,1 @@
+{"class":"minimization","integration":"child-benefit-household-by-uin","operations":{},"outputs":{"poverty_band":{"from":"snapshot.record.poverty_band","max_bytes":64,"maximum":null,"minimum":null,"nullable":false,"type":"string"}},"schema":"registry.project.integration-evidence.v1"}

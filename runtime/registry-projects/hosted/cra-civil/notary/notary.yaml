@@ -1,0 +1,237 @@
+audit:
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  api_keys:
+  - fingerprint:
+      name: CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH
+      provider: env
+    id: child-benefit-federator
+    scopes:
+    - evidence:cra:child-benefit:read
+  - fingerprint:
+      name: CRA_CITIZEN_CLIENT_TOKEN_HASH
+      provider: env
+    id: citizen-portal
+    scopes:
+    - evidence:cra:citizen:read
+  - fingerprint:
+      name: CRA_PENSION_CLIENT_TOKEN_HASH
+      provider: env
+    id: pension-review-desk
+    scopes:
+    - evidence:cra:pension:read
+  mode: api_key
+deployment:
+  profile: hosted_lab
+evidence:
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service
+  - https://id.registrystack.org/solmara/purpose/pension-payment-review
+  claims:
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        civil:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            birth_brn:
+              max_bytes: 128
+              nullable: true
+              type: string
+            birth_date:
+              nullable: false
+              type: date
+            deceased:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:15deae047b0016dcab07ce13a768a3da9f3838dca4a2efba6c55d750ae8bbc27
+            id: solmara-cra-civil.cra-child-benefit.civil
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: birth-is-registered
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    required_scopes:
+    - evidence:cra:child-benefit:read
+    rule:
+      bindings: {}
+      expression: 'civil.matched && civil.birth_brn != null ? civil.birth_brn != '''' : false'
+      type: cel
+    subject_type: person
+    title: birth is registered
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        civil:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            birth_brn:
+              max_bytes: 128
+              nullable: true
+              type: string
+            birth_date:
+              nullable: false
+              type: date
+            deceased:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:15deae047b0016dcab07ce13a768a3da9f3838dca4a2efba6c55d750ae8bbc27
+            id: solmara-cra-civil.cra-child-benefit.civil
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: child-age-under-5
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    required_scopes:
+    - evidence:cra:child-benefit:read
+    rule:
+      bindings: {}
+      expression: |-
+        civil.matched && civil.birth_date != null && civil.deceased == false
+          ? date.age_on(civil.birth_date, as_of_date) >= 0
+            && date.age_on(civil.birth_date, as_of_date) < 5
+          : false
+      type: cel
+    subject_type: person
+    title: child age under 5
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        civil:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            birth_brn:
+              max_bytes: 128
+              nullable: true
+              type: string
+            birth_date:
+              nullable: false
+              type: date
+            deceased:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:e8c93095948fe624ea881bcb0109705e058e411ff90e4b017e598ac88f7a4b97
+            id: solmara-cra-civil.cra-citizen-record.civil
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: civil-record-linked
+    purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service
+    required_scopes:
+    - evidence:cra:citizen:read
+    rule:
+      bindings: {}
+      expression: civil.matched
+      type: cel
+    subject_type: person
+    title: civil record linked
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        civil:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            birth_brn:
+              max_bytes: 128
+              nullable: true
+              type: string
+            birth_date:
+              nullable: false
+              type: date
+            deceased:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:7c5b16a8695be8c34fe913452347252392fceb2c8da3a27cfe98ccb3b07a476b
+            id: solmara-cra-civil.cra-pension-death.civil
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: person-is-deceased
+    purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
+    required_scopes:
+    - evidence:cra:pension:read
+    rule:
+      bindings: {}
+      expression: civil.matched && civil.deceased == true
+      type: cel
+    subject_type: person
+    title: person is deceased
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  credential_profiles: {}
+  enabled: true
+  max_credential_validity_seconds: 600
+  relay:
+    allow_insecure_localhost: false
+    allowed_private_cidrs: []
+    base_url: https://cra-relay.solmara.registrystack.org
+    max_in_flight: 8
+    token_file: /run/secrets/cra-notary-relay-token
+    workload_client_id: cra-notary
+  service_id: cra-notary
+  variables:
+    as_of_date:
+      from: request.variables.as_of_date
+      type: date
+instance:
+  environment: hosted
+  id: cra-notary
+server:
+  bind: 127.0.0.1:8081
+  request_timeout: 30s
+state:
+  postgresql:
+    connect_timeout_ms: 5000
+    max_connections: 16
+    operation_timeout_ms: 2000
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+  storage: postgresql

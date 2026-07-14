@@ -1,0 +1,116 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: false
+    allowed_clients:
+    - sro-notary
+    audiences:
+    - registry-relay
+    issuer: https://workload-issuer.solmara.registrystack.org
+    jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+catalog:
+  base_url: https://sro-relay.solmara.registrystack.org
+  publisher: solmara-sro-social
+  title: solmara-sro-social governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: negative_security
+      path: artifacts/evidence/child-benefit-household-by-uin/negative-security.json
+      sha256: sha256:2862a52ca5baefa27db4330b1e8aaf5287c338be2e4733c10695528cd11c0b95
+    - class: minimization
+      path: artifacts/evidence/child-benefit-household-by-uin/minimization.json
+      sha256: sha256:7992e9674748854ae462ff87d054ab88e00aa5671c04de3b11c4863194fdbdd0
+    - class: conformance
+      path: artifacts/evidence/child-benefit-household-by-uin/conformance.json
+      sha256: sha256:d89eed72dc7259ad5e645543668896ef781314bd8d56b3bcd36d3622688b5f24
+    integration_packs:
+    - hash: sha256:45061b130799a47e6b4081f0bcb28bb2d9e9e9cdd73a0c1bc176c045425efb1c
+      path: artifacts/integration-packs/child-benefit-household-by-uin.json
+      sha256: sha256:37e318640dfa27a08d743cd4ff429a9af319c703660bebebb1e671eb1f8e1974
+    private_bindings:
+    - hash: sha256:24229821d890f655c1da51c7a2033db699d33c068b466ddaf1f90aacff1e2f02
+      path: artifacts/private-bindings/child-benefit-household.json
+      sha256: sha256:8bdecc1e0f315ccdbe8b9f167d4a3241cf8449e208d53bcdb7fca2e7470047a4
+    public_contracts:
+    - hash: sha256:54384aca4313fb9495e7d62713790e787c7c6ac9c5aedfaabf18489c22775fbe
+      path: artifacts/consultation-contracts/child-benefit-household.json
+      sha256: sha256:ef2382897f1ca95d6ca37084de3c0ee3d0b4e11985567cf2392123321d18ecb0
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: sro-notary
+    principal_id: sro-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 368637434756268187
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 2694379094216255332
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      mode: manual
+  description: Materialized sro_child entity
+  entities: []
+  id: sro_child
+  owner: solmara-sro-social
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: sro_child:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_f7f319f45c6e5c29a337739c8af0b2b289ea25fe34bbf854daac8c3fb9e0edfc
+    materialization: snapshot
+    primary_key: uin
+    refresh:
+      mode: manual
+    schema:
+      fields:
+      - name: poverty_band
+        nullable: false
+        sensitive: false
+        type: string
+      - name: uin
+        nullable: false
+        sensitive: false
+        type: string
+      strict: true
+    source:
+      format:
+        csv:
+          delimiter: null
+          header_row: 1
+          quote: null
+      path: /var/lib/solmara/ministries/social-development/fixtures/child_benefit_household.csv
+      type: file
+  title: sro_child
+  update_frequency: as_needed
+deployment:
+  profile: hosted_lab
+instance:
+  environment: hosted
+  id: sro-social-relay
+server:
+  bind: 127.0.0.1:8080
+standards: {}

@@ -1,0 +1,81 @@
+audit:
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  api_keys:
+  - fingerprint:
+      name: SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH
+      provider: env
+    id: child-benefit-federator
+    scopes:
+    - sro_social:evidence_verification
+  mode: api_key
+deployment:
+  profile: hosted_lab
+evidence:
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  claims:
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        household:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            poverty_band:
+              max_bytes: 64
+              nullable: false
+              type: string
+          profile:
+            contract_hash: sha256:54384aca4313fb9495e7d62713790e787c7c6ac9c5aedfaabf18489c22775fbe
+            id: solmara-sro-social.child-benefit.household
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: household-below-poverty-threshold
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    required_scopes:
+    - sro_social:evidence_verification
+    rule:
+      bindings: {}
+      expression: household.matched && household.poverty_band == "priority"
+      type: cel
+    subject_type: person
+    title: household below poverty threshold
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  credential_profiles: {}
+  enabled: true
+  max_credential_validity_seconds: 600
+  relay:
+    allow_insecure_localhost: false
+    allowed_private_cidrs: []
+    base_url: https://sro-relay.solmara.registrystack.org
+    max_in_flight: 8
+    token_file: /run/secrets/sro-notary-relay-token
+    workload_client_id: sro-notary
+  service_id: sro-notary
+  variables: {}
+instance:
+  environment: hosted
+  id: sro-notary
+server:
+  bind: 127.0.0.1:8081
+  request_timeout: 30s
+state:
+  postgresql:
+    connect_timeout_ms: 5000
+    max_connections: 16
+    operation_timeout_ms: 2000
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+  storage: postgresql
