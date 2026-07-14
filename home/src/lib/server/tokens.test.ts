@@ -3,8 +3,8 @@ import { buildCurlExamples, parsePublishedTokens, publishRequestTokens } from '.
 
 describe('published-token allowlist', () => {
   it('renders only the tokens named in the allowlist JSON', () => {
-    const tokens = parsePublishedTokens('{"child-benefit-federator":"tok-child","pension-notary":"tok-pension"}');
-    expect(tokens.map((token) => token.name)).toEqual(['child-benefit-federator', 'pension-notary']);
+    const tokens = parsePublishedTokens('{"child-benefit-federator":"tok-child","sipf-pension-client":"tok-pension"}');
+    expect(tokens.map((token) => token.name)).toEqual(['child-benefit-federator', 'sipf-pension-client']);
     expect(tokens.map((token) => token.token)).toEqual(['tok-child', 'tok-pension']);
   });
 
@@ -66,7 +66,7 @@ describe('published-token allowlist', () => {
         },
         credential_source: {
           method: 'POST',
-          url: 'http://pension-notary:8080/v1/credentials',
+          url: 'http://sipf-notary:8081/v1/credentials',
           headers: { 'x-api-key': '[runtime token hidden]' }
         }
       },
@@ -77,7 +77,7 @@ describe('published-token allowlist', () => {
     expect(result.credential_source.headers['x-api-key']).toBe('[runtime token hidden]');
   });
 
-  it('can match an allowlisted token from purpose when the URL is generic', () => {
+  it('does not publish a token from purpose alone when the authority URL is unknown', () => {
     const tokens = parsePublishedTokens('{"nagdi-notary":"tok-nagdi"}');
     const result = publishRequestTokens(
       {
@@ -93,6 +93,113 @@ describe('published-token allowlist', () => {
       tokens
     );
 
-    expect(result.request_source.headers['x-api-key']).toBe('tok-nagdi');
+    expect(result.request_source.headers['x-api-key']).toBe('[runtime token hidden]');
+  });
+
+  it('does not guess between authority clients when purpose or URL binding is incomplete', () => {
+    const tokens = parsePublishedTokens(
+      '{"cra-pension-client":"tok-cra-pension","cra-citizen-client":"tok-cra-citizen","nia-citizen-client":"tok-nia-citizen","sipf-pension-client":"tok-sipf-pension"}'
+    );
+    const result = publishRequestTokens(
+      {
+        request_sources: [
+          {
+            method: 'POST',
+            url: 'https://unmapped.example/v1/evaluations',
+            headers: {
+              'x-api-key': '[runtime token hidden]',
+              'Data-Purpose': 'https://id.registrystack.org/solmara/purpose/pension-payment-review'
+            }
+          },
+          {
+            method: 'POST',
+            url: 'http://cra-notary:8081/v1/evaluations',
+            headers: { 'x-api-key': '[runtime token hidden]' }
+          }
+        ]
+      },
+      tokens
+    );
+
+    expect(result.request_sources[0].headers['x-api-key']).toBe('[runtime token hidden]');
+    expect(result.request_sources[1].headers['x-api-key']).toBe('[runtime token hidden]');
+  });
+
+  it('does not publish a purpose token to a different known authority endpoint', () => {
+    const tokens = parsePublishedTokens('{"child-benefit-federator":"tok-child"}');
+    const result = publishRequestTokens(
+      {
+        request_source: {
+          method: 'POST',
+          url: 'http://cra-notary:8081/v1/evaluations',
+          headers: {
+            'x-api-key': '[runtime token hidden]',
+            'Data-Purpose': 'https://id.registrystack.org/solmara/purpose/child-benefit-review'
+          }
+        }
+      },
+      tokens
+    );
+
+    expect(result.request_source.headers['x-api-key']).toBe('[runtime token hidden]');
+  });
+
+  it('publishes authority client tokens by both Notary URL and purpose', () => {
+    const tokens = parsePublishedTokens(
+      JSON.stringify({
+        'cra-pension-client': 'tok-cra-pension',
+        'cra-citizen-client': 'tok-cra-citizen',
+        'nia-citizen-client': 'tok-nia-citizen',
+        'sipf-pension-client': 'tok-sipf-pension'
+      })
+    );
+    const result = publishRequestTokens(
+      {
+        request_sources: [
+          {
+            method: 'POST',
+            url: 'http://cra-notary:8081/v1/evaluations',
+            headers: {
+              'x-api-key': '[runtime token hidden]',
+              'Data-Purpose': 'https://id.registrystack.org/solmara/purpose/pension-payment-review'
+            }
+          },
+          {
+            method: 'POST',
+            url: 'http://nia-notary:8081/v1/evaluations',
+            headers: {
+              'x-api-key': '[runtime token hidden]',
+              'Data-Purpose': 'https://id.registrystack.org/solmara/purpose/citizen-self-service'
+            }
+          }
+        ],
+        credential_source: {
+          method: 'POST',
+          url: 'http://sipf-notary:8081/v1/credentials',
+          headers: {
+            'x-api-key': '[runtime token hidden]',
+            'data-purpose': 'https://id.registrystack.org/solmara/purpose/survivor-benefit-determination'
+          }
+        },
+        source_trace: [
+          {
+            request_source: {
+              method: 'POST',
+              url: 'http://cra-notary:8081/v1/evaluations',
+              headers: {
+                'x-api-key': '[runtime token hidden]',
+                'Data-Purpose': 'https://id.registrystack.org/solmara/purpose/citizen-self-service'
+              }
+            }
+          }
+        ]
+      },
+      tokens
+    );
+
+    expect(result.request_sources[0].headers['x-api-key']).toBe('tok-cra-pension');
+    expect(result.request_sources[1].headers['x-api-key']).toBe('tok-nia-citizen');
+    expect(result.credential_source.headers['x-api-key']).toBe('tok-sipf-pension');
+    expect(result.source_trace[0].request_source.headers['x-api-key']).toBe('tok-cra-citizen');
   });
 });

@@ -7,7 +7,7 @@
 
 <svelte:head>
   <title>Anatomy · Solmara Visitor's Center</title>
-  <meta name="description" content="What an institution actually runs: one Relay per authority, source-owned Notaries, federators, and the entire config for each ministry linked in the repo." />
+  <meta name="description" content="What an institution actually runs: one Relay and one Notary per authority, application evidence collection, and the entire config for each ministry linked in the repo." />
 </svelte:head>
 
 <main class="page-band reference-page">

@@ -36,7 +36,7 @@
 
   $: credential = credentialResult(results, scenario);
   $: accountability = accountabilityResult(results, scenario);
-  $: federation = accountability?.federation_trace?.length ? accountability : null;
+  $: applicationEvidence = isCollectedApplicationEvidence(accountability) ? accountability : null;
 
   async function run(step: ScenarioStep): Promise<void> {
     runningStep = step.id;
@@ -93,18 +93,23 @@
     return value.length > head * 2 ? `${value.slice(0, head)}…${value.slice(-8)}` : value;
   }
 
-  function federatorField(result: StepRunResult, field: 'service_id' | 'decision'): string {
+  function orchestrationField(result: StepRunResult, field: 'service_id' | 'decision'): string {
     const body = result.response_source.body;
     if (!body || typeof body !== 'object') return 'Not reported';
-    const federator = (body as { federator?: unknown }).federator;
-    if (!federator || typeof federator !== 'object') return 'Not reported';
-    const value = (federator as Record<string, unknown>)[field];
+    const orchestration = (body as { orchestration?: unknown }).orchestration;
+    if (!orchestration || typeof orchestration !== 'object') return 'Not reported';
+    const value = (orchestration as Record<string, unknown>)[field];
     return typeof value === 'string' && value ? value : 'Not reported';
   }
 
-  function sourceNotaryCount(result: StepRunResult): number {
-    const serviceIds = (result.federation_trace ?? [])
-      .map((peer) => peer.service_id)
+  function isCollectedApplicationEvidence(result: StepRunResult | null): result is StepRunResult {
+    if (!result?.source_trace?.length) return false;
+    return orchestrationField(result, 'service_id') === 'child-benefit-federator';
+  }
+
+  function sourceAuthorityCount(result: StepRunResult): number {
+    const serviceIds = (result.source_trace ?? [])
+      .map((source) => source.service_id)
       .filter((serviceId): serviceId is string => typeof serviceId === 'string' && serviceId.length > 0);
     return new Set(serviceIds).size;
   }
@@ -200,18 +205,25 @@
                     <h4>Response (HTTP {responseStatus(result) ?? 'none'})</h4>
                     <pre>{JSON.stringify(result.response_source, null, 2)}</pre>
                   </div>
-                  {#if result.federation_trace?.length}
+                  {#if result.source_trace?.length}
                     <div class="drawer-block">
-                      <h4>Federated peer calls</h4>
+                      <h4>Source authority evidence</h4>
                       <div class="peer-trace">
-                        {#each result.federation_trace as peer}
+                        {#each result.source_trace as source}
                           <div class="peer-call">
-                            <h5>{peer.authority ?? peer.service_id ?? 'Source Notary'} <code>{peer.claim_id ?? peer.profile ?? 'claim'}</code></h5>
-                            {#if peer.request_source}
-                              <pre>{sourceBlock(peer.request_source)}</pre>
+                            <h5>
+                              {source.authority ?? source.service_id ?? 'Source authority'}
+                              <code>{source.claims?.join(', ') ?? source.claim_id ?? source.profile ?? 'evidence'}</code>
+                            </h5>
+                            {#if source.request_source}
+                              <pre>{sourceBlock(source.request_source)}</pre>
+                            {:else if source.request_summary}
+                              <pre>{JSON.stringify(source.request_summary, null, 2)}</pre>
                             {/if}
-                            {#if peer.response_source}
-                              <pre>{JSON.stringify(peer.response_source, null, 2)}</pre>
+                            {#if source.response_source}
+                              <pre>{JSON.stringify(source.response_source, null, 2)}</pre>
+                            {:else if source.response_summary}
+                              <pre>{JSON.stringify(source.response_summary, null, 2)}</pre>
                             {/if}
                           </div>
                         {/each}
@@ -229,27 +241,27 @@
 
   <section class="page-band credential-moment" id="credential">
     <div class="content">
-      <p class="eyebrow">{federation ? 'Federation bundle' : 'Credential moment'}</p>
-      <h2>{federation ? 'The programme receives source-owned predicates' : 'The caseworker now holds a real credential'}</h2>
-      {#if federation}
+      <p class="eyebrow">{applicationEvidence ? 'Application evidence' : 'Credential moment'}</p>
+      <h2>{applicationEvidence ? 'The programme receives source-owned predicates' : 'The caseworker now holds a real credential'}</h2>
+      {#if applicationEvidence}
         <div class="inspector">
-          <p><span>Status</span><strong class="issued">Bundle returned</strong></p>
-          <p><span>Federator</span>{federatorField(federation, 'service_id')}</p>
-          <p><span>Source Notaries</span>{sourceNotaryCount(federation)}</p>
-          <p><span>Decision</span>{federatorField(federation, 'decision')}</p>
+          <p><span>Status</span><strong class="issued">Evidence returned</strong></p>
+          <p><span>Collector</span>{orchestrationField(applicationEvidence, 'service_id')}</p>
+          <p><span>Source authorities</span>{sourceAuthorityCount(applicationEvidence)}</p>
+          <p><span>Decision</span>{orchestrationField(applicationEvidence, 'decision')}</p>
         </div>
         <div class="disclosure-grid">
           <div>
             <h4>Disclosed to the programme</h4>
             <ul class="claim-list">
-              {#each claimResults(federation) as claim}
+              {#each claimResults(applicationEvidence) as claim}
                 <li><code>{claim.id}</code> {claim.satisfied === true ? 'met' : claim.satisfied === false ? 'not met' : ''}</li>
               {/each}
             </ul>
           </div>
           <div>
             <h4>Held back</h4>
-            <p>Raw register rows and the final eligibility decision stay outside the federation layer.</p>
+            <p>Raw register rows stay with each authority, and the programme keeps ownership of its final eligibility decision.</p>
           </div>
         </div>
       {:else if credential?.credential}
@@ -288,7 +300,7 @@
           </p>
         {/if}
       {:else}
-        <p class="inspector-empty">Run the evaluation above to inspect the resulting credential or federation bundle.</p>
+        <p class="inspector-empty">Run the evaluation above to inspect the resulting credential or application evidence.</p>
       {/if}
     </div>
   </section>
@@ -296,7 +308,7 @@
   <section class="page-band accountability" id="accountability">
     <div class="content">
       <p class="eyebrow">Accountability</p>
-      <h2>{federation ? 'What the federation trace recorded about this access' : 'What the Notary recorded about this access'}</h2>
+      <h2>{applicationEvidence ? 'What the source trace recorded about this access' : 'What the Notary recorded about this access'}</h2>
       {#if accountability}
         {@const first = claimResults(accountability)[0]?.raw ?? {}}
         <div class="provenance">

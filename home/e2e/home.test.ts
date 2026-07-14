@@ -161,11 +161,11 @@ test('story page: stepper runs an evaluate step and a purpose-denial step with a
   await page.locator('#positive').getByRole('button', { name: 'Evaluate' }).click();
   await expect(page.locator('#positive .step-result')).toBeVisible({ timeout: 30_000 });
 
-  // The former credential moment now shows the federation bundle. The federator
-  // gathers source-owned predicates, but does not compose eligible-for-child-benefit.
-  await expect(page.locator('#credential .inspector')).toContainText('Bundle returned', { timeout: 30_000 });
+  // The former credential moment now shows ordinary application evidence. The
+  // collector gathers source-owned predicates, but does not compose eligibility.
+  await expect(page.locator('#credential .inspector')).toContainText('Evidence returned', { timeout: 30_000 });
   await expect(page.locator('#credential .inspector')).toContainText('child-benefit-federator');
-  await expect(page.locator('#credential .inspector')).toContainText('Source Notaries4');
+  await expect(page.locator('#credential .inspector')).toContainText('Source authorities4');
   await expect(page.locator('#credential .inspector')).toContainText('not_composed');
 
   // The purpose-denial step is first-class and renders the stable problem code linked to /problem-codes.
