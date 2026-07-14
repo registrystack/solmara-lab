@@ -17,6 +17,7 @@ RUN uv export --frozen --no-dev --no-hashes -o requirements.txt \
 
 COPY scenarios ./scenarios
 COPY scenario-runner ./scenario-runner
+COPY scripts/relay_workload_identity_agent.py ./scripts/relay_workload_identity_agent.py
 
 EXPOSE 8080
 CMD ["python", "scenario-runner/server.py"]
