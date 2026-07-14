@@ -7,9 +7,7 @@ x-relay-environment: &relay-environment
 x-notary-environment: &notary-environment
   RUST_LOG: ${RUST_LOG:-info}
   REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
-  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
-  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
-  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+  REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
   image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
@@ -38,8 +36,6 @@ x-notary-common: &notary-common
   depends_on:
     volume-permissions:
       condition: service_healthy
-    redis:
-      condition: service_healthy
 
 services:
   volume-permissions:
@@ -59,14 +55,44 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: ${REDIS_IMAGE:-redis:7.4-alpine}
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+  postgres:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
+    environment: &postgres-environment
+      POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
+      POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
+      SOLMARA_NOTARY_DATABASES: pension
+      PENSION_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${PENSION_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      PENSION_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${PENSION_NOTARY_POSTGRES_RUNTIME_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
+
+  notary-postgresql-bootstrap:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    restart: "no"
+    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/010-init-notary-postgresql.sh"]
+    environment:
+      <<: *postgres-environment
+      PGHOST: postgres
+      PGPASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      PGSSLMODE: require
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   sipf-pensions-relay:
     <<: *relay-common
@@ -85,8 +111,9 @@ services:
   pension-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/pension.yaml"]
-    environment:
+    environment: &pension-notary-environment
       <<: *notary-environment
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_pension_runtime:${PENSION_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_pension?sslmode=require"
       PENSION_CLIENT_TOKEN_HASH: ${PENSION_CLIENT_TOKEN_HASH}
       PENSION_NOTARY_ISSUER_JWK: ${PENSION_NOTARY_ISSUER_JWK}
       CRA_PENSION_SOURCE_RAW: ${CRA_PENSION_SOURCE_RAW}
@@ -95,10 +122,28 @@ services:
       PROGRAMME_PENSION_SOURCE_RAW: ${PROGRAMME_PENSION_SOURCE_RAW}
     volumes:
       - pension-notary-state:/var/lib/registry-notary/config-state
+    depends_on:
+      volume-permissions:
+        condition: service_healthy
+      pension-notary-state-install:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: pension-notary.solmara.registrystack.org
 
+  pension-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/registry-notary/pension.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_pension_owner", "--runtime-role", "solmara_notary_pension_runtime"]
+    environment:
+      <<: *pension-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_pension_migrator:${PENSION_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_pension?sslmode=require"
+    depends_on:
+      notary-postgresql-bootstrap:
+        condition: service_completed_successfully
+
 volumes:
+  postgres-data:
   sipf-pensions-cache:
   sipf-pensions-audit:
   pension-notary-state:

@@ -81,10 +81,11 @@ assets. Because that release publishes amd64 images, Compose defaults
 `REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when the release
 publishes an image for another platform.
 
-The NIA population Relay is intentionally Postgres-backed. `just gen-secrets`
-also creates local Postgres TLS material under `config/postgres/ssl/`, and the
-generated NIA connection string includes `sslmode=require`, matching Registry
-Stack `v0.8.4` Relay requirements.
+The NIA population Relay and all Notary correctness state are PostgreSQL-backed.
+`just gen-secrets` creates local PostgreSQL TLS material, separate runtime and
+migrator passwords for every logical Notary, and the citizen issuer sensitive
+state key. See [`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md)
+for the database map, diagnosis, backup, recovery, and upgrade workflow.
 
 ## Hosted Deployment
 
@@ -95,14 +96,17 @@ file per pseudo-government authority:
 - `compose.coolify.yaml` for the Visitor Center, portal, scenario runner, and
   static metadata, including the non-composing child-benefit federator.
 - `compose.coolify.interior.yaml` for CRA, NIA, their two source-owned
-  child-benefit Notaries, and the NIA Postgres store.
+  child-benefit Notaries, and their PostgreSQL databases.
 - `compose.coolify.esignet.yaml` for eSignet, eSignet UI, and its backing
   Postgres/Redis/seed services.
 - `compose.coolify.social-development.yaml` for SRO, MoSD programme MIS, and
-  their two source-owned child-benefit Notaries.
-- `compose.coolify.labour-pensions.yaml` for SIPF and the pension notary.
-- `compose.coolify.agriculture.yaml` for NAgDI and the agriculture notary.
-- `compose.coolify.citizen-services.yaml` for the citizen services notary.
+  their two source-owned child-benefit Notaries and PostgreSQL databases.
+- `compose.coolify.labour-pensions.yaml` for SIPF, the pension Notary, and its
+  PostgreSQL database.
+- `compose.coolify.agriculture.yaml` for NAgDI, its Notary, and its PostgreSQL
+  database.
+- `compose.coolify.citizen-services.yaml` for the citizen services and OID4VCI
+  issuer Notaries with independent PostgreSQL databases.
 
 The hosted compose files remove host port bindings and avoid repo bind mounts
 because Coolify does not seed bind-mount sources from the Git checkout. They do

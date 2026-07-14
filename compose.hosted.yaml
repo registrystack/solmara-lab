@@ -2,9 +2,6 @@ services:
   postgres:
     ports: !reset []
 
-  redis:
-    ports: !reset []
-
   static-metadata:
     ports: !reset []
     labels:

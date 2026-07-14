@@ -2,3 +2,4 @@ ARG REGISTRY_NOTARY_IMAGE=ghcr.io/registrystack/registry-notary@sha256:0cf051848
 FROM ${REGISTRY_NOTARY_IMAGE}
 
 COPY hosted/notaries /etc/registry-notary
+COPY config/postgres/ssl/server.crt /etc/solmara/postgres/root.crt

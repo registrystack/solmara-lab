@@ -7,9 +7,7 @@ x-relay-environment: &relay-environment
 x-notary-environment: &notary-environment
   RUST_LOG: ${RUST_LOG:-info}
   REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
-  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
-  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
-  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+  REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
   image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
@@ -38,8 +36,6 @@ x-notary-common: &notary-common
   depends_on:
     volume-permissions:
       condition: service_healthy
-    redis:
-      condition: service_healthy
 
 services:
   volume-permissions:
@@ -62,15 +58,6 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: ${REDIS_IMAGE:-redis:7.4-alpine}
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
   postgres:
     image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
     entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
@@ -82,10 +69,15 @@ services:
       - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
       - -c
       - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
-    environment:
+    environment: &postgres-environment
       POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
       POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
       POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
+      SOLMARA_NOTARY_DATABASES: civil_child_benefit nia_child_benefit
+      CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD}
+      NIA_CHILD_BENEFIT_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${NIA_CHILD_BENEFIT_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      NIA_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${NIA_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -93,6 +85,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  notary-postgresql-bootstrap:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    restart: "no"
+    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/010-init-notary-postgresql.sh"]
+    environment:
+      <<: *postgres-environment
+      PGHOST: postgres
+      PGPASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      PGSSLMODE: require
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   cra-civil-relay:
     <<: *relay-common
@@ -135,8 +140,9 @@ services:
   civil-child-benefit-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/child-benefit-civil.yaml"]
-    environment:
+    environment: &civil-child-benefit-notary-environment
       <<: *notary-environment
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_civil_child_benefit_runtime:${CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_civil_child_benefit?sslmode=require"
       CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
       CRA_CHILD_BENEFIT_SOURCE_RAW: ${CRA_CHILD_BENEFIT_SOURCE_RAW}
       CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
@@ -146,18 +152,31 @@ services:
     depends_on:
       volume-permissions:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       cra-civil-relay:
         condition: service_healthy
+      civil-child-benefit-notary-state-install:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: civil-child-benefit-notary.solmara.registrystack.org
+
+  civil-child-benefit-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/registry-notary/child-benefit-civil.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_civil_child_benefit_owner", "--runtime-role", "solmara_notary_civil_child_benefit_runtime"]
+    environment:
+      <<: *civil-child-benefit-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_civil_child_benefit_migrator:${CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_civil_child_benefit?sslmode=require"
+    depends_on:
+      notary-postgresql-bootstrap:
+        condition: service_completed_successfully
 
   nia-child-benefit-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/child-benefit-population.yaml"]
-    environment:
+    environment: &nia-child-benefit-notary-environment
       <<: *notary-environment
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_nia_child_benefit_runtime:${NIA_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_nia_child_benefit?sslmode=require"
       NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
       NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
       NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK: ${NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK}
@@ -167,12 +186,24 @@ services:
     depends_on:
       volume-permissions:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       nia-population-relay:
         condition: service_healthy
+      nia-child-benefit-notary-state-install:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: nia-child-benefit-notary.solmara.registrystack.org
+
+  nia-child-benefit-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/registry-notary/child-benefit-population.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nia_child_benefit_owner", "--runtime-role", "solmara_notary_nia_child_benefit_runtime"]
+    environment:
+      <<: *nia-child-benefit-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_nia_child_benefit_migrator:${NIA_CHILD_BENEFIT_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_nia_child_benefit?sslmode=require"
+    depends_on:
+      notary-postgresql-bootstrap:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:

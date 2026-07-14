@@ -11,19 +11,18 @@ store for the environment you are deploying.
 
 The hosted lab is split into one Coolify Docker Compose application for the
 edge services, plus one Coolify application per pseudo-government authority.
-The split keeps each authority's Redis, Postgres, relay cache, notary state, and
-audit volumes under that authority's app instead of sharing one large Compose
-project.
+The split keeps each authority's PostgreSQL, relay cache, and audit volumes
+under that authority's app instead of sharing one large Compose project.
 
 | Coolify app name | Compose file | Services |
 |---|---|---|
 | `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, child benefit federator, static metadata |
-| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay and child benefit Notary, NIA relay and child benefit Notary, NIA Postgres, Redis |
+| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay and child benefit Notary, NIA relay and child benefit Notary, authority PostgreSQL |
 | `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, public eSignet edge proxy, eSignet UI, eSignet Postgres, Redis, seed jobs |
-| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay and child benefit Notary, programme MIS relay and child benefit Notary, Redis |
-| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF relay, pension notary, Redis |
-| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI relay, NAgDI notary, Redis |
-| `solmara-lab-citizen-services` | `compose.coolify.citizen-services.yaml` | citizen services notary, citizen OID4VCI issuer notary, Redis |
+| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay and child benefit Notary, programme MIS relay and child benefit Notary, authority PostgreSQL |
+| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF relay, pension Notary, authority PostgreSQL |
+| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI relay, NAgDI Notary, authority PostgreSQL |
+| `solmara-lab-citizen-services` | `compose.coolify.citizen-services.yaml` | citizen services Notary, citizen OID4VCI issuer Notary, authority PostgreSQL |
 | `solmara-lab-wallet` | `compose.coolify.walt.yaml` | Walt holder wallet API, Walt web wallet, Postgres, Caddy |
 
 Hosted compose files follow these rules:
@@ -33,6 +32,7 @@ Hosted compose files follow these rules:
 - No custom Docker networks. Cross-app calls use public HTTPS endpoints.
 - No `build:` blocks. Hosted services run digest-pinned images from GHCR.
 - Relay audit/cache and Notary audit state use named volumes owned by the runtime UID.
+- Each logical Notary owns a distinct PostgreSQL database and role triplet.
 
 ## Public Endpoints
 
@@ -94,7 +94,10 @@ The relay and notary wrapper images copy hosted configs into product images:
 
 - `docker/relay/Dockerfile` copies `ministries/`, overlays
   `hosted/ministries/`, and adds the hosted Postgres CA certificate.
-- `docker/notary/Dockerfile` copies `hosted/notaries/`.
+- `docker/notary/Dockerfile` copies `hosted/notaries/` and the PostgreSQL root
+  certificate.
+- `docker/postgres/Dockerfile` adds the allowlisted Notary database and role
+  bootstrap script to the TLS PostgreSQL image.
 - `docker/esignet-relay/Dockerfile` builds the Relay-backed eSignet
   authenticator plugin and adds it to the MOSIP eSignet base image.
 - `docker/esignet-postgres/Dockerfile`, `docker/esignet-ui/Dockerfile`, and
@@ -145,8 +148,6 @@ Shared runtime settings:
 - `RUST_LOG`
 - `REGISTRY_RELAY_AUDIT_HASH_SECRET`
 - `REGISTRY_NOTARY_AUDIT_HASH_SECRET`
-- `REGISTRY_NOTARY_REPLAY_REDIS_URL`
-- `REGISTRY_PLATFORM_REDIS_TEST_URL`
 - `SOLMARA_POSTGRES_USER`
 - `SOLMARA_POSTGRES_PASSWORD`
 - `SOLMARA_POSTGRES_DB`
@@ -155,6 +156,24 @@ Shared runtime settings:
 - `REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD`
 - `REGISTRY_ESIGNET_KYC_TOKEN_SECRET`
 - `REGISTRY_ESIGNET_PSUT_SECRET`
+
+Notary PostgreSQL credentials are scoped to their owning authority app. Set
+both the `_POSTGRES_MIGRATOR_PASSWORD` and `_POSTGRES_RUNTIME_PASSWORD`
+variables for every Notary in that app:
+
+- `CIVIL_CHILD_BENEFIT_NOTARY`
+- `NIA_CHILD_BENEFIT_NOTARY`
+- `SRO_CHILD_BENEFIT_NOTARY`
+- `PROGRAMME_CHILD_BENEFIT_NOTARY`
+- `PENSION_NOTARY`
+- `NAGDI_NOTARY`
+- `CITIZEN_NOTARY`
+- `CITIZEN_ISSUER_NOTARY`
+
+Also set `CITIZEN_ISSUER_NOTARY_SENSITIVE_STATE_KEY` on the citizen services
+app. It must be one base64url-encoded 32-byte key and must be backed up through
+the secret manager separately from PostgreSQL. Do not copy one Notary's
+database password or sensitive-state key into another authority app.
 
 Portal and Visitor Center:
 
@@ -409,10 +428,10 @@ Browser mode reuses the public hosted URLs and does not start local SvelteKit
 servers.
 
 The authenticated parts are important. `/healthz` can pass while evaluation
-requests fail because audit writes, replay storage, source authorization, or
+requests fail because audit writes, PostgreSQL state, source authorization, or
 credential issuance is misconfigured.
 
-## Audit And State Volumes
+## Audit And Correctness State
 
 Registry Relay and Registry Notary write audit records under fail-closed policy.
 Do not bypass that policy for hosted deployment. If an audit sink cannot write,
@@ -422,7 +441,10 @@ Hosted authority compose files must keep:
 
 - Relay cache volumes mounted at `/var/lib/registry-relay/cache`.
 - Relay audit volumes mounted at `/var/lib/registry-relay/audit`.
-- Notary state volumes mounted at `/var/lib/registry-notary/config-state`.
+- Notary audit and governed-config volumes mounted at
+  `/var/lib/registry-notary/config-state`.
+- One PostgreSQL volume per authority Compose app, with a distinct database
+  and role triplet for every logical Notary.
 - A `volume-permissions` service that chowns relay volumes to UID `65532` and
   notary volumes to UID `65534`.
 - `depends_on: volume-permissions: condition: service_healthy` on services that
@@ -432,6 +454,16 @@ The `volume-permissions` service intentionally stays running after chowning.
 Coolify injects restart behavior into compose services, so a short-lived
 completed init container can block deployment. The sidecar writes `/tmp/ready`
 and idles so Docker Compose can gate dependent services on a health check.
+
+Notary database jobs are different from the volume-permissions sidecar. The
+idempotent `notary-postgresql-bootstrap` job creates or attests the allowlisted
+databases and restricted roles on both new and existing PostgreSQL volumes.
+Each `*-state-install` service is then an explicit one-shot database operator
+job. Both use `restart: "no"`. The installer receives the migrator URL, applies
+or attests the schema, and exits. The serving Notary receives only its runtime
+URL and starts only after its installer completes successfully. See
+[`notary-postgresql-state.md`](notary-postgresql-state.md) for install,
+doctor, backup, restore, cutover, and upgrade procedures.
 
 ## Common Failure Modes
 
@@ -452,6 +484,27 @@ Checks:
 5. Run `just hosted-smoke`.
 
 Do not change audit write policy to make the error disappear.
+
+### Notary schema installer fails
+
+Symptom: a `*-state-install` service exits nonzero and the matching Notary does
+not start, or the Notary reports `database_unavailable`, `schema_incompatible`,
+or `role_incompatible` readiness.
+
+Checks:
+
+1. Confirm the app has the two password variables for that exact Notary and
+   that `SOLMARA_NOTARY_DATABASES` in Compose names its database key.
+2. Confirm PostgreSQL is writable and healthy with TLS enabled.
+3. Confirm the wrapper images were built from the same Registry Notary release
+   and Solmara commit as the configs.
+4. Rerun the failed installer and then run `state doctor` without printing its
+   environment or rendered database URL.
+5. Admit traffic only after the installer, doctor, readiness, and scenario
+   canary all pass.
+
+Do not grant private-table access, make a runtime role an owner member, or put
+the migrator URL in the serving Notary to bypass a role error.
 
 ### Domain patch accepted but no public route
 

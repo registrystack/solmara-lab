@@ -39,13 +39,13 @@ audit:
   path: /var/lib/registry-notary/config-state/audit.jsonl
   hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
 
-replay:
-  storage: redis
-  redis:
-    url_env: REGISTRY_NOTARY_REPLAY_REDIS_URL
-    key_prefix: solmara-citizen-notary
-    connect_timeout_ms: 1000
-    operation_timeout_ms: 500
+state:
+  storage: postgresql
+  postgresql:
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+    root_certificate_path: ${REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH}
+    connect_timeout_ms: 5000
+    operation_timeout_ms: 2000
 
 deployment:
   profile: hosted_lab

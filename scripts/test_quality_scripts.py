@@ -203,6 +203,137 @@ class QualityScriptTests(unittest.TestCase):
                             self.assertIn(volume_name, declared_volumes)
                             self.assertIn(volume_name, init_volume_names)
 
+    def test_notary_postgresql_state_is_isolated_and_redis_free(self) -> None:
+        notaries = {
+            "civil-child-benefit-notary": (
+                "child-benefit-civil.yaml",
+                "civil_child_benefit",
+                "compose.coolify.interior.yaml",
+            ),
+            "nia-child-benefit-notary": (
+                "child-benefit-population.yaml",
+                "nia_child_benefit",
+                "compose.coolify.interior.yaml",
+            ),
+            "sro-child-benefit-notary": (
+                "child-benefit-social.yaml",
+                "sro_child_benefit",
+                "compose.coolify.social-development.yaml",
+            ),
+            "programme-child-benefit-notary": (
+                "child-benefit-programme.yaml",
+                "programme_child_benefit",
+                "compose.coolify.social-development.yaml",
+            ),
+            "pension-notary": (
+                "pension.yaml",
+                "pension",
+                "compose.coolify.labour-pensions.yaml",
+            ),
+            "nagdi-notary": (
+                "nagdi.yaml",
+                "nagdi",
+                "compose.coolify.agriculture.yaml",
+            ),
+            "citizen-notary": (
+                "citizen.yaml",
+                "citizen",
+                "compose.coolify.citizen-services.yaml",
+            ),
+            "citizen-issuer-notary": (
+                "citizen-issuer.yaml",
+                "citizen_issuer",
+                "compose.coolify.citizen-services.yaml",
+            ),
+        }
+        local = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+        authority_composes = {
+            name: yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
+            for name in {details[2] for details in notaries.values()}
+        }
+
+        self.assertNotIn("redis", local["services"])
+        for compose in authority_composes.values():
+            self.assertNotIn("redis", compose["services"])
+            self.assertIn("postgres", compose["services"])
+
+        runtime_urls = set()
+        migrator_urls = set()
+        for service_name, (config_name, database_key, compose_name) in notaries.items():
+            with self.subTest(notary=service_name):
+                config = yaml.safe_load((ROOT / "notaries" / config_name).read_text(encoding="utf-8"))
+                state = config["state"]
+                self.assertEqual(state["storage"], "postgresql")
+                self.assertEqual(state["postgresql"]["url_env"], "REGISTRY_NOTARY_POSTGRES_URL")
+                self.assertEqual(
+                    state["postgresql"]["root_certificate_path"],
+                    "${REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH}",
+                )
+                self.assertNotIn("replay", config)
+
+                expected_database = f"solmara_notary_{database_key}"
+                expected_runtime = f"{expected_database}_runtime"
+                expected_migrator = f"{expected_database}_migrator"
+                expected_owner = f"{expected_database}_owner"
+                installer_name = f"{service_name}-state-install"
+
+                self.assertIn(
+                    database_key,
+                    local["services"]["postgres"]["environment"][
+                        "SOLMARA_NOTARY_DATABASES"
+                    ].split(),
+                )
+                self.assertIn(
+                    database_key,
+                    authority_composes[compose_name]["services"]["postgres"]["environment"][
+                        "SOLMARA_NOTARY_DATABASES"
+                    ].split(),
+                )
+
+                for compose in (local, authority_composes[compose_name]):
+                    services = compose["services"]
+                    runtime = services[service_name]
+                    installer = services[installer_name]
+                    bootstrap = services["notary-postgresql-bootstrap"]
+                    runtime_url = runtime["environment"]["REGISTRY_NOTARY_POSTGRES_URL"]
+                    migrator_url = installer["environment"][
+                        "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL"
+                    ]
+                    self.assertIn(f"{expected_runtime}:", runtime_url)
+                    self.assertIn(f"/{expected_database}?sslmode=require", runtime_url)
+                    self.assertNotIn("REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", runtime["environment"])
+                    self.assertIn(f"{expected_migrator}:", migrator_url)
+                    self.assertIn(f"/{expected_database}?sslmode=require", migrator_url)
+                    self.assertIn(expected_owner, installer["command"])
+                    self.assertIn(expected_runtime, installer["command"])
+                    self.assertEqual(installer["restart"], "no")
+                    self.assertEqual(bootstrap["restart"], "no")
+                    self.assertEqual(
+                        installer["depends_on"]["notary-postgresql-bootstrap"]["condition"],
+                        "service_completed_successfully",
+                    )
+                    self.assertEqual(
+                        bootstrap["depends_on"]["postgres"]["condition"],
+                        "service_healthy",
+                    )
+                    self.assertEqual(
+                        runtime["depends_on"][installer_name]["condition"],
+                        "service_completed_successfully",
+                    )
+
+                runtime_urls.add(local["services"][service_name]["environment"]["REGISTRY_NOTARY_POSTGRES_URL"])
+                migrator_urls.add(
+                    local["services"][installer_name]["environment"][
+                        "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL"
+                    ]
+                )
+
+        self.assertEqual(len(runtime_urls), len(notaries))
+        self.assertEqual(len(migrator_urls), len(notaries))
+
+        esignet = yaml.safe_load((ROOT / "compose.coolify.esignet.yaml").read_text(encoding="utf-8"))
+        self.assertIn("esignet-redis", esignet["services"])
+
     def test_hosted_child_benefit_topology_is_source_owned(self) -> None:
         core = yaml.safe_load((ROOT / "compose.coolify.yaml").read_text(encoding="utf-8"))
         core_services = core["services"]
