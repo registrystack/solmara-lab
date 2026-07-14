@@ -8,6 +8,11 @@ entities:
       table: population_person
     columns:
       uin: uin
+      legacy_nid: legacy_nid
+      given_name: given_name
+      family_name: family_name
+      sex: sex
+      birth_date: birth_date
       identity_status: identity_status
       alive: alive
     source_revision: nia-population-person-v1
@@ -29,8 +34,9 @@ relay:
   issuer: https://workload-issuer.solmara.registrystack.org
   jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
   audience: registry-relay
-  allowed_clients: []
+  allowed_clients: [solmara-esignet]
 notary_relay:
+  base_url: http://127.0.0.1:8080
   workload_client_id: nia-notary
   token_file: /run/secrets/nia-notary-relay-token
 relay_state:

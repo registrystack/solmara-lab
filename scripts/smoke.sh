@@ -10,11 +10,11 @@ ran=1
 
 if [ "${SOLMARA_SMOKE_LIVE:-1}" != "0" ]; then
   ran=1
-  "$root/scripts/smoke-notary-state.sh"
   "$root/scripts/smoke-relay-sources.py"
   # The signing smokes need cryptography from the locked project environment.
   uv run --locked --project "$root" "$root/scripts/smoke-live.py"
-  uv run --locked --project "$root" "$root/scripts/smoke-federation.py"
+  "$root/scripts/smoke-notary-state.sh"
+  uv run --locked --project "$root" "$root/scripts/smoke-child-benefit-application.py"
   "$root/scripts/smoke-published-tokens.py"
   "$root/scripts/smoke-portal-compose.py"
 fi

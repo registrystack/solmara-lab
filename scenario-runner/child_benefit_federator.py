@@ -21,7 +21,6 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from scenarios.common import (
-    CHILD_BENEFIT_AS_OF_DATE,
     CLAIM_RESULT_FORMAT,
     PURPOSES,
     StepHttpResult,

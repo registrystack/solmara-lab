@@ -44,19 +44,19 @@ consultation:
       path: artifacts/integration-packs/livestock-movement-by-farmer.json
       sha256: sha256:b6236bae451a7ea0491832d5e5ddcd41576cd31c541e730be649b6d71d361f8e
     private_bindings:
-    - hash: sha256:b953a67a7d09bb05cc7fe2c9fc3d485157e1d4ad34e97ea2dc9696427dba3ccb
+    - hash: sha256:203f86fbf07249314ec758dccb2608e6266ecea300d3d3111af233899bb8e2e3
       path: artifacts/private-bindings/livestock-herd.json
-      sha256: sha256:015c146d47365372b478108372a919ed69960d5ab96e3c6c4f39047e8a6ad995
-    - hash: sha256:436ceb447bd6c4520fe58711f287513f67cae90b0046a6f494783e16ea54d799
+      sha256: sha256:a8e862bb3199df9bc08cf365bae0152130667b79e0e5d504b6d7f6a5c866d5b8
+    - hash: sha256:8d6757bca5d17bd633d0521330fbbe42ede14c2b9e6bc09cd3ad75267677f774
       path: artifacts/private-bindings/voucher-farmer.json
-      sha256: sha256:e1ec8cc4b2787baf074f7a9f5b138604aa35152a8efa501cc42565163e3e2914
+      sha256: sha256:b06356849df57a97cafdc5071e134d2dded1a08be7b63e878c92222ad03778ed
     public_contracts:
-    - hash: sha256:050322b9632a8055c7e55b228696b74d389149bca9f50988ac9725ff507bb3c7
+    - hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
       path: artifacts/consultation-contracts/livestock-herd.json
-      sha256: sha256:66dd9860c26057fc8de33d8f42b5a34db43cec3ab397f53ab7174c1be8f04db8
-    - hash: sha256:45a344b5d1d0dee6dbcb2e083e8665993da321ea72d119375c1705bf60f31fc1
+      sha256: sha256:a1f4045c36462881aec560fcf103c1f78252bf0e2acf81ddd6b75ce21ccfd84c
+    - hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
       path: artifacts/consultation-contracts/voucher-farmer.json
-      sha256: sha256:b500decda43f529f37d57ce7749a5b1afac0e3d3ef745972393da5f95f69796a
+      sha256: sha256:8ea73ba2779ef33a85cc5f34988fe0d14f13f1892baa185d0d5c67e76dcbe1ad
     rhai_scripts: []
   audit_pseudonym_materials:
   - key_id: epoch-1
@@ -82,7 +82,8 @@ datasets:
   defaults:
     materialization: snapshot
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
   description: Materialized nagdi_farmer entity
   entities: []
   id: nagdi_farmer
@@ -98,11 +99,12 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_6a9462e5df105fc016c2a0a0d362cc88f18a70ec4e647a77631f7e7e27372b1d
+    id: materialization_a5df746e609cc2000dcc08b086dce4fbd407a4908364552aa2ea32be9d99c6f7
     materialization: snapshot
     primary_key: farmer_id
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
     schema:
       fields:
       - name: active_farm_parcel
@@ -158,7 +160,8 @@ datasets:
   defaults:
     materialization: snapshot
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
   description: Materialized nagdi_herd entity
   entities: []
   id: nagdi_herd
@@ -174,11 +177,12 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_f0e0d1550411df1d67ce70776964315077f5618b81ed933c0ebede74cffe78b5
+    id: materialization_c530010904da8a151e2b3437cbb64d2c54dcbc140b0fcf9d6331e97e73063e9b
     materialization: snapshot
     primary_key: herd_id
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
     schema:
       fields:
       - name: destination_district_open

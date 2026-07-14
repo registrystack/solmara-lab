@@ -25,7 +25,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scenarios.common import (  # noqa: E402
-    FEDERATED_BUNDLE_FORMAT,
     PURPOSES,
     auth_headers,
     evaluation_body,
@@ -65,9 +64,9 @@ def main() -> int:
     eval_url = joined_url(base_url, "/v1/evaluations")
     failures: list[str] = []
 
-    # 1. Wrong purpose: ask the child benefit notary under a pension purpose.
-    wrong_headers = auth_headers(token, PURPOSES["pension_payment"], FEDERATED_BUNDLE_FORMAT)
-    wrong_body = evaluation_body(POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", format=FEDERATED_BUNDLE_FORMAT)
+    # 1. Wrong purpose: ask the child-benefit application under a pension purpose.
+    wrong_headers = auth_headers(token, PURPOSES["pension_payment"], "application/json")
+    wrong_body = evaluation_body(POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", format="application/json")
     wrong = http_json("POST", eval_url, wrong_headers, wrong_body, timeout=8.0)
     wrong_code = problem_code(wrong.body)
     if wrong.status != 403:
@@ -76,16 +75,19 @@ def main() -> int:
         failures.append(f"wrong-purpose: expected code pdp.purpose_not_permitted, got '{wrong_code}'")
 
     # 2. Raw-row read attempt: ask for the raw source row under a permitted purpose.
-    raw_headers = auth_headers(token, PURPOSES["child_benefit"], FEDERATED_BUNDLE_FORMAT)
+    raw_headers = auth_headers(token, PURPOSES["child_benefit"], "application/json")
     raw_body = evaluation_body(
-        POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", disclosure="raw", format=FEDERATED_BUNDLE_FORMAT
+        POSITIVE_SUBJECT, CLAIM_IDS, scheme="solmara_uin", disclosure="raw", format="application/json"
     )
     raw = http_json("POST", eval_url, raw_headers, raw_body, timeout=8.0)
     raw_code = problem_code(raw.body)
     if not (isinstance(raw.status, int) and 400 <= raw.status < 500):
         failures.append(f"raw-row attempt: expected a 4xx refusal, got {raw.status}")
-    if not raw_code:
-        failures.append("raw-row attempt: expected a stable problem code, got none")
+    if raw_code != "pdp.purpose_not_permitted":
+        failures.append(
+            "raw-row attempt: expected code pdp.purpose_not_permitted, "
+            f"got '{raw_code}'"
+        )
 
     if failures:
         for failure in failures:

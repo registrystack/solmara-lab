@@ -25,6 +25,7 @@ relay:
   allowed_clients: [sro-notary]
 
 notary_relay:
+  base_url: http://127.0.0.1:8080
   workload_client_id: sro-notary
   token_file: /run/secrets/sro-notary-relay-token
 

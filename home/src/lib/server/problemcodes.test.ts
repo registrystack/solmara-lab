@@ -9,7 +9,7 @@ const purposes: Purpose[] = [
     advertisedBy: 'CRA',
     enforcedBy: 'child-benefit-federator',
     story: 'Birth to child benefit',
-    denialCodes: ['pdp.purpose_not_permitted', 'federation.forbidden'],
+    denialCodes: ['pdp.purpose_not_permitted'],
     plainLanguage: 'permits child benefit evidence'
   }
 ];
@@ -39,7 +39,6 @@ describe('problem-code assembly', () => {
   it('includes every denial code from the catalogue plus the observed request.invalid', () => {
     const ids = codes.map((code) => code.code);
     expect(ids).toContain('pdp.purpose_not_permitted');
-    expect(ids).toContain('federation.forbidden');
     expect(ids).toContain('request.invalid');
   });
 
@@ -59,11 +58,5 @@ describe('problem-code assembly', () => {
   it('anchors each code by its stable code string', () => {
     // Phase A deep-links to /problem-codes#pdp.purpose_not_permitted.
     expect(codes.some((code) => code.code === 'pdp.purpose_not_permitted')).toBe(true);
-  });
-
-  it('carries a coverage note for codes with no demonstrating story step', () => {
-    const federation = codes.find((code) => code.code === 'federation.forbidden');
-    expect(federation?.demonstratedBy).toHaveLength(0);
-    expect(federation?.coverage).toBeTruthy();
   });
 });

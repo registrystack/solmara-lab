@@ -45,7 +45,7 @@ evidence:
               nullable: false
               type: string
           profile:
-            contract_hash: sha256:c9019a3d70c356d0bd8cae5381d5592f8d24bdce4dc5a6571033481b59ed7b29
+            contract_hash: sha256:7163d2e5e636f41478b1b2de6dbd4812d1ff8956c012133b6ac86c4b7e3c08ef
             id: solmara-nia-population.nia-child-benefit.population
       type: registry_backed
     formats:
@@ -88,7 +88,7 @@ evidence:
               nullable: false
               type: string
           profile:
-            contract_hash: sha256:0e9bdc557393e69177c7318a3d63aaad2eb092ae5ce32161a28d82f44acc21bc
+            contract_hash: sha256:675d2c746c5b75755b76a563523ea43fcf24bc6def2dcaf993a5b06c76900ccb
             id: solmara-nia-population.nia-citizen-status.population
       type: registry_backed
     formats:
@@ -127,9 +127,9 @@ evidence:
   enabled: true
   max_credential_validity_seconds: 600
   relay:
-    allow_insecure_localhost: false
+    allow_insecure_localhost: true
     allowed_private_cidrs: []
-    base_url: https://nia-relay.solmara.registrystack.org
+    base_url: http://127.0.0.1:8080
     max_in_flight: 8
     token_file: /run/secrets/nia-notary-relay-token
     workload_client_id: nia-notary

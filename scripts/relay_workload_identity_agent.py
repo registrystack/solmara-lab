@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Issue a Relay workload token for a co-located Notary.
+"""Issue short-lived Relay workload tokens for co-located consumers.
 
-The agent binds only to IPv4 loopback. It publishes the public half of one
-Ed25519 JWK and atomically maintains a short-lived access token in a shared
-file. The private JWK is read indirectly: WORKLOAD_PRIVATE_JWK_ENV names the
-environment variable that contains the JWK JSON.
+The agent binds only to IPv4 loopback. It publishes the public half of every
+configured Ed25519 JWK from one endpoint and atomically maintains one access
+token file per identity. Private JWK values are read indirectly: each bounded
+WORKLOAD_IDENTITIES_JSON entry names the environment variable containing its
+JWK JSON.
 """
 
 from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import json
 import os
 import re
@@ -41,12 +43,15 @@ DEFAULT_ROTATION_INTERVAL_SECONDS = 5
 DEFAULT_TOKEN_UID = 65534
 DEFAULT_TOKEN_GID = 65534
 
+MAX_IDENTITIES = 8
+MAX_IDENTITIES_JSON_BYTES = 64 * 1024
 MAX_JWK_BYTES = 16 * 1024
 MAX_TEXT_LENGTH = 256
 MAX_PATH_LENGTH = 4096
 MAX_SCOPE_COUNT = 32
 MAX_SCOPE_LENGTH = 256
 MAX_TOKEN_TTL_SECONDS = 900
+MAX_TOKEN_FILE_BYTES = 16 * 1024
 MAX_ROTATION_INTERVAL_SECONDS = 60
 MAX_ID = 2_147_483_647
 
@@ -60,14 +65,14 @@ class ConfigurationError(ValueError):
 
 
 def _reject_constant(_value: str) -> Never:
-    raise ConfigurationError("JWK JSON contains a non-finite number")
+    raise ConfigurationError("JSON contains a non-finite number")
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise ConfigurationError("JWK JSON contains a duplicate field")
+            raise ConfigurationError("JSON contains a duplicate field")
         result[key] = value
     return result
 
@@ -101,10 +106,35 @@ def _bounded_integer(
     return value
 
 
-def _token_value(environ: Mapping[str, str], name: str) -> str:
-    value = _required_text(environ, name)
-    if TOKEN_VALUE_PATTERN.fullmatch(value) is None:
-        raise ConfigurationError(f"{name} must contain visible ASCII without spaces")
+def _document_integer(
+    document: Mapping[str, Any],
+    field: str,
+    default: int,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    value = document.get(field, default)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ConfigurationError(f"workload identity {field} must be an integer")
+    if value < minimum or value > maximum:
+        raise ConfigurationError(
+            f"workload identity {field} is outside its allowed range"
+        )
+    return value
+
+
+def _document_token(document: Mapping[str, Any], field: str) -> str:
+    value = document.get(field)
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > MAX_TEXT_LENGTH
+        or TOKEN_VALUE_PATTERN.fullmatch(value) is None
+    ):
+        raise ConfigurationError(
+            f"workload identity {field} must contain bounded visible ASCII without spaces"
+        )
     return value
 
 
@@ -172,9 +202,13 @@ class KeyMaterial:
         if len(private_bytes) != 32 or len(public_bytes) != 32:
             raise ConfigurationError("private JWK key material must be 32 bytes")
         private_key = Ed25519PrivateKey.from_private_bytes(private_bytes)
-        derived_public = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        derived_public = private_key.public_key().public_bytes(
+            Encoding.Raw, PublicFormat.Raw
+        )
         if not secrets.compare_digest(derived_public, public_bytes):
-            raise ConfigurationError("private JWK public and private values do not match")
+            raise ConfigurationError(
+                "private JWK public and private values do not match"
+            )
 
         public_jwk = {
             "alg": "EdDSA",
@@ -189,21 +223,26 @@ class KeyMaterial:
 
 
 @dataclass(frozen=True)
-class Config:
-    bind_host: str
-    port: int
-    issuer: str
+class IdentityConfig:
     audience: str
     azp: str
     subject: str
     scope: str
     token_file: Path
-    token_ttl_seconds: int
-    rotate_before_seconds: int
-    rotation_interval_seconds: int
     token_uid: int
     token_gid: int
     key_material: KeyMaterial
+
+
+@dataclass(frozen=True)
+class Config:
+    bind_host: str
+    port: int
+    issuer: str
+    identities: tuple[IdentityConfig, ...]
+    token_ttl_seconds: int
+    rotate_before_seconds: int
+    rotation_interval_seconds: int
 
     @classmethod
     def from_environ(cls, environ: Mapping[str, str]) -> Config:
@@ -235,42 +274,6 @@ class Config:
                 "WORKLOAD_ISSUER must exactly match the configured loopback listener"
             )
 
-        audience = _token_value(environ, "WORKLOAD_AUDIENCE")
-        azp = _token_value(environ, "WORKLOAD_AZP")
-        subject = _token_value(environ, "WORKLOAD_SUB")
-        scope = _required_text(
-            environ,
-            "WORKLOAD_SCOPE",
-            maximum=MAX_SCOPE_COUNT * (MAX_SCOPE_LENGTH + 1),
-        )
-        scopes = scope.split(" ")
-        if (
-            not scopes
-            or len(scopes) > MAX_SCOPE_COUNT
-            or " ".join(scopes) != scope
-            or len(set(scopes)) != len(scopes)
-            or any(
-                not item
-                or len(item) > MAX_SCOPE_LENGTH
-                or TOKEN_VALUE_PATTERN.fullmatch(item) is None
-                for item in scopes
-            )
-        ):
-            raise ConfigurationError("WORKLOAD_SCOPE is not a bounded scope list")
-
-        token_file_raw = _required_text(
-            environ, "WORKLOAD_TOKEN_FILE", maximum=MAX_PATH_LENGTH
-        )
-        token_file = Path(token_file_raw)
-        if (
-            not token_file.is_absolute()
-            or ".." in token_file.parts
-            or os.path.normpath(token_file_raw) != token_file_raw
-            or not token_file.name
-            or not token_file.parent.is_dir()
-        ):
-            raise ConfigurationError("WORKLOAD_TOKEN_FILE is not a safe writable target")
-
         token_ttl_seconds = _bounded_integer(
             environ,
             "WORKLOAD_TOKEN_TTL_SECONDS",
@@ -292,14 +295,14 @@ class Config:
             minimum=1,
             maximum=min(MAX_ROTATION_INTERVAL_SECONDS, rotate_before_seconds),
         )
-        token_uid = _bounded_integer(
+        default_token_uid = _bounded_integer(
             environ,
             "WORKLOAD_TOKEN_UID",
             DEFAULT_TOKEN_UID,
             minimum=0,
             maximum=MAX_ID,
         )
-        token_gid = _bounded_integer(
+        default_token_gid = _bounded_integer(
             environ,
             "WORKLOAD_TOKEN_GID",
             DEFAULT_TOKEN_GID,
@@ -307,30 +310,160 @@ class Config:
             maximum=MAX_ID,
         )
 
-        key_environment_name = _required_text(
-            environ, "WORKLOAD_PRIVATE_JWK_ENV", maximum=128
+        encoded_identities = _required_text(
+            environ,
+            "WORKLOAD_IDENTITIES_JSON",
+            maximum=MAX_IDENTITIES_JSON_BYTES,
         )
-        if ENV_NAME_PATTERN.fullmatch(key_environment_name) is None:
-            raise ConfigurationError("WORKLOAD_PRIVATE_JWK_ENV is not a valid variable name")
-        key_material = KeyMaterial.from_json(
-            _required_text(environ, key_environment_name, maximum=MAX_JWK_BYTES)
+        if len(encoded_identities.encode("utf-8")) > MAX_IDENTITIES_JSON_BYTES:
+            raise ConfigurationError(
+                "WORKLOAD_IDENTITIES_JSON is outside its size bound"
+            )
+        try:
+            identity_documents = json.loads(
+                encoded_identities,
+                object_pairs_hook=_unique_object,
+                parse_constant=_reject_constant,
+            )
+        except (json.JSONDecodeError, UnicodeError) as error:
+            raise ConfigurationError(
+                "WORKLOAD_IDENTITIES_JSON is not valid JSON"
+            ) from error
+        if (
+            not isinstance(identity_documents, list)
+            or not identity_documents
+            or len(identity_documents) > MAX_IDENTITIES
+        ):
+            raise ConfigurationError(
+                f"WORKLOAD_IDENTITIES_JSON must contain 1..{MAX_IDENTITIES} identities"
+            )
+
+        identities: list[IdentityConfig] = []
+        allowed_fields = {
+            "audience",
+            "azp",
+            "private_jwk_env",
+            "scopes",
+            "subject",
+            "token_file",
+            "token_gid",
+            "token_uid",
+        }
+        for document in identity_documents:
+            if not isinstance(document, dict):
+                raise ConfigurationError("each workload identity must be a JSON object")
+            if set(document) - allowed_fields:
+                raise ConfigurationError(
+                    "workload identity contains unsupported fields"
+                )
+
+            audience = _document_token(document, "audience")
+            azp = _document_token(document, "azp")
+            subject = _document_token(document, "subject")
+
+            scopes = document.get("scopes")
+            if (
+                not isinstance(scopes, list)
+                or not scopes
+                or len(scopes) > MAX_SCOPE_COUNT
+                or any(
+                    not isinstance(item, str)
+                    or not item
+                    or len(item) > MAX_SCOPE_LENGTH
+                    or TOKEN_VALUE_PATTERN.fullmatch(item) is None
+                    for item in scopes
+                )
+                or len(set(scopes)) != len(scopes)
+            ):
+                raise ConfigurationError(
+                    "workload identity scopes are not a bounded list"
+                )
+            scope = " ".join(scopes)
+
+            token_file_raw = document.get("token_file")
+            if (
+                not isinstance(token_file_raw, str)
+                or len(token_file_raw) > MAX_PATH_LENGTH
+            ):
+                raise ConfigurationError("workload identity token_file is invalid")
+            token_file = Path(token_file_raw)
+            if (
+                not token_file.is_absolute()
+                or ".." in token_file.parts
+                or os.path.normpath(token_file_raw) != token_file_raw
+                or not token_file.name
+                or not token_file.parent.is_dir()
+            ):
+                raise ConfigurationError(
+                    "workload identity token_file is not a safe target"
+                )
+
+            token_uid = _document_integer(
+                document,
+                "token_uid",
+                default_token_uid,
+                minimum=0,
+                maximum=MAX_ID,
+            )
+            token_gid = _document_integer(
+                document,
+                "token_gid",
+                default_token_gid,
+                minimum=0,
+                maximum=MAX_ID,
+            )
+            key_environment_name = document.get("private_jwk_env")
+            if (
+                not isinstance(key_environment_name, str)
+                or ENV_NAME_PATTERN.fullmatch(key_environment_name) is None
+            ):
+                raise ConfigurationError(
+                    "workload identity private_jwk_env is not a valid variable name"
+                )
+            key_material = KeyMaterial.from_json(
+                _required_text(environ, key_environment_name, maximum=MAX_JWK_BYTES)
+            )
+
+            identities.append(
+                IdentityConfig(
+                    audience=audience,
+                    azp=azp,
+                    subject=subject,
+                    scope=scope,
+                    token_file=token_file,
+                    token_uid=token_uid,
+                    token_gid=token_gid,
+                    key_material=key_material,
+                )
+            )
+
+        uniqueness_fields: tuple[tuple[str, list[object]], ...] = (
+            ("azp", [identity.azp for identity in identities]),
+            ("subject", [identity.subject for identity in identities]),
+            (
+                "kid",
+                [identity.key_material.public_jwk["kid"] for identity in identities],
+            ),
+            (
+                "public key",
+                [identity.key_material.public_jwk["x"] for identity in identities],
+            ),
+            ("token_file", [identity.token_file for identity in identities]),
         )
+        for field, values in uniqueness_fields:
+            if len(set(values)) != len(values):
+                raise ConfigurationError(
+                    f"workload identity {field} values must be unique"
+                )
 
         return cls(
             bind_host=bind_host,
             port=port,
             issuer=issuer,
-            audience=audience,
-            azp=azp,
-            subject=subject,
-            scope=scope,
-            token_file=token_file,
+            identities=tuple(identities),
             token_ttl_seconds=token_ttl_seconds,
             rotate_before_seconds=rotate_before_seconds,
             rotation_interval_seconds=rotation_interval_seconds,
-            token_uid=token_uid,
-            token_gid=token_gid,
-            key_material=key_material,
         )
 
 
@@ -338,23 +471,25 @@ def _encode_json(value: object) -> bytes:
     return json.dumps(value, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
 
-def _mint_token(config: Config, issued_at: int) -> tuple[str, int]:
+def _mint_token(
+    config: Config, identity: IdentityConfig, issued_at: int
+) -> tuple[str, int]:
     expires_at = issued_at + config.token_ttl_seconds
     header = {
         "alg": "EdDSA",
-        "kid": config.key_material.public_jwk["kid"],
+        "kid": identity.key_material.public_jwk["kid"],
         "typ": "at+jwt",
     }
     claims = {
-        "aud": config.audience,
-        "azp": config.azp,
+        "aud": identity.audience,
+        "azp": identity.azp,
         "exp": expires_at,
         "iat": issued_at,
         "iss": config.issuer,
         "jti": secrets.token_urlsafe(18),
         "nbf": issued_at,
-        "scope": config.scope,
-        "sub": config.subject,
+        "scope": identity.scope,
+        "sub": identity.subject,
     }
     signing_input = b".".join(
         (
@@ -362,7 +497,7 @@ def _mint_token(config: Config, issued_at: int) -> tuple[str, int]:
             _base64url(_encode_json(claims)).encode(),
         )
     )
-    signature = config.key_material.private_key.sign(signing_input)
+    signature = identity.key_material.private_key.sign(signing_input)
     return f"{signing_input.decode('ascii')}.{_base64url(signature)}", expires_at
 
 
@@ -399,52 +534,95 @@ def _atomic_write_token(path: Path, token: str, *, uid: int, gid: int) -> None:
 
 
 class IdentityState:
-    def __init__(self, config: Config, *, clock: Callable[[], float] = time.time) -> None:
+    def __init__(
+        self, config: Config, *, clock: Callable[[], float] = time.time
+    ) -> None:
         self.config = config
         self._clock = clock
-        self._expires_at = 0
+        self._expires_at = [0] * len(config.identities)
+        self._published_hashes: list[bytes | None] = [None] * len(config.identities)
         self._lock = threading.RLock()
 
     def jwks_document(self) -> dict[str, list[dict[str, str]]]:
-        return {"keys": [dict(self.config.key_material.public_jwk)]}
+        return {
+            "keys": [
+                dict(identity.key_material.public_jwk)
+                for identity in self.config.identities
+            ]
+        }
 
     def rotate(self) -> None:
         with self._lock:
             issued_at = int(self._clock())
-            token, expires_at = _mint_token(self.config, issued_at)
-            _atomic_write_token(
-                self.config.token_file,
-                token,
-                uid=self.config.token_uid,
-                gid=self.config.token_gid,
-            )
-            self._expires_at = expires_at
+            for index, identity in enumerate(self.config.identities):
+                token, expires_at = _mint_token(self.config, identity, issued_at)
+                _atomic_write_token(
+                    identity.token_file,
+                    token,
+                    uid=identity.token_uid,
+                    gid=identity.token_gid,
+                )
+                self._expires_at[index] = expires_at
+                self._published_hashes[index] = hashlib.sha256(
+                    token.encode("ascii") + b"\n"
+                ).digest()
 
     def rotate_if_due(self) -> bool:
         with self._lock:
-            if int(self._clock()) < self._expires_at - self.config.rotate_before_seconds:
-                return False
-            self.rotate()
-            return True
+            issued_at = int(self._clock())
+            rotated = False
+            for index, identity in enumerate(self.config.identities):
+                if (
+                    issued_at
+                    < self._expires_at[index] - self.config.rotate_before_seconds
+                ):
+                    continue
+                token, expires_at = _mint_token(self.config, identity, issued_at)
+                _atomic_write_token(
+                    identity.token_file,
+                    token,
+                    uid=identity.token_uid,
+                    gid=identity.token_gid,
+                )
+                self._expires_at[index] = expires_at
+                self._published_hashes[index] = hashlib.sha256(
+                    token.encode("ascii") + b"\n"
+                ).digest()
+                rotated = True
+            return rotated
 
     def ready(self) -> bool:
         with self._lock:
-            if (
-                not self.config.key_material.public_jwk
-                or self._expires_at <= int(self._clock())
-            ):
-                return False
-            try:
-                file_status = os.lstat(self.config.token_file)
-            except OSError:
-                return False
-            return (
-                stat.S_ISREG(file_status.st_mode)
-                and stat.S_IMODE(file_status.st_mode) == 0o600
-                and file_status.st_size > 0
-                and file_status.st_uid == self.config.token_uid
-                and file_status.st_gid == self.config.token_gid
-            )
+            now = int(self._clock())
+            for index, identity in enumerate(self.config.identities):
+                if (
+                    not identity.key_material.public_jwk
+                    or self._expires_at[index] <= now
+                    or self._published_hashes[index] is None
+                ):
+                    return False
+                try:
+                    file_status = os.lstat(identity.token_file)
+                except OSError:
+                    return False
+                if not (
+                    stat.S_ISREG(file_status.st_mode)
+                    and stat.S_IMODE(file_status.st_mode) == 0o600
+                    and file_status.st_size > 0
+                    and file_status.st_size <= MAX_TOKEN_FILE_BYTES
+                    and file_status.st_uid == identity.token_uid
+                    and file_status.st_gid == identity.token_gid
+                ):
+                    return False
+                try:
+                    published = identity.token_file.read_bytes()
+                except OSError:
+                    return False
+                if not secrets.compare_digest(
+                    hashlib.sha256(published).digest(), self._published_hashes[index]
+                ):
+                    return False
+            return True
 
 
 class AgentHTTPServer(ThreadingHTTPServer):
@@ -495,7 +673,7 @@ def _rotation_loop(state: IdentityState, stop_event: threading.Event) -> None:
         try:
             state.rotate_if_due()
         except Exception:
-            # Health becomes not ready when the last published token expires or
+            # Health becomes not ready when any last published token expires or
             # is no longer a correctly owned, nonempty regular file.
             continue
 
@@ -532,10 +710,15 @@ def main() -> int:
         config = Config.from_environ(os.environ)
         serve(config)
     except ConfigurationError as error:
-        print(f"workload identity agent configuration rejected: {error}", file=sys.stderr)
+        print(
+            f"workload identity agent configuration rejected: {error}", file=sys.stderr
+        )
         return 2
     except Exception:
-        print("workload identity agent stopped after an operational failure", file=sys.stderr)
+        print(
+            "workload identity agent stopped after an operational failure",
+            file=sys.stderr,
+        )
         return 1
     return 0
 

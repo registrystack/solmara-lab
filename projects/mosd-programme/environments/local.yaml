@@ -25,6 +25,7 @@ relay:
   allowed_clients: [programme-notary]
 
 notary_relay:
+  base_url: http://127.0.0.1:8080
   workload_client_id: programme-notary
   token_file: /run/secrets/programme-notary-relay-token
 

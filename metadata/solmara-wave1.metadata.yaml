@@ -136,12 +136,12 @@ evidence_types:
       - child-benefit-review-requirement
     information_concepts:
       - ps:sp/Enrollment
-  - id: child-benefit-federated-predicate-bundle-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/child-benefit-federated-predicate-bundle
+  - id: child-benefit-authority-predicate-collection-evidence
+    iri: https://id.registrystack.org/solmara/evidence-types/child-benefit-authority-predicate-collection
     title:
-      en: Child benefit federated predicate bundle
+      en: Child benefit authority predicate collection
     description:
-      en: A transient bundle of source-owned child benefit predicates with no copied source rows or eligibility decision.
+      en: A transient collection of source-owned child benefit predicates with no copied source rows or eligibility decision.
     proves:
       - child-benefit-review-requirement
     information_concepts:
@@ -186,7 +186,7 @@ public_services:
     holds_requirements:
       - child-benefit-review-requirement
     data_services:
-      - child-benefit-federator-api
+      - child-benefit-evidence-collector-api
       - cra-notary-api
       - nia-notary-api
       - sro-notary-api
@@ -229,50 +229,56 @@ public_services:
     data_services:
       - nagdi-notary-api
 data_services:
-  - id: child-benefit-federator-api
+  - id: child-benefit-evidence-collector-api
     iri: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
     title:
-      en: Child benefit federated predicate bundle API
+      en: Child benefit authority predicate collection API
     description:
-      en: Returns application/vnd.solmara.federated-predicate-bundle+json bundles assembled from signed source-Notary predicates without composing an eligibility decision.
+      en: Returns application/json collections assembled from source-Notary predicates without composing an eligibility decision.
     endpoint_url: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
     endpoint_description: https://child-benefit-federator.solmara.registrystack.org/v1/claims
-    conforms_to: https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1
+    conforms_to: https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1
   - id: cra-notary-api
-    iri: https://cra-notary.solmara.registrystack.org/evidence/v1
+    iri: https://cra-notary.solmara.registrystack.org/v1/evaluations
     title:
       en: CRA evidence API
-    endpoint_url: https://cra-notary.solmara.registrystack.org/evidence/v1
+    endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://cra-notary.solmara.registrystack.org/openapi.json
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: nia-notary-api
-    iri: https://nia-notary.solmara.registrystack.org/evidence/v1
+    iri: https://nia-notary.solmara.registrystack.org/v1/evaluations
     title:
       en: NIA evidence API
-    endpoint_url: https://nia-notary.solmara.registrystack.org/evidence/v1
+    endpoint_url: https://nia-notary.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://nia-notary.solmara.registrystack.org/openapi.json
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: sro-notary-api
-    iri: https://sro-notary.solmara.registrystack.org/evidence/v1
+    iri: https://sro-notary.solmara.registrystack.org/v1/evaluations
     title:
       en: SRO evidence API
-    endpoint_url: https://sro-notary.solmara.registrystack.org/evidence/v1
+    endpoint_url: https://sro-notary.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://sro-notary.solmara.registrystack.org/openapi.json
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: programme-notary-api
-    iri: https://programme-notary.solmara.registrystack.org/evidence/v1
+    iri: https://programme-notary.solmara.registrystack.org/v1/evaluations
     title:
       en: Programme MIS evidence API
-    endpoint_url: https://programme-notary.solmara.registrystack.org/evidence/v1
+    endpoint_url: https://programme-notary.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://programme-notary.solmara.registrystack.org/openapi.json
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: sipf-notary-api
-    iri: https://sipf-notary.solmara.registrystack.org/evidence/v1
+    iri: https://sipf-notary.solmara.registrystack.org/v1/evaluations
     title:
       en: SIPF evidence API
-    endpoint_url: https://sipf-notary.solmara.registrystack.org/evidence/v1
+    endpoint_url: https://sipf-notary.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://sipf-notary.solmara.registrystack.org/openapi.json
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: nagdi-notary-api
-    iri: https://nagdi-notary.solmara.registrystack.org/evidence/v1
+    iri: https://nagdi-notary.solmara.registrystack.org/v1/evaluations
     title:
       en: NAgDI evidence API
-    endpoint_url: https://nagdi-notary.solmara.registrystack.org/evidence/v1
+    endpoint_url: https://nagdi-notary.solmara.registrystack.org/v1/evaluations
+    endpoint_description: https://nagdi-notary.solmara.registrystack.org/openapi.json
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
 datasets:
   - id: cra-civil
@@ -319,13 +325,12 @@ datasets:
         entity: civil_person
         lookup_keys:
           - uin
-          - birth_brn
         procedure_contexts:
           - child-benefit-review
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://cra-notary.solmara.registrystack.org/evidence/v1
+          endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
           discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
           ruleset: birth-is-registered
         policy:
@@ -344,13 +349,12 @@ datasets:
         entity: civil_person
         lookup_keys:
           - uin
-          - death_drn
         procedure_contexts:
           - pension-survivor-review
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://cra-notary.solmara.registrystack.org/evidence/v1
+          endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
           discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
           ruleset: person-is-deceased
         policy:

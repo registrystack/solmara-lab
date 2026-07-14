@@ -63,8 +63,7 @@ services:
       REGISTRY_RELAY_ATTRIBUTE_RELEASE_PROFILE_ID: solmara-nia-userinfo
       REGISTRY_RELAY_ATTRIBUTE_RELEASE_PROFILE_VERSION: v1
       REGISTRY_RELAY_ATTRIBUTE_RELEASE_PURPOSE: https://id.registrystack.org/solmara/purpose/esignet-identity-verification
-      REGISTRY_RELAY_AUTH_CREDENTIAL_KIND: api_key
-      REGISTRY_RELAY_AUTH_BEARER_TOKEN: ${SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW}
+      REGISTRY_RELAY_AUTH_BEARER_TOKEN_FILE: /run/secrets/solmara-esignet-relay-token
       REGISTRY_RELAY_SUBJECT_ID_TYPE: national_id
       REGISTRY_RELAY_DEFAULT_CLAIMS: individual_id,name,given_name,family_name,birthdate,gender
       REGISTRY_ESIGNET_AUTH_SUPPORTED_FACTORS: OTP
@@ -85,6 +84,7 @@ services:
     volumes:
       - esignet-keystore:/home/mosip/keystore
       - esignet-kyc-signing:/home/mosip/kyc-signing
+      - nia-esignet-workload-token:/run/secrets:ro
     depends_on:
       esignet-database:
         condition: service_healthy
@@ -176,38 +176,11 @@ services:
       timeout: 5s
       retries: 30
 
-  esignet-seed-citizen-issuer:
-    image: ${SOLMARA_ESIGNET_SEED_IMAGE:?set digest-pinned Solmara eSignet seed image}
-    environment:
-      PGHOST: esignet-database
-      PGPORT: "5432"
-      PGUSER: postgres
-      PGPASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD}
-      ESIGNET_CLIENT_ID: solmara-citizen-issuer
-      ESIGNET_CLIENT_KEY_ID: solmara-citizen-issuer-key-1
-      ESIGNET_CLIENT_NAME: Solmara Citizen Wallet Issuer
-      ESIGNET_CLIENT_PRIVATE_KEY_B64: ${CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64}
-      ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["https://citizen-issuer-notary.solmara.registrystack.org/oid4vci/offer/callback"]'
-      ESIGNET_REQUIRE_HTTPS_REDIRECTS: "true"
-      ESIGNET_REDIS_HOST: esignet-redis
-      ESIGNET_ACCOUNT_SOURCE_LABEL: NIA population Relay profile solmara-nia-userinfo
-      ESIGNET_DEMO_OTP: "111111"
-      ESIGNET_SEED_STAY_READY: "true"
-    entrypoint: ["seed-esignet.py"]
-    depends_on:
-      esignet-database:
-        condition: service_healthy
-      esignet:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-
 volumes:
   esignet-pgdata:
   esignet-keystore:
   esignet-kyc-signing:
   esignet-redis-data:
+  nia-esignet-workload-token:
+    external: true
+    name: ${NIA_ESIGNET_WORKLOAD_TOKEN_VOLUME:-solmara-nia-esignet-workload-token}

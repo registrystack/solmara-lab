@@ -35,7 +35,7 @@ evidence:
               nullable: false
               type: string
           profile:
-            contract_hash: sha256:54384aca4313fb9495e7d62713790e787c7c6ac9c5aedfaabf18489c22775fbe
+            contract_hash: sha256:7c6800ab1eea861c2e2500ba3e93bb9ddcb6d1212d7701756098155faaee4697
             id: solmara-sro-social.child-benefit.household
       type: registry_backed
     formats:
@@ -58,9 +58,9 @@ evidence:
   enabled: true
   max_credential_validity_seconds: 600
   relay:
-    allow_insecure_localhost: false
+    allow_insecure_localhost: true
     allowed_private_cidrs: []
-    base_url: https://sro-relay.solmara.registrystack.org
+    base_url: http://127.0.0.1:8080
     max_in_flight: 8
     token_file: /run/secrets/sro-notary-relay-token
     workload_client_id: sro-notary

@@ -2,7 +2,7 @@
   "access": {
     "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
     "discovery_url": "https://sipf-notary.solmara.registrystack.org/.well-known/evidence-service",
-    "endpoint_url": "https://sipf-notary.solmara.registrystack.org/evidence/v1",
+    "endpoint_url": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
     "kind": "evidence-verification-api"
   },
   "dataset": "sipf-pensions",
@@ -27,8 +27,7 @@
   ],
   "purposes": [
     "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-    "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-    "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+    "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
   ],
   "semantics": {
     "application_profiles": [

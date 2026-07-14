@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 CLAIM_RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
 CHILD_BENEFIT_AS_OF_DATE = "2026-07-14"
-FEDERATED_BUNDLE_FORMAT = "application/vnd.solmara.federated-predicate-bundle+json"
 SD_JWT_VC_FORMAT = "application/dc+sd-jwt"
 HOLDER_PROOF_TYP = "kb+jwt"
 HOLDER_PROOF_ALG = "EdDSA"

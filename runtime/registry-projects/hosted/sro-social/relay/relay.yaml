@@ -32,13 +32,13 @@ consultation:
       path: artifacts/integration-packs/child-benefit-household-by-uin.json
       sha256: sha256:37e318640dfa27a08d743cd4ff429a9af319c703660bebebb1e671eb1f8e1974
     private_bindings:
-    - hash: sha256:24229821d890f655c1da51c7a2033db699d33c068b466ddaf1f90aacff1e2f02
+    - hash: sha256:6edb16ffe8690c9037ee96cdddb57f19494cfa4945202e249b64566b3fa00555
       path: artifacts/private-bindings/child-benefit-household.json
-      sha256: sha256:8bdecc1e0f315ccdbe8b9f167d4a3241cf8449e208d53bcdb7fca2e7470047a4
+      sha256: sha256:907216b35efab81bb09f63b0e39725c941a42890e9a1c9ad5516560549a765ee
     public_contracts:
-    - hash: sha256:54384aca4313fb9495e7d62713790e787c7c6ac9c5aedfaabf18489c22775fbe
+    - hash: sha256:7c6800ab1eea861c2e2500ba3e93bb9ddcb6d1212d7701756098155faaee4697
       path: artifacts/consultation-contracts/child-benefit-household.json
-      sha256: sha256:ef2382897f1ca95d6ca37084de3c0ee3d0b4e11985567cf2392123321d18ecb0
+      sha256: sha256:77470bdaa56f3bf30beb1734e0aa0fd676068b09f45d576ce32cae4a51920efb
     rhai_scripts: []
   audit_pseudonym_materials:
   - key_id: epoch-1
@@ -64,7 +64,8 @@ datasets:
   defaults:
     materialization: snapshot
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
   description: Materialized sro_child entity
   entities: []
   id: sro_child
@@ -80,11 +81,12 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_f7f319f45c6e5c29a337739c8af0b2b289ea25fe34bbf854daac8c3fb9e0edfc
+    id: materialization_a2fcdd986475cdde3629a2c14184c4d678c8f6a99ae777f97831bc4ffbcb540d
     materialization: snapshot
     primary_key: uin
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
     schema:
       fields:
       - name: poverty_band

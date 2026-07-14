@@ -2,7 +2,6 @@ import http from 'k6/http';
 import { check } from 'k6';
 import {
   CLAIM_RESULT,
-  FEDERATED_BUNDLE,
   CHILD_BENEFIT_PURPOSE,
   PENSION_PAYMENT_PURPOSE,
   VOUCHER_PURPOSE,
@@ -60,7 +59,7 @@ export default function () {
       scheme: 'solmara_uin',
       purpose: CHILD_BENEFIT_PURPOSE,
       claim: 'birth-is-registered',
-      format: FEDERATED_BUNDLE,
+      format: 'application/json',
     },
     {
       name: 'cra_death_registration_review',

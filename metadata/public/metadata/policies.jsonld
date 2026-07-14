@@ -134,8 +134,7 @@
               "operator": "isAnyOf",
               "rightOperand": [
                 "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
               ]
             }
           ]
@@ -159,9 +158,7 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
-                "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
               ]
             }
           ]
@@ -200,7 +197,7 @@
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "solmara-child-benefit-federated-predicate-bundle-policy",
+      "id": "solmara-child-benefit-authority-predicate-collection-policy",
       "permission": [
         {
           "action": "use",
@@ -216,9 +213,9 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-federated-predicate-bundle",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-federated-predicate-bundle-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-authority-predicate-collection-policy"
     }
   ]
 }

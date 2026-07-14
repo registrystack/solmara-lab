@@ -48,7 +48,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:050322b9632a8055c7e55b228696b74d389149bca9f50988ac9725ff507bb3c7
+            contract_hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
             id: solmara-nagdi-agriculture.livestock.herd
       type: registry_backed
     formats:
@@ -103,7 +103,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:050322b9632a8055c7e55b228696b74d389149bca9f50988ac9725ff507bb3c7
+            contract_hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
             id: solmara-nagdi-agriculture.livestock.herd
       type: registry_backed
     formats:
@@ -153,7 +153,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:050322b9632a8055c7e55b228696b74d389149bca9f50988ac9725ff507bb3c7
+            contract_hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
             id: solmara-nagdi-agriculture.livestock.herd
       type: registry_backed
     formats:
@@ -212,7 +212,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:45a344b5d1d0dee6dbcb2e083e8665993da321ea72d119375c1705bf60f31fc1
+            contract_hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
             id: solmara-nagdi-agriculture.voucher.farmer
       type: registry_backed
     formats:
@@ -271,7 +271,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:45a344b5d1d0dee6dbcb2e083e8665993da321ea72d119375c1705bf60f31fc1
+            contract_hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
             id: solmara-nagdi-agriculture.voucher.farmer
       type: registry_backed
     formats:
@@ -338,7 +338,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:45a344b5d1d0dee6dbcb2e083e8665993da321ea72d119375c1705bf60f31fc1
+            contract_hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
             id: solmara-nagdi-agriculture.voucher.farmer
       type: registry_backed
     formats:

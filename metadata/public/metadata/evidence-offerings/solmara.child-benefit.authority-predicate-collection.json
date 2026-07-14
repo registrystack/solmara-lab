@@ -1,18 +1,18 @@
 {
   "access": {
-    "conforms_to": "https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1",
+    "conforms_to": "https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1",
     "discovery_url": "https://child-benefit-federator.solmara.registrystack.org/v1/claims",
     "endpoint_url": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
-    "kind": "federated-predicate-bundle-api",
-    "media_type": "application/vnd.solmara.federated-predicate-bundle+json",
+    "kind": "authority-predicate-collection-api",
+    "media_type": "application/json",
     "ruleset": "source-owned-child-benefit-predicates-v1"
   },
   "dataset": "mosd-programme",
-  "description": "A transient bundle of signed, source-owned child benefit predicates. It contains no copied source rows and no composed eligibility decision.",
+  "description": "A transient collection of source-owned child benefit predicates. It contains no copied source rows and no composed eligibility decision.",
   "entity": "enrollment",
-  "evidence_type": "child-benefit-federated-predicate-bundle-evidence",
-  "id": "solmara.child-benefit.federated-predicate-bundle",
-  "iri": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-federated-predicate-bundle",
+  "evidence_type": "child-benefit-authority-predicate-collection-evidence",
+  "id": "solmara.child-benefit.authority-predicate-collection",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
   "issuing_authority": {
     "authority_type": "eli:PublicAuthority",
     "id": "mosd-programme-mis",
@@ -23,7 +23,7 @@
   "lookup_keys": [
     "uin"
   ],
-  "policy": "solmara-child-benefit-federated-predicate-bundle-policy",
+  "policy": "solmara-child-benefit-authority-predicate-collection-policy",
   "public_services": [
     "child-benefit-review"
   ],
@@ -41,5 +41,5 @@
       "https://publicschema.org/sp/Enrollment"
     ]
   },
-  "title": "Child Benefit Source Predicate Federation Bundle"
+  "title": "Child Benefit Authority Predicate Collection"
 }

@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Probe Relay source lookups used by the live Notary smoke."""
+"""Probe Relay readiness and the private consultation boundary.
+
+Authority Notaries reach their paired Relays with short-lived workload
+identity tokens. This smoke deliberately has no such token: it proves that all
+six Relays are ready while direct access to a private consultation profile is
+refused with the stable invalid-credentials problem.
+"""
 
 from __future__ import annotations
 
 import json
 import os
-import shlex
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -16,224 +22,194 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output" / "smoke" / "relay-sources.json"
+HttpResult = tuple[int | None, dict[str, str], Any, str]
+RelayReadiness = tuple[HttpResult, HttpResult]
 
 
 @dataclass(frozen=True)
-class RelayProbe:
+class RelayBoundary:
     name: str
     base_url_env: str
     default_base_url: str
-    token_env: str
-    purpose: str
-    dataset: str
-    entity: str
-    filter_field: str
-    filter_value: str
-    fields: tuple[str, ...]
+    consultation_profile: str
 
 
-PURPOSE_CHILD = "https://id.registrystack.org/solmara/purpose/child-benefit-review"
-PURPOSE_PENSION = "https://id.registrystack.org/solmara/purpose/pension-payment-review"
-PURPOSE_VOUCHER = "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
-PURPOSE_LIVESTOCK = "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
-
-PROBES = (
-    RelayProbe(
-        "child civil birth",
+RELAYS = (
+    RelayBoundary(
+        "CRA Relay",
         "SOLMARA_CRA_RELAY_URL",
         "http://127.0.0.1:4311",
-        "CRA_CHILD_BENEFIT_SOURCE_RAW",
-        PURPOSE_CHILD,
-        "cra_civil",
-        "civil_person",
-        "id",
-        "2300010248",
-        ("birth_brn", "birth_date", "deceased", "observed_at"),
+        "solmara-cra-civil.cra-child-benefit.civil",
     ),
-    RelayProbe(
-        "citizen population status",
+    RelayBoundary(
+        "NIA Relay",
         "SOLMARA_NIA_RELAY_URL",
         "http://127.0.0.1:4312",
-        "NIA_CITIZEN_SOURCE_RAW",
-        "https://id.registrystack.org/solmara/purpose/citizen-self-service",
-        "nia_population",
-        "person",
-        "id",
-        "2300010248",
-        ("identity_status", "alive", "observed_at"),
+        "solmara-nia-population.nia-child-benefit.population",
     ),
-    RelayProbe(
-        "child social membership",
+    RelayBoundary(
+        "SRO Relay",
         "SOLMARA_SRO_RELAY_URL",
         "http://127.0.0.1:4313",
-        "SRO_CHILD_BENEFIT_SOURCE_RAW",
-        PURPOSE_CHILD,
-        "sro_social",
-        "household_member",
-        "uin",
-        "2300010248",
-        ("household_id", "observed_at"),
+        "solmara-sro-social.child-benefit.household",
     ),
-    RelayProbe(
-        "child social household",
-        "SOLMARA_SRO_RELAY_URL",
-        "http://127.0.0.1:4313",
-        "SRO_CHILD_BENEFIT_SOURCE_RAW",
-        PURPOSE_CHILD,
-        "sro_social",
-        "household",
-        "id",
-        "HH-002317",
-        ("poverty_band", "observed_at"),
-    ),
-    RelayProbe(
-        "child programme enrollment",
+    RelayBoundary(
+        "Programme Relay",
         "SOLMARA_PROGRAMME_RELAY_URL",
         "http://127.0.0.1:4314",
-        "PROGRAMME_CHILD_BENEFIT_SOURCE_RAW",
-        PURPOSE_CHILD,
-        "mosd_programme",
-        "enrollment",
-        "uin",
-        "2300010248",
-        ("duplicate_flag", "observed_at"),
+        "solmara-mosd-programme.child-benefit.enrollment",
     ),
-    RelayProbe(
-        "pension civil death",
-        "SOLMARA_CRA_RELAY_URL",
-        "http://127.0.0.1:4311",
-        "CRA_PENSION_SOURCE_RAW",
-        PURPOSE_PENSION,
-        "cra_civil",
-        "civil_person",
-        "id",
-        "2300109568",
-        ("deceased", "death_drn", "observed_at"),
-    ),
-    RelayProbe(
-        "pension case",
+    RelayBoundary(
+        "SIPF Relay",
         "SOLMARA_SIPF_RELAY_URL",
         "http://127.0.0.1:4315",
-        "SIPF_PENSION_SOURCE_RAW",
-        PURPOSE_PENSION,
-        "sipf_pensions",
-        "pension_case",
-        "pensioner_uin",
-        "2300109568",
-        ("payment_status", "survivor_eligible", "observed_at"),
+        "solmara-sipf-pensions.sipf-pension-payment-review.pension",
     ),
-    RelayProbe(
-        "nagdi farmer voucher",
+    RelayBoundary(
+        "NAgDI Relay",
         "SOLMARA_NAGDI_RELAY_URL",
         "http://127.0.0.1:4316",
-        "NAGDI_NOTARY_SOURCE_RAW",
-        PURPOSE_VOUCHER,
-        "nagdi_agriculture",
-        "farmer_voucher",
-        "id",
-        "FR-1001",
-        ("farmer_registered", "data_use_authorized", "voucher_not_redeemed", "observed_at"),
-    ),
-    RelayProbe(
-        "nagdi livestock movement",
-        "SOLMARA_NAGDI_RELAY_URL",
-        "http://127.0.0.1:4316",
-        "NAGDI_NOTARY_SOURCE_RAW",
-        PURPOSE_LIVESTOCK,
-        "nagdi_agriculture",
-        "livestock_movement",
-        "id",
-        "FR-1001",
-        ("registered_herd", "origin_district_not_quarantined_for_species", "observed_at"),
+        "solmara-nagdi-agriculture.voucher.farmer",
     ),
 )
 
 
 def main() -> int:
-    load_dotenv(ROOT / ".env")
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     failures: list[str] = []
     results: list[dict[str, Any]] = []
+    readiness = wait_for_relays()
 
-    for probe in PROBES:
-        result = run_probe(probe)
+    for relay in RELAYS:
+        result = run_probe(relay, *readiness[relay.name])
         results.append(result)
         if result["status"] != "ok":
-            failures.append(f"{probe.name}: {result['status']} ({result.get('detail', 'no detail')})")
+            failures.append(
+                f"{relay.name}: {result['status']} ({result.get('detail', 'no detail')})"
+            )
 
-    OUTPUT.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    OUTPUT.write_text(
+        json.dumps(results, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     if failures:
         for failure in failures:
             print(f"smoke-relay-sources: {failure}", file=sys.stderr)
-        print(f"smoke-relay-sources: wrote {OUTPUT.relative_to(ROOT)}", file=sys.stderr)
+        print(
+            f"smoke-relay-sources: wrote {OUTPUT.relative_to(ROOT)}", file=sys.stderr
+        )
         return 1
 
-    print(f"smoke-relay-sources: {len(PROBES)} Relay source probes passed; wrote {OUTPUT.relative_to(ROOT)}")
+    print(
+        f"smoke-relay-sources: {len(RELAYS)} Relay readiness and private-consultation denial checks passed; "
+        f"wrote {OUTPUT.relative_to(ROOT)}"
+    )
     return 0
 
 
-def run_probe(probe: RelayProbe) -> dict[str, Any]:
-    token = os.environ.get(probe.token_env, "")
-    if not token:
-        return {"name": probe.name, "status": "missing_token", "detail": probe.token_env}
-
-    base_url = os.environ.get(probe.base_url_env, probe.default_base_url)
-    params = {
-        "limit": "2",
-        "fields": ",".join(probe.fields),
-        probe.filter_field: probe.filter_value,
-    }
-    url = joined_url(
-        base_url,
-        f"/v1/datasets/{probe.dataset}/entities/{probe.entity}/records",
-        params,
+def wait_for_relays() -> dict[str, RelayReadiness]:
+    deadline = time.monotonic() + float(
+        os.environ.get("SOLMARA_SMOKE_READY_TIMEOUT_SECONDS", "90")
     )
+    latest: dict[str, RelayReadiness] = {}
+    while True:
+        for relay in RELAYS:
+            base_url = os.environ.get(relay.base_url_env, relay.default_base_url)
+            latest[relay.name] = (
+                http_get(joined_url(base_url, "/healthz")),
+                http_get(joined_url(base_url, "/ready")),
+            )
+        if all(
+            health[0] == 200 and ready[0] == 200
+            for health, ready in latest.values()
+        ) or time.monotonic() >= deadline:
+            return latest
+        time.sleep(1)
+
+
+def run_probe(
+    relay: RelayBoundary,
+    health: HttpResult,
+    ready: HttpResult,
+) -> dict[str, Any]:
+    base_url = os.environ.get(relay.base_url_env, relay.default_base_url)
+    if health[0] != 200:
+        return {
+            "name": relay.name,
+            "status": "health_unavailable",
+            "detail": status_detail(health),
+        }
+
+    if ready[0] != 200:
+        return {
+            "name": relay.name,
+            "status": "not_ready",
+            "detail": status_detail(ready),
+        }
+
+    profile = urllib.parse.quote(relay.consultation_profile, safe=".-_")
+    denial = http_get(joined_url(base_url, f"/v1/consultations/{profile}"))
+    denial_failure = validate_unauthenticated_denial(denial)
+    if denial_failure:
+        return {
+            "name": relay.name,
+            "status": "consultation_boundary_failed",
+            "detail": denial_failure,
+        }
+
+    return {
+        "name": relay.name,
+        "status": "ok",
+        "liveness_status": health[0],
+        "readiness_status": ready[0],
+        "unauthenticated_consultation_status": denial[0],
+        "unauthenticated_consultation_code": "auth.invalid_credentials",
+    }
+
+
+def http_get(url: str) -> HttpResult:
     request = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
-            "Data-Purpose": probe.purpose,
-        },
-        method="GET",
+        url, headers={"Accept": "application/json"}, method="GET"
     )
     try:
-        with urllib.request.urlopen(request, timeout=8.0) as response:
-            body = parse_json(response.read())
-            return validate_probe_body(probe, response.status, body)
+        with urllib.request.urlopen(request, timeout=5.0) as response:
+            return (
+                response.status,
+                {key.lower(): value for key, value in response.headers.items()},
+                parse_json(response.read()),
+                "",
+            )
     except urllib.error.HTTPError as error:
-        return {
-            "name": probe.name,
-            "status": f"http_{error.code}",
-            "detail": compact_error_body(parse_json(error.read())),
-        }
+        return (
+            error.code,
+            {key.lower(): value for key, value in error.headers.items()},
+            parse_json(error.read()),
+            "",
+        )
     except Exception as error:
-        return {"name": probe.name, "status": "request_failed", "detail": error.__class__.__name__}
+        return None, {}, {}, error.__class__.__name__
 
 
-def validate_probe_body(probe: RelayProbe, status: int, body: Any) -> dict[str, Any]:
-    if status != 200:
-        return {"name": probe.name, "status": f"http_{status}", "detail": "unexpected status"}
-    rows = body.get("data") if isinstance(body, dict) else None
-    if not isinstance(rows, list):
-        return {"name": probe.name, "status": "invalid_body", "detail": "missing data array"}
-    if len(rows) != 1:
-        return {"name": probe.name, "status": "unexpected_row_count", "detail": str(len(rows))}
-    row = rows[0] if isinstance(rows[0], dict) else {}
-    missing_fields = [field for field in probe.fields if field not in row]
-    if missing_fields:
-        return {"name": probe.name, "status": "missing_fields", "detail": ",".join(missing_fields)}
-    return {
-        "name": probe.name,
-        "status": "ok",
-        "dataset": probe.dataset,
-        "entity": probe.entity,
-        "row_count": len(rows),
-    }
+def validate_unauthenticated_denial(
+    response: HttpResult,
+) -> str | None:
+    status, headers, body, error = response
+    if status != 401:
+        return f"expected HTTP 401, got {status or error}"
+    content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type != "application/problem+json":
+        return f"expected application/problem+json, got {content_type or 'no content type'}"
+    code = body.get("code") if isinstance(body, dict) else None
+    if code != "auth.invalid_credentials":
+        return f"expected auth.invalid_credentials, got {code!r}"
+    if isinstance(body, dict) and any(
+        key in body for key in ("data", "outputs", "results", "source_record")
+    ):
+        return "unauthenticated denial included source-shaped data"
+    return None
 
 
-def joined_url(base_url: str, path: str, params: dict[str, str]) -> str:
-    return f"{base_url.rstrip('/')}/{path.lstrip('/')}?{urllib.parse.urlencode(params)}"
+def joined_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
 
 def parse_json(raw: bytes) -> Any:
@@ -245,28 +221,12 @@ def parse_json(raw: bytes) -> Any:
         return {"unparsed": raw.decode("utf-8", errors="replace")[:200]}
 
 
-def compact_error_body(body: Any) -> str:
-    if isinstance(body, dict):
-        code = body.get("code")
-        title = body.get("title")
-        detail = body.get("detail")
-        return "; ".join(str(part) for part in (code, title, detail) if part)
-    return str(body)[:200]
-
-
-def load_dotenv(path: Path) -> None:
-    if not path.exists():
-        return
-    for raw_line in path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, raw_value = line.split("=", 1)
-        key = key.strip()
-        if not key or key in os.environ:
-            continue
-        parts = shlex.split(raw_value, posix=True)
-        os.environ[key] = parts[0] if parts else ""
+def status_detail(response: HttpResult) -> str:
+    status, _, body, error = response
+    if status is None:
+        return error or "no response"
+    code = body.get("code") if isinstance(body, dict) else None
+    return f"HTTP {status}" + (f" {code}" if code else "")
 
 
 if __name__ == "__main__":

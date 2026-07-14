@@ -45,9 +45,13 @@ def decode_segment(value: str) -> dict[str, object]:
     return document
 
 
-def private_jwk(*, kid: str = "test-workload-key") -> tuple[dict[str, str], Ed25519PrivateKey]:
+def private_jwk(
+    *, kid: str = "test-workload-key"
+) -> tuple[dict[str, str], Ed25519PrivateKey]:
     private_key = Ed25519PrivateKey.generate()
-    private_bytes = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    private_bytes = private_key.private_bytes(
+        Encoding.Raw, PrivateFormat.Raw, NoEncryption()
+    )
     public_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     return (
         {
@@ -62,23 +66,67 @@ def private_jwk(*, kid: str = "test-workload-key") -> tuple[dict[str, str], Ed25
     )
 
 
+def identity_document(
+    directory: Path,
+    *,
+    azp: str = "cra-notary",
+    subject: str | None = None,
+    kid_env: str = "TEST_WORKLOAD_PRIVATE_JWK",
+    token_name: str = "relay-token",
+    scopes: list[str] | None = None,
+    token_uid: int | None = None,
+    token_gid: int | None = None,
+) -> dict[str, object]:
+    document: dict[str, object] = {
+        "audience": "registry-relay",
+        "azp": azp,
+        "subject": subject or azp,
+        "scopes": scopes
+        or [
+            "registry:consult:cra-child-benefit",
+            "registry:consult:cra-citizen-record",
+        ],
+        "token_file": str(directory / token_name),
+        "private_jwk_env": kid_env,
+    }
+    if token_uid is not None:
+        document["token_uid"] = token_uid
+    if token_gid is not None:
+        document["token_gid"] = token_gid
+    return document
+
+
 def valid_environment(directory: Path) -> tuple[dict[str, str], Ed25519PrivateKey]:
     jwk, private_key = private_jwk()
     environment = {
         "WORKLOAD_ISSUER": "http://127.0.0.1:8090",
-        "WORKLOAD_AUDIENCE": "registry-relay",
-        "WORKLOAD_AZP": "cra-notary",
-        "WORKLOAD_SUB": "cra-notary",
-        "WORKLOAD_SCOPE": (
-            "registry:consult:cra-child-benefit registry:consult:cra-citizen-record"
-        ),
-        "WORKLOAD_TOKEN_FILE": str(directory / "relay-token"),
-        "WORKLOAD_PRIVATE_JWK_ENV": "TEST_WORKLOAD_PRIVATE_JWK",
+        "WORKLOAD_IDENTITIES_JSON": json.dumps([identity_document(directory)]),
         "TEST_WORKLOAD_PRIVATE_JWK": json.dumps(jwk),
         "WORKLOAD_TOKEN_UID": str(os.getuid()),
         "WORKLOAD_TOKEN_GID": str(os.getgid()),
     }
     return environment, private_key
+
+
+def add_esignet_identity(
+    environment: dict[str, str], directory: Path
+) -> Ed25519PrivateKey:
+    jwk, private_key = private_jwk(kid="test-esignet-key")
+    environment["TEST_ESIGNET_PRIVATE_JWK"] = json.dumps(jwk)
+    identities = json.loads(environment["WORKLOAD_IDENTITIES_JSON"])
+    identities.append(
+        identity_document(
+            directory,
+            azp="solmara-esignet",
+            kid_env="TEST_ESIGNET_PRIVATE_JWK",
+            token_name="esignet-relay-token",
+            scopes=["population:identity_release"],
+            token_uid=os.getuid(),
+            token_gid=os.getgid(),
+        )
+    )
+    environment["WORKLOAD_IDENTITIES_JSON"] = json.dumps(identities)
+    return private_key
 
 
 class FakeClock:
@@ -90,59 +138,71 @@ class FakeClock:
 
 
 class WorkloadIdentityAgentTests(unittest.TestCase):
-    def test_minted_token_has_exact_claims_and_valid_ed25519_signature(self) -> None:
+    def test_each_identity_gets_exact_claims_and_its_own_signature(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            environment, private_key = valid_environment(Path(temporary_directory))
+            directory = Path(temporary_directory)
+            environment, notary_key = valid_environment(directory)
+            esignet_key = add_esignet_identity(environment, directory)
             config = agent.Config.from_environ(environment)
-            token, expires_at = agent._mint_token(config, 1_700_000_000)
 
-            encoded_header, encoded_claims, encoded_signature = token.split(".")
-            header = decode_segment(encoded_header)
-            claims = decode_segment(encoded_claims)
-            signature = base64.urlsafe_b64decode(
-                encoded_signature + "=" * (-len(encoded_signature) % 4)
-            )
-            private_key.public_key().verify(
-                signature, f"{encoded_header}.{encoded_claims}".encode("ascii")
-            )
+            tokens = [
+                agent._mint_token(config, identity, 1_700_000_000)[0]
+                for identity in config.identities
+            ]
+            claims = []
+            for token, expected_key in zip(
+                tokens, (notary_key, esignet_key), strict=True
+            ):
+                encoded_header, encoded_claims, encoded_signature = token.split(".")
+                signature = base64.urlsafe_b64decode(
+                    encoded_signature + "=" * (-len(encoded_signature) % 4)
+                )
+                expected_key.public_key().verify(
+                    signature, f"{encoded_header}.{encoded_claims}".encode("ascii")
+                )
+                claims.append(decode_segment(encoded_claims))
 
+            self.assertEqual(claims[0]["azp"], "cra-notary")
+            self.assertEqual(claims[0]["sub"], "cra-notary")
             self.assertEqual(
-                header,
-                {"alg": "EdDSA", "kid": "test-workload-key", "typ": "at+jwt"},
+                claims[0]["scope"],
+                "registry:consult:cra-child-benefit registry:consult:cra-citizen-record",
             )
-            self.assertEqual(claims["iss"], environment["WORKLOAD_ISSUER"])
-            self.assertEqual(claims["aud"], environment["WORKLOAD_AUDIENCE"])
-            self.assertEqual(claims["azp"], environment["WORKLOAD_AZP"])
-            self.assertEqual(claims["sub"], environment["WORKLOAD_SUB"])
-            self.assertEqual(claims["scope"], environment["WORKLOAD_SCOPE"])
-            self.assertEqual(claims["iat"], 1_700_000_000)
-            self.assertEqual(claims["nbf"], 1_700_000_000)
-            self.assertEqual(claims["exp"], 1_700_000_300)
-            self.assertEqual(expires_at, 1_700_000_300)
-            self.assertIsInstance(claims["jti"], str)
-            self.assertGreater(len(str(claims["jti"])), 16)
+            self.assertEqual(claims[1]["azp"], "solmara-esignet")
+            self.assertEqual(claims[1]["sub"], "solmara-esignet")
+            self.assertEqual(claims[1]["scope"], "population:identity_release")
+            self.assertNotEqual(claims[0]["jti"], claims[1]["jti"])
+            for token_claims in claims:
+                self.assertEqual(token_claims["iss"], environment["WORKLOAD_ISSUER"])
+                self.assertEqual(token_claims["aud"], "registry-relay")
+                self.assertEqual(token_claims["iat"], 1_700_000_000)
+                self.assertEqual(token_claims["nbf"], 1_700_000_000)
+                self.assertEqual(token_claims["exp"], 1_700_000_300)
 
-    def test_public_jwks_excludes_private_key_material(self) -> None:
+    def test_public_jwks_contains_every_distinct_public_key_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            environment, _ = valid_environment(Path(temporary_directory))
+            directory = Path(temporary_directory)
+            environment, _ = valid_environment(directory)
+            add_esignet_identity(environment, directory)
             config = agent.Config.from_environ(environment)
 
             document = agent.IdentityState(config).jwks_document()
 
-            self.assertEqual(len(document["keys"]), 1)
             self.assertEqual(
-                set(document["keys"][0]), {"alg", "crv", "kid", "kty", "x"}
+                {key["kid"] for key in document["keys"]},
+                {"test-workload-key", "test-esignet-key"},
             )
-            self.assertEqual(document["keys"][0]["kty"], "OKP")
-            self.assertEqual(document["keys"][0]["crv"], "Ed25519")
+            for key in document["keys"]:
+                self.assertEqual(set(key), {"alg", "crv", "kid", "kty", "x"})
 
     def test_atomic_rotation_publishes_mode_and_ownership_together(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
             environment, _ = valid_environment(directory)
             config = agent.Config.from_environ(environment)
-            config.token_file.write_text("previous-token\n", encoding="ascii")
-            os.chmod(config.token_file, 0o644)
+            identity = config.identities[0]
+            identity.token_file.write_text("previous-token\n", encoding="ascii")
+            os.chmod(identity.token_file, 0o644)
             state = agent.IdentityState(config, clock=FakeClock(1_700_000_000))
             original_replace = os.replace
             replace_observed = False
@@ -155,20 +215,56 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
                 self.assertEqual(source_status.st_uid, os.getuid())
                 self.assertEqual(source_status.st_gid, os.getgid())
                 self.assertEqual(
-                    config.token_file.read_text(encoding="ascii"), "previous-token\n"
+                    identity.token_file.read_text(encoding="ascii"), "previous-token\n"
                 )
                 original_replace(source, destination)
 
-            with mock.patch.object(agent.os, "replace", side_effect=inspect_then_replace):
+            with mock.patch.object(
+                agent.os, "replace", side_effect=inspect_then_replace
+            ):
                 state.rotate()
 
             self.assertTrue(replace_observed)
-            file_status = config.token_file.stat()
+            file_status = identity.token_file.stat()
             self.assertEqual(stat.S_IMODE(file_status.st_mode), 0o600)
             self.assertEqual(file_status.st_uid, os.getuid())
             self.assertEqual(file_status.st_gid, os.getgid())
-            self.assertEqual(len(config.token_file.read_text(encoding="ascii").split(".")), 3)
+            self.assertEqual(
+                len(identity.token_file.read_text(encoding="ascii").split(".")), 3
+            )
             self.assertTrue(state.ready())
+
+    def test_readiness_requires_every_current_regular_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            environment, _ = valid_environment(directory)
+            add_esignet_identity(environment, directory)
+            clock = FakeClock(1_700_000_000)
+            config = agent.Config.from_environ(environment)
+            state = agent.IdentityState(config, clock=clock)
+            state.rotate()
+            self.assertTrue(state.ready())
+
+            config.identities[1].token_file.write_text(
+                "not-the-current-token\n", encoding="ascii"
+            )
+            self.assertFalse(state.ready())
+            state.rotate()
+            self.assertTrue(state.ready())
+
+            config.identities[1].token_file.write_bytes(b"")
+            self.assertFalse(state.ready())
+            state.rotate()
+            self.assertTrue(state.ready())
+
+            config.identities[1].token_file.unlink()
+            config.identities[1].token_file.symlink_to(config.identities[0].token_file)
+            self.assertFalse(state.ready())
+
+            config.identities[1].token_file.unlink()
+            state.rotate()
+            clock.value += config.token_ttl_seconds
+            self.assertFalse(state.ready())
 
     def test_rotation_occurs_only_inside_the_configured_expiry_window(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -177,11 +273,12 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
             environment["WORKLOAD_ROTATE_BEFORE_SECONDS"] = "30"
             environment["WORKLOAD_ROTATION_INTERVAL_SECONDS"] = "5"
             config = agent.Config.from_environ(environment)
+            identity = config.identities[0]
             clock = FakeClock(1_700_000_000)
             state = agent.IdentityState(config, clock=clock)
             state.rotate()
             first_claims = decode_segment(
-                config.token_file.read_text(encoding="ascii").strip().split(".")[1]
+                identity.token_file.read_text(encoding="ascii").strip().split(".")[1]
             )
 
             clock.value += 89
@@ -189,16 +286,18 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
             clock.value += 1
             self.assertTrue(state.rotate_if_due())
             rotated_claims = decode_segment(
-                config.token_file.read_text(encoding="ascii").strip().split(".")[1]
+                identity.token_file.read_text(encoding="ascii").strip().split(".")[1]
             )
 
             self.assertNotEqual(first_claims["jti"], rotated_claims["jti"])
             self.assertEqual(rotated_claims["iat"], 1_700_000_090)
             self.assertEqual(rotated_claims["exp"], 1_700_000_210)
 
-    def test_health_and_jwks_reflect_published_state(self) -> None:
+    def test_health_and_jwks_reflect_all_published_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            environment, _ = valid_environment(Path(temporary_directory))
+            directory = Path(temporary_directory)
+            environment, _ = valid_environment(directory)
+            add_esignet_identity(environment, directory)
             config = agent.Config.from_environ(environment)
             state = agent.IdentityState(config, clock=FakeClock(1_700_000_000))
             server = agent.AgentHTTPServer(("127.0.0.1", 0), state)
@@ -212,15 +311,15 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
 
                 status, jwks = self._get_json(f"{base_url}/.well-known/jwks.json")
                 self.assertEqual(status, 200)
-                self.assertEqual(len(jwks["keys"]), 1)
-                self.assertNotIn("d", jwks["keys"][0])
+                self.assertEqual(len(jwks["keys"]), 2)
+                self.assertTrue(all("d" not in key for key in jwks["keys"]))
 
                 state.rotate()
                 status, health = self._get_json(f"{base_url}/health")
                 self.assertEqual(status, 200)
                 self.assertEqual(health, {"status": "ready"})
 
-                config.token_file.write_bytes(b"")
+                config.identities[1].token_file.write_bytes(b"")
                 status, health = self._get_json(f"{base_url}/health")
                 self.assertEqual(status, 503)
                 self.assertEqual(health, {"status": "not_ready"})
@@ -233,16 +332,57 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=5)
 
-    def test_configuration_defaults_token_to_nobody_ownership(self) -> None:
+    def test_configuration_defaults_and_per_identity_ownership_override(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            environment, _ = valid_environment(Path(temporary_directory))
+            directory = Path(temporary_directory)
+            environment, _ = valid_environment(directory)
             del environment["WORKLOAD_TOKEN_UID"]
             del environment["WORKLOAD_TOKEN_GID"]
+            add_esignet_identity(environment, directory)
+            identities = json.loads(environment["WORKLOAD_IDENTITIES_JSON"])
+            identities[1]["token_uid"] = 1001
+            identities[1]["token_gid"] = 1001
+            environment["WORKLOAD_IDENTITIES_JSON"] = json.dumps(identities)
 
             config = agent.Config.from_environ(environment)
 
-            self.assertEqual(config.token_uid, 65534)
-            self.assertEqual(config.token_gid, 65534)
+            self.assertEqual(config.identities[0].token_uid, 65534)
+            self.assertEqual(config.identities[0].token_gid, 65534)
+            self.assertEqual(config.identities[1].token_uid, 1001)
+            self.assertEqual(config.identities[1].token_gid, 1001)
+
+    @unittest.skipUnless(os.geteuid() == 0, "requires root to verify distinct owners")
+    def test_rotation_applies_distinct_configured_owners(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            environment, _ = valid_environment(directory)
+            add_esignet_identity(environment, directory)
+            identities = json.loads(environment["WORKLOAD_IDENTITIES_JSON"])
+            identities[0]["token_uid"] = 65534
+            identities[0]["token_gid"] = 65534
+            identities[1]["token_uid"] = 1001
+            identities[1]["token_gid"] = 1001
+            environment["WORKLOAD_IDENTITIES_JSON"] = json.dumps(identities)
+            config = agent.Config.from_environ(environment)
+
+            state = agent.IdentityState(config, clock=FakeClock(1_700_000_000))
+            state.rotate()
+
+            self.assertEqual(
+                (
+                    config.identities[0].token_file.stat().st_uid,
+                    config.identities[0].token_file.stat().st_gid,
+                ),
+                (65534, 65534),
+            )
+            self.assertEqual(
+                (
+                    config.identities[1].token_file.stat().st_uid,
+                    config.identities[1].token_file.stat().st_gid,
+                ),
+                (1001, 1001),
+            )
+            self.assertTrue(state.ready())
 
     def test_configuration_rejects_unsafe_or_ambiguous_values(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -250,6 +390,12 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
             baseline, _ = valid_environment(directory)
             jwk = json.loads(baseline["TEST_WORKLOAD_PRIVATE_JWK"])
             mismatched_jwk, _ = private_jwk()
+
+            def identities(change: dict[str, object]) -> str:
+                document = identity_document(directory)
+                document.update(change)
+                return json.dumps([document])
+
             cases: dict[str, dict[str, str | None]] = {
                 "non_loopback_bind": {"WORKLOAD_BIND_HOST": "0.0.0.0"},
                 "non_loopback_issuer": {"WORKLOAD_ISSUER": "http://localhost:8090"},
@@ -257,13 +403,31 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
                 "malformed_issuer": {"WORKLOAD_ISSUER": "http://["},
                 "issuer_path": {"WORKLOAD_ISSUER": "http://127.0.0.1:8090/issuer"},
                 "issuer_port_mismatch": {"WORKLOAD_PORT": "8091"},
-                "blank_audience": {"WORKLOAD_AUDIENCE": ""},
-                "spaced_azp": {"WORKLOAD_AZP": "cra notary"},
-                "duplicate_scope": {"WORKLOAD_SCOPE": "registry:read registry:read"},
-                "empty_scope_entry": {"WORKLOAD_SCOPE": "registry:read  registry:write"},
-                "relative_token_file": {"WORKLOAD_TOKEN_FILE": "relay-token"},
+                "blank_audience": {
+                    "WORKLOAD_IDENTITIES_JSON": identities({"audience": ""})
+                },
+                "spaced_azp": {
+                    "WORKLOAD_IDENTITIES_JSON": identities({"azp": "cra notary"})
+                },
+                "duplicate_scope": {
+                    "WORKLOAD_IDENTITIES_JSON": identities(
+                        {"scopes": ["registry:read", "registry:read"]}
+                    )
+                },
+                "empty_scope_entry": {
+                    "WORKLOAD_IDENTITIES_JSON": identities(
+                        {"scopes": ["registry:read", ""]}
+                    )
+                },
+                "relative_token_file": {
+                    "WORKLOAD_IDENTITIES_JSON": identities(
+                        {"token_file": "relay-token"}
+                    )
+                },
                 "missing_token_parent": {
-                    "WORKLOAD_TOKEN_FILE": str(directory / "missing" / "relay-token")
+                    "WORKLOAD_IDENTITIES_JSON": identities(
+                        {"token_file": str(directory / "missing" / "relay-token")}
+                    )
                 },
                 "ttl_too_long": {"WORKLOAD_TOKEN_TTL_SECONDS": "901"},
                 "rotation_too_late": {
@@ -274,15 +438,25 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
                     "WORKLOAD_ROTATE_BEFORE_SECONDS": "10",
                     "WORKLOAD_ROTATION_INTERVAL_SECONDS": "11",
                 },
-                "negative_uid": {"WORKLOAD_TOKEN_UID": "-1"},
-                "oversized_gid": {"WORKLOAD_TOKEN_GID": str(agent.MAX_ID + 1)},
-                "bad_key_environment_name": {"WORKLOAD_PRIVATE_JWK_ENV": "bad-name"},
+                "negative_uid": {
+                    "WORKLOAD_IDENTITIES_JSON": identities({"token_uid": -1})
+                },
+                "boolean_gid": {
+                    "WORKLOAD_IDENTITIES_JSON": identities({"token_gid": True})
+                },
+                "bad_key_environment_name": {
+                    "WORKLOAD_IDENTITIES_JSON": identities(
+                        {"private_jwk_env": "bad-name"}
+                    )
+                },
                 "missing_key_environment": {"TEST_WORKLOAD_PRIVATE_JWK": None},
                 "wrong_curve": {
                     "TEST_WORKLOAD_PRIVATE_JWK": json.dumps({**jwk, "crv": "X25519"})
                 },
                 "unsupported_key_field": {
-                    "TEST_WORKLOAD_PRIVATE_JWK": json.dumps({**jwk, "key_ops": ["sign"]})
+                    "TEST_WORKLOAD_PRIVATE_JWK": json.dumps(
+                        {**jwk, "key_ops": ["sign"]}
+                    )
                 },
                 "mismatched_public_key": {
                     "TEST_WORKLOAD_PRIVATE_JWK": json.dumps(
@@ -295,6 +469,20 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
                         '"alg":"EdDSA","kid":"key","x":"a","d":"a"}'
                     )
                 },
+                "empty_identity_list": {"WORKLOAD_IDENTITIES_JSON": "[]"},
+                "too_many_identities": {
+                    "WORKLOAD_IDENTITIES_JSON": json.dumps(
+                        [identity_document(directory)] * (agent.MAX_IDENTITIES + 1)
+                    )
+                },
+                "unsupported_identity_field": {
+                    "WORKLOAD_IDENTITIES_JSON": identities({"name": "notary"})
+                },
+                "duplicate_identity_field": {
+                    "WORKLOAD_IDENTITIES_JSON": (
+                        '[{"audience":"registry-relay","audience":"other"}]'
+                    )
+                },
             }
             for name, changes in cases.items():
                 with self.subTest(name=name):
@@ -305,6 +493,43 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
                         else:
                             environment[key] = value
                     with self.assertRaises(agent.ConfigurationError):
+                        agent.Config.from_environ(environment)
+
+    def test_configuration_rejects_duplicate_identity_bindings(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            baseline, _ = valid_environment(directory)
+            second_jwk, _ = private_jwk(kid="second-key")
+            baseline["SECOND_PRIVATE_JWK"] = json.dumps(second_jwk)
+            cloned_key = json.loads(baseline["TEST_WORKLOAD_PRIVATE_JWK"])
+            cloned_key["kid"] = "cloned-key-id"
+            baseline["CLONED_PRIVATE_JWK"] = json.dumps(cloned_key)
+            base = identity_document(directory)
+            independent = identity_document(
+                directory,
+                azp="second-client",
+                kid_env="SECOND_PRIVATE_JWK",
+                token_name="second-token",
+            )
+            duplicate_cases = {
+                "azp": {**independent, "azp": base["azp"]},
+                "subject": {**independent, "subject": base["subject"]},
+                "kid": {**independent, "private_jwk_env": "TEST_WORKLOAD_PRIVATE_JWK"},
+                "public key": {
+                    **independent,
+                    "private_jwk_env": "CLONED_PRIVATE_JWK",
+                },
+                "token_file": {**independent, "token_file": base["token_file"]},
+            }
+            for field, duplicate in duplicate_cases.items():
+                with self.subTest(field=field):
+                    environment = dict(baseline)
+                    environment["WORKLOAD_IDENTITIES_JSON"] = json.dumps(
+                        [base, duplicate]
+                    )
+                    with self.assertRaisesRegex(
+                        agent.ConfigurationError, rf"{field} values must be unique"
+                    ):
                         agent.Config.from_environ(environment)
 
     def test_main_does_not_echo_rejected_key_material(self) -> None:

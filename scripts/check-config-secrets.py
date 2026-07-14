@@ -27,7 +27,7 @@ ALLOWED = (
     "REGISTRY_NOTARY_REPLAY_REDIS_URL:",
 )
 WORKLOAD_TOKEN_VOLUME = re.compile(
-    r"^\s*-\s*[a-z0-9-]+-workload-token:/run/secrets(?::ro)?\s*$"
+    r"^\s*-\s*[a-z0-9-]+-workload-token:/run/(?:esignet-)?secrets(?::ro)?\s*$"
 )
 PROJECT_SECRET_REFERENCE = re.compile(
     r"^\s*[a-z][a-z0-9_]*:\s*\{\s*secret:\s*[A-Z][A-Z0-9_]*\s*\}\s*$"

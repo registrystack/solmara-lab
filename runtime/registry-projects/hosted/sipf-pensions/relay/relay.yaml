@@ -44,19 +44,19 @@ consultation:
       path: artifacts/integration-packs/pension-case-by-survivor.json
       sha256: sha256:0e5d17671c4bb70f2de35ebd92dc7fc745fa96539c89aaecb823014ea570b0c0
     private_bindings:
-    - hash: sha256:bb4cc129e912026dedd882ef6835e8f7f0abeffac3807a536e1e942ee3db7a24
+    - hash: sha256:2afe86389a95b7cfc4c044cef4121eb76ef8d16e53062d23fc94e506147acd4a
       path: artifacts/private-bindings/sipf-pension-payment-review-pension.json
-      sha256: sha256:35435048efb3ee65cd02a91012ba05ac9864c9ffa05a6adaeb21a55f4d6349e9
-    - hash: sha256:2e9f89aace01ab09a6bbbe32e739ade537b40ececc7b27c91ca25a92b548a449
+      sha256: sha256:a61426e41ec476090f81cad40af7c2cd841e78f656e95d0e59c28447772f2579
+    - hash: sha256:ab18913ddee896c64080fb81c28753f17b5ceaf497e96d4f23b182ffe591ab4b
       path: artifacts/private-bindings/sipf-survivor-benefit-survivor.json
-      sha256: sha256:9205df42801ad0ef6b4387536dff65f889a249679dd41d90c940b360119a614a
+      sha256: sha256:e073578d218287585af339adda4092ff7e3545f52ac7000c515e38acad1c4791
     public_contracts:
-    - hash: sha256:260cfd31c53f359c17c44323b5e5437189670cce6c71e961795031641c3cc9f8
+    - hash: sha256:47ee6aa3f5503173cd06fa791843849c421e818295dc74c4bbdbd7cdb2c753e4
       path: artifacts/consultation-contracts/sipf-pension-payment-review-pension.json
-      sha256: sha256:a878fb99e985404d12e6fd01d6bd23df84c1812f23b1d106f6c7d65f1c2f577a
-    - hash: sha256:37bf62cc8667cc5d0075179ec2c4be97e7545026e3a0557e5acd1c89631969e2
+      sha256: sha256:21eca329ac5c7d87291eff868247acd763a56a15920ce7a23a7b8b5dd29753ec
+    - hash: sha256:ede60666de002be1c1aae9279375c4b5e02171582c042b4d61ab6186a1e1c5d5
       path: artifacts/consultation-contracts/sipf-survivor-benefit-survivor.json
-      sha256: sha256:78420b0136e52039d2da50b6080baefbf0ae402811b9006669fa46bfb83ed4d8
+      sha256: sha256:718a57529960909aa4904412ae1010544352817a16db8bd3670a9f4baca4e52f
     rhai_scripts: []
   audit_pseudonym_materials:
   - key_id: epoch-1
@@ -82,7 +82,8 @@ datasets:
   defaults:
     materialization: snapshot
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
   description: Materialized pension entity
   entities: []
   id: pension
@@ -98,11 +99,12 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_c82d723f1da1e4226f17722a39f0bed947d328c71b4eed188d0f76347fbf68f8
+    id: materialization_5b9c250beca9c627d5300e4bb7e831a5ff2ebc184c98142f4145e1bcdf0b42d7
     materialization: snapshot
     primary_key: pensioner_uin
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
     schema:
       fields:
       - name: payment_status
@@ -128,7 +130,8 @@ datasets:
   defaults:
     materialization: snapshot
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
   description: Materialized survivor entity
   entities: []
   id: survivor
@@ -144,11 +147,12 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_63674a55f428141f8c2444317547b5344a544b27f037ef94b28bfcb1809eeb2b
+    id: materialization_4469c4516b8b74da71d74914415251a07533406a6a6e1bbec963a302934d88d0
     materialization: snapshot
     primary_key: spouse_uin
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
     schema:
       fields:
       - name: spouse_uin

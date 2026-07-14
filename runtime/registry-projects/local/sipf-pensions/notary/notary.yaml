@@ -37,7 +37,7 @@ evidence:
               nullable: false
               type: string
           profile:
-            contract_hash: sha256:260cfd31c53f359c17c44323b5e5437189670cce6c71e961795031641c3cc9f8
+            contract_hash: sha256:47ee6aa3f5503173cd06fa791843849c421e818295dc74c4bbdbd7cdb2c753e4
             id: solmara-sipf-pensions.sipf-pension-payment-review.pension
       type: registry_backed
     formats:
@@ -74,7 +74,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:37bf62cc8667cc5d0075179ec2c4be97e7545026e3a0557e5acd1c89631969e2
+            contract_hash: sha256:ede60666de002be1c1aae9279375c4b5e02171582c042b4d61ab6186a1e1c5d5
             id: solmara-sipf-pensions.sipf-survivor-benefit.survivor
       type: registry_backed
     formats:

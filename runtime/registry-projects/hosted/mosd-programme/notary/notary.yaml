@@ -34,7 +34,7 @@ evidence:
               nullable: false
               type: boolean
           profile:
-            contract_hash: sha256:f390b9f014dedfb49f1743634033120bcf07f45c26b7c190a0303aaa4f24c5cf
+            contract_hash: sha256:9da47bc7171991c51e098b44cb0667595b344d5f4c2b994a67f0c3b401d4b5b3
             id: solmara-mosd-programme.child-benefit.enrollment
       type: registry_backed
     formats:
@@ -57,9 +57,9 @@ evidence:
   enabled: true
   max_credential_validity_seconds: 600
   relay:
-    allow_insecure_localhost: false
+    allow_insecure_localhost: true
     allowed_private_cidrs: []
-    base_url: https://mosd-programme-relay.solmara.registrystack.org
+    base_url: http://127.0.0.1:8080
     max_in_flight: 8
     token_file: /run/secrets/programme-notary-relay-token
     workload_client_id: programme-notary

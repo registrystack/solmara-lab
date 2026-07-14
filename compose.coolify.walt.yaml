@@ -2,9 +2,9 @@ name: solmara-lab-wallet
 
 # Self-hosted walt.id holder wallet for the Solmara hosted demo.
 #
-# Only the holder side is deployed (wallet-api + web wallet). The Registry
-# Notary at citizen-issuer-notary.solmara.registrystack.org is the OID4VCI
-# issuer, so walt's issuer-api, verifier-api, and portal are omitted.
+# Only the holder side is deployed (wallet-api + web wallet). Registry Stack
+# issuance stays with the relevant authority-owned Notary, so walt's
+# issuer-api, verifier-api, and portal are omitted.
 #
 # Ingress: Caddy is the single public entrypoint. Coolify/Traefik terminates TLS
 # for wallet.solmara.registrystack.org and forwards to caddy:7101, which serves

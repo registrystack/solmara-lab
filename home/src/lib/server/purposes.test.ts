@@ -8,7 +8,7 @@ const SAMPLE = `# Solmara Purpose Catalogue
 
 | Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
 |---|---|---|---|---|
-| \`https://id.registrystack.org/solmara/purpose/child-benefit-review\` | CRA, NIA | \`child-benefit-federator\` plus source-owned child-benefit Notaries | Birth to child benefit | \`pdp.purpose_not_permitted\`; \`federation.forbidden\` for delegated calls |
+| \`https://id.registrystack.org/solmara/purpose/child-benefit-review\` | CRA, NIA | CRA and NIA authority Notaries | Birth to child benefit | \`pdp.purpose_not_permitted\` |
 | \`https://id.registrystack.org/solmara/purpose/voucher-eligibility-review\` | NAgDI | \`nagdi-notary\` | Farmer climate-smart voucher | \`pdp.purpose_not_permitted\` |
 
 ## Purpose Rules
@@ -55,9 +55,9 @@ describe('purposes parser', () => {
     expect(child.iri).toBe('https://id.registrystack.org/solmara/purpose/child-benefit-review');
     expect(child.slug).toBe('child-benefit-review');
     expect(child.advertisedBy).toBe('CRA, NIA');
-    expect(child.enforcedBy).toBe('child-benefit-federator plus source-owned child-benefit Notaries');
+    expect(child.enforcedBy).toBe('CRA and NIA authority Notaries');
     expect(child.story).toBe('Birth to child benefit');
-    expect(child.denialCodes).toEqual(['pdp.purpose_not_permitted', 'federation.forbidden']);
+    expect(child.denialCodes).toEqual(['pdp.purpose_not_permitted']);
     expect(child.plainLanguage).toContain('permits evidence needed to determine whether a child');
     expect(child.plainLanguage).toContain('does not permit raw poverty scores');
     // The rule paragraph must not leak markdown backticks.

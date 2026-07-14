@@ -60,7 +60,6 @@ lint:
     scripts/check-fiction.sh
     scripts/check-image-pins.py
     scripts/check-config-secrets.py
-    uv run scripts/render-hosted-configs.py --check
     just metadata-publish-check
     just metadata-lint
     @if [ -f portal/package.json ]; then cd portal && pnpm check; fi
@@ -72,7 +71,7 @@ test:
     uv run python3 -m unittest discover -s scenario-runner -p 'test_*.py'
     @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
     @if [ -f home/package.json ]; then cd home && pnpm test; fi
-    python3 -m unittest discover -s scripts -p 'test_*.py'
+    uv run python3 -m unittest discover -s scripts -p 'test_*.py'
 
 # Validate Compose files without starting services.
 compose:
@@ -106,7 +105,7 @@ reset:
 reset-esignet:
     @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml down -v
 
-# Run story and federation smokes against the running local topology.
+# Run story and authority-application smokes against the running local topology.
 smoke:
     scripts/smoke.sh
 
@@ -114,7 +113,7 @@ smoke:
 smoke-live:
     uv run --locked scripts/smoke-live.py
 
-# Smoke eSignet discovery and the NIA attribute-release profile.
+# Smoke eSignet discovery; portal login proves the NIA attribute-release path end to end.
 smoke-esignet *args:
     uv run scripts/smoke-esignet.py {{args}}
 

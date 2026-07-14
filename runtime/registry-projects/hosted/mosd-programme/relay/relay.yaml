@@ -32,13 +32,13 @@ consultation:
       path: artifacts/integration-packs/enrollment-by-uin.json
       sha256: sha256:056cb318d4c9a49271f5283d52dfa282ff351af8b480d88c74eeaa6de7dcee33
     private_bindings:
-    - hash: sha256:0e1739f611e71d160a675142a347072326ae28a8568ee2ea1950415a9bc55f87
+    - hash: sha256:0cb86f544d14128977aeb6b69b43d9700c4668c395c8b1a790750e4225463cbe
       path: artifacts/private-bindings/child-benefit-enrollment.json
-      sha256: sha256:58d84f262072a79335fcc14b062351aefaed9b8baecb8186d63a15407fb3c802
+      sha256: sha256:e92f9f56ef5027c5a9292628d1d96f7a9c313496e21f6200d8e512b2a1d31778
     public_contracts:
-    - hash: sha256:f390b9f014dedfb49f1743634033120bcf07f45c26b7c190a0303aaa4f24c5cf
+    - hash: sha256:9da47bc7171991c51e098b44cb0667595b344d5f4c2b994a67f0c3b401d4b5b3
       path: artifacts/consultation-contracts/child-benefit-enrollment.json
-      sha256: sha256:fcbe0d2fa59dcc7900c65b67a56e91d8b64cefdfcb4282eabf6cddf6a482a628
+      sha256: sha256:253ee934a9c9bbf725e233f90c195d057893eeea14bc9bc12330c0957245ff10
     rhai_scripts: []
   audit_pseudonym_materials:
   - key_id: epoch-1
@@ -64,7 +64,8 @@ datasets:
   defaults:
     materialization: snapshot
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
   description: Materialized mosd_enroll entity
   entities: []
   id: mosd_enroll
@@ -80,11 +81,12 @@ datasets:
       default_limit: 1
       max_limit: 1
       require_purpose_header: false
-    id: materialization_150b40280d8603f4457f3dc9570c686da446fa6bb9450e87172395ca17015c24
+    id: materialization_5f676d9c112ce16b7ede827eab122868889c2a4c9a1d4b38a214beecadc245bf
     materialization: snapshot
     primary_key: uin
     refresh:
-      mode: manual
+      interval: 1m
+      mode: interval
     schema:
       fields:
       - name: duplicate_flag

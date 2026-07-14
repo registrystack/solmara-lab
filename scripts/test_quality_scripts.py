@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -8,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
 
@@ -16,7 +19,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_smoke_live():
-    spec = importlib.util.spec_from_file_location("smoke_live", ROOT / "scripts" / "smoke-live.py")
+    spec = importlib.util.spec_from_file_location(
+        "smoke_live", ROOT / "scripts" / "smoke-live.py"
+    )
     if spec is None or spec.loader is None:
         raise RuntimeError("could not load smoke-live.py")
     module = importlib.util.module_from_spec(spec)
@@ -45,6 +50,18 @@ def load_config_secret_check():
         raise RuntimeError("could not load check-config-secrets.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules["check_config_secrets"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_secret_generator():
+    load_compose_project_name()
+    spec = importlib.util.spec_from_file_location(
+        "solmara_gen_secrets", ROOT / "scripts" / "gen-secrets.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load gen-secrets.py")
+    module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
@@ -88,54 +105,268 @@ class QualityScriptTests(unittest.TestCase):
                     )
                     self.assertEqual(generated["cel"], authored["notary_cel"])
 
-    def test_federation_key_rotation_is_isolated_and_refuses_overwrite(self) -> None:
+    def test_generated_secret_contract_uses_authority_owners(self) -> None:
+        module = load_secret_generator()
+        self.assertEqual(
+            set(module.RAW_HASH_PAIRS),
+            {
+                (
+                    "CRA_CHILD_BENEFIT_CLIENT_TOKEN",
+                    "CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                ),
+                ("CRA_PENSION_CLIENT_TOKEN", "CRA_PENSION_CLIENT_TOKEN_HASH"),
+                ("CRA_CITIZEN_CLIENT_TOKEN", "CRA_CITIZEN_CLIENT_TOKEN_HASH"),
+                (
+                    "NIA_CHILD_BENEFIT_CLIENT_TOKEN",
+                    "NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                ),
+                ("NIA_CITIZEN_CLIENT_TOKEN", "NIA_CITIZEN_CLIENT_TOKEN_HASH"),
+                (
+                    "SRO_CHILD_BENEFIT_CLIENT_TOKEN",
+                    "SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                ),
+                (
+                    "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
+                    "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                ),
+                ("SIPF_PENSION_CLIENT_TOKEN", "SIPF_PENSION_CLIENT_TOKEN_HASH"),
+                ("NAGDI_NOTARY_TOKEN", "NAGDI_CLIENT_TOKEN_HASH"),
+            },
+        )
+        self.assertEqual(
+            set(module.JWK_KIDS),
+            {
+                "CRA_RELAY_WORKLOAD_JWK",
+                "NIA_RELAY_WORKLOAD_JWK",
+                "NIA_ESIGNET_RELAY_WORKLOAD_JWK",
+                "SRO_RELAY_WORKLOAD_JWK",
+                "PROGRAMME_RELAY_WORKLOAD_JWK",
+                "SIPF_RELAY_WORKLOAD_JWK",
+                "NAGDI_RELAY_WORKLOAD_JWK",
+                "NIA_NOTARY_ISSUER_JWK",
+                "SIPF_NOTARY_ISSUER_JWK",
+                "NAGDI_NOTARY_ISSUER_JWK",
+            },
+        )
+
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "federation.env"
-            environment = {
-                **os.environ,
-                "CHILD_BENEFIT_PUBLIC_DOMAIN": "rotation.example.test",
-            }
-            command = [
-                sys.executable,
-                str(ROOT / "scripts" / "gen-secrets.py"),
-                "--federation-output",
-                str(output),
-            ]
-            generated = subprocess.run(
-                command,
-                cwd=ROOT,
-                env=environment,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.assertEqual(generated.returncode, 0, generated.stderr)
+            temporary_root = Path(directory)
+            module.ROOT = temporary_root
+            module.POSTGRES_SSL_DIR = temporary_root / "config" / "postgres" / "ssl"
+            module.compose_project_name = lambda _root: "solmara-lab-test"
+            federation_output = temporary_root / "federation.env"
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as rejected:
+                    module.main(["--federation-output", str(federation_output)])
+            self.assertEqual(rejected.exception.code, 2)
+            self.assertFalse(federation_output.exists())
+
+            self.assertEqual(module.main([]), 0)
+            output = temporary_root / ".env"
             self.assertEqual(output.stat().st_mode & 0o777, 0o600)
 
-            values = {}
-            for line in output.read_text(encoding="utf-8").splitlines():
-                if not line or line.startswith("#"):
-                    continue
-                key, value = line.split("=", 1)
-                values[key] = value.strip("'")
-            self.assertEqual(values["CHILD_BENEFIT_PUBLIC_DOMAIN"], "rotation.example.test")
-            jwks = {key: json.loads(value) for key, value in values.items() if key.endswith("_JWK")}
-            self.assertEqual(len(jwks), 5)
-            for jwk in jwks.values():
-                self.assertIn(".rotation.example.test#", jwk["kid"])
-                self.assertEqual(jwk["kty"], "OKP")
-                self.assertIn("d", jwk)
+            generated_keys = {
+                line.split("=", 1)[0]
+                for line in output.read_text(encoding="utf-8").splitlines()
+                if line and not line.startswith("#")
+            }
+            declared_keys = {
+                line.split("=", 1)[0]
+                for line in (ROOT / ".env.example")
+                .read_text(encoding="utf-8")
+                .splitlines()
+                if line and not line.startswith("#") and "=" in line
+            }
+            self.assertEqual(generated_keys - declared_keys, set())
 
-            refused = subprocess.run(
-                command,
-                cwd=ROOT,
-                env=environment,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+            retired_names = {
+                "CIVIL_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "NIA_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "SRO_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "PROGRAMME_CHILD_BENEFIT_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "PENSION_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "CITIZEN_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "CITIZEN_ISSUER_NOTARY_POSTGRES_RUNTIME_PASSWORD",
+                "PENSION_NOTARY_TOKEN",
+                "PORTAL_CITIZEN_NOTARY_TOKEN",
+                "PORTAL_RELAY_TOKEN",
+                "SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW",
+                "SOLMARA_ESIGNET_IDENTITY_RELEASE_HASH",
+                "CHILD_BENEFIT_PUBLIC_DOMAIN",
+                "CHILD_BENEFIT_FEDERATOR_REQUEST_JWK",
+                "CIVIL_CHILD_BENEFIT_PAIRWISE_SECRET",
+                "PENSION_NOTARY_ISSUER_JWK",
+                "CITIZEN_NOTARY_ISSUER_JWK",
+                "CITIZEN_ISSUER_ESIGNET_RP_JWK",
+                "CIVIL_CHILD_BENEFIT_NOTARY_URL",
+                "PENSION_NOTARY_URL",
+                "PORTAL_CIVIL_RELAY_URL",
+            }
+            self.assertEqual(retired_names & generated_keys, set())
+            self.assertEqual(retired_names & declared_keys, set())
+            self.assertEqual(
+                {
+                    name
+                    for name in generated_keys | declared_keys
+                    if name.endswith(("_SOURCE_RAW", "_SOURCE_HASH"))
+                },
+                set(),
             )
-            self.assertEqual(refused.returncode, 1)
-            self.assertIn("Refusing to overwrite", refused.stderr)
+
+    def test_workload_issuer_contract_is_bounded_and_esignet_isolated(self) -> None:
+        compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+        services = compose["services"]
+        expected = {
+            "cra-workload-agent": (
+                "cra-notary",
+                {
+                    "registry:consult:cra-child-benefit",
+                    "registry:consult:cra-citizen-record",
+                    "registry:consult:cra-pension-death",
+                },
+            ),
+            "nia-workload-agent": (
+                "nia-notary",
+                {
+                    "registry:consult:nia-child-benefit",
+                    "registry:consult:nia-citizen-status",
+                },
+            ),
+            "sro-workload-agent": (
+                "sro-notary",
+                {"registry:consult:child-benefit"},
+            ),
+            "programme-workload-agent": (
+                "programme-notary",
+                {"registry:consult:child-benefit"},
+            ),
+            "sipf-workload-agent": (
+                "sipf-notary",
+                {
+                    "registry:consult:sipf-pension-payment-review",
+                    "registry:consult:sipf-survivor-benefit",
+                },
+            ),
+            "nagdi-workload-agent": (
+                "nagdi-notary",
+                {"registry:consult:livestock", "registry:consult:voucher"},
+            ),
+        }
+        for service_name, (client_id, scopes) in expected.items():
+            with self.subTest(service=service_name):
+                environment = services[service_name]["environment"]
+                identities = json.loads(environment["WORKLOAD_IDENTITIES_JSON"])
+                notary = next(
+                    identity for identity in identities if identity["azp"] == client_id
+                )
+                self.assertEqual(notary["subject"], client_id)
+                self.assertEqual(notary["audience"], "registry-relay")
+                self.assertEqual(set(notary["scopes"]), scopes)
+                self.assertEqual(
+                    notary["token_file"], f"/run/secrets/{client_id}-relay-token"
+                )
+                self.assertEqual(
+                    len({identity["azp"] for identity in identities}), len(identities)
+                )
+                self.assertEqual(
+                    len({identity["subject"] for identity in identities}),
+                    len(identities),
+                )
+                self.assertEqual(
+                    len({identity["token_file"] for identity in identities}),
+                    len(identities),
+                )
+                for retired in (
+                    "WORKLOAD_AUDIENCE",
+                    "WORKLOAD_AZP",
+                    "WORKLOAD_SUB",
+                    "WORKLOAD_SCOPE",
+                    "WORKLOAD_TOKEN_FILE",
+                    "WORKLOAD_PRIVATE_JWK_ENV",
+                ):
+                    self.assertNotIn(retired, environment)
+
+        nia_identities = json.loads(
+            services["nia-workload-agent"]["environment"]["WORKLOAD_IDENTITIES_JSON"]
+        )
+        self.assertEqual(len(nia_identities), 2)
+        esignet_identity = next(
+            identity
+            for identity in nia_identities
+            if identity["azp"] == "solmara-esignet"
+        )
+        self.assertEqual(esignet_identity["subject"], "solmara-esignet")
+        self.assertEqual(esignet_identity["scopes"], ["population:identity_release"])
+        self.assertEqual(esignet_identity["token_uid"], 1001)
+        self.assertEqual(esignet_identity["token_gid"], 1001)
+        self.assertEqual(
+            esignet_identity["token_file"],
+            "/run/esignet-secrets/solmara-esignet-relay-token",
+        )
+        self.assertEqual(
+            esignet_identity["private_jwk_env"],
+            "NIA_ESIGNET_RELAY_WORKLOAD_JWK",
+        )
+        self.assertIn(
+            "nia-esignet-workload-token:/run/esignet-secrets",
+            services["nia-workload-agent"]["volumes"],
+        )
+        self.assertNotIn(
+            "nia-esignet-workload-token:/run/esignet-secrets",
+            services["nia-notary"]["volumes"],
+        )
+
+        local_esignet = yaml.safe_load(
+            (ROOT / "compose.esignet.yaml").read_text(encoding="utf-8")
+        )["services"]["esignet"]
+        hosted_compose = yaml.safe_load(
+            (ROOT / "compose.coolify.esignet.yaml").read_text(encoding="utf-8")
+        )
+        hosted_esignet = hosted_compose["services"]["esignet"]
+        for esignet in (local_esignet, hosted_esignet):
+            self.assertEqual(
+                esignet["environment"]["REGISTRY_RELAY_AUTH_BEARER_TOKEN_FILE"],
+                "/run/secrets/solmara-esignet-relay-token",
+            )
+            self.assertNotIn("REGISTRY_RELAY_AUTH_BEARER_TOKEN", esignet["environment"])
+            self.assertNotIn(
+                "REGISTRY_RELAY_AUTH_CREDENTIAL_KIND", esignet["environment"]
+            )
+            self.assertIn(
+                "nia-esignet-workload-token:/run/secrets:ro", esignet["volumes"]
+            )
+        self.assertEqual(
+            local_esignet["depends_on"]["nia-workload-agent"]["condition"],
+            "service_healthy",
+        )
+        self.assertEqual(
+            hosted_compose["volumes"]["nia-esignet-workload-token"],
+            {
+                "external": True,
+                "name": "${NIA_ESIGNET_WORKLOAD_TOKEN_VOLUME:-solmara-nia-esignet-workload-token}",
+            },
+        )
+
+        hosted_interior = yaml.safe_load(
+            (ROOT / "compose.coolify.interior.yaml").read_text(encoding="utf-8")
+        )
+        for service_name in ("nia-notary", "nia-notary-state-install"):
+            self.assertTrue(
+                all(
+                    "nia-esignet-workload-token" not in volume
+                    for volume in hosted_interior["services"][service_name]["volumes"]
+                )
+            )
+
+        retired_static_names = {
+            "SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW",
+            "SOLMARA_ESIGNET_IDENTITY_RELEASE_HASH",
+        }
+        self.assertTrue(
+            retired_static_names.isdisjoint(
+                name for pair in load_secret_generator().RAW_HASH_PAIRS for name in pair
+            )
+        )
 
     def test_fiction_lint_passes_current_tree(self) -> None:
         result = subprocess.run(
@@ -157,23 +388,39 @@ class QualityScriptTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_secret_lint_scans_runtime_and_limits_workload_volume_exemption(self) -> None:
+    def test_secret_lint_scans_runtime_and_limits_workload_volume_exemption(
+        self,
+    ) -> None:
         module = load_config_secret_check()
         scanned = {path.relative_to(ROOT).as_posix() for path in module.iter_files()}
         self.assertIn(
             "runtime/registry-projects/local/cra-civil/notary/notary.yaml",
             scanned,
         )
+        self.assertIn("projects/cra-civil/environments/local.yaml", scanned)
+        self.assertFalse(any(path.startswith("notaries/") for path in scanned))
+        self.assertFalse(any(path.startswith("hosted/notaries/") for path in scanned))
+        self.assertTrue(
+            module.line_is_allowed("      - cra-workload-token:/run/secrets:ro")
+        )
         self.assertTrue(
             module.line_is_allowed(
-                "      - cra-workload-token:/run/secrets:ro"
+                "      - nia-esignet-workload-token:/run/esignet-secrets"
+            )
+        )
+        self.assertTrue(
+            module.line_is_allowed(
+                "    api_key_fingerprint: { secret: CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH }"
             )
         )
         self.assertFalse(
             module.line_is_allowed("token: leaked-cra-notary-workload-token:value")
         )
+        self.assertFalse(module.line_is_allowed("signing_key: a-raw-private-key"))
 
-    def test_registry_projects_are_explicit_and_use_the_pinned_registryctl(self) -> None:
+    def test_registry_projects_are_explicit_and_use_the_pinned_registryctl(
+        self,
+    ) -> None:
         required_version = next(
             line.split("=", 1)[1]
             for line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines()
@@ -241,10 +488,12 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 stderr=subprocess.PIPE,
             )
             self.assertEqual(rejected.returncode, 1)
-            self.assertIn(f"registryctl {required_version} is required", rejected.stderr)
+            self.assertIn(
+                f"registryctl {required_version} is required", rejected.stderr
+            )
 
             registryctl.write_text(
-                f"#!/bin/sh\nif [ \"${{1:-}}\" = \"--version\" ]; then echo 'registryctl {required_version}'; exit 0; fi\nexit 1\n",
+                f'#!/bin/sh\nif [ "${{1:-}}" = "--version" ]; then echo \'registryctl {required_version}\'; exit 0; fi\nexit 1\n',
                 encoding="utf-8",
             )
             incompatible = subprocess.run(
@@ -256,17 +505,13 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 stderr=subprocess.PIPE,
             )
             self.assertEqual(incompatible.returncode, 1)
-            self.assertIn("with project-authoring check/test/build is required", incompatible.stderr)
+            self.assertIn(
+                "with project-authoring check/test/build is required",
+                incompatible.stderr,
+            )
 
     def test_registry_project_secret_references_have_local_producers(self) -> None:
-        load_compose_project_name()
-        spec = importlib.util.spec_from_file_location(
-            "solmara_gen_secrets", ROOT / "scripts" / "gen-secrets.py"
-        )
-        self.assertIsNotNone(spec)
-        self.assertIsNotNone(spec.loader)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = load_secret_generator()
         produced = (
             {hashed for _, hashed in module.RAW_HASH_PAIRS}
             | set(module.JWK_KIDS)
@@ -295,167 +540,233 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         self.assertEqual(consumed - produced, set())
         self.assertEqual(consumed - declared, set())
 
-    def test_hosted_configs_are_current(self) -> None:
-        result = subprocess.run(
-            [str(ROOT / "scripts" / "render-hosted-configs.py"), "--check"],
-            cwd=ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_coolify_services_mount_durable_audit_state(self) -> None:
-        expected_mounts = {
-            "compose.coolify.interior.yaml": {
-                "cra-civil-relay": [
-                    "cra-civil-cache:/var/lib/registry-relay/cache",
-                    "cra-civil-audit:/var/lib/registry-relay/audit",
-                ],
-                "nia-population-relay": [
-                    "nia-population-cache:/var/lib/registry-relay/cache",
-                    "nia-population-audit:/var/lib/registry-relay/audit",
-                ],
-                "civil-child-benefit-notary": [
-                    "civil-child-benefit-notary-state:/var/lib/registry-notary/config-state",
-                ],
-                "nia-child-benefit-notary": [
-                    "nia-child-benefit-notary-state:/var/lib/registry-notary/config-state",
-                ],
-            },
-            "compose.coolify.social-development.yaml": {
-                "sro-social-relay": [
-                    "sro-social-cache:/var/lib/registry-relay/cache",
-                    "sro-social-audit:/var/lib/registry-relay/audit",
-                ],
-                "programme-mis-relay": [
-                    "programme-mis-cache:/var/lib/registry-relay/cache",
-                    "programme-mis-audit:/var/lib/registry-relay/audit",
-                ],
-                "sro-child-benefit-notary": [
-                    "sro-child-benefit-notary-state:/var/lib/registry-notary/config-state",
-                ],
-                "programme-child-benefit-notary": [
-                    "programme-child-benefit-notary-state:/var/lib/registry-notary/config-state",
-                ],
-            },
-            "compose.coolify.labour-pensions.yaml": {
-                "sipf-pensions-relay": [
-                    "sipf-pensions-cache:/var/lib/registry-relay/cache",
-                    "sipf-pensions-audit:/var/lib/registry-relay/audit",
-                ],
-                "pension-notary": [
-                    "pension-notary-state:/var/lib/registry-notary/config-state",
-                ],
-            },
-            "compose.coolify.agriculture.yaml": {
-                "nagdi-agriculture-relay": [
-                    "nagdi-agriculture-cache:/var/lib/registry-relay/cache",
-                    "nagdi-agriculture-audit:/var/lib/registry-relay/audit",
-                ],
-                "nagdi-notary": [
-                    "nagdi-notary-state:/var/lib/registry-notary/config-state",
-                ],
-            },
-            "compose.coolify.citizen-services.yaml": {
-                "citizen-notary": [
-                    "citizen-notary-state:/var/lib/registry-notary/config-state",
-                ],
-                "citizen-issuer-notary": [
-                    "citizen-issuer-notary-state:/var/lib/registry-notary/config-state",
-                ],
-            },
+    def test_coolify_authority_state_is_postgresql_isolated(self) -> None:
+        authority_groups = {
+            "compose.coolify.interior.yaml": (
+                "nia",
+                (
+                    ("cra", "cra-civil", "cra-civil-relay", "cra-notary"),
+                    ("nia", "nia-population", "nia-population-relay", "nia-notary"),
+                ),
+            ),
+            "compose.coolify.social-development.yaml": (
+                "",
+                (
+                    ("sro", "sro-social", "sro-social-relay", "sro-notary"),
+                    (
+                        "programme",
+                        "mosd-programme",
+                        "programme-mis-relay",
+                        "programme-notary",
+                    ),
+                ),
+            ),
+            "compose.coolify.labour-pensions.yaml": (
+                "sipf",
+                (("sipf", "sipf-pensions", "sipf-pensions-relay", "sipf-notary"),),
+            ),
+            "compose.coolify.agriculture.yaml": (
+                "",
+                (
+                    (
+                        "nagdi",
+                        "nagdi-agriculture",
+                        "nagdi-agriculture-relay",
+                        "nagdi-notary",
+                    ),
+                ),
+            ),
         }
 
-        for compose_name, service_mounts in expected_mounts.items():
+        for compose_name, (source_readers, authorities) in authority_groups.items():
             with self.subTest(compose=compose_name):
-                compose = yaml.safe_load((ROOT / compose_name).read_text(encoding="utf-8"))
+                compose = yaml.safe_load(
+                    (ROOT / compose_name).read_text(encoding="utf-8")
+                )
                 declared_volumes = set((compose.get("volumes") or {}).keys())
                 services = compose["services"]
-                init_service = services["volume-permissions"]
-                init_volume_names = {mount.split(":", 1)[0] for mount in init_service.get("volumes") or []}
-                self.assertEqual(init_service.get("restart"), "unless-stopped")
-                self.assertIn("healthcheck", init_service)
+                self.assertNotIn("redis", services)
+                self.assertIn("postgres-data", declared_volumes)
+                self.assertIn(
+                    "postgres-data:/var/lib/postgresql/data",
+                    services["postgres"]["volumes"],
+                )
+                postgres_env = services["postgres"]["environment"]
+                authority_keys = [authority[0] for authority in authorities]
+                self.assertEqual(
+                    postgres_env["SOLMARA_RELAY_DATABASES"].split(), authority_keys
+                )
+                self.assertEqual(
+                    postgres_env["SOLMARA_NOTARY_DATABASES"].split(), authority_keys
+                )
+                self.assertEqual(
+                    postgres_env["SOLMARA_SOURCE_READER_DATABASES"], source_readers
+                )
+                self.assertEqual(
+                    services["registry-postgresql-bootstrap"]["restart"], "no"
+                )
 
-                for service_name, mounts in service_mounts.items():
-                    service = services[service_name]
-                    service_volumes = set(service.get("volumes") or [])
-                    self.assertEqual(
-                        (service.get("depends_on") or {}).get("volume-permissions", {}).get("condition"),
-                        "service_healthy",
-                    )
-                    for mount in mounts:
-                        with self.subTest(service=service_name, mount=mount):
-                            volume_name = mount.split(":", 1)[0]
-                            self.assertIn(mount, service_volumes)
-                            self.assertIn(volume_name, declared_volumes)
-                            self.assertIn(volume_name, init_volume_names)
+                for key, project, relay_name, notary_name in authorities:
+                    with self.subTest(authority=key):
+                        relay = services[relay_name]
+                        notary = services[notary_name]
+                        installer = services[f"{notary_name}-state-install"]
+                        relay_mounts = set(relay.get("volumes") or [])
+                        notary_mounts = set(notary.get("volumes") or [])
+                        self.assertIn(
+                            f"./runtime/registry-projects/hosted/{project}/relay:/etc/registry-relay:ro",
+                            relay_mounts,
+                        )
+                        self.assertIn(f"{key}-relay-cache", declared_volumes)
+                        self.assertIn(
+                            f"{key}-relay-cache:/var/lib/registry-relay/cache",
+                            relay_mounts,
+                        )
+                        self.assertIn(
+                            f"./runtime/registry-projects/hosted/{project}/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro",
+                            notary_mounts,
+                        )
+                        self.assertEqual(
+                            notary["network_mode"], f"service:{relay_name}"
+                        )
+                        self.assertEqual(notary["user"], "65534:65534")
+                        self.assertNotIn(
+                            "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL",
+                            notary["environment"],
+                        )
+                        self.assertIn(
+                            "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL",
+                            installer["environment"],
+                        )
+                        self.assertEqual(installer["restart"], "no")
+                        self.assertEqual(
+                            notary["depends_on"][f"{notary_name}-state-install"][
+                                "condition"
+                            ],
+                            "service_completed_successfully",
+                        )
+                        self.assertEqual(
+                            notary["labels"]["solmara.lab.host"],
+                            f"{notary_name}.solmara.registrystack.org",
+                        )
+                        self.assertFalse(
+                            any(
+                                "/var/lib/registry-notary" in mount
+                                for mount in notary_mounts
+                            )
+                        )
+
+    def test_hosted_postgresql_image_contains_both_live_source_fixtures(self) -> None:
+        dockerfile = (ROOT / "docker" / "postgres" / "Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "COPY ministries/interior-population/fixtures /docker-entrypoint-initdb.d",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY ministries/labour-pensions/fixtures /docker-entrypoint-initdb.d",
+            dockerfile,
+        )
 
     def test_notary_postgresql_state_is_isolated_and_redis_free(self) -> None:
         notaries = {
-            "civil-child-benefit-notary": (
-                "child-benefit-civil.yaml",
-                "civil_child_benefit",
-                "compose.coolify.interior.yaml",
+            "cra-notary": ("cra-civil", "cra", "cra-civil-relay"),
+            "nia-notary": ("nia-population", "nia", "nia-population-relay"),
+            "sro-notary": ("sro-social", "sro", "sro-social-relay"),
+            "programme-notary": (
+                "mosd-programme",
+                "programme",
+                "programme-mis-relay",
             ),
-            "nia-child-benefit-notary": (
-                "child-benefit-population.yaml",
-                "nia_child_benefit",
-                "compose.coolify.interior.yaml",
-            ),
-            "sro-child-benefit-notary": (
-                "child-benefit-social.yaml",
-                "sro_child_benefit",
-                "compose.coolify.social-development.yaml",
-            ),
-            "programme-child-benefit-notary": (
-                "child-benefit-programme.yaml",
-                "programme_child_benefit",
-                "compose.coolify.social-development.yaml",
-            ),
-            "pension-notary": (
-                "pension.yaml",
-                "pension",
-                "compose.coolify.labour-pensions.yaml",
-            ),
+            "sipf-notary": ("sipf-pensions", "sipf", "sipf-pensions-relay"),
             "nagdi-notary": (
-                "nagdi.yaml",
+                "nagdi-agriculture",
                 "nagdi",
-                "compose.coolify.agriculture.yaml",
-            ),
-            "citizen-notary": (
-                "citizen.yaml",
-                "citizen",
-                "compose.coolify.citizen-services.yaml",
-            ),
-            "citizen-issuer-notary": (
-                "citizen-issuer.yaml",
-                "citizen_issuer",
-                "compose.coolify.citizen-services.yaml",
+                "nagdi-agriculture-relay",
             ),
         }
         local = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
-        authority_composes = {
-            name: yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
-            for name in {details[2] for details in notaries.values()}
+        services = local["services"]
+        declared_volumes = set((local.get("volumes") or {}).keys())
+        self.assertNotIn("redis", services)
+        self.assertEqual(
+            {name for name in services if name.endswith("-notary")},
+            set(notaries),
+        )
+        self.assertEqual(
+            services["postgres"]["environment"]["SOLMARA_NOTARY_DATABASES"].split(),
+            ["cra", "nia", "sro", "programme", "sipf", "nagdi"],
+        )
+        self.assertEqual(
+            services["postgres"]["environment"]["SOLMARA_RELAY_DATABASES"].split(),
+            ["cra", "nia", "sro", "programme", "sipf", "nagdi"],
+        )
+        source_urls = {
+            services["nia-population-relay"]["environment"]["SOLMARA_NIA_DATABASE_URL"],
+            services["sipf-pensions-relay"]["environment"]["SOLMARA_SIPF_DATABASE_URL"],
         }
-
-        self.assertNotIn("redis", local["services"])
-        for compose in authority_composes.values():
-            self.assertNotIn("redis", compose["services"])
-            self.assertIn("postgres", compose["services"])
+        self.assertEqual(
+            source_urls,
+            {"${SOLMARA_NIA_DATABASE_URL}", "${SOLMARA_SIPF_DATABASE_URL}"},
+        )
+        env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+        self.assertIn(
+            "SOLMARA_NIA_DATABASE_URL=postgres://solmara_source_nia_reader:",
+            env_example,
+        )
+        self.assertIn(
+            "SOLMARA_SIPF_DATABASE_URL=postgres://solmara_source_sipf_reader:",
+            env_example,
+        )
+        self.assertNotIn(
+            "SOLMARA_NIA_DATABASE_URL=postgres://solmara_registry:", env_example
+        )
+        self.assertNotIn(
+            "SOLMARA_SIPF_DATABASE_URL=postgres://solmara_registry:", env_example
+        )
+        for token_name in (
+            "CRA_CHILD_BENEFIT_CLIENT_TOKEN",
+            "NIA_CHILD_BENEFIT_CLIENT_TOKEN",
+            "SRO_CHILD_BENEFIT_CLIENT_TOKEN",
+            "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
+        ):
+            self.assertIn(f"{token_name}=", env_example)
+        self.assertNotIn("CIVIL_CHILD_BENEFIT_NOTARY_TOKEN=", env_example)
+        self.assertNotIn("NIA_CHILD_BENEFIT_NOTARY_TOKEN=", env_example)
+        self.assertNotIn("SRO_CHILD_BENEFIT_NOTARY_TOKEN=", env_example)
+        self.assertNotIn("PROGRAMME_CHILD_BENEFIT_NOTARY_TOKEN=", env_example)
+        bootstrap = services["registry-postgresql-bootstrap"]
+        self.assertEqual(bootstrap["restart"], "no")
+        self.assertEqual(
+            bootstrap["depends_on"]["postgres"]["condition"],
+            "service_healthy",
+        )
 
         runtime_urls = set()
         migrator_urls = set()
-        for service_name, (config_name, database_key, compose_name) in notaries.items():
+        relay_urls = set()
+        for service_name, (project, database_key, relay_name) in notaries.items():
             with self.subTest(notary=service_name):
-                config = yaml.safe_load((ROOT / "notaries" / config_name).read_text(encoding="utf-8"))
+                config = yaml.safe_load(
+                    (
+                        ROOT
+                        / "runtime"
+                        / "registry-projects"
+                        / "local"
+                        / project
+                        / "notary"
+                        / "notary.yaml"
+                    ).read_text(encoding="utf-8")
+                )
                 state = config["state"]
                 self.assertEqual(state["storage"], "postgresql")
-                self.assertEqual(state["postgresql"]["url_env"], "REGISTRY_NOTARY_POSTGRES_URL")
+                self.assertEqual(
+                    state["postgresql"]["url_env"], "REGISTRY_NOTARY_POSTGRES_URL"
+                )
                 self.assertEqual(
                     state["postgresql"]["root_certificate_path"],
-                    "${REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH}",
+                    "/etc/solmara/postgres/root.crt",
                 )
                 self.assertNotIn("replay", config)
 
@@ -464,72 +775,88 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 expected_migrator = f"{expected_database}_migrator"
                 expected_owner = f"{expected_database}_owner"
                 installer_name = f"{service_name}-state-install"
+                workload_agent = f"{database_key}-workload-agent"
 
+                runtime = services[service_name]
+                installer = services[installer_name]
+                agent = services[workload_agent]
+                runtime_url = runtime["environment"]["REGISTRY_NOTARY_POSTGRES_URL"]
+                migrator_url = installer["environment"][
+                    "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL"
+                ]
+                relay_url = services[relay_name]["environment"][
+                    "REGISTRY_RELAY_CONSULTATION_DATABASE_URL"
+                ]
+                relay_cache = f"{database_key}-relay-cache"
+                self.assertIn(relay_cache, declared_volumes)
                 self.assertIn(
-                    database_key,
-                    local["services"]["postgres"]["environment"][
-                        "SOLMARA_NOTARY_DATABASES"
-                    ].split(),
+                    f"{relay_cache}:/var/lib/registry-relay/cache",
+                    services[relay_name]["volumes"],
                 )
-                self.assertIn(
-                    database_key,
-                    authority_composes[compose_name]["services"]["postgres"]["environment"][
-                        "SOLMARA_NOTARY_DATABASES"
-                    ].split(),
+                self.assertIn(f"{expected_runtime}:", runtime_url)
+                self.assertIn(f"/{expected_database}?sslmode=require", runtime_url)
+                self.assertNotIn(
+                    "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", runtime["environment"]
+                )
+                self.assertIn(f"{expected_migrator}:", migrator_url)
+                self.assertIn(f"/{expected_database}?sslmode=require", migrator_url)
+                self.assertIn(expected_owner, installer["command"])
+                self.assertIn(expected_runtime, installer["command"])
+                self.assertEqual(installer["restart"], "no")
+                self.assertEqual(runtime["network_mode"], f"service:{relay_name}")
+                self.assertEqual(runtime["user"], "65534:65534")
+                self.assertEqual(
+                    runtime["healthcheck"]["test"],
+                    [
+                        "CMD",
+                        "/usr/local/bin/registry-notary",
+                        "healthcheck",
+                        "--url",
+                        "http://127.0.0.1:8081/ready",
+                    ],
+                )
+                self.assertEqual(agent["network_mode"], f"service:{relay_name}")
+                self.assertEqual(
+                    installer["depends_on"]["registry-postgresql-bootstrap"][
+                        "condition"
+                    ],
+                    "service_completed_successfully",
+                )
+                self.assertEqual(
+                    installer["depends_on"][workload_agent]["condition"],
+                    "service_healthy",
+                )
+                self.assertEqual(
+                    runtime["depends_on"][installer_name]["condition"],
+                    "service_completed_successfully",
+                )
+                self.assertEqual(
+                    runtime["depends_on"][workload_agent]["condition"],
+                    "service_healthy",
                 )
 
-                for compose in (local, authority_composes[compose_name]):
-                    services = compose["services"]
-                    runtime = services[service_name]
-                    installer = services[installer_name]
-                    bootstrap = services["notary-postgresql-bootstrap"]
-                    runtime_url = runtime["environment"]["REGISTRY_NOTARY_POSTGRES_URL"]
-                    migrator_url = installer["environment"][
-                        "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL"
-                    ]
-                    self.assertIn(f"{expected_runtime}:", runtime_url)
-                    self.assertIn(f"/{expected_database}?sslmode=require", runtime_url)
-                    self.assertNotIn("REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", runtime["environment"])
-                    self.assertIn(f"{expected_migrator}:", migrator_url)
-                    self.assertIn(f"/{expected_database}?sslmode=require", migrator_url)
-                    self.assertIn(expected_owner, installer["command"])
-                    self.assertIn(expected_runtime, installer["command"])
-                    self.assertEqual(installer["restart"], "no")
-                    self.assertEqual(bootstrap["restart"], "no")
-                    self.assertEqual(
-                        installer["depends_on"]["notary-postgresql-bootstrap"]["condition"],
-                        "service_completed_successfully",
-                    )
-                    self.assertEqual(
-                        bootstrap["depends_on"]["postgres"]["condition"],
-                        "service_healthy",
-                    )
-                    self.assertEqual(
-                        runtime["depends_on"][installer_name]["condition"],
-                        "service_completed_successfully",
-                    )
-
-                runtime_urls.add(local["services"][service_name]["environment"]["REGISTRY_NOTARY_POSTGRES_URL"])
-                migrator_urls.add(
-                    local["services"][installer_name]["environment"][
-                        "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL"
-                    ]
-                )
+                runtime_urls.add(runtime_url)
+                migrator_urls.add(migrator_url)
+                relay_urls.add(relay_url)
 
         self.assertEqual(len(runtime_urls), len(notaries))
         self.assertEqual(len(migrator_urls), len(notaries))
+        self.assertEqual(len(relay_urls), len(notaries))
 
-        esignet = yaml.safe_load((ROOT / "compose.coolify.esignet.yaml").read_text(encoding="utf-8"))
+        esignet = yaml.safe_load(
+            (ROOT / "compose.coolify.esignet.yaml").read_text(encoding="utf-8")
+        )
         self.assertIn("esignet-redis", esignet["services"])
 
     def test_hosted_child_benefit_topology_is_source_owned(self) -> None:
-        core = yaml.safe_load((ROOT / "compose.coolify.yaml").read_text(encoding="utf-8"))
+        core = yaml.safe_load(
+            (ROOT / "compose.coolify.yaml").read_text(encoding="utf-8")
+        )
         core_services = core["services"]
         self.assertIn("child-benefit-federator", core_services)
         self.assertNotIn("child-benefit-notary", core_services)
         federator = core_services["child-benefit-federator"]
         federator_env = federator["environment"]
-        self.assertEqual(federator_env["CHILD_BENEFIT_PUBLIC_DOMAIN"], "solmara.registrystack.org")
         self.assertEqual(
             federator["labels"]["solmara.lab.host"],
             "child-benefit-federator.solmara.registrystack.org",
@@ -538,78 +865,105 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         expected = (
             (
                 "compose.coolify.interior.yaml",
-                "civil-child-benefit-notary",
+                "cra-notary",
                 "cra-civil-relay",
-                "child-benefit-civil.yaml",
-                "civil",
-                "CIVIL_CHILD_BENEFIT_NOTARY_URL",
-                "CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+                "cra-civil",
+                "CRA_NOTARY_URL",
+                "CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                {"birth-is-registered", "child-age-under-5"},
             ),
             (
                 "compose.coolify.interior.yaml",
-                "nia-child-benefit-notary",
+                "nia-notary",
                 "nia-population-relay",
-                "child-benefit-population.yaml",
-                "population",
-                "NIA_CHILD_BENEFIT_NOTARY_URL",
-                "NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+                "nia-population",
+                "NIA_NOTARY_URL",
+                "NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                {"population-record-active"},
             ),
             (
                 "compose.coolify.social-development.yaml",
-                "sro-child-benefit-notary",
+                "sro-notary",
                 "sro-social-relay",
-                "child-benefit-social.yaml",
-                "social",
-                "SRO_CHILD_BENEFIT_NOTARY_URL",
-                "SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+                "sro-social",
+                "SRO_NOTARY_URL",
+                "SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                {"household-below-poverty-threshold"},
             ),
             (
                 "compose.coolify.social-development.yaml",
-                "programme-child-benefit-notary",
+                "programme-notary",
                 "programme-mis-relay",
-                "child-benefit-programme.yaml",
-                "programme",
-                "PROGRAMME_CHILD_BENEFIT_NOTARY_URL",
-                "PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK",
+                "mosd-programme",
+                "PROGRAMME_NOTARY_URL",
+                "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
+                {"not-already-enrolled"},
             ),
         )
-        for compose_name, service_id, relay_id, config_name, source_id, url_env, jwk_env in expected:
+        for (
+            compose_name,
+            service_id,
+            relay_id,
+            project,
+            url_env,
+            token_hash_env,
+            expected_claims,
+        ) in expected:
             with self.subTest(service=service_id):
-                compose = yaml.safe_load((ROOT / compose_name).read_text(encoding="utf-8"))
+                compose = yaml.safe_load(
+                    (ROOT / compose_name).read_text(encoding="utf-8")
+                )
                 services = compose["services"]
                 self.assertNotIn("child-benefit-notary", services)
                 service = services[service_id]
                 self.assertEqual(
-                    (service.get("depends_on") or {}).get(relay_id, {}).get("condition"),
-                    "service_healthy",
+                    service["network_mode"],
+                    f"service:{relay_id}",
                 )
-                self.assertEqual(service["labels"]["solmara.lab.host"], f"{service_id}.solmara.registrystack.org")
-                self.assertIn(jwk_env, service["environment"])
+                self.assertEqual(
+                    service["labels"]["solmara.lab.host"],
+                    f"{service_id}.solmara.registrystack.org",
+                )
+                self.assertIn(token_hash_env, service["environment"])
 
                 public_url = f"https://{service_id}.solmara.registrystack.org"
                 self.assertEqual(federator_env[url_env], public_url)
-                config = yaml.safe_load((ROOT / "hosted" / "notaries" / config_name).read_text(encoding="utf-8"))
-                self.assertEqual(config["instance"]["public_base_url"], public_url)
-                self.assertEqual(set(config["evidence"]["source_connections"]), {source_id})
-                self.assertEqual(config["federation"]["node_id"], f"did:web:{service_id}.solmara.registrystack.org")
-                self.assertEqual(config["federation"]["issuer"], public_url)
-                signing_key_id = config["federation"]["signing"]["signing_key"]
-                signing_key = config["evidence"]["signing_keys"][signing_key_id]
-                self.assertEqual(signing_key["private_jwk_env"], jwk_env)
-                self.assertEqual(
-                    signing_key["kid"],
-                    f"did:web:{service_id}.solmara.registrystack.org#federation-key-1",
+                config = yaml.safe_load(
+                    (
+                        ROOT
+                        / "runtime"
+                        / "registry-projects"
+                        / "hosted"
+                        / project
+                        / "notary"
+                        / "notary.yaml"
+                    ).read_text(encoding="utf-8")
                 )
-                peers = config["federation"]["peers"]
-                self.assertEqual(len(peers), 1)
-                self.assertEqual(peers[0]["node_id"], "did:web:child-benefit-federator.solmara.registrystack.org")
-                self.assertEqual(peers[0]["issuer"], "https://child-benefit-federator.solmara.registrystack.org")
+                self.assertEqual(config["instance"]["id"], service_id)
+                self.assertEqual(config["evidence"]["service_id"], service_id)
                 self.assertEqual(
-                    peers[0]["jwks_uri"],
-                    "https://child-benefit-federator.solmara.registrystack.org/.well-known/jwks.json",
+                    config["evidence"]["relay"]["base_url"],
+                    "http://127.0.0.1:8080",
                 )
-                self.assertNotIn("allow_insecure_localhost", peers[0])
-                self.assertNotIn("allow_insecure_private_network", peers[0])
+                self.assertTrue(
+                    config["evidence"]["relay"]["allow_insecure_localhost"]
+                )
+                self.assertEqual(
+                    config["evidence"]["relay"]["workload_client_id"], service_id
+                )
+                self.assertEqual(
+                    config["evidence"]["relay"]["token_file"],
+                    f"/run/secrets/{service_id}-relay-token",
+                )
+                self.assertEqual(
+                    {
+                        claim["id"]
+                        for claim in config["evidence"]["claims"]
+                        if claim["purpose"]
+                        == "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+                    },
+                    expected_claims,
+                )
 
         self.assertFalse((ROOT / "hosted" / "notaries" / "child-benefit.yaml").exists())
 
@@ -643,12 +997,35 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         smoke_live = load_smoke_live()
 
         self.assertEqual(
-            smoke_live.catalog_claim_ids({"data": [{"id": "person-is-deceased"}, {"id": "survivor-is-eligible"}]}),
+            smoke_live.catalog_claim_ids(
+                {"data": [{"id": "person-is-deceased"}, {"id": "survivor-is-eligible"}]}
+            ),
             {"person-is-deceased", "survivor-is-eligible"},
         )
 
+    def test_live_smoke_waits_for_notary_readiness(self) -> None:
+        smoke_live = load_smoke_live()
+        urls: list[str] = []
+        original_http_json = smoke_live.http_json
+
+        def ready(method, url, headers, *, timeout):
+            urls.append(url)
+            return SimpleNamespace(status=200, error="")
+
+        smoke_live.http_json = ready
+        try:
+            self.assertIsNone(
+                smoke_live.wait_for_readiness("http://notary.test", "Test Notary")
+            )
+        finally:
+            smoke_live.http_json = original_http_json
+
+        self.assertEqual(urls, ["http://notary.test/ready"])
+
     def test_child_benefit_offerings_advertise_only_the_endpoint_purpose(self) -> None:
-        expected_purposes = ["https://id.registrystack.org/solmara/purpose/child-benefit-review"]
+        expected_purposes = [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+        ]
         offering_ids = (
             "cra-birth-registration-offering",
             "nia-population-population-status-offering",
@@ -658,22 +1035,37 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
 
         for offering_id in offering_ids:
             with self.subTest(offering=offering_id):
-                path = ROOT / "metadata" / "public" / "metadata" / "evidence-offerings" / f"{offering_id}.json"
+                path = (
+                    ROOT
+                    / "metadata"
+                    / "public"
+                    / "metadata"
+                    / "evidence-offerings"
+                    / f"{offering_id}.json"
+                )
                 offering = json.loads(path.read_text(encoding="utf-8"))
                 self.assertEqual(offering["purposes"], expected_purposes)
 
-    def test_child_benefit_federated_bundle_is_publicly_discoverable(self) -> None:
+    def test_child_benefit_authority_predicate_collection_is_publicly_discoverable(
+        self,
+    ) -> None:
         catalog_path = ROOT / "metadata" / "public" / "metadata" / "catalog.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
         services = {service["id"]: service for service in catalog["data_services"]}
-        federator = services["child-benefit-federator-api"]
+        collector = services["child-benefit-evidence-collector-api"]
 
         self.assertEqual(
-            federator["endpoint_url"],
+            collector["endpoint_url"],
             "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
         )
-        child_service = next(service for service in catalog["public_services"] if service["id"] == "child-benefit-review")
-        self.assertIn("child-benefit-federator-api", child_service["data_services"])
+        child_service = next(
+            service
+            for service in catalog["public_services"]
+            if service["id"] == "child-benefit-review"
+        )
+        self.assertIn(
+            "child-benefit-evidence-collector-api", child_service["data_services"]
+        )
 
         offering_path = (
             ROOT
@@ -681,7 +1073,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             / "public"
             / "metadata"
             / "evidence-offerings"
-            / "solmara.child-benefit.federated-predicate-bundle.json"
+            / "solmara.child-benefit.authority-predicate-collection.json"
         )
         offering = json.loads(offering_path.read_text(encoding="utf-8"))
         self.assertEqual(
@@ -690,7 +1082,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         )
         self.assertEqual(
             offering["access"]["media_type"],
-            "application/vnd.solmara.federated-predicate-bundle+json",
+            "application/json",
         )
         self.assertEqual(
             offering["purposes"],
@@ -709,11 +1101,36 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
 
     def test_notary_bru_requests_match_configured_auth_and_disclosure(self) -> None:
         requests = [
-            ROOT / "requests" / "registry-lab" / "20 - Child Benefit" / "01 - Collect source predicates.bru",
-            ROOT / "requests" / "registry-lab" / "30 - Pension Survivor" / "01 - Evaluate pension stop.bru",
-            ROOT / "requests" / "registry-lab" / "30 - Pension Survivor" / "02 - Survivor eligibility.bru",
-            ROOT / "requests" / "registry-lab" / "40 - NAgDI Voucher" / "01 - Voucher eligibility.bru",
-            ROOT / "requests" / "registry-lab" / "40 - NAgDI Voucher" / "02 - Livestock movement control.bru",
+            ROOT
+            / "requests"
+            / "registry-lab"
+            / "20 - Child Benefit"
+            / "01 - Collect source predicates.bru",
+            ROOT
+            / "requests"
+            / "registry-lab"
+            / "30 - Pension Survivor"
+            / "01 - Evaluate pension stop.bru",
+            ROOT
+            / "requests"
+            / "registry-lab"
+            / "30 - Pension Survivor"
+            / "02 - Read active pension payment.bru",
+            ROOT
+            / "requests"
+            / "registry-lab"
+            / "30 - Pension Survivor"
+            / "03 - Read survivor eligibility.bru",
+            ROOT
+            / "requests"
+            / "registry-lab"
+            / "40 - NAgDI Voucher"
+            / "01 - Voucher eligibility.bru",
+            ROOT
+            / "requests"
+            / "registry-lab"
+            / "40 - NAgDI Voucher"
+            / "02 - Livestock movement control.bru",
         ]
 
         for request_path in requests:

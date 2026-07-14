@@ -82,14 +82,29 @@ describe('topology groups', () => {
     expect(groups[1].services.every((service) => Boolean(service.authority))).toBe(true);
   });
 
-  it('links every ministry config to the repo with the in-repo path preserved', () => {
+  it('links every authority to its authored project and generated Relay config', () => {
     const cra = groups[0].services.find((service) => service.id === 'cra-civil-relay');
     expect(cra?.authority).toBe('Civil Registration Authority');
-    const manifest = cra?.config.find((link) => link.path.endsWith('relay.yaml'));
-    expect(manifest?.url).toBe(
-      'https://github.com/registrystack/solmara-lab/blob/main/ministries/interior-civil/config/relay.yaml'
+    const project = cra?.config.find((link) => link.label === 'Registry project');
+    expect(project?.url).toBe(
+      'https://github.com/registrystack/solmara-lab/blob/main/projects/cra-civil/registry-stack.yaml'
+    );
+    const generated = cra?.config.find((link) => link.label === 'Generated Relay config');
+    expect(generated?.url).toBe(
+      'https://github.com/registrystack/solmara-lab/blob/main/runtime/registry-projects/local/cra-civil/relay/relay.yaml'
     );
     const seed = cra?.config.find((link) => link.path === 'ministries/interior-civil');
     expect(seed?.url).toBe('https://github.com/registrystack/solmara-lab/tree/main/ministries/interior-civil');
+  });
+
+  it('links authority Notaries to their generated project closure', () => {
+    const nia = groups[1].services.find((service) => service.id === 'nia-notary');
+    expect(nia?.config).toEqual([
+      {
+        label: 'Generated Notary config',
+        path: 'runtime/registry-projects/local/nia-population/notary/notary.yaml',
+        url: 'https://github.com/registrystack/solmara-lab/blob/main/runtime/registry-projects/local/nia-population/notary/notary.yaml'
+      }
+    ]);
   });
 });

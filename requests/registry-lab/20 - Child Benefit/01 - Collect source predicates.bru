@@ -13,7 +13,7 @@ post {
 headers {
   x-api-key: {{CHILD_BENEFIT_FEDERATOR_TOKEN}}
   Data-Purpose: {{child_benefit_purpose}}
-  Accept: application/vnd.solmara.federated-predicate-bundle+json
+  Accept: application/json
 }
 
 body:json {
@@ -35,6 +35,6 @@ body:json {
       "not-already-enrolled"
     ],
     "disclosure": "predicate",
-    "format": "application/vnd.solmara.federated-predicate-bundle+json"
+    "format": "application/json"
   }
 }

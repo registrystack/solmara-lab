@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Smoke child-benefit application composition over authority Notaries.
 
-The Child Benefit Federator is an application evidence collector, not a
-Notary. It uses the ordinary Registry Notary HTTP API to collect minimized
-predicates from the CRA, NIA, SRO, and Programme authority Notaries.
+The legacy-named child-benefit service is an application evidence collector,
+not a Notary. It uses the ordinary Registry Notary HTTP API to collect
+minimized predicates from the CRA, NIA, SRO, and Programme authority Notaries.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def main() -> int:
     token = os.environ.get(APPLICATION_TOKEN_ENV, "")
     if not token:
         print(
-            f"smoke-federation: missing {APPLICATION_TOKEN_ENV}; run `just generate` before live smoke",
+            f"smoke-child-benefit-application: missing {APPLICATION_TOKEN_ENV}; run `just generate` before live smoke",
             file=sys.stderr,
         )
         return 1
@@ -60,11 +60,11 @@ def main() -> int:
     failures.extend(raw_household_denial_failures(base_url, token, POSITIVE_SUBJECT))
     if failures:
         for failure in failures:
-            print(f"smoke-federation: {failure}", file=sys.stderr)
+            print(f"smoke-child-benefit-application: {failure}", file=sys.stderr)
         return 1
 
     print(
-        "smoke-federation: authority-owned evidence, application non-composition, "
+        "smoke-child-benefit-application: authority-owned evidence, application non-composition, "
         "unsupported-purpose denial, and raw-source denial checks passed"
     )
     return 0

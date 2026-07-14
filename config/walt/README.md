@@ -1,10 +1,9 @@
 # walt.id wallet config (hosted holder wallet)
 
-These files configure the self-hosted walt.id **holder** wallet deployed by
-`compose.coolify.walt.yaml` so the Solmara citizen issuer can issue credentials into a
-real third-party wallet. Only the wallet-api (holder side) is deployed; walt's
-issuer-api / verifier-api / portal are not used because the Registry Notary is
-the issuer.
+These files configure the self-hosted walt.id **holder** wallet demonstrator
+deployed by `compose.coolify.walt.yaml`. The clean six-authority topology does
+not currently expose an OID4VCI issuer. Only the wallet-api holder side is
+deployed; walt's issuer-api, verifier-api, and portal are not used.
 
 ## Provenance
 
@@ -19,14 +18,14 @@ compose bind mounts from the repo; see the runbook). `Caddyfile` and this
 ## Deltas from stock walt
 
 1. **`registration-defaults.conf`** — `defaultKeyConfig.keyType` is `Ed25519`
-   (stock: `secp256r1`). The citizen Notary OID4VCI contract only accepts holder
-   proofs signed with `EdDSA` bound via `did:jwk`. Ed25519 + `did:jwk` is exactly
-   that.
+   (stock: `secp256r1`). This keeps holder keys compatible with the Registry
+   Notary `EdDSA` plus `did:jwk` binding used when an authority project exposes
+   a reviewed issuance flow.
 2. **`auth.conf`** — the login-session `encryptionKey` / `signKey` / `tokenKey`
    are read from the environment (`WALT_AUTH_*`) instead of walt's public sample
    values, and fail-closed if unset.
 3. **`dev-mode.conf`** — `enableDidWebResolverHttps=true` (stock: `false`) so the
-   wallet resolves the Notary's `did:web` issuer over HTTPS.
+   wallet resolves authority `did:web` issuers over HTTPS.
 
 ## Ingress
 

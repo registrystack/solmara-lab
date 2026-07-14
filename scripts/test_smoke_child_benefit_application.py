@@ -7,14 +7,14 @@ from types import SimpleNamespace
 from typing import Any
 
 
-SCRIPT = Path(__file__).with_name("smoke-federation.py")
-SPEC = importlib.util.spec_from_file_location("smoke_federation", SCRIPT)
+SCRIPT = Path(__file__).with_name("smoke-child-benefit-application.py")
+SPEC = importlib.util.spec_from_file_location("smoke_child_benefit_application", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 smoke = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(smoke)
 
 
-class SmokeFederationTests(unittest.TestCase):
+class ChildBenefitApplicationSmokeTests(unittest.TestCase):
     def test_accepts_source_owned_application_evidence(self) -> None:
         claims = list(smoke.EXPECTED_CLAIM_OWNERS)
 

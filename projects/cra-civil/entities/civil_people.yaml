@@ -23,5 +23,5 @@ schema:
 materialization:
   max_records: 1000000
   max_bytes: 256MiB
-  refresh: manual
+  refresh: 1m
   retain_generations: 2

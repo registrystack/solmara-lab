@@ -63,7 +63,7 @@ just portal-compose-smoke # HTTP smoke against the Compose portal and live BFF
 just portal-live-e2e # browser e2e against the running local stack
 just hosted-smoke # public hosted health, endpoint, scenario, and portal checks
 just up-esignet # local stack with eSignet-backed portal login
-just smoke-esignet # eSignet discovery plus NIA UserInfo release smoke
+just smoke-esignet # eSignet public discovery smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
 just release-pins v0.8.4 # compare versions.env against published GHCR tags
@@ -138,8 +138,9 @@ workflow summary for Coolify env vars:
 
 For local eSignet testing, run `just up-esignet` instead of `just up`, then
 sign in through the portal with Elena's fixture `legacy_nid` and static OTP
-`111111`. Run `just smoke-esignet` to verify eSignet discovery and the NIA
-`solmara-nia-userinfo` attribute-release profile.
+`111111`. This sign-in is the end-to-end check of the NIA
+`solmara-nia-userinfo` attribute-release profile and its rotating eSignet
+workload identity. Run `just smoke-esignet` for the public discovery checks.
 
 Set `UMAMI_WEBSITE_ID` in the hosted environment to enable analytics for the
 Visitor Center through the Registry Stack Umami instance.

@@ -53,6 +53,7 @@ relay:
   allowed_clients: [nagdi-notary]
 
 notary_relay:
+  base_url: http://127.0.0.1:8080
   workload_client_id: nagdi-notary
   token_file: /run/secrets/nagdi-notary-relay-token
 

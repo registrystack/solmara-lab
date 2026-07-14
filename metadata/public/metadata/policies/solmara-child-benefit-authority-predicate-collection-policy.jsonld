@@ -2,7 +2,7 @@
   "@context": {
     "odrl": "http://www.w3.org/ns/odrl/2/"
   },
-  "id": "solmara-child-benefit-federated-predicate-bundle-policy",
+  "id": "solmara-child-benefit-authority-predicate-collection-policy",
   "permission": [
     {
       "action": "use",
@@ -18,7 +18,7 @@
     }
   ],
   "profile": "https://www.w3.org/TR/odrl-model/",
-  "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-federated-predicate-bundle",
+  "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
   "type": "odrl:Set",
-  "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-federated-predicate-bundle-policy"
+  "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-authority-predicate-collection-policy"
 }

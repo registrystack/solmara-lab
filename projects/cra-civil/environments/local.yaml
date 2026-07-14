@@ -29,6 +29,7 @@ relay:
   audience: registry-relay
   allowed_clients: []
 notary_relay:
+  base_url: http://127.0.0.1:8080
   workload_client_id: cra-notary
   token_file: /run/secrets/cra-notary-relay-token
 relay_state:

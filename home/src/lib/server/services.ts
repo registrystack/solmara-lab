@@ -95,7 +95,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/interior-civil/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/cra-civil/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/cra-civil/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/interior-civil' }
     ]
   },
@@ -110,7 +111,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/interior-population/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/nia-population/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/nia-population/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/interior-population' }
     ]
   },
@@ -125,7 +127,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/social-development/config/sro-relay.yaml' },
+      { label: 'Registry project', path: 'projects/sro-social/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/sro-social/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/social-development' }
     ]
   },
@@ -140,7 +143,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/social-development/config/programme-mis-relay.yaml' },
+      { label: 'Registry project', path: 'projects/mosd-programme/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/mosd-programme/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/social-development' }
     ]
   },
@@ -155,7 +159,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/labour-pensions/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/sipf-pensions/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/sipf-pensions/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/labour-pensions' }
     ]
   },
@@ -170,7 +175,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/agriculture-nagdi/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/nagdi-agriculture/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/nagdi-agriculture/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/agriculture-nagdi' }
     ]
   },
@@ -197,7 +203,7 @@ export const SERVICES: ServiceDef[] = [
     probeDefault: 'http://127.0.0.1:4325',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'runtime/registry-projects/local/cra-civil/notary/notary.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/cra-civil/notary/notary.yaml' }]
   },
   {
     id: 'nia-notary',
@@ -210,7 +216,7 @@ export const SERVICES: ServiceDef[] = [
     probeDefault: 'http://127.0.0.1:4326',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'runtime/registry-projects/local/nia-population/notary/notary.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/nia-population/notary/notary.yaml' }]
   },
   {
     id: 'sro-notary',
@@ -223,7 +229,7 @@ export const SERVICES: ServiceDef[] = [
     probeDefault: 'http://127.0.0.1:4327',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'runtime/registry-projects/local/sro-social/notary/notary.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/sro-social/notary/notary.yaml' }]
   },
   {
     id: 'programme-notary',
@@ -236,7 +242,7 @@ export const SERVICES: ServiceDef[] = [
     probeDefault: 'http://127.0.0.1:4328',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'runtime/registry-projects/local/mosd-programme/notary/notary.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/mosd-programme/notary/notary.yaml' }]
   },
   {
     id: 'sipf-notary',
@@ -249,7 +255,7 @@ export const SERVICES: ServiceDef[] = [
     probeDefault: 'http://127.0.0.1:4322',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'runtime/registry-projects/local/sipf-pensions/notary/notary.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/sipf-pensions/notary/notary.yaml' }]
   },
   {
     id: 'nagdi-notary',
@@ -262,7 +268,7 @@ export const SERVICES: ServiceDef[] = [
     probeDefault: 'http://127.0.0.1:4323',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'runtime/registry-projects/local/nagdi-agriculture/notary/notary.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/nagdi-agriculture/notary/notary.yaml' }]
   }
 ];
 

@@ -51,68 +51,74 @@
   ],
   "data_services": [
     {
-      "conforms_to": "https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1",
+      "conforms_to": "https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1",
       "description": {
-        "en": "Returns application/vnd.solmara.federated-predicate-bundle+json bundles assembled from signed source-Notary predicates without composing an eligibility decision."
+        "en": "Returns application/json collections assembled from source-Notary predicates without composing an eligibility decision."
       },
       "endpoint_description": "https://child-benefit-federator.solmara.registrystack.org/v1/claims",
       "endpoint_url": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
-      "id": "child-benefit-federator-api",
+      "id": "child-benefit-evidence-collector-api",
       "iri": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
       "title": {
-        "en": "Child benefit federated predicate bundle API"
+        "en": "Child benefit authority predicate collection API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://cra-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_description": "https://cra-notary.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
       "id": "cra-notary-api",
-      "iri": "https://cra-notary.solmara.registrystack.org/evidence/v1",
+      "iri": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
       "title": {
         "en": "CRA evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://nia-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_description": "https://nia-notary.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://nia-notary.solmara.registrystack.org/v1/evaluations",
       "id": "nia-notary-api",
-      "iri": "https://nia-notary.solmara.registrystack.org/evidence/v1",
+      "iri": "https://nia-notary.solmara.registrystack.org/v1/evaluations",
       "title": {
         "en": "NIA evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://sro-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_description": "https://sro-notary.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://sro-notary.solmara.registrystack.org/v1/evaluations",
       "id": "sro-notary-api",
-      "iri": "https://sro-notary.solmara.registrystack.org/evidence/v1",
+      "iri": "https://sro-notary.solmara.registrystack.org/v1/evaluations",
       "title": {
         "en": "SRO evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://programme-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_description": "https://programme-notary.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
       "id": "programme-notary-api",
-      "iri": "https://programme-notary.solmara.registrystack.org/evidence/v1",
+      "iri": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
       "title": {
         "en": "Programme MIS evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://sipf-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_description": "https://sipf-notary.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
       "id": "sipf-notary-api",
-      "iri": "https://sipf-notary.solmara.registrystack.org/evidence/v1",
+      "iri": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
       "title": {
         "en": "SIPF evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_description": "https://nagdi-notary.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://nagdi-notary.solmara.registrystack.org/v1/evaluations",
       "id": "nagdi-notary-api",
-      "iri": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
+      "iri": "https://nagdi-notary.solmara.registrystack.org/v1/evaluations",
       "title": {
         "en": "NAgDI evidence API"
       }
@@ -177,7 +183,6 @@
           "purposes": [
             "https://id.registrystack.org/solmara/purpose/child-benefit-review",
             "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
             "https://id.registrystack.org/solmara/purpose/citizen-self-service"
           ],
           "semantics": {
@@ -197,7 +202,6 @@
       "purposes": [
         "https://id.registrystack.org/solmara/purpose/child-benefit-review",
         "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
         "https://id.registrystack.org/solmara/purpose/citizen-self-service"
       ],
       "title": "Civil registration"
@@ -265,8 +269,7 @@
           "identifiers": [],
           "name": "household",
           "purposes": [
-            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review"
           ],
           "semantics": {
             "application_profiles": [
@@ -282,8 +285,7 @@
       ],
       "id": "sro-social",
       "purposes": [
-        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review"
       ],
       "title": "Social registry"
     },
@@ -308,10 +310,7 @@
           "identifiers": [],
           "name": "enrollment",
           "purposes": [
-            "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-            "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review"
           ],
           "semantics": {
             "application_profiles": [
@@ -326,10 +325,7 @@
       ],
       "id": "mosd-programme",
       "purposes": [
-        "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-        "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+        "https://id.registrystack.org/solmara/purpose/child-benefit-review"
       ],
       "title": "Integrated beneficiary registry"
     },
@@ -355,8 +351,7 @@
           "name": "pension_case",
           "purposes": [
             "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
           ],
           "semantics": {
             "application_profiles": [
@@ -372,8 +367,7 @@
       "id": "sipf-pensions",
       "purposes": [
         "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+        "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
       ],
       "title": "Pensions and social insurance"
     },
@@ -399,8 +393,7 @@
           "name": "farmer_voucher",
           "purposes": [
             "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
-            "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
           ],
           "semantics": {
             "application_profiles": [
@@ -419,8 +412,7 @@
           "name": "livestock_movement",
           "purposes": [
             "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
-            "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
           ],
           "semantics": {
             "application_profiles": [
@@ -436,8 +428,7 @@
       "id": "nagdi-agriculture",
       "purposes": [
         "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
-        "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
-        "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+        "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
       ],
       "title": "Farmer and livestock registries"
     }
@@ -499,18 +490,18 @@
     },
     {
       "description": {
-        "en": "A transient bundle of source-owned child benefit predicates with no copied source rows or eligibility decision."
+        "en": "A transient collection of source-owned child benefit predicates with no copied source rows or eligibility decision."
       },
-      "id": "child-benefit-federated-predicate-bundle-evidence",
+      "id": "child-benefit-authority-predicate-collection-evidence",
       "information_concepts": [
         "ps:Person"
       ],
-      "iri": "https://id.registrystack.org/solmara/evidence-types/child-benefit-federated-predicate-bundle",
+      "iri": "https://id.registrystack.org/solmara/evidence-types/child-benefit-authority-predicate-collection",
       "proves": [
         "child-benefit-review-requirement"
       ],
       "title": {
-        "en": "Child benefit federated predicate bundle"
+        "en": "Child benefit authority predicate collection"
       }
     },
     {
@@ -627,7 +618,7 @@
     {
       "competent_authority": "mosd-programme-mis",
       "data_services": [
-        "child-benefit-federator-api",
+        "child-benefit-evidence-collector-api",
         "cra-notary-api",
         "nia-notary-api",
         "sro-notary-api",

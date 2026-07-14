@@ -18,7 +18,6 @@ ROOT = Path(__file__).resolve().parents[1]
 POSTGRES_SSL_DIR = ROOT / "config" / "postgres" / "ssl"
 
 RAW_HASH_PAIRS = [
-    ("SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW", "SOLMARA_ESIGNET_IDENTITY_RELEASE_HASH"),
     ("CRA_CHILD_BENEFIT_CLIENT_TOKEN", "CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
     ("CRA_PENSION_CLIENT_TOKEN", "CRA_PENSION_CLIENT_TOKEN_HASH"),
     ("CRA_CITIZEN_CLIENT_TOKEN", "CRA_CITIZEN_CLIENT_TOKEN_HASH"),
@@ -36,6 +35,7 @@ RAW_HASH_PAIRS = [
 JWK_KIDS = {
     "CRA_RELAY_WORKLOAD_JWK": "solmara-cra-relay-workload-key-1",
     "NIA_RELAY_WORKLOAD_JWK": "solmara-nia-relay-workload-key-1",
+    "NIA_ESIGNET_RELAY_WORKLOAD_JWK": "solmara-nia-esignet-relay-workload-key-1",
     "SRO_RELAY_WORKLOAD_JWK": "solmara-sro-relay-workload-key-1",
     "PROGRAMME_RELAY_WORKLOAD_JWK": "solmara-programme-relay-workload-key-1",
     "SIPF_RELAY_WORKLOAD_JWK": "solmara-sipf-relay-workload-key-1",

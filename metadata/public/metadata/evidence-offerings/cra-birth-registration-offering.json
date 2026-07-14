@@ -2,7 +2,7 @@
   "access": {
     "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
     "discovery_url": "https://cra-notary.solmara.registrystack.org/.well-known/evidence-service",
-    "endpoint_url": "https://cra-notary.solmara.registrystack.org/evidence/v1",
+    "endpoint_url": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
     "kind": "evidence-verification-api",
     "ruleset": "birth-is-registered"
   },
@@ -20,8 +20,7 @@
     "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
   },
   "lookup_keys": [
-    "uin",
-    "birth_brn"
+    "uin"
   ],
   "policy": "cra-birth-registration-offering-policy",
   "public_services": [
