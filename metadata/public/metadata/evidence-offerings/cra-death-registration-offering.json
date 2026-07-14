@@ -4,14 +4,14 @@
     "discovery_url": "https://cra-notary.solmara.registrystack.org/.well-known/evidence-service",
     "endpoint_url": "https://cra-notary.solmara.registrystack.org/evidence/v1",
     "kind": "evidence-verification-api",
-    "ruleset": "birth-is-registered"
+    "ruleset": "person-is-deceased"
   },
   "dataset": "cra-civil",
   "description": "Purpose-limited evidence predicates from Civil registration.",
   "entity": "civil_person",
-  "evidence_type": "birth-registration-evidence",
-  "id": "cra-birth-registration-offering",
-  "iri": "https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration",
+  "evidence_type": "death-registration-evidence",
+  "id": "cra-death-registration-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/cra-death-registration",
   "issuing_authority": {
     "authority_type": "eli:PublicAuthority",
     "id": "cra",
@@ -21,14 +21,14 @@
   },
   "lookup_keys": [
     "uin",
-    "birth_brn"
+    "death_drn"
   ],
-  "policy": "cra-birth-registration-offering-policy",
+  "policy": "cra-death-registration-offering-policy",
   "public_services": [
-    "child-benefit-review"
+    "pension-survivor-review"
   ],
   "purposes": [
-    "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+    "https://id.registrystack.org/solmara/purpose/pension-payment-review"
   ],
   "semantics": {
     "application_profiles": [
@@ -39,5 +39,5 @@
       "https://publicschema.org/crvs/Death"
     ]
   },
-  "title": "CRA birth registration evidence offering"
+  "title": "CRA death registration evidence offering"
 }

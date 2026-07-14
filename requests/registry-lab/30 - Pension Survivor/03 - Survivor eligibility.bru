@@ -1,18 +1,18 @@
 meta {
-  name: 01 - Read CRA death predicate
+  name: 03 - Read SIPF survivor predicate
   type: http
-  seq: 1
+  seq: 3
 }
 
 post {
-  url: {{cra_notary_url}}/v1/evaluations
+  url: {{sipf_notary_url}}/v1/evaluations
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{CRA_PENSION_CLIENT_TOKEN}}
-  Data-Purpose: {{pension_payment_purpose}}
+  x-api-key: {{SIPF_PENSION_CLIENT_TOKEN}}
+  Data-Purpose: {{survivor_benefit_purpose}}
   Accept: application/vnd.registry-notary.claim-result+json
 }
 
@@ -28,7 +28,7 @@ body:json {
       ]
     },
     "claims": [
-      "person-is-deceased"
+      "survivor-is-eligible"
     ],
     "disclosure": "predicate",
     "format": "application/vnd.registry-notary.claim-result+json"

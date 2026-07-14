@@ -65,47 +65,47 @@
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1",
-      "id": "civil-child-benefit-notary-api",
-      "iri": "https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_url": "https://cra-notary.solmara.registrystack.org/evidence/v1",
+      "id": "cra-notary-api",
+      "iri": "https://cra-notary.solmara.registrystack.org/evidence/v1",
       "title": {
-        "en": "CRA child benefit evidence API"
+        "en": "CRA evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1",
-      "id": "nia-child-benefit-notary-api",
-      "iri": "https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_url": "https://nia-notary.solmara.registrystack.org/evidence/v1",
+      "id": "nia-notary-api",
+      "iri": "https://nia-notary.solmara.registrystack.org/evidence/v1",
       "title": {
-        "en": "NIA child benefit evidence API"
+        "en": "NIA evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1",
-      "id": "sro-child-benefit-notary-api",
-      "iri": "https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_url": "https://sro-notary.solmara.registrystack.org/evidence/v1",
+      "id": "sro-notary-api",
+      "iri": "https://sro-notary.solmara.registrystack.org/evidence/v1",
       "title": {
-        "en": "SRO child benefit evidence API"
+        "en": "SRO evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1",
-      "id": "programme-child-benefit-notary-api",
-      "iri": "https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_url": "https://programme-notary.solmara.registrystack.org/evidence/v1",
+      "id": "programme-notary-api",
+      "iri": "https://programme-notary.solmara.registrystack.org/evidence/v1",
       "title": {
-        "en": "Programme MIS child benefit evidence API"
+        "en": "Programme MIS evidence API"
       }
     },
     {
       "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_url": "https://pension-notary.solmara.registrystack.org/evidence/v1",
-      "id": "pension-notary-api",
-      "iri": "https://pension-notary.solmara.registrystack.org/evidence/v1",
+      "endpoint_url": "https://sipf-notary.solmara.registrystack.org/evidence/v1",
+      "id": "sipf-notary-api",
+      "iri": "https://sipf-notary.solmara.registrystack.org/evidence/v1",
       "title": {
-        "en": "Pension evidence API"
+        "en": "SIPF evidence API"
       }
     },
     {
@@ -628,10 +628,10 @@
       "competent_authority": "mosd-programme-mis",
       "data_services": [
         "child-benefit-federator-api",
-        "civil-child-benefit-notary-api",
-        "nia-child-benefit-notary-api",
-        "sro-child-benefit-notary-api",
-        "programme-child-benefit-notary-api"
+        "cra-notary-api",
+        "nia-notary-api",
+        "sro-notary-api",
+        "programme-notary-api"
       ],
       "description": {
         "en": "MoSD review of child benefit eligibility using minimized registry evidence."
@@ -649,7 +649,8 @@
     {
       "competent_authority": "sipf",
       "data_services": [
-        "pension-notary-api"
+        "cra-notary-api",
+        "sipf-notary-api"
       ],
       "description": {
         "en": "SIPF review for pension payment stop and survivor benefit eligibility."

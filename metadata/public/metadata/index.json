@@ -9,17 +9,17 @@
     {
       "media_type": "application/json",
       "path": "metadata/catalog.json",
-      "sha256": "sha256:a471fb7a95353dd05a9b6454dcddbb183a838f929d7a6d501e5d79daba0254c3"
+      "sha256": "sha256:6d2b7482cf18506bc648d777aad00883d2e05c238a04da96571b10abb33bc94a"
     },
     {
       "media_type": "application/json",
       "path": "metadata/cpsv-ap",
-      "sha256": "sha256:6005f935af9ca1a3a2b3b241f62b0682029d229288bb2eea7d83efc05b0bb39e"
+      "sha256": "sha256:610eb0444fdf0e3f30476ef1021d77116f32317f485895f9111ceb40a62da543"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/cpsv-ap.jsonld",
-      "sha256": "sha256:6005f935af9ca1a3a2b3b241f62b0682029d229288bb2eea7d83efc05b0bb39e"
+      "sha256": "sha256:610eb0444fdf0e3f30476ef1021d77116f32317f485895f9111ceb40a62da543"
     },
     {
       "media_type": "application/ld+json",
@@ -29,17 +29,22 @@
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings.json",
-      "sha256": "sha256:282af837b0d2f4a6e592353f9ed8e29aa6d0869daff6276a12593d7df21f3e36"
+      "sha256": "sha256:930189254fdc234d3e3b3886ddaa26f9deffa06eafa11eb4492c3b237ffde0ea"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/cra-birth-registration-offering.json",
-      "sha256": "sha256:09ee44bddc8c34526d478782ffb4b1885bbcb7aa062296376ba3fe530c7cfc2d"
+      "sha256": "sha256:61b78c42a050dc92e8ddfdaa77a2ef176ca816302e906963508611228b02a541"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/cra-death-registration-offering.json",
+      "sha256": "sha256:4c121c63b0344ce01c8df01f4f93f672feda9d7bc98f36082ad1043fbf5de1be"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/mosd-programme-beneficiary-enrollment-offering.json",
-      "sha256": "sha256:452ba0f8ac78e0e1869cae0eabb35aa43f50de9205ea2af39c4809998d857287"
+      "sha256": "sha256:3956b437848ff6ea324992311251dafdcc40e632a0b79e58ec4083ddff0820b7"
     },
     {
       "media_type": "application/json",
@@ -54,12 +59,12 @@
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/nia-population-population-status-offering.json",
-      "sha256": "sha256:6ac1bd5e6d787d554b9fb46292aa425f078e968f1bb474836addede8e64c38e0"
+      "sha256": "sha256:5909d01a07b75fb55ce22e234d7d3070062c6164a50d6c8ba8515f73e4d58aae"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/sipf-pensions-pension-case-offering.json",
-      "sha256": "sha256:acf0386f8a8abc12426239d2aa737c83b82d77b7dc30d397c7a36e59332ee2f6"
+      "sha256": "sha256:e4aff79458118a1160ee361ef882271afabb45ca709afb97b991cea27e9d447f"
     },
     {
       "media_type": "application/json",
@@ -69,12 +74,12 @@
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/sro-social-household-poverty-offering.json",
-      "sha256": "sha256:f4800bc8d2cfd2bb7714d30a593c67e0ff9487bffdf111755b40c0743b79e045"
+      "sha256": "sha256:c53f1a9fa25b04d8f5d3d8a9983cb998e99e18b818d198d18a0d5eeef7c619a2"
     },
     {
       "media_type": "application/yaml",
       "path": "metadata/metadata.yaml",
-      "sha256": "sha256:a6c95ae41000b4096f28e182aaac5a80078cc1e36b6653078724bc3ec4a5edbf"
+      "sha256": "sha256:489f45d899a1a9d058648793a6831375c57082c96ebe8eefb2fefda4eadf5877"
     },
     {
       "media_type": "application/json",
@@ -84,12 +89,17 @@
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies.jsonld",
-      "sha256": "sha256:69399ec96d92fdf04d96be46539c418eb44858e0e6231f0c858f49fc83ea13ef"
+      "sha256": "sha256:5549ff866fdd8a0d8590314f11676098c4c91f741be154d6eed55354acfb6aec"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/cra-birth-registration-offering-policy.jsonld",
       "sha256": "sha256:5765930b8ba06eb475e1cbea73299bb218da725b0ad0d632d46d2772b0a557ee"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/cra-death-registration-offering-policy.jsonld",
+      "sha256": "sha256:91e8caf238fab79fcb995d2181d3c0d27486e2f0c8a865891f0196d653a850cd"
     },
     {
       "media_type": "application/ld+json",

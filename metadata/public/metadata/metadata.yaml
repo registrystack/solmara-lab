@@ -187,10 +187,10 @@ public_services:
       - child-benefit-review-requirement
     data_services:
       - child-benefit-federator-api
-      - civil-child-benefit-notary-api
-      - nia-child-benefit-notary-api
-      - sro-child-benefit-notary-api
-      - programme-child-benefit-notary-api
+      - cra-notary-api
+      - nia-notary-api
+      - sro-notary-api
+      - programme-notary-api
   - id: pension-survivor-review
     iri: https://id.registrystack.org/solmara/services/pension-survivor-review
     title:
@@ -202,7 +202,8 @@ public_services:
     holds_requirements:
       - pension-survivor-review-requirement
     data_services:
-      - pension-notary-api
+      - cra-notary-api
+      - sipf-notary-api
   - id: nagdi-voucher-review
     iri: https://id.registrystack.org/solmara/services/nagdi-voucher-review
     title:
@@ -237,35 +238,35 @@ data_services:
     endpoint_url: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
     endpoint_description: https://child-benefit-federator.solmara.registrystack.org/v1/claims
     conforms_to: https://id.registrystack.org/solmara/contracts/federated-predicate-bundle/v1
-  - id: civil-child-benefit-notary-api
-    iri: https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1
+  - id: cra-notary-api
+    iri: https://cra-notary.solmara.registrystack.org/evidence/v1
     title:
-      en: CRA child benefit evidence API
-    endpoint_url: https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1
+      en: CRA evidence API
+    endpoint_url: https://cra-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: nia-child-benefit-notary-api
-    iri: https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1
+  - id: nia-notary-api
+    iri: https://nia-notary.solmara.registrystack.org/evidence/v1
     title:
-      en: NIA child benefit evidence API
-    endpoint_url: https://nia-child-benefit-notary.solmara.registrystack.org/evidence/v1
+      en: NIA evidence API
+    endpoint_url: https://nia-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: sro-child-benefit-notary-api
-    iri: https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1
+  - id: sro-notary-api
+    iri: https://sro-notary.solmara.registrystack.org/evidence/v1
     title:
-      en: SRO child benefit evidence API
-    endpoint_url: https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1
+      en: SRO evidence API
+    endpoint_url: https://sro-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: programme-child-benefit-notary-api
-    iri: https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1
+  - id: programme-notary-api
+    iri: https://programme-notary.solmara.registrystack.org/evidence/v1
     title:
-      en: Programme MIS child benefit evidence API
-    endpoint_url: https://programme-child-benefit-notary.solmara.registrystack.org/evidence/v1
+      en: Programme MIS evidence API
+    endpoint_url: https://programme-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: pension-notary-api
-    iri: https://pension-notary.solmara.registrystack.org/evidence/v1
+  - id: sipf-notary-api
+    iri: https://sipf-notary.solmara.registrystack.org/evidence/v1
     title:
-      en: Pension evidence API
-    endpoint_url: https://pension-notary.solmara.registrystack.org/evidence/v1
+      en: SIPF evidence API
+    endpoint_url: https://sipf-notary.solmara.registrystack.org/evidence/v1
     conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
   - id: nagdi-notary-api
     iri: https://nagdi-notary.solmara.registrystack.org/evidence/v1
@@ -324,12 +325,37 @@ datasets:
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://civil-child-benefit-notary.solmara.registrystack.org/evidence/v1
-          discovery_url: https://civil-child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service
+          endpoint_url: https://cra-notary.solmara.registrystack.org/evidence/v1
+          discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
           ruleset: birth-is-registered
         policy:
           purpose:
             - https://id.registrystack.org/solmara/purpose/child-benefit-review
+      - id: cra-death-registration-offering
+        iri: https://id.registrystack.org/solmara/evidence-offerings/cra-death-registration
+        title:
+          en: CRA death registration evidence offering
+        evidence_type: death-registration-evidence
+        issuing_authority:
+          id: cra
+          iri: did:web:id.registrystack.org:solmara:authority:cra
+          name: Civil Registration Authority
+          country: XS
+        entity: civil_person
+        lookup_keys:
+          - uin
+          - death_drn
+        procedure_contexts:
+          - pension-survivor-review
+        access:
+          kind: evidence-verification-api
+          conforms_to: https://spec.openapis.org/oas/v3.1.0
+          endpoint_url: https://cra-notary.solmara.registrystack.org/evidence/v1
+          discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
+          ruleset: person-is-deceased
+        policy:
+          purpose:
+            - https://id.registrystack.org/solmara/purpose/pension-payment-review
   - id: nia-population
     title:
       en: Population register

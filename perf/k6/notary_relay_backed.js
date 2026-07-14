@@ -19,10 +19,12 @@ import {
 } from './lib/common.js';
 
 const childBenefitFederatorUrl = env('CHILD_BENEFIT_FEDERATOR_URL', 'http://127.0.0.1:4321');
-const pensionNotaryUrl = env('PENSION_NOTARY_URL', 'http://127.0.0.1:4322');
+const craNotaryUrl = env('CRA_NOTARY_URL', 'http://127.0.0.1:4325');
+const sipfNotaryUrl = env('SIPF_NOTARY_URL', 'http://127.0.0.1:4322');
 const nagdiNotaryUrl = env('NAGDI_NOTARY_URL', 'http://127.0.0.1:4323');
 const childBenefitToken = requiredEnv('CHILD_BENEFIT_FEDERATOR_TOKEN');
-const pensionToken = requiredEnv('PENSION_NOTARY_TOKEN');
+const craPensionToken = requiredEnv('CRA_PENSION_CLIENT_TOKEN');
+const sipfPensionToken = requiredEnv('SIPF_PENSION_CLIENT_TOKEN');
 const nagdiToken = requiredEnv('NAGDI_NOTARY_TOKEN');
 
 const uinSubjects = ['2300010248', '2300091305', '2300036523', '2300073046'];
@@ -61,13 +63,23 @@ export default function () {
       format: FEDERATED_BUNDLE,
     },
     {
-      name: 'pension_payment_review',
-      url: `${pensionNotaryUrl}/v1/evaluations`,
-      token: pensionToken,
+      name: 'cra_death_registration_review',
+      url: `${craNotaryUrl}/v1/evaluations`,
+      token: craPensionToken,
       subject: uinSubjects[(__VU + __ITER) % uinSubjects.length],
       scheme: 'solmara_uin',
       purpose: PENSION_PAYMENT_PURPOSE,
       claim: 'person-is-deceased',
+      format: CLAIM_RESULT,
+    },
+    {
+      name: 'sipf_pension_payment_review',
+      url: `${sipfNotaryUrl}/v1/evaluations`,
+      token: sipfPensionToken,
+      subject: uinSubjects[(__VU + __ITER) % uinSubjects.length],
+      scheme: 'solmara_uin',
+      purpose: PENSION_PAYMENT_PURPOSE,
+      claim: 'pension-payment-active',
       format: CLAIM_RESULT,
     },
     {

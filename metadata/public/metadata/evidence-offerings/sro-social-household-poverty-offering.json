@@ -1,8 +1,8 @@
 {
   "access": {
     "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-    "discovery_url": "https://sro-child-benefit-notary.solmara.registrystack.org/.well-known/evidence-service",
-    "endpoint_url": "https://sro-child-benefit-notary.solmara.registrystack.org/evidence/v1",
+    "discovery_url": "https://sro-notary.solmara.registrystack.org/.well-known/evidence-service",
+    "endpoint_url": "https://sro-notary.solmara.registrystack.org/evidence/v1",
     "kind": "evidence-verification-api"
   },
   "dataset": "sro-social",

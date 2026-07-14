@@ -1,18 +1,18 @@
 meta {
-  name: 02 - Survivor eligibility
+  name: 02 - Read SIPF payment predicate
   type: http
   seq: 2
 }
 
 post {
-  url: {{pension_notary_url}}/v1/evaluations
+  url: {{sipf_notary_url}}/v1/evaluations
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{PENSION_NOTARY_TOKEN}}
-  Data-Purpose: {{survivor_benefit_purpose}}
+  x-api-key: {{SIPF_PENSION_CLIENT_TOKEN}}
+  Data-Purpose: {{pension_payment_purpose}}
   Accept: application/vnd.registry-notary.claim-result+json
 }
 
@@ -28,7 +28,7 @@ body:json {
       ]
     },
     "claims": [
-      "survivor-is-eligible"
+      "pension-payment-active"
     ],
     "disclosure": "predicate",
     "format": "application/vnd.registry-notary.claim-result+json"
