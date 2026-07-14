@@ -1,116 +1,104 @@
 # Notary PostgreSQL state
 
-Solmara Lab gives each logical Registry Notary an independent PostgreSQL
-database and an independent owner, migration, and runtime role. PostgreSQL
-servers may be shared inside one authority application, but databases and
-roles are never shared between Notaries. Only replicas of the same logical
-Notary may use the same database.
+Solmara Lab runs exactly one Registry Notary beside each authority Relay. Each
+Notary owns an independent PostgreSQL database and role set. PostgreSQL servers
+may be shared within a local or hosted Compose application, but databases,
+owners, migrators, and runtime roles are never shared between Notaries.
 
-| Notary | Database | Runtime role |
-|---|---|---|
-| CRA child benefit | `solmara_notary_civil_child_benefit` | `solmara_notary_civil_child_benefit_runtime` |
-| NIA child benefit | `solmara_notary_nia_child_benefit` | `solmara_notary_nia_child_benefit_runtime` |
-| SRO child benefit | `solmara_notary_sro_child_benefit` | `solmara_notary_sro_child_benefit_runtime` |
-| Programme child benefit | `solmara_notary_programme_child_benefit` | `solmara_notary_programme_child_benefit_runtime` |
-| Pension | `solmara_notary_pension` | `solmara_notary_pension_runtime` |
-| NAgDI | `solmara_notary_nagdi` | `solmara_notary_nagdi_runtime` |
-| Citizen services | `solmara_notary_citizen` | `solmara_notary_citizen_runtime` |
-| Citizen OID4VCI issuer | `solmara_notary_citizen_issuer` | `solmara_notary_citizen_issuer_runtime` |
+| Authority | Relay service | Notary service | Database | Local Relay / Notary |
+|---|---|---|---|---|
+| Civil Registration Authority (CRA) | `cra-civil-relay` | `cra-notary` | `solmara_notary_cra` | `4311` / `4325` |
+| National Identity Agency (NIA) | `nia-population-relay` | `nia-notary` | `solmara_notary_nia` | `4312` / `4326` |
+| Social Registry Office (SRO) | `sro-social-relay` | `sro-notary` | `solmara_notary_sro` | `4313` / `4327` |
+| Programme MIS | `programme-mis-relay` | `programme-notary` | `solmara_notary_programme` | `4314` / `4328` |
+| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` | `sipf-notary` | `solmara_notary_sipf` | `4315` / `4322` |
+| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` | `nagdi-notary` | `solmara_notary_nagdi` | `4316` / `4323` |
 
-The matching owner and migrator role names replace the `_runtime` suffix with
-`_owner` and `_migrator`. Owner roles cannot log in. Migrator roles may assume
-only their matching owner. Runtime roles receive only the fixed Notary
-transaction-function privileges installed by Registry Notary.
+The local topology shares one PostgreSQL server for developer convenience.
+Hosted authority applications keep the same database boundaries within their
+own PostgreSQL volume. The runtime role for an authority follows the form
+`solmara_notary_<authority>_runtime`; the owner and migrator roles use the same
+authority key.
 
-## Local startup and diagnosis
+## Startup and readiness
 
-`just gen-secrets` generates separate migrator and runtime passwords for all
-eight databases, the citizen issuer sensitive-state key, and the local TLS
-certificate. `docker compose up` then performs three ordered steps:
+The startup order is intentional:
 
-1. The idempotent PostgreSQL bootstrap creates or attests the allowlisted
-   databases and restricted roles, including on an existing cluster, and
-   applies configured role-password rotation.
-2. Each `*-state-install` job applies or attests the released Notary schema
-   with its migrator role.
-3. The matching Notary starts only after the installer exits successfully.
+1. `registry-postgresql-bootstrap` creates or attests only the databases and
+   roles listed by that Compose application.
+2. Each `<authority>-notary-state-install` job applies or attests the released
+   Notary schema with the migrator role.
+3. The authority Relay becomes healthy and its workload issuer supplies a
+   short-lived Relay token to the authority's workload volume.
+4. The matching Notary starts with only its runtime database role and a
+   read-only workload-token mount.
 
-Notary startup repeats the runtime-role and schema attestation before binding a
-listener. A missing database, failed installer, wrong role, incompatible
-schema, or unavailable TLS root therefore prevents readiness.
+Each Notary shares its Relay's network namespace. Relay binds port `8080` and
+Notary binds port `8081`, so the pair has a direct loopback trust boundary.
+Readiness remains unavailable until PostgreSQL state and required Relay source
+profiles are usable.
 
-Run the product doctor against a running local database without exposing a
-migration credential:
+Relay snapshot caches are not Notary correctness state, but they are durable
+Relay restart data. Each authority Relay mounts a separate
+`/var/lib/registry-relay/cache` volume so its PostgreSQL materialization pointer
+never outlives the referenced immutable snapshot.
+
+Inspect one local pair without exposing credentials:
 
 ```bash
-docker compose run --rm --no-deps civil-child-benefit-notary \
-  --config /etc/registry-notary/child-benefit-civil.yaml state doctor
+curl --fail http://127.0.0.1:4311/ready
+curl --fail http://127.0.0.1:4325/ready
+docker compose run --rm --no-deps cra-notary \
+  --config /etc/registry-notary/notary.yaml state doctor
 ```
 
-Substitute the target service and its mounted config path for another Notary.
-Do not print `docker compose config` or a full environment dump because the
-rendered output contains database credentials and signing material.
+Substitute the ports and service name from the table for another authority.
 
-## Hosted installation and upgrades
+## Backup and restore
 
-Each authority Compose application owns a PostgreSQL volume and provisions
-only the databases listed in its `SOLMARA_NOTARY_DATABASES` value. An
-idempotent `notary-postgresql-bootstrap` job creates or attests the database
-and role boundaries before the one-shot state installers run. Both job types
-have `restart: "no"`; serving Notaries depend on their successful completion.
-The migration URL exists only in the matching installer container. It is not
-present in the serving Notary container.
+Back up each Notary database as a complete unit. Do not dump individual tables
+or merge databases from different authorities.
 
-Use a stopped-writer upgrade:
+Before an upgrade or recovery drill:
 
-1. Remove the affected Notary from traffic and stop all its replicas.
-2. Take and verify a whole-database backup. Preserve the role-provisioning
-   inputs, deployed Registry Notary release, and sensitive-state key version
-   with the recovery evidence.
-3. Deploy the target PostgreSQL and Notary images. Let the matching installer
-   apply the forward migration.
-4. Run `state doctor`, start one serving instance, and verify readiness and a
-   realistic evaluation or issuance canary.
-5. Start any identical replicas only after the canary succeeds.
+1. Record the deployed Registry Notary image digest and config revision.
+2. Take a consistent PostgreSQL backup of every authority Notary database.
+3. Back up the database role credentials in the secret manager, separately
+   from the database backup.
+4. Verify restore into an isolated PostgreSQL server with the same major
+   version.
+5. Run `state doctor` with the restored runtime configuration before sending
+   traffic.
 
-Never run an older Notary binary against a forward-migrated schema. Restore the
-matching database backup, role definitions, application version, and
-sensitive-state key together for rollback.
+For a restore, stop all writers for that authority, restore the complete
+database, restore the matching credentials, deploy the recorded Notary image
+and config, and run `state doctor`. Reopen traffic only after readiness and a
+representative authority scenario pass.
 
-## Backup and recovery
+## Upgrades and rollback
 
-Back up every Notary database as a complete unit. Do not dump individual
-correctness tables. Logical dumps should use the matching migrator connection,
-assume the matching owner role, and use `--no-owner --no-acl`. Keep database
-URLs in a restricted libpq service file and password file, not in command-line
-arguments.
+Treat the schema installer as a release step, not a serving-container
+permission. For each authority:
 
-After restore into an isolated writable primary:
+1. Stop or drain its Notary replicas.
+2. Take and verify a complete database backup.
+3. Deploy the target PostgreSQL and Notary images.
+4. Let the authority's state installer finish successfully.
+5. Start serving replicas, run `state doctor`, and verify `/ready` and an
+   authority scenario.
 
-1. Recreate the exact owner, migrator, and runtime role contract.
-2. Restore the whole database and the matching citizen issuer sensitive-state
-   key version when applicable.
-3. Run the released `state install` command to rebind the role identities.
-4. Run `state doctor` and a restart canary before admitting traffic.
-5. Quarantine a potentially stale restore until replay identifiers, nonces,
-   evaluations, idempotency records, preauthorization state, and quota windows
-   that may be missing have expired. A possibly missing revocation cannot be
-   repaired by waiting.
+Do not run an older Notary binary against a forward-migrated schema. If an
+upgrade cannot be completed, restore the pre-upgrade database and the matching
+image and configuration together. The normative product procedure is the
+[Registry Notary PostgreSQL state operations guide](https://github.com/registrystack/registry-stack/blob/main/products/notary/docs/postgresql-state-operations.md).
 
-The authoritative install, backup, restore, stale-restore, retention, and
-upgrade contract is the Registry Notary
-[PostgreSQL state operations guide](https://github.com/registrystack/registry-stack/blob/main/products/notary/docs/postgresql-state-operations.md).
+## Redis retirement
 
-## Redis cutover
+Registry Notary has no production Redis dependency in Solmara Lab. The pre-1.0
+cutover deliberately has no importer or dual-write mode. Old purpose-specific
+Notary and citizen-issuer Redis volumes are retired and must not be attached to
+the six authority Notaries.
 
-This pre-1.0 change deliberately has no Redis importer or dual-write mode.
-Stop every old Notary writer and wait the longest configured request or token
-lifetime, at least one hour for the quota window, before starting the
-PostgreSQL-backed deployment. Solmara Notary credential status is disabled, so
-there are no revocation rows to migrate. Only after PostgreSQL installation,
-doctor, restart, and scenario checks pass may the old Notary Redis volume and
-credentials be deleted.
-
-The `esignet-redis` services in `compose.esignet.yaml` and
-`compose.coolify.esignet.yaml` remain. They are eSignet-owned cache state and
-are outside the Notary cutover.
+`esignet-redis` in `compose.esignet.yaml` and
+`compose.coolify.esignet.yaml` belongs to eSignet. It is not Notary correctness
+state and remains part of the eSignet deployment.

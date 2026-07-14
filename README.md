@@ -41,9 +41,10 @@ The first wave covers three journeys:
   generated fixture checks.
 - `geo/` contains the hand-authored Solmara geometry source used by the
   generator.
-- `ministries/` contains authority-owned Relay configs, manifest fragments,
-  crosswalks, and generated fixtures.
-- `notaries/` contains purpose-oriented Notary configs.
+- `ministries/` contains authority-owned source fixtures, manifest fragments,
+  and crosswalks.
+- `projects/` contains the six authority-owned Registry project sources. Each
+  project generates one Relay config and one Notary config under `runtime/`.
 - `metadata/` assembles the multi-authority metadata publication.
 - `portal/` contains the citizen portal and BFF.
 - `scenarios/`, `requests/`, and `perf/` carry guided scenarios, API examples,
@@ -81,43 +82,43 @@ assets. Because that release publishes amd64 images, Compose defaults
 `REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when the release
 publishes an image for another platform.
 
-The NIA population Relay and all Notary correctness state are PostgreSQL-backed.
-`just gen-secrets` creates local PostgreSQL TLS material, separate runtime and
-migrator passwords for every logical Notary, and the citizen issuer sensitive
-state key. See [`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md)
-for the database map, diagnosis, backup, recovery, and upgrade workflow.
+Every authority runs one Relay and one Notary. Relay consultation state and all
+Notary correctness state are PostgreSQL-backed. `just gen-secrets` creates
+local PostgreSQL TLS material and distinct runtime and migrator passwords for
+each authority. See
+[`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md) for the
+database map, diagnosis, backup, recovery, and upgrade workflow.
 
 ## Hosted Deployment
 
 See [`docs/hosted-deployment.md`](docs/hosted-deployment.md) for the full
-runbook. Coolify uses one hosted compose file for the lab edge plus one compose
-file per pseudo-government authority:
+runbook. Coolify uses one hosted Compose file for the lab edge plus four
+ministry-grouped authority applications:
 
-- `compose.coolify.yaml` for the Visitor Center, portal, scenario runner, and
-  static metadata, including the non-composing child-benefit federator.
-- `compose.coolify.interior.yaml` for CRA, NIA, their two source-owned
-  child-benefit Notaries, and their PostgreSQL databases.
+- `compose.coolify.yaml` for the Visitor Center, portal, scenario runner,
+  child-benefit evidence composition, and static metadata.
+- `compose.coolify.interior.yaml` for the CRA and NIA Relay and Notary pairs
+  and their PostgreSQL databases.
 - `compose.coolify.esignet.yaml` for eSignet, eSignet UI, and its backing
   Postgres/Redis/seed services.
-- `compose.coolify.social-development.yaml` for SRO, MoSD programme MIS, and
-  their two source-owned child-benefit Notaries and PostgreSQL databases.
-- `compose.coolify.labour-pensions.yaml` for SIPF, the pension Notary, and its
-  PostgreSQL database.
-- `compose.coolify.agriculture.yaml` for NAgDI, its Notary, and its PostgreSQL
-  database.
-- `compose.coolify.citizen-services.yaml` for the citizen services and OID4VCI
-  issuer Notaries with independent PostgreSQL databases.
+- `compose.coolify.social-development.yaml` for the SRO and Programme Relay
+  and Notary pairs and their PostgreSQL databases.
+- `compose.coolify.labour-pensions.yaml` for the SIPF Relay and Notary pair and
+  its PostgreSQL databases.
+- `compose.coolify.agriculture.yaml` for the NAgDI Relay and Notary pair and
+  its PostgreSQL databases.
 
 The hosted compose files remove host port bindings and avoid repo bind mounts
 because Coolify does not seed bind-mount sources from the Git checkout. They do
 not define custom Docker networks; cross-authority calls use the public
 `*.solmara.registrystack.org` TLS endpoints. Authority compose files preserve
-Relay audit/cache volumes and Notary audit state volumes, with a small
-`volume-permissions` sidecar that makes those volumes writable by the product
-runtime users.
+authority-owned PostgreSQL state, persistent Relay snapshot caches, and
+workload credentials. Notary containers do not use Redis or a writable state
+directory.
 
-Run `uv run scripts/render-hosted-configs.py` after editing Relay or Notary
-configs so the hosted config overlays stay current.
+Run `just registry-projects-sync` after editing an authority project, then
+`just registry-projects-runtime-check` to verify the local and hosted Relay and
+Notary closures are deterministic.
 
 Run `just hosted-smoke` after each hosted deploy from a trusted shell with the
 demo tokens available in `.env` or the process environment. It checks public

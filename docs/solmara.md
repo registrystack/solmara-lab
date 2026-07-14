@@ -91,9 +91,9 @@ Solmara uses three domain layers:
 | Machine identifiers | `https://id.registrystack.org/solmara/...` | Purpose IRIs, credential `vct` values, schema `$id` values, and issuer identifiers. |
 | Service endpoints | `<service>.solmara.registrystack.org` | Real TLS endpoints for hosted lab services. |
 
-Notary node identifiers use `did:web` at their service host, for example
-`did:web:civil-child-benefit-notary.solmara.registrystack.org`. Credential
-holder binding uses `did:jwk`.
+Notary node identifiers use `did:web` at their authority service host, for
+example `did:web:cra-notary.solmara.registrystack.org`. Credential holder
+binding uses `did:jwk`.
 
 ## Ministries And Registries
 
@@ -120,12 +120,12 @@ needs them. Wave 1 runs seven registries.
 | 16 | Vehicle and driving licence registry | Ministry of Transport | World bible only | None |
 | 17 | Customs trader registry | Ministry of Finance, Customs Service | World bible only | None |
 
-Wave 1 notaries are the source-owned child benefit Notaries
-`civil-child-benefit-notary`, `nia-child-benefit-notary`,
-`sro-child-benefit-notary`, `programme-child-benefit-notary`, plus
-`pension-notary`, `nagdi-notary`, and `citizen-notary`. The
-`child-benefit-federator` coordinates the child-benefit predicate calls but
-does not make the final eligibility decision.
+Wave 1 runs one authority Notary beside each Relay: `cra-notary`, `nia-notary`,
+`sro-notary`, `programme-notary`, `sipf-notary`, and `nagdi-notary`. An
+authority Notary exposes every reviewed evidence workflow owned by that
+authority. It is not duplicated per purpose. The child-benefit orchestration
+service composes the four required authority responses but does not own Notary
+correctness state or make the final eligibility decision.
 
 ## Persona Roster
 
@@ -164,10 +164,10 @@ The wave 1 registry landscape demonstrates cross-registry life-event services:
 
 | Story | Registries | Outcome |
 |---|---|---|
-| Birth to child benefit | Civil registration, population, social registry, beneficiary registry | Federated source predicate bundle for programme eligibility review. |
+| Birth to child benefit | Civil registration, population, social registry, beneficiary registry | Four authority predicate responses composed for programme eligibility review. |
 | Death to pension stop plus survivor benefit | Civil registration, population, pensions, beneficiary registry | Stop predicate for the deceased member and survivor eligibility VC for the spouse. |
 | Farmer climate-smart voucher and livestock movement | Farmer registry, livestock registry | Voucher eligibility credential and livestock movement permit evidence. |
 
 Every wave 1 story must show metadata discovery, governed evaluation, a
-credential or federation bundle moment, a forbidden raw read or wrong-purpose
+credential or composed evidence moment, a forbidden raw read or wrong-purpose
 attempt, and a denial with a stable problem code.

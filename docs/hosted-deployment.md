@@ -1,78 +1,79 @@
-# Solmara Lab Hosted Deployment
+# Solmara Lab hosted deployment
 
 Status: operational runbook for the public Solmara Lab deployment.
 
-This guide explains how to deploy Solmara Lab to Coolify from this repository.
-It intentionally avoids private control-plane coordinates, credential file
-paths, API tokens, and environment values. Keep those in the private operations
-store for the environment you are deploying.
+This guide describes the public Coolify topology without publishing private
+control-plane coordinates or secret values. Keep those values in the private
+operations store for the target environment.
 
-## Deployment Model
+## Deployment model
 
-The hosted lab is split into one Coolify Docker Compose application for the
-edge services, plus one Coolify application per pseudo-government authority.
-The split keeps each authority's PostgreSQL, relay cache, and audit volumes
-under that authority's app instead of sharing one large Compose project.
+The hosted lab has one edge application and four authority applications. Each
+authority runs one Relay and one Notary for each authority represented in that
+application. The Relay and Notary share a network namespace, while their
+PostgreSQL correctness-state databases and roles remain distinct. Each Relay
+also owns a persistent snapshot-cache volume.
 
-| Coolify app name | Compose file | Services |
+| Coolify app | Compose file | Authority services |
 |---|---|---|
-| `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, child benefit federator, static metadata |
-| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA relay and child benefit Notary, NIA relay and child benefit Notary, authority PostgreSQL |
-| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, public eSignet edge proxy, eSignet UI, eSignet Postgres, Redis, seed jobs |
-| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO relay and child benefit Notary, programme MIS relay and child benefit Notary, authority PostgreSQL |
-| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF relay, pension Notary, authority PostgreSQL |
-| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI relay, NAgDI Notary, authority PostgreSQL |
-| `solmara-lab-citizen-services` | `compose.coolify.citizen-services.yaml` | citizen services Notary, citizen OID4VCI issuer Notary, authority PostgreSQL |
-| `solmara-lab-wallet` | `compose.coolify.walt.yaml` | Walt holder wallet API, Walt web wallet, Postgres, Caddy |
+| `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, static metadata, child-benefit evidence composer |
+| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA Relay + Notary, NIA Relay + Notary, PostgreSQL |
+| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO Relay + Notary, Programme Relay + Notary, PostgreSQL |
+| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF Relay + Notary, PostgreSQL |
+| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI Relay + Notary, PostgreSQL |
+| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, eSignet UI and edge, eSignet PostgreSQL and Redis, seed jobs |
+| `solmara-lab-wallet` | `compose.coolify.walt.yaml` | Walt holder wallet demonstrator and its backing services |
 
-Hosted compose files follow these rules:
+The child-benefit evidence composer retains the service identifier
+`child-benefit-federator` for existing routes. It calls the CRA, NIA, SRO, and
+Programme authority Notaries and combines their responses. It is not a Notary,
+does not own Notary correctness state, and does not change the six-pair
+topology.
 
-- No host ports. Coolify owns public routing.
-- No repo bind mounts. Coolify does not seed bind-mount sources from the Git checkout.
-- No custom Docker networks. Cross-app calls use public HTTPS endpoints.
-- No `build:` blocks. Hosted services run digest-pinned images from GHCR.
-- Relay audit/cache and Notary audit state use named volumes owned by the runtime UID.
-- Each logical Notary owns a distinct PostgreSQL database and role triplet.
+Hosted Compose files follow these rules:
 
-## Public Endpoints
+- Coolify owns public routing, so services have no host port bindings.
+- Runtime configuration is checked into the repository and mounted read-only.
+  Secret files are not checked in, and no configuration mount is writable.
+- Cross-application calls use public HTTPS endpoints. The applications do not
+  share a custom Docker network.
+- Hosted services run digest-pinned images and do not use `build:` blocks.
+- Every authority Notary owns one PostgreSQL database, owner, migrator, and
+  runtime role.
+- Every authority Relay mounts its own named volume at
+  `/var/lib/registry-relay/cache`. The durable materialization publication
+  pointer and its immutable Parquet snapshot must survive the same restart.
+- Registry Notary has no Redis service or Redis volume. `esignet-redis` belongs
+  only to eSignet.
 
-The current public hostname pattern is `*.solmara.registrystack.org`.
+## Authority pairs and endpoints
 
-| Service | Domain |
+| Authority | Relay service and endpoint | Notary service and endpoint |
+|---|---|---|
+| CRA | `cra-civil-relay`, `https://cra-relay.solmara.registrystack.org` | `cra-notary`, `https://cra-notary.solmara.registrystack.org` |
+| NIA | `nia-population-relay`, `https://nia-relay.solmara.registrystack.org` | `nia-notary`, `https://nia-notary.solmara.registrystack.org` |
+| SRO | `sro-social-relay`, `https://sro-relay.solmara.registrystack.org` | `sro-notary`, `https://sro-notary.solmara.registrystack.org` |
+| Programme | `programme-mis-relay`, `https://mosd-programme-relay.solmara.registrystack.org` | `programme-notary`, `https://programme-notary.solmara.registrystack.org` |
+| SIPF | `sipf-pensions-relay`, `https://sipf-relay.solmara.registrystack.org` | `sipf-notary`, `https://sipf-notary.solmara.registrystack.org` |
+| NAgDI | `nagdi-agriculture-relay`, `https://nagdi-relay.solmara.registrystack.org` | `nagdi-notary`, `https://nagdi-notary.solmara.registrystack.org` |
+
+The other public endpoints are:
+
+| Service | Endpoint |
 |---|---|
 | Visitor Center | `https://solmara.registrystack.org` |
 | Portal | `https://portal.solmara.registrystack.org` |
 | Static metadata | `https://metadata.solmara.registrystack.org` |
+| Child-benefit evidence composer | `https://child-benefit-federator.solmara.registrystack.org` |
 | eSignet | `https://esignet.solmara.registrystack.org` |
 | eSignet UI | `https://esignet-ui.solmara.registrystack.org` |
 | Walt holder wallet | `https://wallet.solmara.registrystack.org` |
-| CRA civil relay | `https://cra-relay.solmara.registrystack.org` |
-| NIA population relay | `https://nia-relay.solmara.registrystack.org` |
-| SRO social relay | `https://sro-relay.solmara.registrystack.org` |
-| Programme MIS relay | `https://mosd-programme-relay.solmara.registrystack.org` |
-| SIPF pensions relay | `https://sipf-relay.solmara.registrystack.org` |
-| NAgDI agriculture relay | `https://nagdi-relay.solmara.registrystack.org` |
-| Child benefit federator | `https://child-benefit-federator.solmara.registrystack.org` |
-| CRA child benefit Notary | `https://civil-child-benefit-notary.solmara.registrystack.org` |
-| NIA child benefit Notary | `https://nia-child-benefit-notary.solmara.registrystack.org` |
-| SRO child benefit Notary | `https://sro-child-benefit-notary.solmara.registrystack.org` |
-| Programme child benefit Notary | `https://programme-child-benefit-notary.solmara.registrystack.org` |
-| Pension notary | `https://pension-notary.solmara.registrystack.org` |
-| NAgDI notary | `https://nagdi-notary.solmara.registrystack.org` |
-| Citizen services notary | `https://citizen-notary.solmara.registrystack.org` |
-| Citizen OID4VCI issuer notary | `https://citizen-issuer-notary.solmara.registrystack.org` |
 
-## Image Model
+## Image model
 
-Hosted deployment uses two layers of images.
-
-Registry Stack product images are workflow inputs:
-
-- `registry_relay_image`: digest-pinned `registry-relay` image.
-- `registry_notary_image`: digest-pinned `registry-notary` image.
-
-Solmara-owned wrapper and application images are built by the
-`release-candidate` workflow and reported as digest-pinned refs:
+Registry Stack Relay and Notary image refs are inputs to the Solmara wrapper
+builds. The `release-candidate` workflow builds the deployable Solmara images
+and reports immutable digest refs for these Coolify variables:
 
 - `SOLMARA_RELAY_IMAGE`
 - `SOLMARA_NOTARY_IMAGE`
@@ -86,457 +87,141 @@ Solmara-owned wrapper and application images are built by the
 - `SOLMARA_ESIGNET_UI_IMAGE`
 - `SOLMARA_ESIGNET_SEED_IMAGE`
 
-The Walt holder wallet app uses upstream Walt, Postgres, Caddy, and Alpine
-images pinned by explicit version tags in `compose.coolify.walt.yaml`; it does
-not build Solmara-owned images.
+Use `image@sha256:<digest>` values in Coolify. Do not deploy mutable tags.
+`REGISTRY_STACK_PLATFORM` defaults to `linux/amd64`; override it only when the
+selected Registry Stack release publishes another platform.
 
-The relay and notary wrapper images copy hosted configs into product images:
+## Configuration and secrets
 
-- `docker/relay/Dockerfile` copies `ministries/`, overlays
-  `hosted/ministries/`, and adds the hosted Postgres CA certificate.
-- `docker/notary/Dockerfile` copies `hosted/notaries/` and the PostgreSQL root
-  certificate.
-- `docker/postgres/Dockerfile` adds the allowlisted Notary database and role
-  bootstrap script to the TLS PostgreSQL image.
-- `docker/esignet-relay/Dockerfile` builds the Relay-backed eSignet
-  authenticator plugin and adds it to the MOSIP eSignet base image.
-- `docker/esignet-postgres/Dockerfile`, `docker/esignet-ui/Dockerfile`, and
-  `docker/esignet-seed/Dockerfile` bake the Solmara eSignet init/config/seed
-  assets needed by Coolify, without repo bind mounts.
-- The hosted eSignet seed service writes `/tmp/ready` and idles after a
-  successful seed so Coolify keeps the compose deployment healthy. The local
-  eSignet seed still exits successfully so the local portal can depend on
-  `service_completed_successfully`.
-
-The Solmara image tag should normally be the commit SHA being deployed. Coolify
-env vars must use immutable `image@sha256:<digest>` refs, not mutable tags.
-
-## Hosted Config Overlays
-
-Local configs use Compose-private service names. Hosted configs use public HTTPS
-URLs because each authority is a separate Coolify application.
-
-After changing any relay or notary config, regenerate the hosted overlays:
+The six authority projects are the source of Relay and Notary runtime
+configuration. Regenerate both local and hosted closures after changing a
+project:
 
 ```bash
-uv run scripts/render-hosted-configs.py
+just registry-projects-sync
+just registry-projects-runtime-check
 ```
 
-Check overlays before deployment:
+Each authority application needs only the variables referenced by its Compose
+file. At minimum, provide:
 
-```bash
-uv run scripts/render-hosted-configs.py --check
-```
+- The required digest-pinned `SOLMARA_*_IMAGE` refs.
+- `SOLMARA_POSTGRES_PASSWORD` and the source database URL used by NIA or SIPF
+  when that authority owns a PostgreSQL-backed source projection.
+- Three Relay consultation-state credentials per authority: runtime, keyring
+  maintenance, and keyring reader.
+- Two Notary state credentials per authority: migrator and runtime.
+- Separate Relay and Notary audit hash secrets for every authority.
+- The client token hashes and signing keys named by that authority's generated
+  runtime configuration.
+- The Relay audit pseudonym key and consultation-state retention values named
+  by the Compose file.
 
-The renderer also rejects plaintext hosted URLs and the private-network escape
-flag in hosted notary source connections.
+For example, the CRA app uses `CRA_RELAY_POSTGRES_RUNTIME_PASSWORD`,
+`CRA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD`,
+`CRA_RELAY_POSTGRES_KEYRING_READER_PASSWORD`,
+`CRA_NOTARY_POSTGRES_MIGRATOR_PASSWORD`, and
+`CRA_NOTARY_POSTGRES_RUNTIME_PASSWORD`. Other authorities use the same suffixes
+with `NIA`, `SRO`, `PROGRAMME`, `SIPF`, or `NAGDI`.
 
-## Required Environment Variables
+The core application holds only the client tokens it needs to call the six
+authority services. It does not receive authority database credentials.
+eSignet and Walt credentials stay in their own applications.
 
-Create production env vars in each Coolify application. Preview env rows are not
-used by the public deployment.
+Do not print full environment dumps while deploying. Coolify responses can
+include secret values when the caller has sensitive read access.
 
-Image refs:
+## Workload identity prerequisite
 
-- Set every `SOLMARA_*_IMAGE` variable required by the app's compose file.
-- Set `REGISTRY_STACK_PLATFORM=linux/amd64` unless the product release publishes
-  a different platform.
-- Optional: `VOLUME_INIT_IMAGE`, otherwise compose uses `busybox:1.36`.
+Each hosted authority Notary reads a short-lived Relay workload token from a
+read-only external volume. The authority Compose files declare these volumes
+with names such as `solmara-cra-workload-token`; they do not mint long-lived
+tokens at container startup.
 
-Shared runtime settings:
+Before deploying an authority application:
 
-- `RUST_LOG`
-- `REGISTRY_RELAY_AUDIT_HASH_SECRET`
-- `REGISTRY_NOTARY_AUDIT_HASH_SECRET`
-- `SOLMARA_POSTGRES_USER`
-- `SOLMARA_POSTGRES_PASSWORD`
-- `SOLMARA_POSTGRES_DB`
-- `SOLMARA_NIA_DATABASE_URL`
-- `SOLMARA_ESIGNET_POSTGRES_PASSWORD`
-- `REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD`
-- `REGISTRY_ESIGNET_KYC_TOKEN_SECRET`
-- `REGISTRY_ESIGNET_PSUT_SECRET`
+1. Create its external workload-token volume.
+2. Configure the hosted workload issuer for audience `registry-relay` and the
+   matching authority Notary identity.
+3. Have the issuer rotate the token file into that volume.
+4. Confirm only the Notary runtime and state installer mount the volume, both
+   read-only.
 
-Notary PostgreSQL credentials are scoped to their owning authority app. Set
-both the `_POSTGRES_MIGRATOR_PASSWORD` and `_POSTGRES_RUNTIME_PASSWORD`
-variables for every Notary in that app:
+A missing or expired token keeps the Notary unready. Do not replace this flow
+with a static API token in Compose.
 
-- `CIVIL_CHILD_BENEFIT_NOTARY`
-- `NIA_CHILD_BENEFIT_NOTARY`
-- `SRO_CHILD_BENEFIT_NOTARY`
-- `PROGRAMME_CHILD_BENEFIT_NOTARY`
-- `PENSION_NOTARY`
-- `NAGDI_NOTARY`
-- `CITIZEN_NOTARY`
-- `CITIZEN_ISSUER_NOTARY`
+## Coolify application setup
 
-Also set `CITIZEN_ISSUER_NOTARY_SENSITIVE_STATE_KEY` on the citizen services
-app. It must be one base64url-encoded 32-byte key and must be backed up through
-the secret manager separately from PostgreSQL. Do not copy one Notary's
-database password or sensitive-state key into another authority app.
+For each application:
 
-Portal and Visitor Center:
+1. Select this repository and the exact commit being deployed.
+2. Use Docker Compose as the build pack.
+3. Select the application's `compose.coolify*.yaml` file.
+4. Disable generated domains and shared custom networks.
+5. Add only the production variables referenced by that Compose file.
+6. Attach domains to the exact service names in the endpoint tables.
+7. Deploy authority applications before the edge application.
 
-- `REPO_URL`
-- `UMAMI_WEBSITE_ID`
-- `PORTAL_SESSION_SECRET`
-- `PORTAL_AUTH_PROVIDER=esignet`
-- `PORTAL_ESIGNET_CLIENT_ID`
-- `PORTAL_ESIGNET_CLIENT_KEY_ID`
-- `PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64`
-- `PORTAL_ESIGNET_ISSUER`
-- `PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT`
-- `PORTAL_ESIGNET_TOKEN_ENDPOINT`
-- `PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE`
-- `PORTAL_ESIGNET_USERINFO_ENDPOINT`
-- `PORTAL_ESIGNET_REDIRECT_URI`
-- `PORTAL_ESIGNET_SCOPE`
-- `PORTAL_ESIGNET_SUBJECT_CLAIM`
-- `PORTAL_RELAY_TOKEN`
-- `CHILD_BENEFIT_FEDERATOR_TOKEN`
-- `CHILD_BENEFIT_FEDERATOR_REQUEST_JWK`
-- `PENSION_NOTARY_TOKEN`
-- `NAGDI_NOTARY_TOKEN`
-- `PORTAL_CITIZEN_NOTARY_TOKEN`
+Run the eSignet seed job once before expecting portal login to pass. The
+authority PostgreSQL bootstrap and state-install jobs are idempotent and run as
+part of their Compose dependency graph.
 
-Citizen OID4VCI issuer:
+## Deployment verification
 
-- `CITIZEN_ISSUER_NOTARY_ISSUER_JWK`
-- `CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK`
-- `CITIZEN_ISSUER_ESIGNET_RP_JWK`
-- `CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64`
-
-The `CITIZEN_ISSUER_ESIGNET_RP_JWK` value and
-`CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64` value must be derived from the
-same RSA private key. eSignet stores the public key for client
-`solmara-citizen-issuer`; the issuer notary uses the matching private JWK to
-sign `private_key_jwt` assertions when it exchanges the citizen login code.
-
-Walt holder wallet:
-
-- `CONFIG_REPO_REF`
-- `WALT_DB_PASSWORD`
-- `WALT_AUTH_ENCRYPTION_KEY`
-- `WALT_AUTH_SIGN_KEY`
-- `WALT_AUTH_TOKEN_KEY`
-- `WALT_KTOR_SIGNING_KEY`
-- `WALT_KTOR_VERIFICATION_KEY`
-
-Relay token hashes and notary source tokens:
-
-- Use the variable names referenced by the relevant compose file.
-- Store raw API tokens only as environment variables.
-- Committed configs must keep using `token_env`, `private_jwk_env`,
-  `hash_secret_env`, and fingerprint references.
-
-Child benefit federation credentials are split by application:
-
-- The core app needs `CHILD_BENEFIT_FEDERATOR_REQUEST_JWK` and
-  `CHILD_BENEFIT_FEDERATOR_TOKEN`.
-- The interior app needs `CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
-  `CRA_CHILD_BENEFIT_SOURCE_RAW`,
-  `CIVIL_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`,
-  `CIVIL_CHILD_BENEFIT_PAIRWISE_SECRET`,
-  `NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
-  `NIA_CHILD_BENEFIT_SOURCE_RAW`,
-  `NIA_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`, and
-  `NIA_CHILD_BENEFIT_PAIRWISE_SECRET`.
-- The social development app needs `SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
-  `SRO_CHILD_BENEFIT_SOURCE_RAW`,
-  `SRO_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`,
-  `SRO_CHILD_BENEFIT_PAIRWISE_SECRET`,
-  `PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH`,
-  `PROGRAMME_CHILD_BENEFIT_SOURCE_RAW`,
-  `PROGRAMME_CHILD_BENEFIT_FEDERATION_RESPONSE_JWK`, and
-  `PROGRAMME_CHILD_BENEFIT_PAIRWISE_SECRET`.
-
-Generate only the five federation JWKs into a new restricted file. This command
-does not rewrite `.env`, rotate unrelated credentials, or regenerate local TLS:
-
-```bash
-CHILD_BENEFIT_PUBLIC_DOMAIN=solmara.registrystack.org \
-  uv run --locked scripts/gen-secrets.py \
-  --federation-output .env.federation-rotation
-```
-
-Upload each named JWK to its owning app, complete the coordinated rotation, and
-then securely delete `.env.federation-rotation`. The generator refuses to
-overwrite an existing output file.
-
-The embedded JWK `kid` must exactly match the configured public DID. The
-federator request key uses
-`did:web:child-benefit-federator.solmara.registrystack.org#request-key-1`.
-Each authority response key uses its public service DID with
-`#federation-key-1`, for example
-`did:web:civil-child-benefit-notary.solmara.registrystack.org#federation-key-1`.
-Do not reuse locally generated `.lab.registrystack.org` federation JWKs in the
-hosted apps. Registry Notary rejects a configured signing key when the JWK
-`kid` does not match.
-
-eSignet uses the NIA population registry only through the
-`solmara-nia-userinfo` attribute-release profile:
-
-- Set `SOLMARA_ESIGNET_IDENTITY_RELEASE_HASH` on `solmara-lab-interior`.
-- Set the matching `SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW` on
-  `solmara-lab-esignet`.
-- Do not grant eSignet `nia_population:rows`; the release key needs only
-  `nia_population:metadata` and `nia_population:identity_release`.
-
-Do not print full env dumps while deploying. Coolify API responses can include
-real env values when the token has sensitive read access.
-
-## Coolify App Setup
-
-For each app:
-
-1. Create or reuse a Coolify application.
-2. Set the Git repository to this repo and branch to `main`.
-3. Set the build pack to Docker Compose.
-4. Set the compose location to the app's `compose.coolify*.yaml` file.
-5. Disable auto-generated domains.
-6. Avoid connecting apps through a shared custom Docker network.
-7. Add only the production environment variables needed by that compose file.
-8. Attach domains to the compose service names listed below.
-
-When using the Coolify API for `docker_compose_domains`, use the exact
-hyphenated service names from the compose file, not the underscore-normalized
-names that Coolify stores internally.
-
-| Compose service | Domain |
-|---|---|
-| `home` | `https://solmara.registrystack.org:4301` |
-| `portal` | `https://portal.solmara.registrystack.org:4000` |
-| `static-metadata` | `https://metadata.solmara.registrystack.org:8080` |
-| `esignet-edge` | `https://esignet.solmara.registrystack.org:3000` |
-| `esignet-ui` | `https://esignet-ui.solmara.registrystack.org:3000` |
-| `caddy` | `https://wallet.solmara.registrystack.org:7101` |
-| `cra-civil-relay` | `https://cra-relay.solmara.registrystack.org:8080` |
-| `nia-population-relay` | `https://nia-relay.solmara.registrystack.org:8080` |
-| `sro-social-relay` | `https://sro-relay.solmara.registrystack.org:8080` |
-| `programme-mis-relay` | `https://mosd-programme-relay.solmara.registrystack.org:8080` |
-| `sipf-pensions-relay` | `https://sipf-relay.solmara.registrystack.org:8080` |
-| `nagdi-agriculture-relay` | `https://nagdi-relay.solmara.registrystack.org:8080` |
-| `child-benefit-federator` | `https://child-benefit-federator.solmara.registrystack.org:8080` |
-| `civil-child-benefit-notary` | `https://civil-child-benefit-notary.solmara.registrystack.org:8080` |
-| `nia-child-benefit-notary` | `https://nia-child-benefit-notary.solmara.registrystack.org:8080` |
-| `sro-child-benefit-notary` | `https://sro-child-benefit-notary.solmara.registrystack.org:8080` |
-| `programme-child-benefit-notary` | `https://programme-child-benefit-notary.solmara.registrystack.org:8080` |
-| `pension-notary` | `https://pension-notary.solmara.registrystack.org:8080` |
-| `nagdi-notary` | `https://nagdi-notary.solmara.registrystack.org:8080` |
-| `citizen-notary` | `https://citizen-notary.solmara.registrystack.org:8080` |
-| `citizen-issuer-notary` | `https://citizen-issuer-notary.solmara.registrystack.org:8080` |
-
-## Release And Deploy
-
-1. Confirm the Registry Stack release image digests to deploy.
-
-   ```bash
-   just release-pins v0.8.4
-   ```
-
-2. Run the release-candidate workflow from GitHub Actions.
-
-   Inputs:
-
-   - `registry_relay_image`
-   - `registry_notary_image`
-   - `solmara_image_tag`
-
-   The workflow runs generation, lint, tests, compose validation, local smoke,
-   portal e2e, Visitor Center e2e, and then builds and pushes Solmara images.
-
-3. Copy the reported Solmara image digests into Coolify production env
-   vars for the relevant apps.
-
-4. Validate the local tree before redeploying:
-
-   ```bash
-   just lint
-   just test
-   just compose
-   ```
-
-5. Deploy in dependency order:
-
-   ```text
-   solmara-lab-interior
-   solmara-lab-esignet
-   solmara-lab-social-development
-   solmara-lab-labour-pensions
-   solmara-lab-agriculture
-   solmara-lab-citizen-services
-   solmara-lab-wallet
-   solmara-lab
-   ```
-
-The core app should deploy last because its Visitor Center and portal call the
-public relay, notary, and eSignet endpoints.
-
-## Verification
-
-Run the hosted smoke from a trusted shell with the demo tokens available in
-`.env` or the process environment:
+From a trusted shell with the demo client tokens available through `.env` or
+the process environment:
 
 ```bash
 just hosted-smoke
 ```
 
-The command runs:
+The smoke checks all six Relay and Notary endpoints, authority evidence
+journeys, purpose denial, the Visitor Center proxy, and the portal backend.
+Set `SOLMARA_HOSTED_SMOKE_BROWSER=1` to add hosted browser coverage.
 
-- Public route and `/healthz` checks for the Visitor Center, portal, metadata,
-  Walt wallet, six relays, eight Notaries, and the child benefit federator.
-- OID4VCI issuer checks for issuer metadata, VCT metadata, credential offer,
-  nonce issuance, refusal of unknown credential configurations, eSignet login
-  redirect, and unauthenticated credential refusal.
-- eSignet discovery checks for issuer-root OpenID and OAuth metadata, plus the
-  MOSIP `/v1/esignet/...` discovery path.
-- A Visitor Center scenario-proxy check that lists the stories, runs the child
-  benefit positive path, confirms all five source-owned predicates and the
-  four-Notary federation trace without an eligibility decision or credential,
-  and runs the purpose denial path.
-- Authenticated Relay source probes.
-- Authenticated Notary scenario checks.
-- Published demo-token refusal checks.
-- Portal live BFF login and evaluation smoke.
+For each authority, also verify:
 
-Expected success:
+1. Relay `/ready` returns success.
+2. Notary `/ready` returns success only after its Relay and database checks.
+3. One representative authority evidence request succeeds.
+4. A wrong-purpose request is denied without returning the prohibited field.
+5. Restarting the Notary preserves correctness state and readiness.
 
-```text
-smoke-hosted: Solmara hosted smoke passed
-```
+## PostgreSQL operations
 
-Then verify eSignet and the NIA identity-release backend:
+The bootstrap container creates only the authority keys listed in
+`SOLMARA_RELAY_DATABASES` and `SOLMARA_NOTARY_DATABASES`. The serving Relay and
+Notary receive runtime credentials only. Schema installation uses dedicated
+jobs and never gives migration credentials to a serving process.
 
-```bash
-just smoke-esignet -- \
-  --relay-url https://nia-relay.solmara.registrystack.org \
-  --esignet-url https://esignet.solmara.registrystack.org \
-  --esignet-ui-url https://esignet-ui.solmara.registrystack.org
-```
+Back up, restore, and upgrade each Notary database independently. See
+[`notary-postgresql-state.md`](notary-postgresql-state.md) for the database map
+and recovery sequence. Preserve the eSignet Redis volume separately because it
+is outside the Notary state boundary.
 
-The eSignet smoke loads `SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW` from `.env` or
-the process environment, checks discovery, reads Elena's fixture `legacy_nid`,
-and verifies that NIA resolves it to Solmara UIN `2300018263`.
+## Troubleshooting
 
-For the browser pass, run:
+### Notary stays unready
 
-```bash
-SOLMARA_HOSTED_SMOKE_BROWSER=1 just hosted-smoke
-```
+Check the matching Relay `/ready`, PostgreSQL health, state-installer exit
+status, and workload-token freshness. A Notary intentionally remains unready
+when a required Relay profile cannot be verified.
 
-Browser mode reuses the public hosted URLs and does not start local SvelteKit
-servers.
+### State installer fails
 
-The authenticated parts are important. `/healthz` can pass while evaluation
-requests fail because audit writes, PostgreSQL state, source authorization, or
-credential issuance is misconfigured.
+Confirm that the authority key appears in `SOLMARA_NOTARY_DATABASES`, that both
+authority Notary passwords are set, and that the wrapper and product images
+come from the same release. Do not pass the migrator URL to the serving Notary.
 
-## Audit And Correctness State
+### Hosted Notary calls a private service name
 
-Registry Relay and Registry Notary write audit records under fail-closed policy.
-Do not bypass that policy for hosted deployment. If an audit sink cannot write,
-the correct behavior is a stable `audit.write_failed` problem response.
+Regenerate the hosted project closure with `just registry-projects-sync`.
+Hosted Relay source URLs must use the public HTTPS domains in the authority
+table. A URL such as `http://cra-civil-relay:8080` cannot cross Coolify
+applications.
 
-Hosted authority compose files must keep:
+### Coolify routes the wrong container port
 
-- Relay cache volumes mounted at `/var/lib/registry-relay/cache`.
-- Relay audit volumes mounted at `/var/lib/registry-relay/audit`.
-- Notary audit and governed-config volumes mounted at
-  `/var/lib/registry-notary/config-state`.
-- One PostgreSQL volume per authority Compose app, with a distinct database
-  and role triplet for every logical Notary.
-- A `volume-permissions` service that chowns relay volumes to UID `65532` and
-  notary volumes to UID `65534`.
-- `depends_on: volume-permissions: condition: service_healthy` on services that
-  write those volumes.
-
-The `volume-permissions` service intentionally stays running after chowning.
-Coolify injects restart behavior into compose services, so a short-lived
-completed init container can block deployment. The sidecar writes `/tmp/ready`
-and idles so Docker Compose can gate dependent services on a health check.
-
-Notary database jobs are different from the volume-permissions sidecar. The
-idempotent `notary-postgresql-bootstrap` job creates or attests the allowlisted
-databases and restricted roles on both new and existing PostgreSQL volumes.
-Each `*-state-install` service is then an explicit one-shot database operator
-job. Both use `restart: "no"`. The installer receives the migrator URL, applies
-or attests the schema, and exits. The serving Notary receives only its runtime
-URL and starts only after its installer completes successfully. See
-[`notary-postgresql-state.md`](notary-postgresql-state.md) for install,
-doctor, backup, restore, cutover, and upgrade procedures.
-
-## Common Failure Modes
-
-### `audit.write_failed`
-
-Symptom: public `/healthz` succeeds, but `/v1/claims` or `/v1/evaluations`
-returns `500` with `code: audit.write_failed`.
-
-Checks:
-
-1. Confirm the notary service mounts a named volume at
-   `/var/lib/registry-notary/config-state`.
-2. Confirm relay services mount named volumes at `/var/lib/registry-relay/audit`
-   and `/var/lib/registry-relay/cache`.
-3. Confirm `volume-permissions` is present, healthy, and mounts the same named
-   volumes.
-4. Redeploy the affected authority app after fixing compose.
-5. Run `just hosted-smoke`.
-
-Do not change audit write policy to make the error disappear.
-
-### Notary schema installer fails
-
-Symptom: a `*-state-install` service exits nonzero and the matching Notary does
-not start, or the Notary reports `database_unavailable`, `schema_incompatible`,
-or `role_incompatible` readiness.
-
-Checks:
-
-1. Confirm the app has the two password variables for that exact Notary and
-   that `SOLMARA_NOTARY_DATABASES` in Compose names its database key.
-2. Confirm PostgreSQL is writable and healthy with TLS enabled.
-3. Confirm the wrapper images were built from the same Registry Notary release
-   and Solmara commit as the configs.
-4. Rerun the failed installer and then run `state doctor` without printing its
-   environment or rendered database URL.
-5. Admit traffic only after the installer, doctor, readiness, and scenario
-   canary all pass.
-
-Do not grant private-table access, make a runtime role an owner member, or put
-the migrator URL in the serving Notary to bypass a role error.
-
-### Domain patch accepted but no public route
-
-Coolify stores compose service domain keys with underscores, but the domain API
-input must use the compose service names. If a patch uses
-`child_benefit_federator` instead of `child-benefit-federator`, Coolify may
-accept the request without creating the intended service router. Patch domains
-with the hyphenated service names and redeploy.
-
-### Hosted config still calls Compose DNS
-
-If a notary tries to call `http://cra-civil-relay:8080` in hosted deployment,
-the hosted overlay is stale. Regenerate and commit `hosted/` configs:
-
-```bash
-uv run scripts/render-hosted-configs.py
-uv run scripts/render-hosted-configs.py --check
-```
-
-### Old image parses config incorrectly
-
-If containers fail on unknown config fields, the hosted config and product image
-digests are out of step. Deploy a compatible Registry Stack release image pair,
-rebuild Solmara wrapper images with those inputs, and update Coolify image env
-vars to the new digests.
-
-## Privacy And Change Control
-
-- Do not commit `.env`, raw tokens, private keys, API tokens, Coolify API token
-  paths, or full environment dumps.
-- Do not copy private operations notes into this repo.
-- Prefer recording public, reproducible facts here: compose files, domain
-  service names, image env var names, verification commands, and failure modes.
-- Keep private evidence, deployment UUIDs, host coordinates, and secret handling
-  notes in the private operations repo.
+The Relay and Notary share a network namespace. Route the Relay hostname to
+port `8080` and the Notary hostname to port `8081` on the authority Relay
+service.
