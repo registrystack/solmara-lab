@@ -178,7 +178,7 @@ evidence:
               required: true
       rule:
         type: cel
-        expression: "claims.person_is_deceased.value == true && source.pension.payment_status == 'active'"
+        expression: "claims.person_is_deceased.satisfied == true && source.pension.payment_status == 'active'"
         bindings:
           claims:
             person_is_deceased:

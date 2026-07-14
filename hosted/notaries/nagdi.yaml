@@ -191,7 +191,7 @@ evidence:
     source_bindings: *id002
     rule:
       type: cel
-      expression: claims.farmer_registered.value == true && claims.data_use_authorized_for_purpose.value == true && source.farmer.active_smallholder_farmer == true && source.farmer.active_farm_parcel == true && source.farmer.crop_declared_for_season == true && source.farmer.district_climate_risk_active == true && source.farmer.voucher_entitlement_current == true && source.farmer.voucher_not_redeemed == true
+      expression: claims.farmer_registered.satisfied == true && claims.data_use_authorized_for_purpose.satisfied == true && source.farmer.active_smallholder_farmer == true && source.farmer.active_farm_parcel == true && source.farmer.crop_declared_for_season == true && source.farmer.district_climate_risk_active == true && source.farmer.voucher_entitlement_current == true && source.farmer.voucher_not_redeemed == true
       bindings:
         claims:
           farmer_registered:
@@ -281,7 +281,7 @@ evidence:
     source_bindings: *id005
     rule:
       type: cel
-      expression: claims.registered_herd.value == true && claims.origin_district_not_quarantined_for_species.value == true && source.herd.herd_vaccination_current == true && source.herd.destination_district_open == true && source.herd.no_conflicting_open_movement_permit == true
+      expression: claims.registered_herd.satisfied == true && claims.origin_district_not_quarantined_for_species.satisfied == true && source.herd.herd_vaccination_current == true && source.herd.destination_district_open == true && source.herd.no_conflicting_open_movement_permit == true
       bindings:
         claims:
           registered_herd:

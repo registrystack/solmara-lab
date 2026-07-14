@@ -188,7 +188,7 @@ evidence:
     - civil-record-linked
     rule:
       type: cel
-      expression: claims.population_record_active.value == true && claims.civil_record_linked.value == true
+      expression: claims.population_record_active.satisfied == true && claims.civil_record_linked.satisfied == true
       bindings:
         claims:
           population_record_active:
