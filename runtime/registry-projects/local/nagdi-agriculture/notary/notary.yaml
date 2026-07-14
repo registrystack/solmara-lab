@@ -9,7 +9,6 @@ auth:
     id: nagdi-service
     scopes:
     - nagdi_agriculture:evidence_verification
-  mode: api_key
 deployment:
   profile: local
 evidence:

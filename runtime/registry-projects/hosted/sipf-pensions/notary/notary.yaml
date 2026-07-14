@@ -10,7 +10,6 @@ auth:
     scopes:
     - evidence:sipf:pension-payment:read
     - evidence:sipf:survivor-benefit:read
-  mode: api_key
 deployment:
   profile: hosted_lab
 evidence:

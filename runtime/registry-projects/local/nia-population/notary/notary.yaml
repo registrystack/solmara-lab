@@ -15,7 +15,6 @@ auth:
     id: citizen-portal
     scopes:
     - evidence:nia:citizen:read
-  mode: api_key
 deployment:
   profile: local
 evidence:

@@ -21,7 +21,6 @@ auth:
     id: pension-review-desk
     scopes:
     - evidence:cra:pension:read
-  mode: api_key
 deployment:
   profile: local
 evidence:

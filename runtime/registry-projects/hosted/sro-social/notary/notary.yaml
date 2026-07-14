@@ -9,7 +9,6 @@ auth:
     id: child-benefit-federator
     scopes:
     - sro_social:evidence_verification
-  mode: api_key
 deployment:
   profile: hosted_lab
 evidence:
