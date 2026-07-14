@@ -91,7 +91,7 @@ TABLES = {
         "household", "household_member", "socio_economic_profile",
         "scoring_event", "program", "eligibility_decision", "enrollment",
         "entitlement", "payment_event", "grievance", "social_registry_household",
-        "programme_mis_enrollment",
+        "child_benefit_household", "programme_mis_enrollment",
     ],
     "ministries/labour-pensions/fixtures": [
         "sipf_contribution_account", "sipf_contribution_period",
@@ -609,6 +609,7 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
         members_by_household.setdefault(row["household_id"], []).append(row)
 
     social_projection = []
+    child_benefit_household_projection = []
     for household in rows["household"]:
         profile = profile_by_household[household["household_id"]]
         score = score_by_profile[profile["profile_id"]]
@@ -627,6 +628,13 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
             "child_under_5_count": child_count,
             "consent_status": "granted",
         }, "SRO-RELAY-PROJECTION"))
+        for member in members_by_household.get(household["household_id"], []):
+            if member["membership_status"] != "active":
+                continue
+            child_benefit_household_projection.append(add_meta({
+                "uin": member["uin"],
+                "poverty_band": score["score_band"],
+            }, "SRO-CHILD-BENEFIT-PROJECTION"))
 
     active_enrollment_by_uin = {
         row["uin"]: row
@@ -711,6 +719,7 @@ def build_relay_projections(rows: dict[str, list[dict[str, object]]]) -> dict[st
     return {
         "civil_person_projection": civil_projection,
         "social_registry_household": social_projection,
+        "child_benefit_household": child_benefit_household_projection,
         "programme_mis_enrollment": programme_projection,
         "pension_case": pension_projection,
         "farmer_voucher": farmer_projection,
@@ -768,7 +777,7 @@ def generate(root: Path) -> None:
         write_csv(root / "ministries/interior-population/fixtures" / f"{table}.csv", rows[table])
     write_text(root / "ministries/interior-population/fixtures/001-schema.sql", "create table population_person (uin text primary key, person_id text, legacy_nid text, given_name text, family_name text, birth_date date, sex text, district_code text, address_area text, settlement_type text, identity_status text, pending_merge_with_uin text, match_basis text, alive boolean, birth_brn text, updated_at timestamptz, observed_at timestamptz, source_system text);\n")
     write_text(root / "ministries/interior-population/fixtures/002-load.sql", "copy population_person from '/docker-entrypoint-initdb.d/population_person.csv' with (format csv, header true);\n")
-    for table in ["household", "household_member", "socio_economic_profile", "scoring_event", "program", "eligibility_decision", "enrollment", "entitlement", "payment_event", "grievance", "social_registry_household", "programme_mis_enrollment"]:
+    for table in ["household", "household_member", "socio_economic_profile", "scoring_event", "program", "eligibility_decision", "enrollment", "entitlement", "payment_event", "grievance", "social_registry_household", "child_benefit_household", "programme_mis_enrollment"]:
         write_csv(root / "ministries/social-development/fixtures" / f"{table}.csv", rows[table])
     for table in ["sipf_contribution_account", "sipf_contribution_period", "sipf_pension_award", "sipf_payment_instruction", "sipf_proof_of_life_check", "sipf_survivor_link", "pension_case"]:
         write_csv(root / "ministries/labour-pensions/fixtures" / f"{table}.csv", rows[table])

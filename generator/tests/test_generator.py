@@ -191,6 +191,43 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(social["2300027390"]["poverty_band"], "priority")
         self.assertEqual(social["2300045650"]["poverty_band"], "not_eligible")
 
+        child_benefit_household_rows = read_csv(
+            self.root,
+            "ministries/social-development/fixtures/child_benefit_household.csv",
+        )
+        child_benefit_households = {
+            row["uin"]: row
+            for row in child_benefit_household_rows
+        }
+        self.assertEqual(
+            len(child_benefit_households), len(child_benefit_household_rows)
+        )
+        active_household_by_uin = {
+            row["uin"]: row["household_id"]
+            for row in read_csv(
+                self.root,
+                "ministries/social-development/fixtures/household_member.csv",
+            )
+            if row["membership_status"] == "active"
+        }
+        self.assertEqual(set(child_benefit_households), set(active_household_by_uin))
+        profile_by_household = {
+            row["household_id"]: row["profile_id"]
+            for row in read_csv(
+                self.root,
+                "ministries/social-development/fixtures/socio_economic_profile.csv",
+            )
+        }
+        score_by_profile = {
+            row["profile_id"]: row["score_band"]
+            for row in read_csv(self.root, "ministries/social-development/fixtures/scoring_event.csv")
+        }
+        for uin, household in child_benefit_households.items():
+            profile_id = profile_by_household[active_household_by_uin[uin]]
+            self.assertEqual(household["poverty_band"], score_by_profile[profile_id])
+        self.assertEqual(child_benefit_households["2300010248"]["poverty_band"], "priority")
+        self.assertEqual(child_benefit_households["2300036523"]["poverty_band"], "not_eligible")
+
         programme = {
             row["uin"]: row
             for row in read_csv(self.root, "ministries/social-development/fixtures/programme_mis_enrollment.csv")
