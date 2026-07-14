@@ -1,0 +1,31 @@
+name: farmer-voucher-match
+classification: synthetic
+input: { farmer_id: FR-1001 }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond:
+      status: 200
+      body:
+        farmer_registered: true
+        data_use_authorized: true
+        active_smallholder_farmer: true
+        active_farm_parcel: true
+        crop_declared_for_season: true
+        district_climate_risk_active: true
+        voucher_entitlement_current: true
+        voucher_not_redeemed: true
+expect:
+  outcome: match
+  outputs:
+    farmer_registered: true
+    data_use_authorized: true
+    active_smallholder_farmer: true
+    active_farm_parcel: true
+    crop_declared_for_season: true
+    district_climate_risk_active: true
+    voucher_entitlement_current: true
+    voucher_not_redeemed: true
+  claims:
+    farmer-registered: true
+    data-use-authorized-for-purpose: true
+    eligible-for-climate-smart-input-voucher: true

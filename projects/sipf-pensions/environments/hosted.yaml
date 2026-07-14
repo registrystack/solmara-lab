@@ -1,0 +1,42 @@
+version: 1
+entities:
+  pension_cases:
+    provider:
+      type: csv
+      path: /var/lib/solmara/ministries/labour-pensions/fixtures/pension_case.csv
+      header_row: 1
+    columns:
+      pension_case_id: pension_case_id
+      pensioner_uin: pensioner_uin
+      spouse_uin: spouse_uin
+      payment_status: payment_status
+      survivor_eligible: survivor_eligible
+    source_revision: sipf-pension-case-projection-v1
+    generation: 2026-07-14
+issuance:
+  issuer: did:web:id.registrystack.org:solmara:authority:sipf
+  signing_kid: did:web:id.registrystack.org:solmara:authority:sipf#issuer-key-1
+  signing_key: { secret: SIPF_NOTARY_ISSUER_JWK }
+  generation: 1
+callers:
+  pension-review-desk:
+    api_key_fingerprint: { secret: SIPF_PENSION_CLIENT_TOKEN_HASH }
+    scopes:
+      - evidence:sipf:pension-payment:read
+      - evidence:sipf:survivor-benefit:read
+relay:
+  origin: https://sipf-relay.solmara.registrystack.org
+  issuer: https://workload-issuer.solmara.registrystack.org
+  jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: []
+notary_relay:
+  workload_client_id: sipf-notary
+  token_file: /run/secrets/sipf-notary-relay-token
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+deployment:
+  profile: hosted_lab
+  relay: { service: sipf-pensions-relay }
+  notary: { service: sipf-notary }

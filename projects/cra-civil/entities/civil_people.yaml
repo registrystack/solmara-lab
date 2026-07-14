@@ -1,0 +1,27 @@
+version: 1
+id: civil_people
+revision: 1
+primary_key: uin
+schema:
+  type: object
+  additionalProperties: false
+  required: [uin, birth_date, birth_brn, deceased]
+  properties:
+    uin:
+      type: string
+      maxLength: 16
+      pattern: "^[0-9]{10}$"
+    birth_date:
+      type: string
+      format: date
+      maxLength: 10
+    birth_brn:
+      type: [string, "null"]
+      maxLength: 32
+    deceased:
+      type: boolean
+materialization:
+  max_records: 1000000
+  max_bytes: 256MiB
+  refresh: manual
+  retain_generations: 2

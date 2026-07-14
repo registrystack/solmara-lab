@@ -1,0 +1,33 @@
+version: 1
+
+registry:
+  id: solmara-mosd-programme
+
+integrations:
+  enrollment-by-uin:
+    file: integrations/enrollment-by-uin/integration.yaml
+
+entities:
+  mosd_enroll:
+    file: entities/mosd_enroll.yaml
+
+services:
+  child-benefit:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    legal_basis: child-benefit-act
+    consent: not_required
+    access:
+      scopes: ["mosd_programme:evidence_verification"]
+    consultations:
+      enrollment:
+        integration: enrollment-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      not-already-enrolled:
+        cel: enrollment.matched && enrollment.duplicate_flag == false
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]

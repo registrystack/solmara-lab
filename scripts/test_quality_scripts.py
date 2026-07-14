@@ -107,6 +107,128 @@ class QualityScriptTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_registry_projects_are_explicit_and_use_the_pinned_registryctl(self) -> None:
+        required_version = next(
+            line.split("=", 1)[1]
+            for line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines()
+            if line.startswith("REGISTRYCTL_VERSION=")
+        )
+        projects = [
+            "cra-civil",
+            "nia-population",
+            "sro-social",
+            "mosd-programme",
+            "sipf-pensions",
+            "nagdi-agriculture",
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            registryctl = temporary / "registryctl"
+            log = temporary / "commands.log"
+            registryctl.write_text(
+                f"""#!/bin/sh
+if [ "${1:-}" = "--version" ]; then
+  echo "registryctl {required_version}"
+  exit 0
+fi
+if [ "${2:-}" = "--help" ]; then
+  case "${1:-}" in
+    check | test | build) exit 0 ;;
+  esac
+fi
+printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
+""",
+                encoding="utf-8",
+            )
+            registryctl.chmod(0o755)
+            result = subprocess.run(
+                [str(ROOT / "scripts" / "registry-projects.sh"), "check"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "REGISTRYCTL_BIN": str(registryctl),
+                    "REGISTRYCTL_LOG": str(log),
+                },
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            commands = log.read_text(encoding="utf-8").splitlines()
+            expected = [
+                f"check --project-dir {ROOT / 'projects' / project} --environment {environment}"
+                for project in projects
+                for environment in ("local", "hosted")
+            ]
+            self.assertEqual(commands, expected)
+
+            registryctl.write_text(
+                "#!/bin/sh\necho 'registryctl 0.8.3'\n",
+                encoding="utf-8",
+            )
+            rejected = subprocess.run(
+                [str(ROOT / "scripts" / "registry-projects.sh"), "check"],
+                cwd=ROOT,
+                env={**os.environ, "REGISTRYCTL_BIN": str(registryctl)},
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertIn(f"registryctl {required_version} is required", rejected.stderr)
+
+            registryctl.write_text(
+                f"#!/bin/sh\nif [ \"${{1:-}}\" = \"--version\" ]; then echo 'registryctl {required_version}'; exit 0; fi\nexit 1\n",
+                encoding="utf-8",
+            )
+            incompatible = subprocess.run(
+                [str(ROOT / "scripts" / "registry-projects.sh"), "check"],
+                cwd=ROOT,
+                env={**os.environ, "REGISTRYCTL_BIN": str(registryctl)},
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(incompatible.returncode, 1)
+            self.assertIn("with project-authoring check/test/build is required", incompatible.stderr)
+
+    def test_registry_project_secret_references_have_local_producers(self) -> None:
+        load_compose_project_name()
+        spec = importlib.util.spec_from_file_location(
+            "solmara_gen_secrets", ROOT / "scripts" / "gen-secrets.py"
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        produced = (
+            {hashed for _, hashed in module.RAW_HASH_PAIRS}
+            | set(module.JWK_KIDS)
+            | module.DIRECT_PROJECT_SECRET_NAMES
+        )
+        declared = {
+            line.split("=", 1)[0]
+            for line in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#") and "=" in line
+        }
+        consumed = set()
+
+        def collect(value) -> None:
+            if isinstance(value, dict):
+                if set(value) == {"secret"} and isinstance(value["secret"], str):
+                    consumed.add(value["secret"])
+                for child in value.values():
+                    collect(child)
+            elif isinstance(value, list):
+                for child in value:
+                    collect(child)
+
+        for environment in sorted((ROOT / "projects").glob("*/environments/*.yaml")):
+            collect(yaml.safe_load(environment.read_text(encoding="utf-8")))
+
+        self.assertEqual(consumed - produced, set())
+        self.assertEqual(consumed - declared, set())
+
     def test_hosted_configs_are_current(self) -> None:
         result = subprocess.run(
             [str(ROOT / "scripts" / "render-hosted-configs.py"), "--check"],

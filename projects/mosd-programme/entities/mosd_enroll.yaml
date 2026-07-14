@@ -1,0 +1,20 @@
+version: 1
+id: mosd_enroll
+revision: 1
+primary_key: uin
+schema:
+  type: object
+  additionalProperties: false
+  required: [uin, duplicate_flag]
+  properties:
+    uin:
+      type: string
+      minLength: 10
+      maxLength: 10
+      pattern: "^[0-9]{10}$"
+    duplicate_flag: { type: boolean }
+materialization:
+  max_records: 1000000
+  max_bytes: 64MiB
+  refresh: manual
+  retain_generations: 2

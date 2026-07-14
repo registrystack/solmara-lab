@@ -1,0 +1,78 @@
+version: 1
+
+registry:
+  id: solmara-cra-civil
+
+integrations:
+  civil-person-by-uin:
+    file: integrations/civil-person-by-uin/integration.yaml
+
+entities:
+  civil_people:
+    file: entities/civil_people.yaml
+
+services:
+  cra-child-benefit:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    legal_basis: child-benefit-act
+    consent: not_required
+    access:
+      scopes: ["evidence:cra:child-benefit:read"]
+    variables:
+      as_of_date:
+        from: request.variables.as_of_date
+        type: date
+    consultations:
+      civil:
+        integration: civil-person-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      birth-is-registered:
+        cel: "civil.matched && civil.birth_brn != null ? civil.birth_brn != '' : false"
+        disclosure: predicate
+      child-age-under-5:
+        cel: >-
+          civil.matched && civil.birth_date != null && civil.deceased == false
+            ? date.age_on(civil.birth_date, as_of_date) >= 0
+              && date.age_on(civil.birth_date, as_of_date) < 5
+            : false
+        disclosure: predicate
+
+  cra-pension-death:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
+    legal_basis: social-insurance-act
+    consent: not_required
+    access:
+      scopes: ["evidence:cra:pension:read"]
+    consultations:
+      civil:
+        integration: civil-person-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      person-is-deceased:
+        cel: "civil.matched && civil.deceased == true"
+        disclosure: predicate
+
+  cra-citizen-record:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service
+    legal_basis: citizen-self-service
+    consent: not_required
+    access:
+      scopes: ["evidence:cra:citizen:read"]
+    consultations:
+      civil:
+        integration: civil-person-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      civil-record-linked:
+        cel: "civil.matched"
+        disclosure: predicate

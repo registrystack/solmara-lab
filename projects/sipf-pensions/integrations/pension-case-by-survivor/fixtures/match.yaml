@@ -1,0 +1,10 @@
+name: sipf-survivor-case-match
+classification: synthetic
+input: { uin: "2300118698" }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond: { status: 200, body: { survivor_eligible: true } }
+expect:
+  outcome: match
+  outputs: { survivor_eligible: true }
+  claims: { survivor-is-eligible: true }

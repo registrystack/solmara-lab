@@ -18,6 +18,18 @@ generate:
     @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m solmara_lab.generate; else echo "generator/pyproject.toml missing"; exit 1; fi
     scripts/gen-secrets.py
 
+# Validate every authority-owned Registry project in both deployment profiles.
+registry-projects-check:
+    scripts/registry-projects.sh check
+
+# Run every synthetic authority integration fixture offline.
+registry-projects-test:
+    scripts/registry-projects.sh test
+
+# Build private Relay and Notary inputs for every authority-owned project.
+registry-projects-build environment="local":
+    scripts/registry-projects.sh build {{environment}}
+
 # Generate only local secrets.
 gen-secrets:
     scripts/gen-secrets.py

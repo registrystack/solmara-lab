@@ -1,0 +1,23 @@
+name: cra-civil-person-future-birth-date
+classification: synthetic
+input: { uin: "2300010248" }
+variables: { as_of_date: 2026-07-14 }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond:
+      status: 200
+      body:
+        birth_date: 2027-03-14
+        birth_brn: BRN-2027-0101-00001
+        deceased: false
+expect:
+  outcome: match
+  outputs:
+    birth_date: 2027-03-14
+    birth_brn: BRN-2027-0101-00001
+    deceased: false
+  claims:
+    birth-is-registered: true
+    child-age-under-5: false
+    person-is-deceased: false
+    civil-record-linked: true

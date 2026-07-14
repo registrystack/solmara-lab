@@ -1,0 +1,59 @@
+version: 1
+
+registry:
+  id: solmara-nia-population
+
+integrations:
+  population-person-by-uin:
+    file: integrations/population-person-by-uin/integration.yaml
+
+entities:
+  population:
+    file: entities/population.yaml
+
+services:
+  nia-child-benefit:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    legal_basis: child-benefit-act
+    consent: not_required
+    access:
+      scopes: ["evidence:nia:child-benefit:read"]
+    consultations:
+      population:
+        integration: population-person-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      population-record-active:
+        cel: >-
+          population.matched && population.identity_status == 'active'
+            && population.alive == true
+        disclosure: predicate
+
+  nia-citizen-status:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service
+    legal_basis: citizen-self-service
+    consent: not_required
+    access:
+      scopes: ["evidence:nia:citizen:read"]
+    consultations:
+      population:
+        integration: population-person-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      citizen-population-record-active:
+        cel: >-
+          population.matched && population.identity_status == 'active'
+            && population.alive == true
+        disclosure: predicate
+    credential_profiles:
+      citizen-population-status:
+        format: dc+sd-jwt
+        type: https://id.registrystack.org/solmara/vct/citizen-population-status
+        validity: 10m
+        claims: [citizen-population-record-active]

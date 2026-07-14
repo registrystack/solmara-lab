@@ -1,0 +1,14 @@
+name: sipf-pension-case-ambiguous
+classification: synthetic
+input: { uin: "2300109568" }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond:
+      status: 200
+      body:
+        - { payment_status: active }
+        - { payment_status: suspended }
+expect:
+  outcome: ambiguous
+  outputs: {}
+  claims: {}

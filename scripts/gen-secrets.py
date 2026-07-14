@@ -37,6 +37,11 @@ RAW_HASH_PAIRS = [
     ("SIPF_CITIZEN_SOURCE_RAW", "SIPF_CITIZEN_SOURCE_HASH"),
     ("NAGDI_NOTARY_SOURCE_RAW", "NAGDI_NOTARY_SOURCE_HASH"),
     ("NAGDI_CITIZEN_SOURCE_RAW", "NAGDI_CITIZEN_SOURCE_HASH"),
+    ("CRA_CHILD_BENEFIT_CLIENT_TOKEN", "CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
+    ("CRA_PENSION_CLIENT_TOKEN", "CRA_PENSION_CLIENT_TOKEN_HASH"),
+    ("CRA_CITIZEN_CLIENT_TOKEN", "CRA_CITIZEN_CLIENT_TOKEN_HASH"),
+    ("NIA_CITIZEN_CLIENT_TOKEN", "NIA_CITIZEN_CLIENT_TOKEN_HASH"),
+    ("SIPF_PENSION_CLIENT_TOKEN", "SIPF_PENSION_CLIENT_TOKEN_HASH"),
     ("CIVIL_CHILD_BENEFIT_NOTARY_TOKEN", "CIVIL_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
     ("NIA_CHILD_BENEFIT_NOTARY_TOKEN", "NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
     ("SRO_CHILD_BENEFIT_NOTARY_TOKEN", "SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
@@ -57,12 +62,16 @@ FEDERATION_JWK_KIDS = {
 
 JWK_KIDS = {
     **FEDERATION_JWK_KIDS,
+    "NIA_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:nia#issuer-key-1",
+    "SIPF_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:sipf#issuer-key-1",
     "PENSION_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:pension#issuer-key-1",
-    "NAGDI_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:nagdi#issuer-key-1",
+    "NAGDI_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:nagdi#issuer-key-1",
     "CITIZEN_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:notary:citizen#issuer-key-1",
     "CITIZEN_ISSUER_NOTARY_ISSUER_JWK": "did:web:citizen-issuer-notary.solmara.registrystack.org#issuer-key-1",
     "CITIZEN_ISSUER_NOTARY_ACCESS_TOKEN_JWK": "did:web:citizen-issuer-notary.solmara.registrystack.org#access-token-key-1",
 }
+
+DIRECT_PROJECT_SECRET_NAMES = {"SOLMARA_NIA_DATABASE_URL"}
 
 
 def raw_key() -> str:

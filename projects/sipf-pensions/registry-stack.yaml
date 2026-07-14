@@ -1,0 +1,57 @@
+version: 1
+
+registry:
+  id: solmara-sipf-pensions
+
+integrations:
+  pension-case-by-pensioner:
+    file: integrations/pension-case-by-pensioner/integration.yaml
+  pension-case-by-survivor:
+    file: integrations/pension-case-by-survivor/integration.yaml
+
+entities:
+  pension_cases:
+    file: entities/pension_cases.yaml
+
+services:
+  sipf-pension-payment-review:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
+    legal_basis: social-insurance-act
+    consent: not_required
+    access:
+      scopes: ["evidence:sipf:pension-payment:read"]
+    consultations:
+      pension:
+        integration: pension-case-by-pensioner
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      pension-payment-active:
+        cel: "pension.matched && pension.payment_status == 'active'"
+        disclosure: predicate
+
+  sipf-survivor-benefit:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+    legal_basis: social-insurance-act
+    consent: not_required
+    access:
+      scopes: ["evidence:sipf:survivor-benefit:read"]
+    consultations:
+      survivor:
+        integration: pension-case-by-survivor
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      survivor-is-eligible:
+        cel: "survivor.matched && survivor.survivor_eligible == true"
+        disclosure: predicate
+    credential_profiles:
+      survivor-benefit-status:
+        format: dc+sd-jwt
+        type: https://id.registrystack.org/solmara/vct/survivor-benefit-status
+        validity: 10m
+        claims: [survivor-is-eligible]

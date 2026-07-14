@@ -1,0 +1,27 @@
+version: 1
+id: solmara-nia-population-person-by-uin
+revision: 1
+
+input:
+  uin:
+    role: selector
+    type: string
+    maxLength: 16
+    pattern: "^[0-9]{10}$"
+
+capability:
+  snapshot:
+    entity: population
+    exact:
+      uin: { input: uin }
+    freshness: 5m
+
+outputs: [identity_status, alive]
+
+not_applicable:
+  ambiguity:
+    rationale: The exact UIN selector is the entity primary key, whose materialized unique-key constraint permits at most one population record.
+    request_fixture: nia-population-person-match
+  subject_mismatch:
+    rationale: The minimized output projection omits UIN, so it contains no identifier comparable with the requested UIN.
+    request_fixture: nia-population-person-match

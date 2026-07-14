@@ -1,0 +1,30 @@
+version: 1
+id: livestock-movement-by-farmer
+revision: 1
+
+input:
+  farmer_id:
+    role: selector
+    type: string
+    minLength: 7
+    maxLength: 16
+    pattern: "^FR-[0-9]+$"
+
+capability:
+  snapshot:
+    entity: nagdi_herd
+    exact:
+      farmer_id: { input: farmer_id }
+    freshness: 7d
+
+outputs:
+  - registered_herd
+  - herd_vaccination_current
+  - origin_district_not_quarantined_for_species
+  - destination_district_open
+  - no_conflicting_open_movement_permit
+
+not_applicable:
+  subject_mismatch:
+    rationale: The minimized output projection omits farmer_id, so it contains no identifier comparable with the requested farmer identifier.
+    request_fixture: livestock-movement-match

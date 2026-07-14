@@ -1,0 +1,25 @@
+name: livestock-movement-match
+classification: synthetic
+input: { farmer_id: FR-1001 }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond:
+      status: 200
+      body:
+        registered_herd: true
+        herd_vaccination_current: true
+        origin_district_not_quarantined_for_species: true
+        destination_district_open: true
+        no_conflicting_open_movement_permit: true
+expect:
+  outcome: match
+  outputs:
+    registered_herd: true
+    herd_vaccination_current: true
+    origin_district_not_quarantined_for_species: true
+    destination_district_open: true
+    no_conflicting_open_movement_permit: true
+  claims:
+    registered-herd: true
+    origin-district-not-quarantined-for-species: true
+    eligible-for-livestock-movement-permit: true

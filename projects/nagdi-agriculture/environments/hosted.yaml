@@ -1,0 +1,66 @@
+version: 1
+
+entities:
+  nagdi_farmer:
+    provider:
+      type: csv
+      path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/farmer_voucher.csv
+      header_row: 1
+    columns:
+      farmer_id: farmer_id
+      farmer_registered: farmer_registered
+      data_use_authorized: data_use_authorized
+      active_smallholder_farmer: active_smallholder_farmer
+      active_farm_parcel: active_farm_parcel
+      crop_declared_for_season: crop_declared_for_season
+      district_climate_risk_active: district_climate_risk_active
+      voucher_entitlement_current: voucher_entitlement_current
+      voucher_not_redeemed: voucher_not_redeemed
+    source_revision: nagdi-farmer-voucher-v1
+    generation: "2026-07-14"
+  nagdi_herd:
+    provider:
+      type: csv
+      path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/livestock_movement.csv
+      header_row: 1
+    columns:
+      herd_id: herd_id
+      farmer_id: farmer_id
+      registered_herd: registered_herd
+      herd_vaccination_current: herd_vaccination_current
+      origin_district_not_quarantined_for_species: origin_district_not_quarantined_for_species
+      destination_district_open: destination_district_open
+      no_conflicting_open_movement_permit: no_conflicting_open_movement_permit
+    source_revision: nagdi-livestock-movement-v1
+    generation: "2026-07-14"
+
+issuance:
+  issuer: did:web:id.registrystack.org:solmara:authority:nagdi
+  signing_kid: did:web:id.registrystack.org:solmara:authority:nagdi#issuer-key-1
+  signing_key: { secret: NAGDI_NOTARY_ISSUER_JWK }
+  generation: 1
+
+callers:
+  nagdi-service:
+    api_key_fingerprint: { secret: NAGDI_CLIENT_TOKEN_HASH }
+    scopes: ["nagdi_agriculture:evidence_verification"]
+
+relay:
+  origin: https://nagdi-relay.solmara.registrystack.org
+  issuer: https://workload-issuer.solmara.registrystack.org
+  jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: [nagdi-notary]
+
+notary_relay:
+  workload_client_id: nagdi-notary
+  token_file: /run/secrets/nagdi-notary-relay-token
+
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+
+deployment:
+  profile: hosted_lab
+  relay: { service: nagdi-agriculture-relay }
+  notary: { service: nagdi-notary }

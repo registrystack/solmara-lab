@@ -1,0 +1,42 @@
+version: 1
+entities:
+  population:
+    provider:
+      type: postgres
+      connection: { secret: SOLMARA_NIA_DATABASE_URL }
+      schema: public
+      table: population_person
+    columns:
+      uin: uin
+      identity_status: identity_status
+      alive: alive
+    source_revision: nia-population-person-v1
+    generation: 2026-07-14
+issuance:
+  issuer: did:web:id.registrystack.org:solmara:authority:nia
+  signing_kid: did:web:id.registrystack.org:solmara:authority:nia#issuer-key-1
+  signing_key: { secret: NIA_NOTARY_ISSUER_JWK }
+  generation: 1
+callers:
+  child-benefit-federator:
+    api_key_fingerprint: { secret: NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH }
+    scopes: ["evidence:nia:child-benefit:read"]
+  citizen-portal:
+    api_key_fingerprint: { secret: NIA_CITIZEN_CLIENT_TOKEN_HASH }
+    scopes: ["evidence:nia:citizen:read"]
+relay:
+  origin: https://nia-relay.solmara.registrystack.org
+  issuer: https://workload-issuer.solmara.registrystack.org
+  jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: []
+notary_relay:
+  workload_client_id: nia-notary
+  token_file: /run/secrets/nia-notary-relay-token
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+deployment:
+  profile: hosted_lab
+  relay: { service: nia-population-relay }
+  notary: { service: nia-notary }
