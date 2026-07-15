@@ -109,7 +109,7 @@ services:
     ports:
       - "${SOLMARA_POSTGRES_PORT:-54329}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql
+      - postgres-data:/var/lib/postgresql/data
       - ./ministries/interior-population/fixtures/001-schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
       - ./ministries/interior-population/fixtures/002-load.sql:/docker-entrypoint-initdb.d/002-load.sql:ro
       - ./ministries/interior-population/fixtures/population_person.csv:/docker-entrypoint-initdb.d/population_person.csv:ro

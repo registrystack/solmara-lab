@@ -113,6 +113,10 @@ smoke:
 smoke-live:
     uv run --locked scripts/smoke-live.py
 
+# Prove all six Notary databases survive exact `just down` / `just up` recreation.
+notary-state-restart-proof:
+    uv run --locked scripts/notary_state_restart.py
+
 # Smoke eSignet discovery; portal login proves the NIA attribute-release path end to end.
 smoke-esignet *args:
     uv run scripts/smoke-esignet.py {{args}}

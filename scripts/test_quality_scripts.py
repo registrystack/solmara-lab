@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import importlib.util
 import io
 import json
@@ -339,6 +340,21 @@ class QualityScriptTests(unittest.TestCase):
             local_esignet["depends_on"]["nia-workload-agent"]["condition"],
             "service_healthy",
         )
+        self.assertNotIn("ports", local_esignet)
+        local_esignet_edge = yaml.safe_load(
+            (ROOT / "compose.esignet.yaml").read_text(encoding="utf-8")
+        )["services"]["esignet-edge"]
+        self.assertEqual(
+            local_esignet_edge["ports"], ["${SOLMARA_ESIGNET_PORT:-4308}:3000"]
+        )
+        self.assertEqual(
+            local_esignet_edge["depends_on"]["esignet"]["condition"],
+            "service_healthy",
+        )
+        self.assertIn(
+            "config/esignet/nginx.conf",
+            local_esignet_edge["build"]["args"]["ESIGNET_NGINX_CONF"],
+        )
         self.assertEqual(
             hosted_compose["volumes"]["nia-esignet-workload-token"],
             {
@@ -366,6 +382,61 @@ class QualityScriptTests(unittest.TestCase):
             retired_static_names.isdisjoint(
                 name for pair in load_secret_generator().RAW_HASH_PAIRS for name in pair
             )
+        )
+
+    def test_esignet_identity_input_resolves_the_nia_uin(self) -> None:
+        project = yaml.safe_load(
+            (ROOT / "projects" / "nia-population" / "registry-stack.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        authored_profile = project["services"]["nia-population-records"]["api"][
+            "attribute_release_profiles"
+        ]["solmara-nia-userinfo"]
+        self.assertEqual(authored_profile["subject"]["input"], "individual_id")
+        self.assertEqual(authored_profile["subject"]["source_field"], "uin")
+        self.assertEqual(
+            authored_profile["claims"]["individual_id"]["source_field"], "uin"
+        )
+
+        for environment in ("local", "hosted"):
+            relay = yaml.safe_load(
+                (
+                    ROOT
+                    / "runtime"
+                    / "registry-projects"
+                    / environment
+                    / "nia-population"
+                    / "relay"
+                    / "relay.yaml"
+                ).read_text(encoding="utf-8")
+            )
+            population = next(
+                entity
+                for dataset in relay["datasets"]
+                for entity in dataset["entities"]
+                if entity["name"] == "population"
+            )
+            generated_profile = next(
+                profile
+                for profile in population["attribute_release_profiles"]
+                if profile["id"] == "solmara-nia-userinfo"
+            )
+            self.assertEqual(generated_profile["subject"]["source_field"], "uin")
+
+        population_fixture = (
+            ROOT
+            / "ministries"
+            / "interior-population"
+            / "fixtures"
+            / "population_person.csv"
+        )
+        with population_fixture.open(encoding="utf-8", newline="") as fixture:
+            elena = next(
+                row for row in csv.DictReader(fixture) if row["uin"] == "2300018263"
+            )
+        self.assertEqual(
+            (elena["given_name"], elena["family_name"]), ("Elena", "Dela Cruz")
         )
 
     def test_fiction_lint_passes_current_tree(self) -> None:
@@ -690,6 +761,29 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         services = local["services"]
         declared_volumes = set((local.get("volumes") or {}).keys())
         self.assertNotIn("redis", services)
+        self.assertIn("postgres-data", declared_volumes)
+        self.assertIn(
+            "postgres-data:/var/lib/postgresql/data",
+            services["postgres"]["volumes"],
+        )
+        self.assertNotIn(
+            "postgres-data:/var/lib/postgresql",
+            services["postgres"]["volumes"],
+        )
+        state_proof = (ROOT / "scripts" / "notary_state_restart.py").read_text(
+            encoding="utf-8"
+        )
+        for required in (
+            "SELECT system_identifier FROM pg_control_system()",
+            "validate_runtime_pgdata_mounts",
+            'self.run_just("down")',
+            'self.run_just("up")',
+            "compare_snapshots(before, after)",
+            'volume_labels.get("com.docker.compose.volume") != "postgres-data"',
+        ):
+            self.assertIn(required, state_proof)
+        self.assertNotIn('run_just("reset")', state_proof)
+        self.assertNotIn('run_just("restart")', state_proof)
         self.assertEqual(
             {name for name in services if name.endswith("-notary")},
             set(notaries),

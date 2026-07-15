@@ -20,6 +20,20 @@ own PostgreSQL volume. The runtime role for an authority follows the form
 `solmara_notary_<authority>_runtime`; the owner and migrator roles use the same
 authority key.
 
+The named `postgres-data` volume is mounted directly at PostgreSQL's
+`/var/lib/postgresql/data` data directory. Keep that exact mount target while
+the topology uses PostgreSQL 16. Mounting the parent directory allows the
+image's declared data-directory volume to become anonymous, which would discard
+authority state when Compose removes the PostgreSQL container. `just down`
+followed by `just up` preserves the named data volume; only `just reset`
+deliberately deletes it.
+
+Run `just notary-state-restart-proof` after a representative live smoke. The
+gate records the PostgreSQL system identifier and every correctness-table row
+count in all six authority databases, performs the exact `just down` and
+`just up` lifecycle, rejects anonymous PGDATA mounts, compares the state before
+any new requests are sent, and reruns `state doctor` for every Notary.
+
 ## Startup and readiness
 
 The startup order is intentional:
@@ -91,6 +105,17 @@ Do not run an older Notary binary against a forward-migrated schema. If an
 upgrade cannot be completed, restore the pre-upgrade database and the matching
 image and configuration together. The normative product procedure is the
 [Registry Notary PostgreSQL state operations guide](https://github.com/registrystack/registry-stack/blob/main/products/notary/docs/postgresql-state-operations.md).
+
+The local topology deliberately pins PostgreSQL 16 and its
+`/var/lib/postgresql/data` mount layout. Do not change the image tag to 18 in
+place. PostgreSQL 18's official container layout mounts the parent
+`/var/lib/postgresql` directory and places data under a major-specific child.
+The [official PostgreSQL container documentation](https://github.com/docker-library/docs/blob/master/postgres/README.md#pgdata)
+defines the exact paths. A move to 18 therefore requires a stopped-writer
+`pg_upgrade` or verified dump/restore into a newly created PostgreSQL 18 volume,
+followed by all six `state doctor` checks and the restart-persistence gate.
+Recreating the container against the PostgreSQL 16 volume without that
+procedure is not an upgrade.
 
 ## Redis retirement
 

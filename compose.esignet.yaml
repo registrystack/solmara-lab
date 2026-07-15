@@ -83,8 +83,6 @@ services:
       REGISTRY_ESIGNET_KYC_SIGNING_KEY_ALIAS: esignet-relay-kyc
       REGISTRY_ESIGNET_KYC_SIGNING_KEY_PASSWORD: ${REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD:?REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD is required; run just gen-secrets}
       MOSIP_KERNEL_KEYMANAGER_HSM_CONFIG_PATH: /home/mosip/keystore/esignet_local.p12
-    ports:
-      - "${SOLMARA_ESIGNET_PORT:-4308}:8088"
     volumes:
       - esignet-keystore:/home/mosip/keystore
       - esignet-kyc-signing:/home/mosip/kyc-signing
@@ -127,6 +125,33 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://esignet-ui:3000/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  esignet-edge:
+    build:
+      context: .
+      dockerfile: docker/esignet-ui/Dockerfile
+      args:
+        ESIGNET_NGINX_CONF: config/esignet/nginx.conf
+    image: ${SOLMARA_ESIGNET_UI_IMAGE:-solmara-lab-esignet-ui:local}
+    user: root
+    environment:
+      container_user: mosip
+      DEFAULT_WELLKNOWN: "%5B%7B%22name%22%3A%22OpenID%20Configuration%22%2C%22value%22%3A%22%2F.well-known%2Fopenid-configuration%22%7D%2C%7B%22name%22%3A%22Jwks%20Json%22%2C%22value%22%3A%22%2F.well-known%2Fjwks.json%22%7D%2C%7B%22name%22%3A%22Authorization%20Server%22%2C%22value%22%3A%22%2F.well-known%2Foauth-authorization-server%22%7D%5D"
+      SIGN_IN_WITH_ESIGNET_PLUGIN_URL: https://raw.githubusercontent.com/mosip/artifactory-ref-impl/977607990661e864c2adddb9d7de50ea6c651b8f/artifacts/src/mosip-plugins/sign-in-with-esignet/sign-in-with-esignet.zip
+      i18n_url_env: ""
+      theme_url_env: ""
+      images_url_env: ""
+    ports:
+      - "${SOLMARA_ESIGNET_PORT:-4308}:3000"
+    depends_on:
+      esignet:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://esignet-edge:3000/.well-known/openid-configuration"]
       interval: 10s
       timeout: 5s
       retries: 30

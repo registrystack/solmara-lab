@@ -151,7 +151,7 @@ datasets:
         cardinality: one
         id_type: national_id
         input: individual_id
-        source_field: legacy_nid
+        source_field: uin
       title: SolmaraID UserInfo
       version: v1
     description: Governed population attributes used by NIA-owned services.

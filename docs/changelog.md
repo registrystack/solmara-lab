@@ -10,7 +10,17 @@ SRO, Programme, SIPF, and NAgDI. Each Notary owns an isolated PostgreSQL
 database and shares a loopback network boundary with its authority Relay. The
 purpose-specific citizen, issuer, child-benefit, and pension Notary topology is
 retired. Registry Notary no longer uses production Redis; eSignet continues to
-use its own Redis service.
+use its own Redis service. Local PostgreSQL now mounts its named volume directly
+at the PostgreSQL 16 data directory so `just down` and `just up` preserve all
+authority correctness state. The release-candidate smoke proves the PostgreSQL
+system identity and every authority's nonempty correctness state survive that
+exact lifecycle, while rejecting anonymous PGDATA mounts.
+Local eSignet now exposes its issuer port through the same standards edge used
+by hosted deployments, so root discovery and `/v1/esignet` share the public
+issuer origin while the Java backend remains internal. The NIA UserInfo release
+profile now resolves eSignet's `individual_id` input against the canonical UIN
+column, matching the portal login identifier and returning the typed identity
+claims from the authority source.
 
 ## 2026-07-05 Visitor's Center completion pass
 

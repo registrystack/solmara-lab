@@ -50,7 +50,7 @@ services:
           release_scope: population:identity_release
           subject:
             input: individual_id
-            source_field: legacy_nid
+            source_field: uin
             id_type: national_id
           release_conditions:
             expression:

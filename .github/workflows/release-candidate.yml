@@ -68,7 +68,7 @@ jobs:
           just compose
       - name: Start stack
         run: just up
-      - name: Smoke
+      - name: Smoke and PostgreSQL restart persistence
         run: just smoke
       - name: Portal live e2e
         run: just portal-live-e2e
