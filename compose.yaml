@@ -8,7 +8,7 @@ x-notary-environment: &notary-environment
   REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
-  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:93e194500a3500ba3f6331d5a0a9a3069127c48a709beccb083a5fcbdbc3ec61}
+  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:81d0b97e60560159a0f77ee10008a859f4e5dc15fc70fcb2c2fb50f8f190617f}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: unless-stopped
   environment: *relay-environment
@@ -19,7 +19,7 @@ x-relay-common: &relay-common
     retries: 3
 
 x-notary-common: &notary-common
-  image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+  image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   user: "65534:65534"
   restart: unless-stopped
@@ -38,7 +38,7 @@ x-notary-common: &notary-common
     retries: 3
 
 x-relay-bootstrap-common: &relay-bootstrap-common
-  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:93e194500a3500ba3f6331d5a0a9a3069127c48a709beccb083a5fcbdbc3ec61}
+  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:81d0b97e60560159a0f77ee10008a859f4e5dc15fc70fcb2c2fb50f8f190617f}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: "no"
 
@@ -608,7 +608,7 @@ services:
         condition: service_completed_successfully
 
   cra-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_cra_owner", "--runtime-role", "solmara_notary_cra_runtime"]
@@ -649,7 +649,7 @@ services:
         condition: service_completed_successfully
 
   nia-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nia_owner", "--runtime-role", "solmara_notary_nia_runtime"]
@@ -688,7 +688,7 @@ services:
         condition: service_completed_successfully
 
   sro-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sro_owner", "--runtime-role", "solmara_notary_sro_runtime"]
@@ -727,7 +727,7 @@ services:
         condition: service_completed_successfully
 
   programme-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_programme_owner", "--runtime-role", "solmara_notary_programme_runtime"]
@@ -802,7 +802,7 @@ services:
         condition: service_completed_successfully
 
   sipf-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sipf_owner", "--runtime-role", "solmara_notary_sipf_runtime"]
@@ -842,7 +842,7 @@ services:
         condition: service_completed_successfully
 
   nagdi-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:0cf05184885d7ed17dd9889e20f3797eb2a9ad07517f4ac7c05c03b774a00b8f}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nagdi_owner", "--runtime-role", "solmara_notary_nagdi_runtime"]

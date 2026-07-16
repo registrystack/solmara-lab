@@ -66,7 +66,7 @@ just up-esignet # local stack with eSignet-backed portal login
 just smoke-esignet # eSignet public discovery smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
-just release-pins v0.8.4 # compare versions.env against published GHCR tags
+just release-pins v0.10.0 # compare versions.env against published GHCR tags
 just review     # security and release-readiness checks
 ```
 
@@ -77,7 +77,7 @@ committed generated artifact.
 
 `versions.env` is the root source for published image digests. The Compose
 fallbacks mirror it so direct `docker compose` runs still use pinned Registry
-Stack images. The current pins are the Registry Stack `v0.8.4` release digest
+Stack images. The current pins are the Registry Stack `v0.10.0` release digest
 assets. Because that release publishes amd64 images, Compose defaults
 `REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when the release
 publishes an image for another platform.

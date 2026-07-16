@@ -62,7 +62,7 @@ jobs:
           just metadata-publish
       - name: Validate
         run: |
-          just release-pins v0.8.4
+          just release-pins v0.10.0
           just lint
           just test
           just compose

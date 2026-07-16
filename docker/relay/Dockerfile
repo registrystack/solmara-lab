@@ -1,4 +1,4 @@
-ARG REGISTRY_RELAY_IMAGE=ghcr.io/registrystack/registry-relay@sha256:93e194500a3500ba3f6331d5a0a9a3069127c48a709beccb083a5fcbdbc3ec61
+ARG REGISTRY_RELAY_IMAGE=ghcr.io/registrystack/registry-relay@sha256:81d0b97e60560159a0f77ee10008a859f4e5dc15fc70fcb2c2fb50f8f190617f
 FROM ${REGISTRY_RELAY_IMAGE}
 
 COPY ministries /var/lib/solmara/ministries

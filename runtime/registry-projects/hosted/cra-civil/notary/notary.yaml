@@ -230,9 +230,6 @@ server:
   request_timeout: 30s
 state:
   postgresql:
-    connect_timeout_ms: 5000
-    max_connections: 16
-    operation_timeout_ms: 2000
     root_certificate_path: /etc/solmara/postgres/root.crt
     url_env: REGISTRY_NOTARY_POSTGRES_URL
   storage: postgresql

@@ -5,7 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 "$root/scripts/check-fiction.sh"
 "$root/scripts/check-image-pins.py"
-"$root/scripts/check-release-pins.py" v0.8.4
+"$root/scripts/check-release-pins.py" v0.10.0
 "$root/scripts/check-config-secrets.py"
 uv run --project "$root" "$root/scripts/publish-metadata.py" --check
 uv run --project "$root" "$root/scripts/metadata-lint.py"

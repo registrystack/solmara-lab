@@ -3,6 +3,14 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-07-16 Registry Stack v0.10.0 adoption
+
+The lab now uses the authenticated Relay and Notary image digests and
+Registryctl binary from the Registry Stack `v0.10.0` beta release. The release
+keeps the implementer-facing pin surface in `versions.env` while preserving one
+PostgreSQL-backed Notary per Relay authority across local and hosted topology
+definitions.
+
 ## 2026-07-15 Authority-owned Notary topology
 
 The lab now runs exactly six authority-owned Relay and Notary pairs: CRA, NIA,
