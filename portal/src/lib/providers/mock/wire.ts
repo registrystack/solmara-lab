@@ -42,6 +42,7 @@ export type RawChildBenefitRequest = {
   claims: string[];
   disclosure: 'predicate';
   format: typeof CHILD_BENEFIT_FORMAT;
+  variables?: { as_of_date: string };
   purpose?: never;
   relationship?: never;
   on_behalf_of?: never;
@@ -74,7 +75,10 @@ export function buildChildBenefitRequest(
     },
     claims: [scenario.claimId],
     disclosure: 'predicate',
-    format: CHILD_BENEFIT_FORMAT
+    format: CHILD_BENEFIT_FORMAT,
+    ...(scenario.claimId === 'child-age-under-5'
+      ? { variables: { as_of_date: scenario.asOf } }
+      : {})
   };
 }
 

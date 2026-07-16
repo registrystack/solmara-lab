@@ -550,7 +550,8 @@ describe('LiveEvidenceProvider', () => {
       },
       claims: ['child-age-under-5'],
       disclosure: 'predicate',
-      format: 'application/json'
+      format: 'application/json',
+      variables: { as_of_date: '2026-01-15' }
     });
     expect(evaluation.raw.response.body).toMatchObject({
       schema_version: 'solmara-child-benefit-evidence/v1',

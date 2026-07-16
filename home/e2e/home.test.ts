@@ -67,15 +67,24 @@ test('problem-codes anchors resolve, including pdp.purpose_not_permitted', async
 test('anatomy lists every relay and notary with repo config links', async ({ page }) => {
   await page.goto('/anatomy');
   await expect(page.locator('#relays .entity')).toHaveCount(6);
-  await expect(page.locator('#notaries .entity')).toHaveCount(4);
-  const configLink = page.locator('#cra-civil-relay a.config-link').first();
-  await expect(configLink).toHaveAttribute('href', /github\.com.*relay\.yaml/);
-  await expect(configLink.locator('code')).toContainText('ministries/interior-civil');
+  await expect(page.locator('#notaries .entity')).toHaveCount(6);
+  const craLinks = page.locator('#cra-civil-relay a.config-link');
+  await expect(craLinks.filter({ hasText: 'projects/cra-civil/registry-stack.yaml' })).toHaveAttribute(
+    'href',
+    /github\.com.*projects\/cra-civil\/registry-stack\.yaml/
+  );
+  await expect(
+    craLinks.filter({ hasText: 'runtime/registry-projects/local/cra-civil/relay/relay.yaml' })
+  ).toHaveAttribute('href', /github\.com.*relay\/relay\.yaml/);
+  await expect(craLinks.filter({ hasText: 'ministries/interior-civil' })).toHaveAttribute(
+    'href',
+    /github\.com.*ministries\/interior-civil/
+  );
 });
 
 test('status grid shows the whole topology', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#status .status')).toHaveCount(14);
+  await expect(page.locator('#status .status')).toHaveCount(17);
 });
 
 test('engineer door always shows the copy-as-curl examples', async ({ page }) => {

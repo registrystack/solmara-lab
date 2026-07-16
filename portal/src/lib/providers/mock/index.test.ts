@@ -177,6 +177,7 @@ describe('delegated two-hop gate', () => {
     const body = ev.raw.request.body as RawChildBenefitRequest;
     expect(body.on_behalf_of).toBeUndefined();
     expect(body.target.identifiers[0].value).toBe(PERSONA.mateo);
+    expect(body.variables).toEqual({ as_of_date: '2026-01-15' });
   });
 });
 
@@ -274,7 +275,8 @@ describe('structural match to the Notary OpenAPI', () => {
         },
         claims: ['child-age-under-5'],
         disclosure: 'predicate',
-        format: CHILD_BENEFIT_FORMAT
+        format: CHILD_BENEFIT_FORMAT,
+        variables: { as_of_date: '2026-01-15' }
       }
     });
     expect(ev.proof.crypto).toMatchObject({
