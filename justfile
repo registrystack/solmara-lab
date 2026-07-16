@@ -142,7 +142,7 @@ hosted-smoke *args:
     uv run scripts/smoke-hosted.py {{args}}
 
 # Verify pinned Registry Stack images match a published release tag.
-release-pins tag="v0.8.4":
+release-pins tag="v0.10.0":
     scripts/check-release-pins.py {{tag}}
 
 # Run release-readiness and security-oriented checks.
