@@ -1,0 +1,45 @@
+version: 1
+
+entities:
+  mosd_enroll:
+    provider:
+      type: csv
+      path: /var/lib/solmara/ministries/social-development/fixtures/programme_mis_enrollment.csv
+      header_row: 1
+    columns:
+      uin: uin
+      duplicate_flag: duplicate_flag
+    source_revision: solmara-mosd-programme-projection-v1
+    generation: "2026-07-14"
+
+callers:
+  child-benefit-federator:
+    api_key_fingerprint: { secret: PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH }
+    scopes: ["mosd_programme:evidence_verification"]
+
+relay:
+  origin: http://127.0.0.1:8080
+  issuer: http://127.0.0.1:8090
+  jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: [programme-notary]
+
+notary_relay:
+  base_url: http://127.0.0.1:8080
+  workload_client_id: programme-notary
+  token_file: /run/secrets/programme-notary-relay-token
+
+relay_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+notary_cel:
+  worker_memory_bytes: 1073741824
+
+deployment:
+  profile: local
+  relay: { service: programme-mis-relay }
+  notary: { service: programme-notary }

@@ -106,6 +106,57 @@ describe('redactBody / request / response', () => {
     expect(result).toHaveProperty('satisfied', true);
     expect(result).toHaveProperty('issued_at', '2026-05-24T12:00:00Z');
   });
+
+  it('keeps child application source attribution without a target identifier', () => {
+    const red = redactResponse({
+      status: 200,
+      body: {
+        schema_version: 'solmara-child-benefit-evidence/v1',
+        evidence_set_id: 'cbe_01TEST',
+        orchestration: {
+          service_id: 'child-benefit-federator',
+          decision: 'not_composed'
+        },
+        target: {
+          type: 'Person',
+          identifier_schemes: ['solmara_uin']
+        },
+        results: [
+          {
+            claim_id: 'population-record-active',
+            notary_service_id: 'nia-notary',
+            authority: 'National Identity Agency',
+            satisfied: true
+          }
+        ],
+        source_trace: [{ service_id: 'nia-notary', claims: ['population-record-active'] }]
+      }
+    });
+
+    expect(JSON.stringify(red)).not.toContain('2300010248');
+    expect(red.body).toHaveProperty('evidence_set_id', 'cbe_01TEST');
+    expect(red.body).toHaveProperty('orchestration.decision', 'not_composed');
+    expect(red.body).toHaveProperty(
+      'results.0.notary_service_id',
+      'nia-notary'
+    );
+    expect(red.body).toHaveProperty('source_trace.0.service_id', 'nia-notary');
+  });
+
+  it('keeps the application-owned survivor decision value', () => {
+    const red = redactResponse({
+      status: 200,
+      body: {
+        schema_version: 'solmara-portal-evidence/v1',
+        derived_decisions: { 'survivor-benefit-eligible': true }
+      }
+    });
+
+    expect(red.body).toHaveProperty(
+      'derived_decisions.survivor-benefit-eligible',
+      true
+    );
+  });
 });
 
 describe('SSE serialization is identifier-free end to end', () => {

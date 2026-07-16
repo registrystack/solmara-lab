@@ -1,0 +1,36 @@
+version: 1
+id: nagdi_farmer
+revision: 1
+primary_key: farmer_id
+schema:
+  type: object
+  additionalProperties: false
+  required:
+    - farmer_id
+    - farmer_registered
+    - data_use_authorized
+    - active_smallholder_farmer
+    - active_farm_parcel
+    - crop_declared_for_season
+    - district_climate_risk_active
+    - voucher_entitlement_current
+    - voucher_not_redeemed
+  properties:
+    farmer_id:
+      type: string
+      minLength: 7
+      maxLength: 16
+      pattern: "^FR-[0-9]+$"
+    farmer_registered: { type: boolean }
+    data_use_authorized: { type: boolean }
+    active_smallholder_farmer: { type: boolean }
+    active_farm_parcel: { type: boolean }
+    crop_declared_for_season: { type: boolean }
+    district_climate_risk_active: { type: boolean }
+    voucher_entitlement_current: { type: boolean }
+    voucher_not_redeemed: { type: boolean }
+materialization:
+  max_records: 1000000
+  max_bytes: 128MiB
+  refresh: 1m
+  retain_generations: 2

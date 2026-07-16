@@ -2,100 +2,157 @@ name: solmara-lab-agriculture
 
 x-relay-environment: &relay-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET:?set REGISTRY_RELAY_AUDIT_HASH_SECRET}
+  REGISTRY_RELAY_BIND: 0.0.0.0:8080
 
 x-notary-environment: &notary-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
-  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
-  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
-  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+  REGISTRY_NOTARY_BIND: 0.0.0.0:8081
+  REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
   image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: unless-stopped
   environment: *relay-environment
-  depends_on:
-    volume-permissions:
-      condition: service_healthy
   healthcheck:
     test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
     interval: 30s
     timeout: 10s
     retries: 3
 
+x-relay-bootstrap-common: &relay-bootstrap-common
+  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: "no"
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  user: "65534:65534"
   restart: unless-stopped
   environment: *notary-environment
   healthcheck:
-    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck", "--url", "http://127.0.0.1:8081/ready"]
     interval: 30s
     timeout: 10s
     retries: 3
-  depends_on:
-    volume-permissions:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
 
 services:
-  volume-permissions:
-    image: ${VOLUME_INIT_IMAGE:-busybox:1.36}
-    restart: unless-stopped
+  postgres:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
     command:
-      - sh
+      - postgres
       - -c
-      - chown -R 65532:65532 /relay/* && chown -R 65534:65534 /notary/* && touch /tmp/ready && tail -f /dev/null
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
+    environment: &postgres-environment
+      POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
+      POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
+      SOLMARA_SOURCE_READER_DATABASES: ""
+      SOLMARA_RELAY_DATABASES: nagdi
+      SOLMARA_NOTARY_DATABASES: nagdi
+      NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD: ${NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD}
+      NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD: ${NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}
+      NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD: ${NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD}
+      NAGDI_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${NAGDI_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      NAGDI_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${NAGDI_NOTARY_POSTGRES_RUNTIME_PASSWORD}
     volumes:
-      - nagdi-agriculture-cache:/relay/nagdi-agriculture-cache
-      - nagdi-agriculture-audit:/relay/nagdi-agriculture-audit
-      - nagdi-notary-state:/notary/nagdi-notary-state
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
 
-  redis:
-    image: ${REDIS_IMAGE:-redis:7.4-alpine}
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+  registry-postgresql-bootstrap:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    restart: "no"
+    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/010-init-notary-postgresql.sh"]
+    environment:
+      <<: *postgres-environment
+      PGHOST: postgres
+      PGPASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      PGSSLMODE: require
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nagdi-relay-state-bootstrap:
+    <<: *relay-bootstrap-common
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${NAGDI_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nagdi_consultation_runtime:${NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_nagdi_consultation_keyring_maintenance:${NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_nagdi_consultation_keyring_reader:${NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
 
   nagdi-agriculture-relay:
     <<: *relay-common
-    command: ["--config", "/var/lib/solmara/ministries/agriculture-nagdi/config/relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/relay/relay.yaml"]
     environment:
       <<: *relay-environment
-      NAGDI_NOTARY_SOURCE_HASH: ${NAGDI_NOTARY_SOURCE_HASH}
-      NAGDI_CITIZEN_SOURCE_HASH: ${NAGDI_CITIZEN_SOURCE_HASH}
-      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${NAGDI_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nagdi_consultation_runtime:${NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
+    expose: ["8080", "8081"]
     volumes:
-      - nagdi-agriculture-cache:/var/lib/registry-relay/cache
-      - nagdi-agriculture-audit:/var/lib/registry-relay/audit
+      - nagdi-relay-cache:/var/lib/registry-relay/cache
+    depends_on:
+      nagdi-relay-state-bootstrap:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: nagdi-relay.solmara.registrystack.org
 
   nagdi-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/nagdi.yaml"]
-    environment:
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml"]
+    network_mode: service:nagdi-agriculture-relay
+    environment: &nagdi-notary-environment
       <<: *notary-environment
+      REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${NAGDI_NOTARY_AUDIT_HASH_SECRET}
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_nagdi_runtime:${NAGDI_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_nagdi?sslmode=require"
       NAGDI_CLIENT_TOKEN_HASH: ${NAGDI_CLIENT_TOKEN_HASH}
       NAGDI_NOTARY_ISSUER_JWK: ${NAGDI_NOTARY_ISSUER_JWK}
-      NAGDI_NOTARY_SOURCE_RAW: ${NAGDI_NOTARY_SOURCE_RAW}
     volumes:
-      - nagdi-notary-state:/var/lib/registry-notary/config-state
+      - nagdi-workload-token:/run/secrets:ro
+    depends_on:
+      nagdi-agriculture-relay:
+        condition: service_healthy
+      nagdi-notary-state-install:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: nagdi-notary.solmara.registrystack.org
 
+  nagdi-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nagdi_owner", "--runtime-role", "solmara_notary_nagdi_runtime"]
+    environment:
+      <<: *nagdi-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_nagdi_migrator:${NAGDI_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_nagdi?sslmode=require"
+    volumes:
+      - nagdi-workload-token:/run/secrets:ro
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
 volumes:
-  nagdi-agriculture-cache:
-  nagdi-agriculture-audit:
-  nagdi-notary-state:
+  postgres-data:
+  nagdi-relay-cache:
+  # The hosted workload issuer rotates the short-lived Notary token into this
+  # authority volume. Runtime and migration containers mount it read-only.
+  nagdi-workload-token:
+    external: true
+    name: ${NAGDI_WORKLOAD_TOKEN_VOLUME:-solmara-nagdi-workload-token}

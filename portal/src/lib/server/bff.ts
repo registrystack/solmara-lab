@@ -63,11 +63,12 @@ function railFromStatus(ev: MockEvaluation): { channel: RailChannel; phase: Rail
   }
 }
 
-export function buildRailEvent(ev: MockEvaluation): RailEvent {
+export function buildRailEvent(ev: MockEvaluation): RailEvent | null {
+  if (!ev.proof.authority) return null;
   const { channel, phase } = railFromStatus(ev);
   return {
     id: `${ev.result.traceId}:${phase}`,
-    authority: ev.proof.authority ?? 'civil',
+    authority: ev.proof.authority,
     channel,
     phase,
     ts: new Date().toISOString()
@@ -82,7 +83,8 @@ export function teeToFeeds(
 ): ProofTrace {
   const trace = buildRedactedTrace(ev, opts);
   proofFeed.pushTrace(opts.sessionId, trace);
-  railFeed.pushRailEvent(buildRailEvent(ev));
+  const railEvent = buildRailEvent(ev);
+  if (railEvent) railFeed.pushRailEvent(railEvent);
   return trace;
 }
 

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 
 CLAIM_RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
+CHILD_BENEFIT_AS_OF_DATE = "2026-07-14"
 SD_JWT_VC_FORMAT = "application/dc+sd-jwt"
 HOLDER_PROOF_TYP = "kb+jwt"
 HOLDER_PROOF_ALG = "EdDSA"
@@ -51,7 +52,10 @@ def env_url(env_name: str, default: str, path: str) -> str:
 
 
 def request_source(method: str, url: str, headers: dict[str, str], body: Any | None = None) -> dict[str, Any]:
-    source: dict[str, Any] = {"method": method, "url": url, "headers": redact_headers(headers)}
+    source_headers = dict(headers)
+    if body is not None:
+        source_headers.setdefault("Content-Type", "application/json")
+    source: dict[str, Any] = {"method": method, "url": url, "headers": redact_headers(source_headers)}
     if body is not None:
         source["body"] = body
     return source
@@ -78,13 +82,17 @@ def evaluation_body(
     scheme: str,
     disclosure: str = "predicate",
     format: str = CLAIM_RESULT_FORMAT,
+    variables: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    body = {
         "target": {"type": "Person", "identifiers": [{"scheme": scheme, "value": subject}]},
         "claims": claim_ids,
         "disclosure": disclosure,
         "format": format,
     }
+    if variables is not None:
+        body["variables"] = variables
+    return body
 
 
 def b64url_nopad(data: bytes) -> str:

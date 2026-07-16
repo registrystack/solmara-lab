@@ -41,9 +41,10 @@ The first wave covers three journeys:
   generated fixture checks.
 - `geo/` contains the hand-authored Solmara geometry source used by the
   generator.
-- `ministries/` contains authority-owned Relay configs, manifest fragments,
-  crosswalks, and generated fixtures.
-- `notaries/` contains purpose-oriented Notary configs.
+- `ministries/` contains authority-owned source fixtures, manifest fragments,
+  and crosswalks.
+- `projects/` contains the six authority-owned Registry project sources. Each
+  project generates one Relay config and one Notary config under `runtime/`.
 - `metadata/` assembles the multi-authority metadata publication.
 - `portal/` contains the citizen portal and BFF.
 - `scenarios/`, `requests/`, and `perf/` carry guided scenarios, API examples,
@@ -62,10 +63,10 @@ just portal-compose-smoke # HTTP smoke against the Compose portal and live BFF
 just portal-live-e2e # browser e2e against the running local stack
 just hosted-smoke # public hosted health, endpoint, scenario, and portal checks
 just up-esignet # local stack with eSignet-backed portal login
-just smoke-esignet # eSignet discovery plus NIA UserInfo release smoke
+just smoke-esignet # eSignet public discovery smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
-just release-pins v0.8.4 # compare versions.env against published GHCR tags
+just release-pins v0.10.0 # compare versions.env against published GHCR tags
 just review     # security and release-readiness checks
 ```
 
@@ -76,43 +77,48 @@ committed generated artifact.
 
 `versions.env` is the root source for published image digests. The Compose
 fallbacks mirror it so direct `docker compose` runs still use pinned Registry
-Stack images. The current pins are the Registry Stack `v0.8.4` release digest
+Stack images. The current pins are the Registry Stack `v0.10.0` release digest
 assets. Because that release publishes amd64 images, Compose defaults
 `REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when the release
 publishes an image for another platform.
 
-The NIA population Relay is intentionally Postgres-backed. `just gen-secrets`
-also creates local Postgres TLS material under `config/postgres/ssl/`, and the
-generated NIA connection string includes `sslmode=require`, matching Registry
-Stack `v0.8.4` Relay requirements.
+Every authority runs one Relay and one Notary. Relay consultation state and all
+Notary correctness state are PostgreSQL-backed. `just gen-secrets` creates
+local PostgreSQL TLS material and distinct runtime and migrator passwords for
+each authority. See
+[`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md) for the
+database map, diagnosis, backup, recovery, and upgrade workflow.
 
 ## Hosted Deployment
 
 See [`docs/hosted-deployment.md`](docs/hosted-deployment.md) for the full
-runbook. Coolify uses one hosted compose file for the lab edge plus one compose
-file per pseudo-government authority:
+runbook. Coolify uses one hosted Compose file for the lab edge plus four
+ministry-grouped authority applications:
 
-- `compose.coolify.yaml` for the Visitor Center, portal, scenario runner, and
-  static metadata.
-- `compose.coolify.interior.yaml` for CRA, NIA, and the NIA Postgres store.
+- `compose.coolify.yaml` for the Visitor Center, portal, scenario runner,
+  child-benefit evidence composition, and static metadata.
+- `compose.coolify.interior.yaml` for the CRA and NIA Relay and Notary pairs
+  and their PostgreSQL databases.
 - `compose.coolify.esignet.yaml` for eSignet, eSignet UI, and its backing
   Postgres/Redis/seed services.
-- `compose.coolify.social-development.yaml` for SRO, MoSD programme MIS, and
-  the child benefit notary.
-- `compose.coolify.labour-pensions.yaml` for SIPF and the pension notary.
-- `compose.coolify.agriculture.yaml` for NAgDI and the agriculture notary.
-- `compose.coolify.citizen-services.yaml` for the citizen services notary.
+- `compose.coolify.social-development.yaml` for the SRO and Programme Relay
+  and Notary pairs and their PostgreSQL databases.
+- `compose.coolify.labour-pensions.yaml` for the SIPF Relay and Notary pair and
+  its PostgreSQL databases.
+- `compose.coolify.agriculture.yaml` for the NAgDI Relay and Notary pair and
+  its PostgreSQL databases.
 
 The hosted compose files remove host port bindings and avoid repo bind mounts
 because Coolify does not seed bind-mount sources from the Git checkout. They do
 not define custom Docker networks; cross-authority calls use the public
 `*.solmara.registrystack.org` TLS endpoints. Authority compose files preserve
-Relay audit/cache volumes and Notary audit state volumes, with a small
-`volume-permissions` sidecar that makes those volumes writable by the product
-runtime users.
+authority-owned PostgreSQL state, persistent Relay snapshot caches, and
+workload credentials. Notary containers do not use Redis or a writable state
+directory.
 
-Run `uv run scripts/render-hosted-configs.py` after editing Relay or Notary
-configs so the hosted config overlays stay current.
+Run `just registry-projects-sync` after editing an authority project, then
+`just registry-projects-runtime-check` to verify the local and hosted Relay and
+Notary closures are deterministic.
 
 Run `just hosted-smoke` after each hosted deploy from a trusted shell with the
 demo tokens available in `.env` or the process environment. It checks public
@@ -132,8 +138,9 @@ workflow summary for Coolify env vars:
 
 For local eSignet testing, run `just up-esignet` instead of `just up`, then
 sign in through the portal with Elena's fixture `legacy_nid` and static OTP
-`111111`. Run `just smoke-esignet` to verify eSignet discovery and the NIA
-`solmara-nia-userinfo` attribute-release profile.
+`111111`. This sign-in is the end-to-end check of the NIA
+`solmara-nia-userinfo` attribute-release profile and its rotating eSignet
+workload identity. Run `just smoke-esignet` for the public discovery checks.
 
 Set `UMAMI_WEBSITE_ID` in the hosted environment to enable analytics for the
 Visitor Center through the Registry Stack Umami instance.

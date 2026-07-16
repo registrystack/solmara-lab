@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Scenario, ScenarioStep, StepRunEnvelope, StepRunResult } from '$lib/types';
-  import { toCurl } from '$lib/curl';
+  import type { RequestSource, Scenario, ScenarioStep, StepRunEnvelope, StepRunResult } from '$lib/types';
+  import { runnableRequestSources, toCurl } from '$lib/curl';
   import { claimResults, isDenial, problemCode, responseStatus } from '$lib/runresult';
   import CopyButton from '$lib/components/CopyButton.svelte';
 
@@ -36,6 +36,7 @@
 
   $: credential = credentialResult(results, scenario);
   $: accountability = accountabilityResult(results, scenario);
+  $: applicationEvidence = isCollectedApplicationEvidence(accountability) ? accountability : null;
 
   async function run(step: ScenarioStep): Promise<void> {
     runningStep = step.id;
@@ -63,10 +64,12 @@
     runningAll = false;
   }
 
-  function requestBlock(result: StepRunResult): string {
-    const source = result.request_source;
+  function sourceBlock(source: RequestSource): string {
     const lines = [`${source.method} ${source.url}`];
     for (const [key, value] of Object.entries(source.headers ?? {})) lines.push(`${key}: ${value}`);
+    if (source.body !== undefined && source.body !== null) {
+      lines.push('', JSON.stringify(source.body, null, 2));
+    }
     return lines.join('\n');
   }
 
@@ -84,6 +87,27 @@
   function truncate(value: string | null | undefined, head = 24): string {
     if (!value) return '';
     return value.length > head * 2 ? `${value.slice(0, head)}…${value.slice(-8)}` : value;
+  }
+
+  function orchestrationField(result: StepRunResult, field: 'service_id' | 'decision'): string {
+    const body = result.response_source.body;
+    if (!body || typeof body !== 'object') return 'Not reported';
+    const orchestration = (body as { orchestration?: unknown }).orchestration;
+    if (!orchestration || typeof orchestration !== 'object') return 'Not reported';
+    const value = (orchestration as Record<string, unknown>)[field];
+    return typeof value === 'string' && value ? value : 'Not reported';
+  }
+
+  function isCollectedApplicationEvidence(result: StepRunResult | null): result is StepRunResult {
+    if (!result?.source_trace?.length) return false;
+    return orchestrationField(result, 'service_id') === 'child-benefit-federator';
+  }
+
+  function sourceAuthorityCount(result: StepRunResult): number {
+    const serviceIds = (result.source_trace ?? [])
+      .map((source) => source.service_id)
+      .filter((serviceId): serviceId is string => typeof serviceId === 'string' && serviceId.length > 0);
+    return new Set(serviceIds).size;
   }
 
   onMount(() => {
@@ -153,6 +177,7 @@
 
           {#if result}
             {@const denied = isDenial(result)}
+            {@const requestSources = runnableRequestSources(result.request_source, result.request_sources)}
             <div class="step-result" class:denied>
               <h3 class="result-title">{result.friendly?.title ?? 'Response received'}</h3>
               <p class="result-message">{result.friendly?.message ?? ''}</p>
@@ -168,15 +193,60 @@
                 <div class="drawer-body">
                   <div class="drawer-block">
                     <div class="drawer-head">
-                      <h4>Request (headers redacted)</h4>
-                      <CopyButton text={toCurl(result.request_source)} label="Copy as curl" />
+                      <h4>
+                        {requestSources.length === 1
+                          ? 'Request (published lab token)'
+                          : `Requests (${requestSources.length} authority calls, published lab tokens)`}
+                      </h4>
+                      {#if requestSources.length === 1}
+                        <CopyButton text={toCurl(requestSources[0])} label="Copy as curl" />
+                      {/if}
                     </div>
-                    <pre>{requestBlock(result)}</pre>
+                    {#if requestSources.length > 1}
+                      <div class="peer-trace request-list">
+                        {#each requestSources as source, requestIndex}
+                          <div class="peer-call">
+                            <div class="drawer-head">
+                              <h5>Authority request {requestIndex + 1} of {requestSources.length}</h5>
+                              <CopyButton text={toCurl(source)} label="Copy as curl" />
+                            </div>
+                            <pre>{sourceBlock(source)}</pre>
+                          </div>
+                        {/each}
+                      </div>
+                    {:else}
+                      <pre>{sourceBlock(requestSources[0])}</pre>
+                    {/if}
                   </div>
                   <div class="drawer-block">
                     <h4>Response (HTTP {responseStatus(result) ?? 'none'})</h4>
                     <pre>{JSON.stringify(result.response_source, null, 2)}</pre>
                   </div>
+                  {#if result.source_trace?.length}
+                    <div class="drawer-block">
+                      <h4>Source authority evidence</h4>
+                      <div class="peer-trace">
+                        {#each result.source_trace as source}
+                          <div class="peer-call">
+                            <h5>
+                              {source.authority ?? source.service_id ?? 'Source authority'}
+                              <code>{source.claims?.join(', ') ?? source.claim_id ?? source.profile ?? 'evidence'}</code>
+                            </h5>
+                            {#if source.request_source}
+                              <pre>{sourceBlock(source.request_source)}</pre>
+                            {:else if source.request_summary}
+                              <pre>{JSON.stringify(source.request_summary, null, 2)}</pre>
+                            {/if}
+                            {#if source.response_source}
+                              <pre>{JSON.stringify(source.response_source, null, 2)}</pre>
+                            {:else if source.response_summary}
+                              <pre>{JSON.stringify(source.response_summary, null, 2)}</pre>
+                            {/if}
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
                 </div>
               </details>
             </div>
@@ -188,9 +258,30 @@
 
   <section class="page-band credential-moment" id="credential">
     <div class="content">
-      <p class="eyebrow">Credential moment</p>
-      <h2>The caseworker now holds a real credential</h2>
-      {#if credential?.credential}
+      <p class="eyebrow">{applicationEvidence ? 'Application evidence' : 'Credential moment'}</p>
+      <h2>{applicationEvidence ? 'The programme receives source-owned predicates' : 'The caseworker now holds a real credential'}</h2>
+      {#if applicationEvidence}
+        <div class="inspector">
+          <p><span>Status</span><strong class="issued">Evidence returned</strong></p>
+          <p><span>Collector</span>{orchestrationField(applicationEvidence, 'service_id')}</p>
+          <p><span>Source authorities</span>{sourceAuthorityCount(applicationEvidence)}</p>
+          <p><span>Decision</span>{orchestrationField(applicationEvidence, 'decision')}</p>
+        </div>
+        <div class="disclosure-grid">
+          <div>
+            <h4>Disclosed to the programme</h4>
+            <ul class="claim-list">
+              {#each claimResults(applicationEvidence) as claim}
+                <li><code>{claim.id}</code> {claim.satisfied === true ? 'met' : claim.satisfied === false ? 'not met' : ''}</li>
+              {/each}
+            </ul>
+          </div>
+          <div>
+            <h4>Held back</h4>
+            <p>Raw register rows stay with each authority, and the programme keeps ownership of its final eligibility decision.</p>
+          </div>
+        </div>
+      {:else if credential?.credential}
         {@const summary = credential.credential}
         {#if summary.status === 'issued'}
           {@const vct = credentialVct(credential)}
@@ -226,7 +317,7 @@
           </p>
         {/if}
       {:else}
-        <p class="inspector-empty">Run the eligibility evaluation above to issue and inspect the credential.</p>
+        <p class="inspector-empty">Run the evaluation above to inspect the resulting credential or application evidence.</p>
       {/if}
     </div>
   </section>
@@ -234,7 +325,7 @@
   <section class="page-band accountability" id="accountability">
     <div class="content">
       <p class="eyebrow">Accountability</p>
-      <h2>What the Notary recorded about this access</h2>
+      <h2>{applicationEvidence ? 'What the source trace recorded about this access' : 'What the Notary recorded about this access'}</h2>
       {#if accountability}
         {@const first = claimResults(accountability)[0]?.raw ?? {}}
         <div class="provenance">
@@ -251,7 +342,7 @@
           {/if}
         </div>
       {:else}
-        <p class="inspector-empty">Run an evaluation step to see the Notary-side proof trace.</p>
+        <p class="inspector-empty">Run an evaluation step to see the proof trace.</p>
       {/if}
       <p class="audit-note">Reading the registry authority's own audit log is a product capability candidate, tracked separately.</p>
     </div>

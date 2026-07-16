@@ -5,7 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 "$root/scripts/check-fiction.sh"
 "$root/scripts/check-image-pins.py"
-"$root/scripts/check-release-pins.py" v0.8.4
+"$root/scripts/check-release-pins.py" v0.10.0
 "$root/scripts/check-config-secrets.py"
 uv run --project "$root" "$root/scripts/publish-metadata.py" --check
 uv run --project "$root" "$root/scripts/metadata-lint.py"
@@ -22,7 +22,8 @@ Security checklist for reviewer:
 2. Raw tokens appear only in generated .env, never committed configs.
 3. Notary source connections use token_env and scoped Relay tokens.
 4. Redactable fields are not disclosed through predicate channels.
-5. Federation smokes cover success, replay denial, and unsupported-purpose denial.
+5. Run `just smoke` against the live stack: its child-benefit application gate verifies authority-owned
+   predicate success, unsupported-purpose denial, non-composition, and rejection of raw-source results.
 6. Audit hash secrets are environment-backed.
 7. Fiction lint is green.
 CHECKLIST

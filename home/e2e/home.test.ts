@@ -67,15 +67,24 @@ test('problem-codes anchors resolve, including pdp.purpose_not_permitted', async
 test('anatomy lists every relay and notary with repo config links', async ({ page }) => {
   await page.goto('/anatomy');
   await expect(page.locator('#relays .entity')).toHaveCount(6);
-  await expect(page.locator('#notaries .entity')).toHaveCount(4);
-  const configLink = page.locator('#cra-civil-relay a.config-link').first();
-  await expect(configLink).toHaveAttribute('href', /github\.com.*relay\.yaml/);
-  await expect(configLink.locator('code')).toContainText('ministries/interior-civil');
+  await expect(page.locator('#notaries .entity')).toHaveCount(6);
+  const craLinks = page.locator('#cra-civil-relay a.config-link');
+  await expect(craLinks.filter({ hasText: 'projects/cra-civil/registry-stack.yaml' })).toHaveAttribute(
+    'href',
+    /github\.com.*projects\/cra-civil\/registry-stack\.yaml/
+  );
+  await expect(
+    craLinks.filter({ hasText: 'runtime/registry-projects/local/cra-civil/relay/relay.yaml' })
+  ).toHaveAttribute('href', /github\.com.*relay\/relay\.yaml/);
+  await expect(craLinks.filter({ hasText: 'ministries/interior-civil' })).toHaveAttribute(
+    'href',
+    /github\.com.*ministries\/interior-civil/
+  );
 });
 
 test('status grid shows the whole topology', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#status .status')).toHaveCount(14);
+  await expect(page.locator('#status .status')).toHaveCount(17);
 });
 
 test('engineer door always shows the copy-as-curl examples', async ({ page }) => {
@@ -161,14 +170,34 @@ test('story page: stepper runs an evaluate step and a purpose-denial step with a
   await page.locator('#positive').getByRole('button', { name: 'Evaluate' }).click();
   await expect(page.locator('#positive .step-result')).toBeVisible({ timeout: 30_000 });
 
-  // The credential moment renders the real issuance, including the vct decoded from the SD-JWT payload.
-  await expect(page.locator('#credential .inspector')).toContainText('Issued', { timeout: 30_000 });
-  await expect(page.locator('#credential .inspector')).toContainText('/solmara/vct/child-benefit-enrollment-eligibility');
+  // The former credential moment now shows ordinary application evidence. The
+  // collector gathers source-owned predicates, but does not compose eligibility.
+  await expect(page.locator('#credential .inspector')).toContainText('Evidence returned', { timeout: 30_000 });
+  await expect(page.locator('#credential .inspector')).toContainText('child-benefit-federator');
+  await expect(page.locator('#credential .inspector')).toContainText('Source authorities4');
+  await expect(page.locator('#credential .inspector')).toContainText('not_composed');
 
   // The purpose-denial step is first-class and renders the stable problem code linked to /problem-codes.
   await page.locator('#purpose-denial').getByRole('button', { name: 'Try denial' }).click();
   const denialLink = page.locator('#purpose-denial .problem a[href^="/problem-codes"]');
   await expect(denialLink).toBeVisible({ timeout: 30_000 });
+});
+
+test('citizen story renders runnable curls for each authority call', async ({ page }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires a live scenario runner behind the stack');
+  await page.goto('/stories/citizen-self-service');
+
+  await page.locator('#positive').getByRole('button', { name: 'Evaluate' }).click();
+  const result = page.locator('#positive .step-result');
+  await expect(result).toBeVisible({ timeout: 30_000 });
+  await result.getByText('Technical detail').click();
+
+  const authorityRequests = result.locator('.request-list .peer-call');
+  await expect(authorityRequests).toHaveCount(2);
+  await expect(authorityRequests.getByRole('button', { name: 'Copy as curl' })).toHaveCount(2);
+  await expect(authorityRequests.nth(0)).toContainText('http://localhost:4325/v1/evaluations');
+  await expect(authorityRequests.nth(1)).toContainText('http://localhost:4326/v1/evaluations');
+  await expect(result).not.toContainText('solmara://authority-notaries');
 });
 
 test('story page fits a mobile viewport without horizontal overflow', async ({ page }) => {

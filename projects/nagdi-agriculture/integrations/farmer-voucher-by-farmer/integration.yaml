@@ -1,0 +1,36 @@
+version: 1
+id: farmer-voucher-by-farmer
+revision: 1
+
+input:
+  farmer_id:
+    role: selector
+    type: string
+    minLength: 7
+    maxLength: 16
+    pattern: "^FR-[0-9]+$"
+
+capability:
+  snapshot:
+    entity: nagdi_farmer
+    exact:
+      farmer_id: { input: farmer_id }
+    freshness: 7d
+
+outputs:
+  - farmer_registered
+  - data_use_authorized
+  - active_smallholder_farmer
+  - active_farm_parcel
+  - crop_declared_for_season
+  - district_climate_risk_active
+  - voucher_entitlement_current
+  - voucher_not_redeemed
+
+not_applicable:
+  ambiguity:
+    rationale: The exact farmer identifier is the entity primary key, whose materialized unique-key constraint permits at most one voucher record.
+    request_fixture: farmer-voucher-match
+  subject_mismatch:
+    rationale: The minimized output projection omits farmer_id, so it contains no identifier comparable with the requested farmer identifier.
+    request_fixture: farmer-voucher-match

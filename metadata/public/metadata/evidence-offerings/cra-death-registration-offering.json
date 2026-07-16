@@ -1,0 +1,42 @@
+{
+  "access": {
+    "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+    "discovery_url": "https://cra-notary.solmara.registrystack.org/.well-known/evidence-service",
+    "endpoint_url": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
+    "kind": "evidence-verification-api",
+    "ruleset": "person-is-deceased"
+  },
+  "dataset": "cra-civil",
+  "description": "Purpose-limited evidence predicates from Civil registration.",
+  "entity": "civil_person",
+  "evidence_type": "death-registration-evidence",
+  "id": "cra-death-registration-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/cra-death-registration",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "cra",
+    "iri": "did:web:id.registrystack.org:solmara:authority:cra",
+    "name": "Civil Registration Authority",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "cra-death-registration-offering-policy",
+  "public_services": [
+    "pension-survivor-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/pension-payment-review"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://publicschema.org/crvs/Birth",
+      "https://publicschema.org/crvs/Death"
+    ]
+  },
+  "title": "CRA death registration evidence offering"
+}

@@ -6,8 +6,10 @@ Status: normative for Solmara Lab wave 1 story 1.
 
 This story demonstrates a canonical CRVS-to-social-protection journey: a
 registered birth, a population identity, a household eligibility predicate, and
-a programme duplicate check combine to determine child benefit enrollment
-eligibility without exposing raw registry rows.
+a programme duplicate check are gathered as source-owned predicates without
+exposing raw registry rows. The programme policy layer, not the evidence
+collector, decides whether those predicates amount to child benefit
+eligibility.
 
 ## Authorities And Registries
 
@@ -21,12 +23,16 @@ eligibility without exposing raw registry rows.
 Purpose IRI:
 `https://id.registrystack.org/solmara/purpose/child-benefit-review`.
 
-Evidence offering: `solmara.child-benefit.enrollment-eligibility`.
+Evidence offering: `solmara.child-benefit.authority-predicate-collection`.
 
-Credential `vct`:
-`https://id.registrystack.org/solmara/vct/child-benefit-enrollment-eligibility`.
+Evidence collector endpoint:
+`https://child-benefit-federator.solmara.registrystack.org/v1/evaluations`.
 
-Credential name: Child Benefit Enrollment Eligibility SD-JWT VC.
+Response media type: `application/json`.
+
+Credential `vct`: not issued by the child-benefit evidence collector.
+
+Offering name: Child Benefit Authority Predicate Collection.
 
 ## Positive Path
 
@@ -37,13 +43,17 @@ Expected claims:
 | Claim | Expected result |
 |---|---|
 | `birth-is-registered` | Pass: Mateo has a registered BRN. |
+| `population-record-active` | Pass: Mateo's population record is active. |
 | `child-age-under-5` | Pass: Mateo is under 5 at the lab clock. |
 | `household-below-poverty-threshold` | Pass: household score band is eligible; raw score is not disclosed. |
 | `not-already-enrolled` | Pass: no active child support enrollment exists. |
 
-The notary previews or issues the child benefit enrollment eligibility
-credential to Mateo's guardian, Elena Dela Cruz. The proof trace shows source
-authorities, predicates, and purpose labels, not raw civil or household rows.
+The child-benefit evidence collector calls the CRA, NIA, SRO, and Programme
+Notaries through their ordinary evidence APIs and returns the minimized
+predicate results to the programme review. Its `source_trace` identifies the
+authority service and response status without copying source rows or internal
+evaluation state. The collector does not return a composed eligibility
+decision.
 
 ## Failure Cases
 
@@ -71,9 +81,12 @@ The story smoke asserts:
 
 1. Metadata discovery returns the child benefit offering and the purpose IRI
    from `docs/purposes.md`.
-2. Mateo's positive evaluation passes all four claims.
-3. The credential preview or issuance uses the expected `vct`.
+2. Mateo's positive evaluation passes all five source predicates.
+3. The response contains an authority `source_trace` and no
+   `eligible-for-child-benefit` composition from the collector.
 4. Each listed failure case returns a failed predicate with no raw protected
    source row in the response.
-5. Purpose denial returns `pdp.purpose_not_permitted`.
-6. Message text is not asserted.
+5. A raw household score/profile request returns `403`
+   `pdp.purpose_not_permitted` without reflecting a protected field.
+6. An unrelated-purpose request returns `pdp.purpose_not_permitted`.
+7. Message text is not asserted.

@@ -91,8 +91,48 @@ def hosted_routes() -> dict[tuple[str, str], Any]:
             200,
             {
                 "result": {
-                    "response_source": {"status": 200, "body": {"results": []}},
-                    "credential": {"status": "issued"},
+                    "response_source": {
+                        "status": 200,
+                        "body": {
+                            "orchestration": {
+                                "service_id": "child-benefit-federator",
+                                "decision": "not_composed",
+                            },
+                            "results": [
+                                {
+                                    "claim_id": "birth-is-registered",
+                                    "satisfied": True,
+                                    "notary_service_id": "cra-notary",
+                                },
+                                {
+                                    "claim_id": "population-record-active",
+                                    "satisfied": True,
+                                    "notary_service_id": "nia-notary",
+                                },
+                                {
+                                    "claim_id": "child-age-under-5",
+                                    "satisfied": True,
+                                    "notary_service_id": "cra-notary",
+                                },
+                                {
+                                    "claim_id": "household-below-poverty-threshold",
+                                    "satisfied": True,
+                                    "notary_service_id": "sro-notary",
+                                },
+                                {
+                                    "claim_id": "not-already-enrolled",
+                                    "satisfied": True,
+                                    "notary_service_id": "programme-notary",
+                                },
+                            ],
+                            "source_trace": [
+                                {"service_id": "cra-notary"},
+                                {"service_id": "nia-notary"},
+                                {"service_id": "sro-notary"},
+                                {"service_id": "programme-notary"},
+                            ],
+                        },
+                    },
                 }
             },
         ),
@@ -110,131 +150,121 @@ def hosted_routes() -> dict[tuple[str, str], Any]:
     }
 
 
-def oid4vci_routes(issuer_url: str, esignet_url: str, esignet_ui_url: str) -> dict[tuple[str, str], Any]:
-    config_id = "citizen_status_sd_jwt"
-    return {
-        ("GET", "/.well-known/openid-credential-issuer"): (
-            200,
-            {
-                "credential_issuer": issuer_url,
-                "credential_endpoint": f"{issuer_url}/oid4vci/credential",
-                "token_endpoint": f"{issuer_url}/oid4vci/token",
-                "nonce_endpoint": f"{issuer_url}/oid4vci/nonce",
-                "authorization_servers": [esignet_url],
-                "credential_configurations_supported": {
-                    config_id: {
-                        "format": "dc+sd-jwt",
-                        "scope": "citizen-self-service-status",
-                        "cryptographic_binding_methods_supported": ["did:jwk"],
-                        "credential_signing_alg_values_supported": ["EdDSA"],
-                        "proof_types_supported": {
-                            "jwt": {"proof_signing_alg_values_supported": ["EdDSA"]},
-                        },
-                        "vct": f"{issuer_url}/credentials/citizen-status/v1",
-                    }
-                },
-            },
-        ),
-        ("GET", "/.well-known/vct/credentials/citizen-status/v1"): (
-            200,
-            {"vct": f"{issuer_url}/credentials/citizen-status/v1", "name": "Solmara Citizen Status"},
-        ),
-        ("GET", f"/oid4vci/credential-offer?credential_configuration_id={config_id}"): (
-            200,
-            {"credential_configuration_ids": [config_id]},
-        ),
-        ("GET", "/oid4vci/credential-offer?credential_configuration_id=unknown"): (
-            400,
-            {"error": "invalid_request"},
-        ),
-        ("POST", "/oid4vci/nonce"): (
-            200,
-            {"c_nonce": "nonce-1", "c_nonce_expires_in": 300},
-        ),
-        ("GET", f"/oid4vci/offer/start?credential_configuration_id={config_id}"): (
-            303,
-            {},
-            {"Location": f"{esignet_ui_url}/authorize?state=state-1"},
-        ),
-        ("POST", "/oid4vci/credential"): (
-            401,
-            {"error": "invalid_token"},
-        ),
-    }
-
-
 class HostedSmokeTests(unittest.TestCase):
     def test_default_targets_use_public_solmara_domains(self) -> None:
         targets = smoke_hosted.default_targets("https://solmara.registrystack.org/")
         self.assertEqual(targets.home_url, "https://solmara.registrystack.org")
         self.assertEqual(targets.portal_url, "https://portal.solmara.registrystack.org")
-        self.assertEqual(targets.esignet_url, "https://esignet.solmara.registrystack.org")
-        self.assertEqual(targets.esignet_ui_url, "https://esignet-ui.solmara.registrystack.org")
+        self.assertEqual(
+            targets.esignet_url, "https://esignet.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            targets.esignet_ui_url, "https://esignet-ui.solmara.registrystack.org"
+        )
         self.assertEqual(targets.wallet_url, "https://wallet.solmara.registrystack.org")
-        self.assertIn("https://cra-relay.solmara.registrystack.org", {relay.base_url for relay in targets.relays})
         self.assertIn(
-            "https://child-benefit-notary.solmara.registrystack.org",
+            "https://cra-relay.solmara.registrystack.org",
+            {relay.base_url for relay in targets.relays},
+        )
+        authority_urls = {
+            "https://cra-notary.solmara.registrystack.org",
+            "https://nia-notary.solmara.registrystack.org",
+            "https://sro-notary.solmara.registrystack.org",
+            "https://programme-notary.solmara.registrystack.org",
+            "https://sipf-notary.solmara.registrystack.org",
+            "https://nagdi-notary.solmara.registrystack.org",
+        }
+        self.assertEqual(
+            authority_urls,
             {notary.base_url for notary in targets.notaries},
         )
-        self.assertIn(
-            "https://citizen-issuer-notary.solmara.registrystack.org",
-            {notary.base_url for notary in targets.notaries},
+        self.assertEqual(
+            {"https://child-benefit-federator.solmara.registrystack.org"},
+            {application.base_url for application in targets.applications},
         )
 
     def test_hosted_env_overrides_public_service_urls_without_tokens(self) -> None:
         targets = smoke_hosted.default_targets("solmara.registrystack.org")
-        env = smoke_hosted.hosted_env({"CHILD_BENEFIT_NOTARY_TOKEN": "keep-local"}, targets)
-        self.assertEqual(env["CHILD_BENEFIT_NOTARY_URL"], "https://child-benefit-notary.solmara.registrystack.org")
-        self.assertEqual(env["SOLMARA_CRA_RELAY_URL"], "https://cra-relay.solmara.registrystack.org")
-        self.assertEqual(env["SOLMARA_PORTAL_URL"], "https://portal.solmara.registrystack.org")
-        self.assertEqual(env["SOLMARA_ESIGNET_PUBLIC_BASE_URL"], "https://esignet.solmara.registrystack.org")
-        self.assertEqual(env["SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL"], "https://esignet-ui.solmara.registrystack.org")
-        self.assertEqual(env["SOLMARA_WALLET_URL"], "https://wallet.solmara.registrystack.org")
+        env = smoke_hosted.hosted_env(
+            {"CHILD_BENEFIT_FEDERATOR_TOKEN": "keep-local"}, targets
+        )
         self.assertEqual(
-            env["CITIZEN_ISSUER_NOTARY_URL"],
-            "https://citizen-issuer-notary.solmara.registrystack.org",
+            env["CHILD_BENEFIT_FEDERATOR_URL"],
+            "https://child-benefit-federator.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["CRA_NOTARY_URL"], "https://cra-notary.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            env["NIA_NOTARY_URL"], "https://nia-notary.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            env["SRO_NOTARY_URL"], "https://sro-notary.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            env["PROGRAMME_NOTARY_URL"],
+            "https://programme-notary.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["SIPF_NOTARY_URL"], "https://sipf-notary.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            env["NAGDI_NOTARY_URL"],
+            "https://nagdi-notary.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["SOLMARA_CRA_RELAY_URL"], "https://cra-relay.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            env["SOLMARA_PORTAL_URL"], "https://portal.solmara.registrystack.org"
+        )
+        self.assertEqual(
+            env["SOLMARA_ESIGNET_PUBLIC_BASE_URL"],
+            "https://esignet.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL"],
+            "https://esignet-ui.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            env["SOLMARA_WALLET_URL"], "https://wallet.solmara.registrystack.org"
         )
         self.assertEqual(env["SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED"], "1")
-        self.assertEqual(env["CHILD_BENEFIT_NOTARY_TOKEN"], "keep-local")
+        self.assertEqual(env["CHILD_BENEFIT_FEDERATOR_TOKEN"], "keep-local")
 
     def test_normalize_argv_accepts_just_separator(self) -> None:
-        self.assertEqual(smoke_hosted.normalize_argv(["--", "--browser"]), ["--browser"])
+        self.assertEqual(
+            smoke_hosted.normalize_argv(["--", "--browser"]), ["--browser"]
+        )
         self.assertEqual(smoke_hosted.normalize_argv(["--browser"]), ["--browser"])
 
     def test_home_demo_accepts_expected_scenario_flow(self) -> None:
         with StubServer(hosted_routes()) as server:
             smoke_hosted.check_home_demo(server.url, timeout=2)
 
+    def test_home_demo_rejects_composed_child_benefit_decision(self) -> None:
+        routes = hosted_routes()
+        positive = routes[
+            ("POST", "/api/scenarios/birth-to-child-benefit/steps/positive/run")
+        ][1]
+        positive["result"]["response_source"]["body"]["orchestration"]["decision"] = (
+            "eligible"
+        )
+        with StubServer(routes) as server:
+            with self.assertRaises(smoke_hosted.SmokeFailure):
+                smoke_hosted.check_home_demo(server.url, timeout=2)
+
     def test_home_demo_requires_stable_denial_code(self) -> None:
         routes = hosted_routes()
-        routes[("POST", "/api/scenarios/birth-to-child-benefit/steps/purpose-denial/run")] = (
+        routes[
+            ("POST", "/api/scenarios/birth-to-child-benefit/steps/purpose-denial/run")
+        ] = (
             200,
             {"result": {"response_source": {"status": 403, "body": {}}}},
         )
         with StubServer(routes) as server:
             with self.assertRaises(smoke_hosted.SmokeFailure):
                 smoke_hosted.check_home_demo(server.url, timeout=2)
-
-    def test_oid4vci_issuer_accepts_expected_metadata_and_redirect(self) -> None:
-        with StubServer({}) as server:
-            targets = smoke_hosted.HostedTargets(
-                home_url=server.url,
-                portal_url=server.url,
-                metadata_url=server.url,
-                esignet_url=f"{server.url}/esignet",
-                esignet_ui_url=f"{server.url}/esignet-ui",
-                wallet_url=server.url,
-                relays=(),
-                notaries=(
-                    smoke_hosted.ServiceTarget(
-                        "citizen OID4VCI issuer notary",
-                        server.url,
-                        env_name="CITIZEN_ISSUER_NOTARY_URL",
-                    ),
-                ),
-            )
-            server.routes.update(oid4vci_routes(server.url, targets.esignet_url, targets.esignet_ui_url))
-            smoke_hosted.check_oid4vci_issuer(targets, timeout=2)
 
 
 if __name__ == "__main__":

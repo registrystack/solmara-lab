@@ -1,0 +1,57 @@
+version: 1
+entities:
+  pension:
+    provider:
+      type: postgres
+      connection: { secret: SOLMARA_SIPF_DATABASE_URL }
+      schema: public
+      table: sipf_pension_payment
+    columns:
+      pensioner_uin: pensioner_uin
+      payment_status: payment_status
+    source_revision: sipf-pension-payment-projection-v1
+    generation: 2026-07-14
+  survivor:
+    provider:
+      type: postgres
+      connection: { secret: SOLMARA_SIPF_DATABASE_URL }
+      schema: public
+      table: sipf_survivor_benefit
+    columns:
+      spouse_uin: spouse_uin
+      survivor_eligible: survivor_eligible
+    source_revision: sipf-survivor-benefit-projection-v1
+    generation: 2026-07-14
+issuance:
+  issuer: did:web:id.registrystack.org:solmara:authority:sipf
+  signing_kid: did:web:id.registrystack.org:solmara:authority:sipf#issuer-key-1
+  signing_key: { secret: SIPF_NOTARY_ISSUER_JWK }
+  generation: 1
+callers:
+  pension-review-desk:
+    api_key_fingerprint: { secret: SIPF_PENSION_CLIENT_TOKEN_HASH }
+    scopes:
+      - evidence:sipf:pension-payment:read
+      - evidence:sipf:survivor-benefit:read
+relay:
+  origin: http://127.0.0.1:8080
+  issuer: http://127.0.0.1:8090
+  jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: []
+notary_relay:
+  base_url: http://127.0.0.1:8080
+  workload_client_id: sipf-notary
+  token_file: /run/secrets/sipf-notary-relay-token
+relay_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+notary_cel:
+  worker_memory_bytes: 1073741824
+deployment:
+  profile: local
+  relay: { service: sipf-pensions-relay }
+  notary: { service: sipf-notary }

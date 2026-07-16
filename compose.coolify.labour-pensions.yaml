@@ -2,103 +2,161 @@ name: solmara-lab-labour-pensions
 
 x-relay-environment: &relay-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET:?set REGISTRY_RELAY_AUDIT_HASH_SECRET}
+  REGISTRY_RELAY_BIND: 0.0.0.0:8080
 
 x-notary-environment: &notary-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
-  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
-  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
-  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+  REGISTRY_NOTARY_BIND: 0.0.0.0:8081
+  REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
   image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: unless-stopped
   environment: *relay-environment
-  depends_on:
-    volume-permissions:
-      condition: service_healthy
   healthcheck:
     test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
     interval: 30s
     timeout: 10s
     retries: 3
 
+x-relay-bootstrap-common: &relay-bootstrap-common
+  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: "no"
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  user: "65534:65534"
   restart: unless-stopped
   environment: *notary-environment
   healthcheck:
-    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck", "--url", "http://127.0.0.1:8081/ready"]
     interval: 30s
     timeout: 10s
     retries: 3
-  depends_on:
-    volume-permissions:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
 
 services:
-  volume-permissions:
-    image: ${VOLUME_INIT_IMAGE:-busybox:1.36}
-    restart: unless-stopped
+  postgres:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
     command:
-      - sh
+      - postgres
       - -c
-      - chown -R 65532:65532 /relay/* && chown -R 65534:65534 /notary/* && touch /tmp/ready && tail -f /dev/null
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
+    environment: &postgres-environment
+      POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
+      POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
+      SOLMARA_SOURCE_READER_DATABASES: sipf
+      SIPF_SOURCE_POSTGRES_READER_PASSWORD: ${SIPF_SOURCE_POSTGRES_READER_PASSWORD}
+      SOLMARA_RELAY_DATABASES: sipf
+      SOLMARA_NOTARY_DATABASES: sipf
+      SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD: ${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}
+      SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD: ${SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}
+      SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD: ${SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD}
+      SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD}
     volumes:
-      - sipf-pensions-cache:/relay/sipf-pensions-cache
-      - sipf-pensions-audit:/relay/sipf-pensions-audit
-      - pension-notary-state:/notary/pension-notary-state
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
 
-  redis:
-    image: ${REDIS_IMAGE:-redis:7.4-alpine}
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+  registry-postgresql-bootstrap:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    restart: "no"
+    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/010-init-notary-postgresql.sh"]
+    environment:
+      <<: *postgres-environment
+      PGHOST: postgres
+      PGPASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      PGSSLMODE: require
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  sipf-relay-state-bootstrap:
+    <<: *relay-bootstrap-common
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_sipf_consultation_keyring_maintenance:${SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sipf_consultation_keyring_reader:${SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
+      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
 
   sipf-pensions-relay:
     <<: *relay-common
-    command: ["--config", "/var/lib/solmara/ministries/labour-pensions/config/relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/relay/relay.yaml"]
     environment:
       <<: *relay-environment
-      SIPF_PENSION_SOURCE_HASH: ${SIPF_PENSION_SOURCE_HASH}
-      SIPF_CITIZEN_SOURCE_HASH: ${SIPF_CITIZEN_SOURCE_HASH}
-      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
+      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
+      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
+    expose: ["8080", "8081"]
     volumes:
-      - sipf-pensions-cache:/var/lib/registry-relay/cache
-      - sipf-pensions-audit:/var/lib/registry-relay/audit
+      - sipf-relay-cache:/var/lib/registry-relay/cache
+    depends_on:
+      sipf-relay-state-bootstrap:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: sipf-relay.solmara.registrystack.org
 
-  pension-notary:
+  sipf-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/pension.yaml"]
-    environment:
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml"]
+    network_mode: service:sipf-pensions-relay
+    environment: &sipf-notary-environment
       <<: *notary-environment
-      PENSION_CLIENT_TOKEN_HASH: ${PENSION_CLIENT_TOKEN_HASH}
-      PENSION_NOTARY_ISSUER_JWK: ${PENSION_NOTARY_ISSUER_JWK}
-      CRA_PENSION_SOURCE_RAW: ${CRA_PENSION_SOURCE_RAW}
-      NIA_PENSION_SOURCE_RAW: ${NIA_PENSION_SOURCE_RAW}
-      SIPF_PENSION_SOURCE_RAW: ${SIPF_PENSION_SOURCE_RAW}
-      PROGRAMME_PENSION_SOURCE_RAW: ${PROGRAMME_PENSION_SOURCE_RAW}
+      REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${SIPF_NOTARY_AUDIT_HASH_SECRET}
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_sipf_runtime:${SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_sipf?sslmode=require"
+      SIPF_PENSION_CLIENT_TOKEN_HASH: ${SIPF_PENSION_CLIENT_TOKEN_HASH}
+      SIPF_NOTARY_ISSUER_JWK: ${SIPF_NOTARY_ISSUER_JWK}
     volumes:
-      - pension-notary-state:/var/lib/registry-notary/config-state
+      - sipf-workload-token:/run/secrets:ro
+    depends_on:
+      sipf-pensions-relay:
+        condition: service_healthy
+      sipf-notary-state-install:
+        condition: service_completed_successfully
     labels:
-      solmara.lab.host: pension-notary.solmara.registrystack.org
+      solmara.lab.host: sipf-notary.solmara.registrystack.org
+
+  sipf-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sipf_owner", "--runtime-role", "solmara_notary_sipf_runtime"]
+    environment:
+      <<: *sipf-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_sipf_migrator:${SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_sipf?sslmode=require"
+    volumes:
+      - sipf-workload-token:/run/secrets:ro
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
 
 volumes:
-  sipf-pensions-cache:
-  sipf-pensions-audit:
-  pension-notary-state:
+  postgres-data:
+  sipf-relay-cache:
+  # The hosted workload issuer rotates the short-lived Notary token into this
+  # authority volume. Runtime and migration containers mount it read-only.
+  sipf-workload-token:
+    external: true
+    name: ${SIPF_WORKLOAD_TOKEN_VOLUME:-solmara-sipf-workload-token}

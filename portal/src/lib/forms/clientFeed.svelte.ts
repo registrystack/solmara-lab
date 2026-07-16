@@ -37,11 +37,12 @@ function railFromTrace(trace: ProofTrace): { channel: RailChannel; phase: RailEv
   }
 }
 
-function railEventFromTrace(trace: ProofTrace): RailEvent {
+function railEventFromTrace(trace: ProofTrace): RailEvent | null {
+  if (!trace.authority) return null;
   const { channel, phase } = railFromTrace(trace);
   return {
     id: `${trace.id}:${phase}`,
-    authority: trace.authority ?? 'civil',
+    authority: trace.authority,
     channel,
     phase,
     ts: trace.ts
@@ -97,7 +98,8 @@ class ClientFeedStore {
     }
     this.#seen.add(trace.id);
     this.#traces = [...this.#traces, trace];
-    this.#rail = [...this.#rail, railEventFromTrace(trace)];
+    const railEvent = railEventFromTrace(trace);
+    if (railEvent) this.#rail = [...this.#rail, railEvent];
   }
 
   // Open the single app-wide EventSource. Idempotent: a second call is a no-op

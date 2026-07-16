@@ -11,12 +11,12 @@ problem codes. Smoke tests must not assert denial message text.
 
 | Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
 |---|---|---|---|---|
-| `https://id.registrystack.org/solmara/purpose/child-benefit-review` | Civil Registration Authority, National Identity Agency, Social Registry Office, MoSD programme MIS | `child-benefit-notary` | Birth to child benefit | `pdp.purpose_not_permitted`; `federation.forbidden` for delegated calls outside scope |
-| `https://id.registrystack.org/solmara/purpose/pension-payment-review` | Civil Registration Authority, Social Insurance and Pensions Fund | `pension-notary` | Death to pension stop | `pdp.purpose_not_permitted`; `federation.forbidden`; `federation.replay` |
-| `https://id.registrystack.org/solmara/purpose/survivor-benefit-determination` | Civil Registration Authority, Social Insurance and Pensions Fund | `pension-notary` | Survivor benefit | `pdp.purpose_not_permitted`; `federation.forbidden`; `federation.replay` |
-| `https://id.registrystack.org/solmara/purpose/voucher-eligibility-review` | National Agricultural Data Institute | `nagdi-notary` | Farmer climate-smart voucher | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/livestock-movement-control` | National Agricultural Data Institute | `nagdi-notary` | Livestock movement permit companion | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/citizen-self-service` | All wave 1 authorities | `citizen-notary` | Citizen portal | `pdp.purpose_not_permitted`; `federation.forbidden` |
+| `https://id.registrystack.org/solmara/purpose/child-benefit-review` | Civil Registration Authority, National Identity Agency, Social Registry Office, MoSD programme MIS | CRA, NIA, SRO, and Programme authority Notaries | Birth to child benefit | `pdp.purpose_not_permitted` |
+| `https://id.registrystack.org/solmara/purpose/pension-payment-review` | Civil Registration Authority, Social Insurance and Pensions Fund | CRA and SIPF authority Notaries | Death to pension stop | `pdp.purpose_not_permitted` |
+| `https://id.registrystack.org/solmara/purpose/survivor-benefit-determination` | Social Insurance and Pensions Fund | SIPF authority Notary | Survivor benefit | `pdp.purpose_not_permitted` |
+| `https://id.registrystack.org/solmara/purpose/voucher-eligibility-review` | National Agricultural Data Institute | NAgDI authority Notary | Farmer climate-smart voucher | `pdp.purpose_not_permitted` |
+| `https://id.registrystack.org/solmara/purpose/livestock-movement-control` | National Agricultural Data Institute | NAgDI authority Notary | Livestock movement permit companion | `pdp.purpose_not_permitted` |
+| `https://id.registrystack.org/solmara/purpose/citizen-self-service` | Civil Registration Authority and National Identity Agency | CRA and NIA authority Notaries | Citizen portal | `pdp.purpose_not_permitted` |
 
 The two NAgDI purpose identifiers are canonical for wave 1 docs. WP4 must still
 confirm that the ported NAgDI claim configs use these exact identifiers.
@@ -57,11 +57,11 @@ for a different selected persona.
 
 | Story | Evidence offering | Credential `vct` |
 |---|---|---|
-| Birth to child benefit | `solmara.child-benefit.enrollment-eligibility` | `https://id.registrystack.org/solmara/vct/child-benefit-enrollment-eligibility` |
-| Death to pension stop | `solmara.pension.payment-stop-review` | `https://id.registrystack.org/solmara/vct/pension-payment-stop-review` |
-| Survivor benefit | `solmara.pension.survivor-benefit-eligibility` | `https://id.registrystack.org/solmara/vct/survivor-benefit-eligibility` |
-| Farmer climate-smart voucher | `solmara.nagdi.climate-smart-voucher-eligibility` | `https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility` |
-| Livestock movement permit | `solmara.nagdi.livestock-movement-permit` | `https://id.registrystack.org/solmara/vct/livestock-movement-permit` |
+| Birth to child benefit | Four authority predicate responses composed by the child-benefit orchestration service | No credential issued |
+| Death to pension stop | `cra-pension-death` and `sipf-pension-payment-review` | No credential issued |
+| Survivor benefit | `sipf-survivor-benefit` | `https://id.registrystack.org/solmara/vct/survivor-benefit-status` |
+| Farmer climate-smart voucher | NAgDI `voucher` | `https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility` |
+| Livestock movement permit | NAgDI `livestock` | `https://id.registrystack.org/solmara/vct/livestock-movement-permit` |
 
 ## Denial Assertions
 
@@ -72,8 +72,6 @@ Purpose-denial smoke tests assert:
 2. The response problem code is `pdp.purpose_not_permitted`.
 3. The response does not include the prohibited source field.
 
-Federation smoke tests assert:
-
-1. Unsupported delegated purpose returns `federation.forbidden`.
-2. Replayed delegated evaluation returns `federation.replay`.
-3. Message text is ignored.
+The child-benefit orchestration smoke verifies that four independently governed
+authority responses can be composed without creating a seventh Notary or a
+shared correctness-state owner.

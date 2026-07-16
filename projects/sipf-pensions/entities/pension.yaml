@@ -1,0 +1,21 @@
+version: 1
+id: pension
+revision: 1
+primary_key: pensioner_uin
+schema:
+  type: object
+  additionalProperties: false
+  required: [pensioner_uin, payment_status]
+  properties:
+    pensioner_uin:
+      type: string
+      maxLength: 16
+      pattern: "^[0-9]{10}$"
+    payment_status:
+      type: string
+      maxLength: 32
+materialization:
+  max_records: 1000000
+  max_bytes: 256MiB
+  refresh: 1m
+  retain_generations: 2

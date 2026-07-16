@@ -1,0 +1,40 @@
+meta {
+  name: 01 - Collect source predicates
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{child_benefit_federator_url}}/v1/evaluations
+  body: json
+  auth: none
+}
+
+headers {
+  x-api-key: {{CHILD_BENEFIT_FEDERATOR_TOKEN}}
+  Data-Purpose: {{child_benefit_purpose}}
+  Accept: application/json
+}
+
+body:json {
+  {
+    "target": {
+      "type": "Person",
+      "identifiers": [
+        {
+          "scheme": "solmara_uin",
+          "value": "2300010248"
+        }
+      ]
+    },
+    "claims": [
+      "birth-is-registered",
+      "population-record-active",
+      "child-age-under-5",
+      "household-below-poverty-threshold",
+      "not-already-enrolled"
+    ],
+    "disclosure": "predicate",
+    "format": "application/json"
+  }
+}

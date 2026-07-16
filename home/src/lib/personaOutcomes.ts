@@ -31,7 +31,7 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       storyTitle: 'Birth to child benefit',
       stepId: 'positive',
       tone: 'positive',
-      text: 'Reviewed for the child benefit and comes back eligible: every claim is met.'
+      text: 'His review returns five minimized, source-owned predicates for programme policy to decide.'
     }
   ],
   // Elena Dela Cruz, Mateo's guardian and the citizen self-service positive subject.
@@ -41,7 +41,7 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       storyTitle: 'Birth to child benefit',
       stepId: 'positive',
       tone: 'note',
-      text: "Mateo's guardian: may preview his enrollment-eligibility credential once his review clears."
+      text: "Mateo's guardian: may review his five source predicates after the guardian gate clears."
     },
     {
       storyId: 'citizen-self-service',

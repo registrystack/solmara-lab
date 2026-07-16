@@ -2,122 +2,230 @@ name: solmara-lab-social-development
 
 x-relay-environment: &relay-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_RELAY_AUDIT_HASH_SECRET: ${REGISTRY_RELAY_AUDIT_HASH_SECRET:?set REGISTRY_RELAY_AUDIT_HASH_SECRET}
+  REGISTRY_RELAY_BIND: 0.0.0.0:8080
 
 x-notary-environment: &notary-environment
   RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${REGISTRY_NOTARY_AUDIT_HASH_SECRET:?set REGISTRY_NOTARY_AUDIT_HASH_SECRET}
-  REGISTRY_NOTARY_REDIS_URL: redis://redis:6379/
-  REGISTRY_NOTARY_REPLAY_REDIS_URL: ${REGISTRY_NOTARY_REPLAY_REDIS_URL:-redis://redis:6379/0}
-  REGISTRY_PLATFORM_REDIS_TEST_URL: redis://redis:6379/
+  REGISTRY_NOTARY_BIND: 0.0.0.0:8081
+  REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
   image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: unless-stopped
   environment: *relay-environment
-  depends_on:
-    volume-permissions:
-      condition: service_healthy
   healthcheck:
     test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
     interval: 30s
     timeout: 10s
     retries: 3
 
+x-relay-bootstrap-common: &relay-bootstrap-common
+  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  restart: "no"
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  user: "65534:65534"
   restart: unless-stopped
   environment: *notary-environment
   healthcheck:
-    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck"]
+    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck", "--url", "http://127.0.0.1:8081/ready"]
     interval: 30s
     timeout: 10s
     retries: 3
-  depends_on:
-    volume-permissions:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
 
 services:
-  volume-permissions:
-    image: ${VOLUME_INIT_IMAGE:-busybox:1.36}
-    restart: unless-stopped
+  postgres:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
     command:
-      - sh
+      - postgres
       - -c
-      - chown -R 65532:65532 /relay/* && chown -R 65534:65534 /notary/* && touch /tmp/ready && tail -f /dev/null
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
+    environment: &postgres-environment
+      POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
+      POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
+      SOLMARA_SOURCE_READER_DATABASES: ""
+      SOLMARA_RELAY_DATABASES: sro programme
+      SOLMARA_NOTARY_DATABASES: sro programme
+      SRO_RELAY_POSTGRES_RUNTIME_PASSWORD: ${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}
+      SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD: ${SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}
+      SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD: ${SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD}
+      SRO_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${SRO_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      SRO_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${SRO_NOTARY_POSTGRES_RUNTIME_PASSWORD}
+      PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD: ${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}
+      PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD: ${PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}
+      PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD: ${PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD}
+      PROGRAMME_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${PROGRAMME_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
+      PROGRAMME_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${PROGRAMME_NOTARY_POSTGRES_RUNTIME_PASSWORD}
     volumes:
-      - sro-social-cache:/relay/sro-social-cache
-      - sro-social-audit:/relay/sro-social-audit
-      - programme-mis-cache:/relay/programme-mis-cache
-      - programme-mis-audit:/relay/programme-mis-audit
-      - child-benefit-notary-state:/notary/child-benefit-notary-state
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 10
 
-  redis:
-    image: ${REDIS_IMAGE:-redis:7.4-alpine}
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+  registry-postgresql-bootstrap:
+    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+    restart: "no"
+    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/010-init-notary-postgresql.sh"]
+    environment:
+      <<: *postgres-environment
+      PGHOST: postgres
+      PGPASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
+      PGSSLMODE: require
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  sro-relay-state-bootstrap:
+    <<: *relay-bootstrap-common
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/sro-social/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sro_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_sro_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_sro_consultation_keyring_maintenance:${SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_sro_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sro_consultation_keyring_reader:${SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sro_consultation?sslmode=require"
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  programme-relay-state-bootstrap:
+    <<: *relay-bootstrap-common
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/mosd-programme/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_programme_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_programme_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_programme_consultation_keyring_maintenance:${PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_programme_consultation?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_programme_consultation_keyring_reader:${PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_programme_consultation?sslmode=require"
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
 
   sro-social-relay:
     <<: *relay-common
-    command: ["--config", "/var/lib/solmara/ministries/social-development/config/sro-relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sro-social/relay/relay.yaml"]
     environment:
       <<: *relay-environment
-      SRO_CHILD_BENEFIT_SOURCE_HASH: ${SRO_CHILD_BENEFIT_SOURCE_HASH}
-      SRO_CITIZEN_SOURCE_HASH: ${SRO_CITIZEN_SOURCE_HASH}
-      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation?sslmode=require"
+    expose: ["8080", "8081"]
     volumes:
-      - sro-social-cache:/var/lib/registry-relay/cache
-      - sro-social-audit:/var/lib/registry-relay/audit
+      - sro-relay-cache:/var/lib/registry-relay/cache
+    depends_on:
+      sro-relay-state-bootstrap:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: sro-relay.solmara.registrystack.org
 
   programme-mis-relay:
     <<: *relay-common
-    command: ["--config", "/var/lib/solmara/ministries/social-development/config/programme-mis-relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/mosd-programme/relay/relay.yaml"]
     environment:
       <<: *relay-environment
-      PROGRAMME_CHILD_BENEFIT_SOURCE_HASH: ${PROGRAMME_CHILD_BENEFIT_SOURCE_HASH}
-      PROGRAMME_PENSION_SOURCE_HASH: ${PROGRAMME_PENSION_SOURCE_HASH}
-      PROGRAMME_CITIZEN_SOURCE_HASH: ${PROGRAMME_CITIZEN_SOURCE_HASH}
-      PORTAL_RELAY_TOKEN_HASH: ${PORTAL_RELAY_TOKEN_HASH}
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation?sslmode=require"
+    expose: ["8080", "8081"]
     volumes:
-      - programme-mis-cache:/var/lib/registry-relay/cache
-      - programme-mis-audit:/var/lib/registry-relay/audit
+      - programme-relay-cache:/var/lib/registry-relay/cache
+    depends_on:
+      programme-relay-state-bootstrap:
+        condition: service_completed_successfully
     labels:
       solmara.lab.host: mosd-programme-relay.solmara.registrystack.org
 
-  child-benefit-notary:
+  sro-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/child-benefit.yaml"]
-    environment:
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sro-social/notary/notary.yaml"]
+    network_mode: service:sro-social-relay
+    environment: &sro-notary-environment
       <<: *notary-environment
-      CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${CHILD_BENEFIT_CLIENT_TOKEN_HASH}
-      CHILD_BENEFIT_NOTARY_ISSUER_JWK: ${CHILD_BENEFIT_NOTARY_ISSUER_JWK}
-      CRA_CHILD_BENEFIT_SOURCE_RAW: ${CRA_CHILD_BENEFIT_SOURCE_RAW}
-      NIA_CHILD_BENEFIT_SOURCE_RAW: ${NIA_CHILD_BENEFIT_SOURCE_RAW}
-      SRO_CHILD_BENEFIT_SOURCE_RAW: ${SRO_CHILD_BENEFIT_SOURCE_RAW}
-      PROGRAMME_CHILD_BENEFIT_SOURCE_RAW: ${PROGRAMME_CHILD_BENEFIT_SOURCE_RAW}
+      REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${SRO_NOTARY_AUDIT_HASH_SECRET}
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_sro_runtime:${SRO_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_sro?sslmode=require"
+      SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
     volumes:
-      - child-benefit-notary-state:/var/lib/registry-notary/config-state
+      - sro-workload-token:/run/secrets:ro
+    depends_on:
+      sro-social-relay:
+        condition: service_healthy
+      sro-notary-state-install:
+        condition: service_completed_successfully
     labels:
-      solmara.lab.host: child-benefit-notary.solmara.registrystack.org
+      solmara.lab.host: sro-notary.solmara.registrystack.org
+
+  sro-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sro-social/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sro_owner", "--runtime-role", "solmara_notary_sro_runtime"]
+    environment:
+      <<: *sro-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_sro_migrator:${SRO_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_sro?sslmode=require"
+    volumes:
+      - sro-workload-token:/run/secrets:ro
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  programme-notary:
+    <<: *notary-common
+    command: ["--config", "/etc/solmara/registry-projects/hosted/mosd-programme/notary/notary.yaml"]
+    network_mode: service:programme-mis-relay
+    environment: &programme-notary-environment
+      <<: *notary-environment
+      REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${PROGRAMME_NOTARY_AUDIT_HASH_SECRET}
+      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_programme_runtime:${PROGRAMME_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_programme?sslmode=require"
+      PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH: ${PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH}
+    volumes:
+      - programme-workload-token:/run/secrets:ro
+    depends_on:
+      programme-mis-relay:
+        condition: service_healthy
+      programme-notary-state-install:
+        condition: service_completed_successfully
+    labels:
+      solmara.lab.host: programme-notary.solmara.registrystack.org
+
+  programme-notary-state-install:
+    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: "no"
+    command: ["--config", "/etc/solmara/registry-projects/hosted/mosd-programme/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_programme_owner", "--runtime-role", "solmara_notary_programme_runtime"]
+    environment:
+      <<: *programme-notary-environment
+      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_programme_migrator:${PROGRAMME_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_programme?sslmode=require"
+    volumes:
+      - programme-workload-token:/run/secrets:ro
+    depends_on:
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
 
 volumes:
-  sro-social-cache:
-  sro-social-audit:
-  programme-mis-cache:
-  programme-mis-audit:
-  child-benefit-notary-state:
+  postgres-data:
+  sro-relay-cache:
+  programme-relay-cache:
+  # The hosted workload issuer rotates each short-lived Notary token into its
+  # authority volume. Runtime and migration containers mount the volume read-only.
+  sro-workload-token:
+    external: true
+    name: ${SRO_WORKLOAD_TOKEN_VOLUME:-solmara-sro-workload-token}
+  programme-workload-token:
+    external: true
+    name: ${PROGRAMME_WORKLOAD_TOKEN_VOLUME:-solmara-programme-workload-token}

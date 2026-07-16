@@ -1,0 +1,24 @@
+version: 1
+id: solmara-sipf-pension-case-by-pensioner
+revision: 1
+
+input:
+  uin:
+    role: selector
+    type: string
+    maxLength: 16
+    pattern: "^[0-9]{10}$"
+
+capability:
+  snapshot:
+    entity: pension
+    exact:
+      pensioner_uin: { input: uin }
+    freshness: 24h
+
+outputs: [payment_status]
+
+not_applicable:
+  subject_mismatch:
+    rationale: The minimized output projection omits pensioner_uin, so it contains no identifier comparable with the requested pensioner UIN.
+    request_fixture: sipf-pension-case-match

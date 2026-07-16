@@ -18,34 +18,21 @@ describe('getProvider', () => {
   it('constructs live mode from environment config', () => {
     Object.assign(env, {
       PORTAL_PROVIDER: 'live',
-      PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.solmara.registrystack.org',
-      PORTAL_CITIZEN_NOTARY_TOKEN: 'notary-token',
-      PORTAL_RELAY_TOKEN: 'relay-token',
-      PORTAL_RELAY_URLS: JSON.stringify({
-        civil: 'https://civil-relay.solmara.registrystack.org',
-        social: 'https://social-relay.solmara.registrystack.org',
-        agri: 'https://nagdi-relay.solmara.registrystack.org',
-        certs: 'https://civil-relay.solmara.registrystack.org'
-      })
+      CRA_NOTARY_URL: 'https://cra-notary.solmara.registrystack.org',
+      CRA_CITIZEN_CLIENT_TOKEN: 'cra-citizen-token',
+      NIA_NOTARY_URL: 'https://nia-notary.solmara.registrystack.org',
+      NIA_CITIZEN_CLIENT_TOKEN: 'nia-citizen-token'
     });
 
     expect(getProvider()).not.toBeInstanceOf(MockEvidenceProvider);
   });
 
-  it('requires a Relay token in live mode', () => {
+  it('does not require obsolete Relay or generic Notary configuration', () => {
     Object.assign(env, {
-      PORTAL_PROVIDER: 'live',
-      PORTAL_CITIZEN_NOTARY_URL: 'https://citizen-notary.solmara.registrystack.org',
-      PORTAL_CITIZEN_NOTARY_TOKEN: 'notary-token',
-      PORTAL_RELAY_URLS: JSON.stringify({
-        civil: 'https://civil-relay.solmara.registrystack.org',
-        social: 'https://social-relay.solmara.registrystack.org',
-        agri: 'https://nagdi-relay.solmara.registrystack.org',
-        certs: 'https://civil-relay.solmara.registrystack.org'
-      })
+      PORTAL_PROVIDER: 'live'
     });
 
-    expect(() => getProvider()).toThrow('PORTAL_RELAY_TOKEN is required');
+    expect(() => getProvider()).not.toThrow();
   });
 
   it('does not silently fall back to mock for unknown modes', () => {

@@ -1,6 +1,6 @@
-farmer_id,uin,district_code,farmer_registered,data_use_authorized,active_smallholder_farmer,active_farm_parcel,crop_declared_for_season,district_climate_risk_active,voucher_entitlement_current,voucher_not_redeemed,observed_at,source_system
-FR-1001,2300164345,XS-0103,true,true,true,true,true,true,true,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
-FR-1002,2300173478,XS-0102,true,false,true,true,true,true,false,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
-FR-1003,2300182600,XS-0402,true,true,true,true,true,false,false,false,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
-FR-1004,2300191733,XS-0401,true,true,true,true,true,true,false,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
-FR-1005,2300200865,XS-0403,true,true,true,true,true,true,false,true,2026-07-04T09:00:00Z,NAGDI-RELAY-PROJECTION
+farmer_id,farmer_registered,data_use_authorized,active_smallholder_farmer,active_farm_parcel,crop_declared_for_season,district_climate_risk_active,voucher_entitlement_current,voucher_not_redeemed
+FR-1001,true,true,true,true,true,true,true,true
+FR-1002,true,false,true,true,true,true,false,true
+FR-1003,true,true,true,true,true,false,false,false
+FR-1004,true,true,true,true,true,true,false,true
+FR-1005,true,true,true,true,true,true,false,true

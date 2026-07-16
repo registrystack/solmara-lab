@@ -1,17 +1,17 @@
 meta {
-  name: 01 - Evaluate pension stop
+  name: 01 - Read CRA death predicate
   type: http
   seq: 1
 }
 
 post {
-  url: {{pension_notary_url}}/v1/evaluations
+  url: {{cra_notary_url}}/v1/evaluations
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{PENSION_NOTARY_TOKEN}}
+  x-api-key: {{CRA_PENSION_CLIENT_TOKEN}}
   Data-Purpose: {{pension_payment_purpose}}
   Accept: application/vnd.registry-notary.claim-result+json
 }
@@ -28,8 +28,7 @@ body:json {
       ]
     },
     "claims": [
-      "person-is-deceased",
-      "pension-payment-should-stop"
+      "person-is-deceased"
     ],
     "disclosure": "predicate",
     "format": "application/vnd.registry-notary.claim-result+json"

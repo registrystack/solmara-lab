@@ -1,0 +1,28 @@
+version: 1
+id: enrollment-by-uin
+revision: 1
+
+input:
+  uin:
+    role: selector
+    type: string
+    minLength: 10
+    maxLength: 10
+    pattern: "^[0-9]{10}$"
+
+capability:
+  snapshot:
+    entity: mosd_enroll
+    exact:
+      uin: { input: uin }
+    freshness: 24h
+
+outputs: [duplicate_flag]
+
+not_applicable:
+  ambiguity:
+    rationale: The exact UIN selector is the entity primary key, whose materialized unique-key constraint permits at most one enrollment projection.
+    request_fixture: enrollment-match
+  subject_mismatch:
+    rationale: The minimized output projection omits UIN, so it contains no identifier comparable with the requested UIN.
+    request_fixture: enrollment-match

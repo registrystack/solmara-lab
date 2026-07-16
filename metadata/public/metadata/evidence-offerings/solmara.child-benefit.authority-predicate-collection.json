@@ -1,0 +1,45 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1",
+    "discovery_url": "https://child-benefit-federator.solmara.registrystack.org/v1/claims",
+    "endpoint_url": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
+    "kind": "authority-predicate-collection-api",
+    "media_type": "application/json",
+    "ruleset": "source-owned-child-benefit-predicates-v1"
+  },
+  "dataset": "mosd-programme",
+  "description": "A transient collection of source-owned child benefit predicates. It contains no copied source rows and no composed eligibility decision.",
+  "entity": "enrollment",
+  "evidence_type": "child-benefit-authority-predicate-collection-evidence",
+  "id": "solmara.child-benefit.authority-predicate-collection",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "mosd-programme-mis",
+    "iri": "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis",
+    "name": "Ministry of Social Development Programme MIS",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "solmara-child-benefit-authority-predicate-collection-policy",
+  "public_services": [
+    "child-benefit-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://publicschema.org/Person",
+      "https://publicschema.org/crvs/Birth",
+      "https://publicschema.org/Household",
+      "https://publicschema.org/sp/Enrollment"
+    ]
+  },
+  "title": "Child Benefit Authority Predicate Collection"
+}

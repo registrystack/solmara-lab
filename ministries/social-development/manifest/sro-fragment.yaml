@@ -12,4 +12,3 @@ datasets:
       - household
 purposes:
   - https://id.registrystack.org/solmara/purpose/child-benefit-review
-  - https://id.registrystack.org/solmara/purpose/citizen-self-service

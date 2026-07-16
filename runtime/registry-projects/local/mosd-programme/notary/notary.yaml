@@ -1,0 +1,78 @@
+audit:
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  api_keys:
+  - fingerprint:
+      name: PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH
+      provider: env
+    id: child-benefit-federator
+    scopes:
+    - mosd_programme:evidence_verification
+cel:
+  worker_memory_bytes: 1073741824
+deployment:
+  profile: local
+evidence:
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  claims:
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        enrollment:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            duplicate_flag:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:9da47bc7171991c51e098b44cb0667595b344d5f4c2b994a67f0c3b401d4b5b3
+            id: solmara-mosd-programme.child-benefit.enrollment
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: not-already-enrolled
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    required_scopes:
+    - mosd_programme:evidence_verification
+    rule:
+      bindings: {}
+      expression: enrollment.matched && enrollment.duplicate_flag == false
+      type: cel
+    subject_type: person
+    title: not already enrolled
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  credential_profiles: {}
+  enabled: true
+  max_credential_validity_seconds: 600
+  relay:
+    allow_insecure_localhost: true
+    allowed_private_cidrs: []
+    base_url: http://127.0.0.1:8080
+    max_in_flight: 8
+    token_file: /run/secrets/programme-notary-relay-token
+    workload_client_id: programme-notary
+  service_id: programme-notary
+  variables: {}
+instance:
+  environment: local
+  id: programme-notary
+server:
+  bind: 127.0.0.1:8081
+  request_timeout: 30s
+state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+  storage: postgresql

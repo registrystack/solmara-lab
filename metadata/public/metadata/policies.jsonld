@@ -13,8 +13,7 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review"
               ]
             }
           ]
@@ -29,6 +28,30 @@
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
+      "id": "cra-death-registration-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/pension-payment-review"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-death-registration",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/cra-death-registration-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
       "id": "nia-population-population-status-offering-policy",
       "permission": [
         {
@@ -38,8 +61,7 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review"
               ]
             }
           ]
@@ -63,8 +85,7 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review"
               ]
             }
           ]
@@ -88,10 +109,7 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/child-benefit-review",
-                "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review"
               ]
             }
           ]
@@ -116,8 +134,7 @@
               "operator": "isAnyOf",
               "rightOperand": [
                 "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
               ]
             }
           ]
@@ -141,9 +158,7 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review",
-                "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
-                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+                "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
               ]
             }
           ]
@@ -177,6 +192,30 @@
       "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-livestock-movement-offering",
       "type": "odrl:Set",
       "uid": "https://id.registrystack.org/solmara/policies/nagdi-agriculture-livestock-movement-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "solmara-child-benefit-authority-predicate-collection-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-authority-predicate-collection-policy"
     }
   ]
 }

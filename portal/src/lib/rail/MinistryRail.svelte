@@ -35,12 +35,16 @@
   };
 
   const NODES: NodeDef[] = [
-    { id: 'civil',   label: 'Civil',        angle: -90,  color: 'var(--color-ministry-civil)' },
-    { id: 'social',  label: 'Social',       angle: -18,  color: 'var(--color-ministry-social)' },
-    { id: 'agri',    label: 'Agriculture',  angle:  54,  color: 'var(--color-ministry-agri)' },
+    { id: 'civil',          label: 'Civil',       angle: -90, color: 'var(--color-ministry-civil)' },
+    { id: 'childCivil',     label: 'Child Civil', angle: -45, color: 'var(--color-ministry-civil)', glyph: 'CC' },
+    { id: 'population',     label: 'Population',  angle:   0, color: 'var(--color-ministry-civil)', glyph: 'NI' },
+    { id: 'socialRegistry', label: 'Social Reg.', angle:  45, color: 'var(--color-ministry-social)', glyph: 'SR' },
+    { id: 'programme',      label: 'Programme',   angle:  90, color: 'var(--color-ministry-social)', glyph: 'PM' },
+    { id: 'social',         label: 'Social',      angle: 135, color: 'var(--color-ministry-social)' },
+    { id: 'agri',           label: 'Agriculture', angle: 180, color: 'var(--color-ministry-agri)' },
     // Certificates is served by the Civil Registration Authority, so it shares
     // the civil colour. The glyph carries the difference ('Ce' not 'C').
-    { id: 'certs',   label: 'Certs',        angle: 126,  color: 'var(--color-ministry-civil)', glyph: 'Ce' }
+    { id: 'certs',          label: 'Certs',       angle: 225, color: 'var(--color-ministry-civil)', glyph: 'Ce' }
   ];
 
   // NodeId -> NodeDef lookup. We use string keys so NotaryId events from the

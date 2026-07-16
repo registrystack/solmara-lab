@@ -2,9 +2,6 @@ services:
   postgres:
     ports: !reset []
 
-  redis:
-    ports: !reset []
-
   static-metadata:
     ports: !reset []
     labels:
@@ -23,10 +20,13 @@ services:
       # Rewrites the compose-internal URLs the scenario runner reports into the
       # host-reachable *.solmara.registrystack.org URLs shown in previews and curls.
       SOLMARA_PUBLIC_URL_MAP: >-
-        {"child-benefit-notary:8080":"https://child-benefit-notary.solmara.registrystack.org",
-        "pension-notary:8080":"https://pension-notary.solmara.registrystack.org",
-        "nagdi-notary:8080":"https://nagdi-notary.solmara.registrystack.org",
-        "citizen-notary:8080":"https://citizen-notary.solmara.registrystack.org",
+        {"child-benefit-federator:8080":"https://child-benefit-federator.solmara.registrystack.org",
+        "cra-notary:8081":"https://cra-notary.solmara.registrystack.org",
+        "nia-notary:8081":"https://nia-notary.solmara.registrystack.org",
+        "sro-notary:8081":"https://sro-notary.solmara.registrystack.org",
+        "programme-notary:8081":"https://programme-notary.solmara.registrystack.org",
+        "sipf-notary:8081":"https://sipf-notary.solmara.registrystack.org",
+        "nagdi-notary:8081":"https://nagdi-notary.solmara.registrystack.org",
         "cra-civil-relay:8080":"https://cra-relay.solmara.registrystack.org",
         "nia-population-relay:8080":"https://nia-relay.solmara.registrystack.org",
         "sro-social-relay:8080":"https://sro-relay.solmara.registrystack.org",
@@ -38,58 +38,236 @@ services:
     labels:
       solmara.lab.host: solmara.registrystack.org
 
+  cra-relay-state-bootstrap:
+    volumes:
+      - ./runtime/registry-projects/hosted/cra-civil/relay:/etc/registry-relay:ro
+
+  nia-relay-state-bootstrap:
+    volumes:
+      - ./runtime/registry-projects/hosted/nia-population/relay:/etc/registry-relay:ro
+
+  sro-relay-state-bootstrap:
+    volumes:
+      - ./runtime/registry-projects/hosted/sro-social/relay:/etc/registry-relay:ro
+
+  programme-relay-state-bootstrap:
+    volumes:
+      - ./runtime/registry-projects/hosted/mosd-programme/relay:/etc/registry-relay:ro
+
+  sipf-relay-state-bootstrap:
+    volumes:
+      - ./runtime/registry-projects/hosted/sipf-pensions/relay:/etc/registry-relay:ro
+
+  nagdi-relay-state-bootstrap:
+    volumes:
+      - ./runtime/registry-projects/hosted/nagdi-agriculture/relay:/etc/registry-relay:ro
+
+  # Hosted Relay configs trust the platform workload issuer. Its rotating
+  # tokens arrive through external authority volumes, so the loopback local
+  # agents must not start in this overlay.
+  cra-workload-agent:
+    profiles: [local-workload-issuer]
+
+  nia-workload-agent:
+    profiles: [local-workload-issuer]
+
+  sro-workload-agent:
+    profiles: [local-workload-issuer]
+
+  programme-workload-agent:
+    profiles: [local-workload-issuer]
+
+  sipf-workload-agent:
+    profiles: [local-workload-issuer]
+
+  nagdi-workload-agent:
+    profiles: [local-workload-issuer]
+
   cra-civil-relay:
     ports: !reset []
+    expose: ["8080", "8081"]
+    volumes:
+      - ./runtime/registry-projects/hosted/cra-civil/relay:/etc/registry-relay:ro
     labels:
       solmara.lab.host: cra-relay.solmara.registrystack.org
 
   nia-population-relay:
     ports: !reset []
+    expose: ["8080", "8081"]
+    volumes:
+      - ./runtime/registry-projects/hosted/nia-population/relay:/etc/registry-relay:ro
     labels:
       solmara.lab.host: nia-relay.solmara.registrystack.org
 
   sro-social-relay:
     ports: !reset []
+    expose: ["8080", "8081"]
+    volumes:
+      - ./runtime/registry-projects/hosted/sro-social/relay:/etc/registry-relay:ro
     labels:
       solmara.lab.host: sro-relay.solmara.registrystack.org
 
   programme-mis-relay:
     ports: !reset []
+    expose: ["8080", "8081"]
+    volumes:
+      - ./runtime/registry-projects/hosted/mosd-programme/relay:/etc/registry-relay:ro
     labels:
       solmara.lab.host: mosd-programme-relay.solmara.registrystack.org
 
   sipf-pensions-relay:
     ports: !reset []
+    expose: ["8080", "8081"]
+    volumes:
+      - ./runtime/registry-projects/hosted/sipf-pensions/relay:/etc/registry-relay:ro
     labels:
       solmara.lab.host: sipf-relay.solmara.registrystack.org
 
   nagdi-agriculture-relay:
     ports: !reset []
+    expose: ["8080", "8081"]
+    volumes:
+      - ./runtime/registry-projects/hosted/nagdi-agriculture/relay:/etc/registry-relay:ro
     labels:
       solmara.lab.host: nagdi-relay.solmara.registrystack.org
 
-  child-benefit-notary:
-    ports: !reset []
+  cra-notary:
+    volumes:
+      - ./runtime/registry-projects/hosted/cra-civil/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
     labels:
-      solmara.lab.host: child-benefit-notary.solmara.registrystack.org
+      solmara.lab.host: cra-notary.solmara.registrystack.org
+    depends_on: !override
+      cra-civil-relay:
+        condition: service_healthy
+      cra-notary-state-install:
+        condition: service_completed_successfully
 
-  pension-notary:
-    ports: !reset []
+  cra-notary-state-install:
+    volumes:
+      - ./runtime/registry-projects/hosted/cra-civil/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    depends_on: !override
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  nia-notary:
+    volumes:
+      - ./runtime/registry-projects/hosted/nia-population/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
     labels:
-      solmara.lab.host: pension-notary.solmara.registrystack.org
+      solmara.lab.host: nia-notary.solmara.registrystack.org
+    depends_on: !override
+      nia-population-relay:
+        condition: service_healthy
+      nia-notary-state-install:
+        condition: service_completed_successfully
+
+  nia-notary-state-install:
+    volumes:
+      - ./runtime/registry-projects/hosted/nia-population/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    depends_on: !override
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  sro-notary:
+    volumes:
+      - ./runtime/registry-projects/hosted/sro-social/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    labels:
+      solmara.lab.host: sro-notary.solmara.registrystack.org
+    depends_on: !override
+      sro-social-relay:
+        condition: service_healthy
+      sro-notary-state-install:
+        condition: service_completed_successfully
+
+  sro-notary-state-install:
+    volumes:
+      - ./runtime/registry-projects/hosted/sro-social/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    depends_on: !override
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  programme-notary:
+    volumes:
+      - ./runtime/registry-projects/hosted/mosd-programme/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    labels:
+      solmara.lab.host: programme-notary.solmara.registrystack.org
+    depends_on: !override
+      programme-mis-relay:
+        condition: service_healthy
+      programme-notary-state-install:
+        condition: service_completed_successfully
+
+  programme-notary-state-install:
+    volumes:
+      - ./runtime/registry-projects/hosted/mosd-programme/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    depends_on: !override
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  sipf-notary:
+    volumes:
+      - ./runtime/registry-projects/hosted/sipf-pensions/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    labels:
+      solmara.lab.host: sipf-notary.solmara.registrystack.org
+    depends_on: !override
+      sipf-pensions-relay:
+        condition: service_healthy
+      sipf-notary-state-install:
+        condition: service_completed_successfully
+
+  sipf-notary-state-install:
+    volumes:
+      - ./runtime/registry-projects/hosted/sipf-pensions/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    depends_on: !override
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
 
   nagdi-notary:
-    ports: !reset []
+    volumes:
+      - ./runtime/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
     labels:
       solmara.lab.host: nagdi-notary.solmara.registrystack.org
+    depends_on: !override
+      nagdi-agriculture-relay:
+        condition: service_healthy
+      nagdi-notary-state-install:
+        condition: service_completed_successfully
 
-  citizen-notary:
+  nagdi-notary-state-install:
+    volumes:
+      - ./runtime/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
+    depends_on: !override
+      registry-postgresql-bootstrap:
+        condition: service_completed_successfully
+
+  child-benefit-federator:
     ports: !reset []
+    environment:
+      CHILD_BENEFIT_PUBLIC_DOMAIN: solmara.registrystack.org
     labels:
-      solmara.lab.host: citizen-notary.solmara.registrystack.org
+      solmara.lab.host: child-benefit-federator.solmara.registrystack.org
 
   portal:
     profiles: []
     ports: !reset []
     labels:
       solmara.lab.host: portal.solmara.registrystack.org
+
+volumes:
+  cra-workload-token:
+    external: true
+    name: ${CRA_WORKLOAD_TOKEN_VOLUME:-solmara-cra-workload-token}
+  nia-workload-token:
+    external: true
+    name: ${NIA_WORKLOAD_TOKEN_VOLUME:-solmara-nia-workload-token}
+  sro-workload-token:
+    external: true
+    name: ${SRO_WORKLOAD_TOKEN_VOLUME:-solmara-sro-workload-token}
+  programme-workload-token:
+    external: true
+    name: ${PROGRAMME_WORKLOAD_TOKEN_VOLUME:-solmara-programme-workload-token}
+  sipf-workload-token:
+    external: true
+    name: ${SIPF_WORKLOAD_TOKEN_VOLUME:-solmara-sipf-workload-token}
+  nagdi-workload-token:
+    external: true
+    name: ${NAGDI_WORKLOAD_TOKEN_VOLUME:-solmara-nagdi-workload-token}

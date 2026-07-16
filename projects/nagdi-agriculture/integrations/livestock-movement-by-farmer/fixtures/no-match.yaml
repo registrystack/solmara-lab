@@ -1,0 +1,13 @@
+name: livestock-movement-no-match
+classification: synthetic
+input: { farmer_id: FR-9999 }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond: { status: 200, body: [] }
+expect:
+  outcome: no_match
+  outputs: {}
+  claims:
+    registered-herd: false
+    origin-district-not-quarantined-for-species: false
+    eligible-for-livestock-movement-permit: false

@@ -40,7 +40,7 @@
       (f) => f.kind === 'self' && !f.id.includes('identity') && f.id !== 'child-benefit-consent'
     )
   );
-  const delegatedCivilFields = $derived(form.fields.filter((f) => f.delegated !== undefined));
+  const delegatedSourceFields = $derived(form.fields.filter((f) => f.delegated !== undefined));
   const bodyFields = $derived(
     form.fields.filter(
       (f) =>
@@ -103,14 +103,14 @@
     );
   }
 
-  // Child benefit: consent gates hop one; only once the selected child record is
-  // located are the delegated eligibility checks authorized.
+  // Child benefit: consent and the guardian gate authorize the five delegated
+  // source predicates. The federator does not make the eligibility decision.
   async function giveConsent() {
     consentGiven = true;
     const verify = await runField(guardianField, form.slug, { scenarioKey: 'caregiver-link' });
     if (verify && verify.state === 'verified') {
       guardianVerified = true;
-      for (const f of delegatedCivilFields) {
+      for (const f of delegatedSourceFields) {
         await runField(f, form.slug, { guardianLinkVerified: true });
       }
     }
@@ -181,7 +181,9 @@
             <thead><tr><th>Authority</th><th>Data item</th><th>Purpose</th></tr></thead>
             <tbody>
               <tr><td>Civil Registry</td><td>Mateo's birth registration and age predicate</td><td>confirm the child and age</td></tr>
-              <tr><td>Social Protection</td><td>eligibility predicates</td><td>child-benefit review</td></tr>
+              <tr><td>National Identity Agency</td><td>population record active predicate</td><td>child-benefit review</td></tr>
+              <tr><td>Social Registry Office</td><td>household threshold predicate</td><td>child-benefit review</td></tr>
+              <tr><td>MoSD Programme MIS</td><td>prior enrollment predicate</td><td>child-benefit review</td></tr>
             </tbody>
           </table>
           <p class="not-disclosed">
@@ -206,7 +208,7 @@
               Registries will not answer until the selected child record is located.
             </p>
           {/if}
-          {#each delegatedCivilFields as field (field.id)}
+          {#each delegatedSourceFields as field (field.id)}
             <div class="field-row">
               {#if guardianVerified}
                 <EvidenceField

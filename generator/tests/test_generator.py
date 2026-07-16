@@ -180,9 +180,24 @@ class GeneratorTests(unittest.TestCase):
             row["uin"]: row
             for row in read_csv(self.root, "ministries/interior-civil/fixtures/civil_person_projection.csv")
         }
+        self.assertEqual(
+            set(next(iter(civil.values()))),
+            {"uin", "birth_date", "birth_brn", "deceased"},
+        )
         self.assertEqual(civil["2300010248"]["birth_brn"], "BRN-2022-0101-00001")
         self.assertEqual(civil["2300109568"]["deceased"], "true")
-        self.assertEqual(civil["2300109568"]["cause_of_death"], "natural causes")
+        person_id_by_uin = {
+            row["uin"]: row["person_id"]
+            for row in read_csv(self.root, "ministries/interior-civil/fixtures/civil_person.csv")
+        }
+        death_by_person = {
+            row["deceased_person_id"]: row
+            for row in read_csv(self.root, "ministries/interior-civil/fixtures/death_event.csv")
+        }
+        self.assertEqual(
+            death_by_person[person_id_by_uin["2300109568"]]["cause_of_death"],
+            "natural causes",
+        )
 
         social = {
             row["head_uin"]: row
@@ -191,10 +206,52 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(social["2300027390"]["poverty_band"], "priority")
         self.assertEqual(social["2300045650"]["poverty_band"], "not_eligible")
 
+        child_benefit_household_rows = read_csv(
+            self.root,
+            "ministries/social-development/fixtures/child_benefit_household.csv",
+        )
+        child_benefit_households = {
+            row["uin"]: row
+            for row in child_benefit_household_rows
+        }
+        self.assertEqual(
+            set(next(iter(child_benefit_households.values()))),
+            {"uin", "poverty_band"},
+        )
+        self.assertEqual(
+            len(child_benefit_households), len(child_benefit_household_rows)
+        )
+        active_household_by_uin = {
+            row["uin"]: row["household_id"]
+            for row in read_csv(
+                self.root,
+                "ministries/social-development/fixtures/household_member.csv",
+            )
+            if row["membership_status"] == "active"
+        }
+        self.assertEqual(set(child_benefit_households), set(active_household_by_uin))
+        profile_by_household = {
+            row["household_id"]: row["profile_id"]
+            for row in read_csv(
+                self.root,
+                "ministries/social-development/fixtures/socio_economic_profile.csv",
+            )
+        }
+        score_by_profile = {
+            row["profile_id"]: row["score_band"]
+            for row in read_csv(self.root, "ministries/social-development/fixtures/scoring_event.csv")
+        }
+        for uin, household in child_benefit_households.items():
+            profile_id = profile_by_household[active_household_by_uin[uin]]
+            self.assertEqual(household["poverty_band"], score_by_profile[profile_id])
+        self.assertEqual(child_benefit_households["2300010248"]["poverty_band"], "priority")
+        self.assertEqual(child_benefit_households["2300036523"]["poverty_band"], "not_eligible")
+
         programme = {
             row["uin"]: row
             for row in read_csv(self.root, "ministries/social-development/fixtures/programme_mis_enrollment.csv")
         }
+        self.assertEqual(set(next(iter(programme.values()))), {"uin", "duplicate_flag"})
         self.assertEqual(programme["2300010248"]["duplicate_flag"], "false")
         self.assertEqual(programme["2300054788"]["duplicate_flag"], "true")
 
@@ -209,6 +266,20 @@ class GeneratorTests(unittest.TestCase):
             row["farmer_id"]: row
             for row in read_csv(self.root, "ministries/agriculture-nagdi/fixtures/farmer_voucher.csv")
         }
+        self.assertEqual(
+            set(next(iter(vouchers.values()))),
+            {
+                "farmer_id",
+                "farmer_registered",
+                "data_use_authorized",
+                "active_smallholder_farmer",
+                "active_farm_parcel",
+                "crop_declared_for_season",
+                "district_climate_risk_active",
+                "voucher_entitlement_current",
+                "voucher_not_redeemed",
+            },
+        )
         self.assertEqual(vouchers["FR-1001"]["data_use_authorized"], "true")
         self.assertEqual(vouchers["FR-1002"]["data_use_authorized"], "false")
         self.assertEqual(vouchers["FR-1003"]["district_climate_risk_active"], "false")
@@ -217,6 +288,18 @@ class GeneratorTests(unittest.TestCase):
             row["farmer_id"]: row
             for row in read_csv(self.root, "ministries/agriculture-nagdi/fixtures/livestock_movement.csv")
         }
+        self.assertEqual(
+            set(next(iter(livestock.values()))),
+            {
+                "herd_id",
+                "farmer_id",
+                "registered_herd",
+                "herd_vaccination_current",
+                "origin_district_not_quarantined_for_species",
+                "destination_district_open",
+                "no_conflicting_open_movement_permit",
+            },
+        )
         self.assertEqual(livestock["FR-1001"]["origin_district_not_quarantined_for_species"], "true")
         self.assertEqual(livestock["FR-1004"]["origin_district_not_quarantined_for_species"], "false")
         self.assertEqual(livestock["FR-1005"]["herd_vaccination_current"], "false")

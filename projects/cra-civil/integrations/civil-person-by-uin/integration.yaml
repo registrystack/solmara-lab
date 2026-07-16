@@ -1,0 +1,27 @@
+version: 1
+id: solmara-cra-civil-person-by-uin
+revision: 1
+
+input:
+  uin:
+    role: selector
+    type: string
+    maxLength: 16
+    pattern: "^[0-9]{10}$"
+
+capability:
+  snapshot:
+    entity: civil_people
+    exact:
+      uin: { input: uin }
+    freshness: 24h
+
+outputs: [birth_date, birth_brn, deceased]
+
+not_applicable:
+  ambiguity:
+    rationale: The exact UIN selector is the entity primary key, whose materialized unique-key constraint permits at most one civil record.
+    request_fixture: cra-civil-person-match
+  subject_mismatch:
+    rationale: The minimized output projection omits UIN, so it contains no identifier comparable with the requested UIN.
+    request_fixture: cra-civil-person-match

@@ -1,0 +1,420 @@
+audit:
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  api_keys:
+  - fingerprint:
+      name: NAGDI_CLIENT_TOKEN_HASH
+      provider: env
+    id: nagdi-service
+    scopes:
+    - nagdi_agriculture:evidence_verification
+cel:
+  worker_memory_bytes: 1073741824
+deployment:
+  profile: hosted_lab
+evidence:
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+  - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+  claims:
+  - credential_profiles:
+    - livestock.livestock_movement_sd_jwt
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        herd:
+          inputs:
+            farmer_id: request.target.identifiers.farmer_id
+          outputs:
+            destination_district_open:
+              nullable: false
+              type: boolean
+            herd_vaccination_current:
+              nullable: false
+              type: boolean
+            no_conflicting_open_movement_permit:
+              nullable: false
+              type: boolean
+            origin_district_not_quarantined_for_species:
+              nullable: false
+              type: boolean
+            registered_herd:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
+            id: solmara-nagdi-agriculture.livestock.herd
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: eligible-for-livestock-movement-permit
+    purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
+    required_scopes:
+    - nagdi_agriculture:evidence_verification
+    rule:
+      bindings: {}
+      expression: |-
+        herd.matched && herd.registered_herd
+          && herd.origin_district_not_quarantined_for_species
+          && herd.herd_vaccination_current
+          && herd.destination_district_open
+          && herd.no_conflicting_open_movement_permit
+      type: cel
+    subject_type: person
+    title: eligible for livestock movement permit
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - livestock.livestock_movement_sd_jwt
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        herd:
+          inputs:
+            farmer_id: request.target.identifiers.farmer_id
+          outputs:
+            destination_district_open:
+              nullable: false
+              type: boolean
+            herd_vaccination_current:
+              nullable: false
+              type: boolean
+            no_conflicting_open_movement_permit:
+              nullable: false
+              type: boolean
+            origin_district_not_quarantined_for_species:
+              nullable: false
+              type: boolean
+            registered_herd:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
+            id: solmara-nagdi-agriculture.livestock.herd
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: origin-district-not-quarantined-for-species
+    purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
+    required_scopes:
+    - nagdi_agriculture:evidence_verification
+    rule:
+      bindings: {}
+      expression: herd.matched && herd.origin_district_not_quarantined_for_species
+      type: cel
+    subject_type: person
+    title: origin district not quarantined for species
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - livestock.livestock_movement_sd_jwt
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        herd:
+          inputs:
+            farmer_id: request.target.identifiers.farmer_id
+          outputs:
+            destination_district_open:
+              nullable: false
+              type: boolean
+            herd_vaccination_current:
+              nullable: false
+              type: boolean
+            no_conflicting_open_movement_permit:
+              nullable: false
+              type: boolean
+            origin_district_not_quarantined_for_species:
+              nullable: false
+              type: boolean
+            registered_herd:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:9eef29eec9341e5425a81d9c835232293f68a88652008793b2045e1711e6ef60
+            id: solmara-nagdi-agriculture.livestock.herd
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: registered-herd
+    purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
+    required_scopes:
+    - nagdi_agriculture:evidence_verification
+    rule:
+      bindings: {}
+      expression: herd.matched && herd.registered_herd
+      type: cel
+    subject_type: person
+    title: registered herd
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - voucher.climate_smart_voucher_sd_jwt
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        farmer:
+          inputs:
+            farmer_id: request.target.identifiers.farmer_id
+          outputs:
+            active_farm_parcel:
+              nullable: false
+              type: boolean
+            active_smallholder_farmer:
+              nullable: false
+              type: boolean
+            crop_declared_for_season:
+              nullable: false
+              type: boolean
+            data_use_authorized:
+              nullable: false
+              type: boolean
+            district_climate_risk_active:
+              nullable: false
+              type: boolean
+            farmer_registered:
+              nullable: false
+              type: boolean
+            voucher_entitlement_current:
+              nullable: false
+              type: boolean
+            voucher_not_redeemed:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
+            id: solmara-nagdi-agriculture.voucher.farmer
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: data-use-authorized-for-purpose
+    purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+    required_scopes:
+    - nagdi_agriculture:evidence_verification
+    rule:
+      bindings: {}
+      expression: farmer.matched && farmer.data_use_authorized
+      type: cel
+    subject_type: person
+    title: data use authorized for purpose
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - voucher.climate_smart_voucher_sd_jwt
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        farmer:
+          inputs:
+            farmer_id: request.target.identifiers.farmer_id
+          outputs:
+            active_farm_parcel:
+              nullable: false
+              type: boolean
+            active_smallholder_farmer:
+              nullable: false
+              type: boolean
+            crop_declared_for_season:
+              nullable: false
+              type: boolean
+            data_use_authorized:
+              nullable: false
+              type: boolean
+            district_climate_risk_active:
+              nullable: false
+              type: boolean
+            farmer_registered:
+              nullable: false
+              type: boolean
+            voucher_entitlement_current:
+              nullable: false
+              type: boolean
+            voucher_not_redeemed:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
+            id: solmara-nagdi-agriculture.voucher.farmer
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: eligible-for-climate-smart-input-voucher
+    purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+    required_scopes:
+    - nagdi_agriculture:evidence_verification
+    rule:
+      bindings: {}
+      expression: |-
+        farmer.matched && farmer.farmer_registered
+          && farmer.data_use_authorized
+          && farmer.active_smallholder_farmer
+          && farmer.active_farm_parcel
+          && farmer.crop_declared_for_season
+          && farmer.district_climate_risk_active
+          && farmer.voucher_entitlement_current
+          && farmer.voucher_not_redeemed
+      type: cel
+    subject_type: person
+    title: eligible for climate smart input voucher
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - voucher.climate_smart_voucher_sd_jwt
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        farmer:
+          inputs:
+            farmer_id: request.target.identifiers.farmer_id
+          outputs:
+            active_farm_parcel:
+              nullable: false
+              type: boolean
+            active_smallholder_farmer:
+              nullable: false
+              type: boolean
+            crop_declared_for_season:
+              nullable: false
+              type: boolean
+            data_use_authorized:
+              nullable: false
+              type: boolean
+            district_climate_risk_active:
+              nullable: false
+              type: boolean
+            farmer_registered:
+              nullable: false
+              type: boolean
+            voucher_entitlement_current:
+              nullable: false
+              type: boolean
+            voucher_not_redeemed:
+              nullable: false
+              type: boolean
+          profile:
+            contract_hash: sha256:8c72e6f499969307d6d4bce11dbdf493ead8306880f359ab458e55f2e2abde0c
+            id: solmara-nagdi-agriculture.voucher.farmer
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: farmer-registered
+    purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+    required_scopes:
+    - nagdi_agriculture:evidence_verification
+    rule:
+      bindings: {}
+      expression: farmer.matched && farmer.farmer_registered
+      type: cel
+    subject_type: person
+    title: farmer registered
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  credential_profiles:
+    livestock.livestock_movement_sd_jwt:
+      allowed_claims:
+      - registered-herd
+      - origin-district-not-quarantined-for-species
+      - eligible-for-livestock-movement-permit
+      disclosure:
+        allowed:
+        - value
+        - predicate
+        - redacted
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:authority:nagdi
+      signing_key: project-issuer
+      validity_seconds: 600
+      vct: https://id.registrystack.org/solmara/vct/livestock-movement-permit
+    voucher.climate_smart_voucher_sd_jwt:
+      allowed_claims:
+      - farmer-registered
+      - data-use-authorized-for-purpose
+      - eligible-for-climate-smart-input-voucher
+      disclosure:
+        allowed:
+        - value
+        - predicate
+        - redacted
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:authority:nagdi
+      signing_key: project-issuer
+      validity_seconds: 600
+      vct: https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility
+  enabled: true
+  max_credential_validity_seconds: 600
+  relay:
+    allow_insecure_localhost: true
+    allowed_private_cidrs: []
+    base_url: http://127.0.0.1:8080
+    max_in_flight: 8
+    token_file: /run/secrets/nagdi-notary-relay-token
+    workload_client_id: nagdi-notary
+  service_id: nagdi-notary
+  signing_keys:
+    project-issuer:
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:authority:nagdi#issuer-key-1
+      private_jwk_env: NAGDI_NOTARY_ISSUER_JWK
+      provider: local_jwk_env
+      status: active
+  variables: {}
+instance:
+  environment: hosted
+  id: nagdi-notary
+server:
+  bind: 127.0.0.1:8081
+  request_timeout: 30s
+state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+  storage: postgresql

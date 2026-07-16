@@ -64,6 +64,15 @@ export function requestPurpose(result: StepRunResult | null | undefined): string
  * from the actual request line, purpose header, and response status.
  */
 export function hopsFromResult(result: StepRunResult | null | undefined): string[] {
+  if (Array.isArray(result?.source_trace) && result.source_trace.length) {
+    return result.source_trace.map((source) => {
+      const authority = source.authority ?? source.service_id ?? 'Source authority';
+      const claims = source.claims ?? source.request_summary?.claims;
+      const claim = claims?.join(', ') ?? source.claim_id ?? source.profile ?? 'evidence';
+      const status = source.response_source?.status ?? source.response_summary?.status;
+      return status ? `${authority}: ${claim} returned HTTP ${status}` : `${authority}: ${claim}`;
+    });
+  }
   const first = claimResults(result)[0]?.raw ?? {};
   const provenance = first.provenance;
   if (Array.isArray(provenance) && provenance.length) {

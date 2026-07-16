@@ -22,6 +22,29 @@ def validate_request(module_name: str, step_id: str, request: dict[str, Any]) ->
     method = request.get("method")
     url = request.get("url")
     headers = request.get("headers")
+    if method == "MULTI":
+        if url != "solmara://authority-notaries":
+            raise ValueError(
+                f"{module_name}:{step_id}: expected authority collection URL, got {url!r}"
+            )
+        if not isinstance(headers, dict) or "Data-Purpose" not in headers:
+            raise ValueError(f"{module_name}:{step_id}: missing Data-Purpose")
+        requests = request.get("requests")
+        if not isinstance(requests, list) or not requests:
+            raise ValueError(
+                f"{module_name}:{step_id}: authority collection has no requests"
+            )
+        for index, authority_request in enumerate(requests):
+            if not isinstance(authority_request, dict):
+                raise ValueError(
+                    f"{module_name}:{step_id}: authority request {index} is invalid"
+                )
+            validate_request(
+                module_name,
+                f"{step_id}/authority-{index + 1}",
+                authority_request,
+            )
+        return
     if method not in {"GET", "POST"}:
         raise ValueError(f"{module_name}:{step_id}: invalid method {method!r}")
     if not isinstance(url, str) or not url.startswith("http://127.0.0.1:"):

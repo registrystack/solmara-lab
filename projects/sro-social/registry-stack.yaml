@@ -1,0 +1,33 @@
+version: 1
+
+registry:
+  id: solmara-sro-social
+
+integrations:
+  child-benefit-household-by-uin:
+    file: integrations/child-benefit-household-by-uin/integration.yaml
+
+entities:
+  sro_child:
+    file: entities/sro_child.yaml
+
+services:
+  child-benefit:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    legal_basis: child-benefit-act
+    consent: not_required
+    access:
+      scopes: ["sro_social:evidence_verification"]
+    consultations:
+      household:
+        integration: child-benefit-household-by-uin
+        input:
+          uin: request.target.identifiers.solmara_uin
+    claims:
+      household-below-poverty-threshold:
+        cel: 'household.matched && household.poverty_band == "priority"'
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]

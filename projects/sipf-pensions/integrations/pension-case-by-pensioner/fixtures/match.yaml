@@ -1,0 +1,10 @@
+name: sipf-pension-case-match
+classification: synthetic
+input: { uin: "2300109568" }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond: { status: 200, body: { payment_status: active } }
+expect:
+  outcome: match
+  outputs: { payment_status: active }
+  claims: { pension-payment-active: true }

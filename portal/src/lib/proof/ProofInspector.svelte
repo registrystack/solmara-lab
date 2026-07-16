@@ -13,7 +13,7 @@
   // Depth expansion state per trace id
   let expandedDepth2 = $state<Record<string, boolean>>({});
   let expandedDepth3 = $state<Record<string, boolean>>({});
-  // Raw SD-JWT expanded per trace id
+  // Raw SD-JWT expanded per trace id. Only SD-JWT proof artifacts expose it.
   let expandedRaw = $state<Record<string, boolean>>({});
   // "verify again" flash state per trace id
   let verifyFlash = $state<Record<string, boolean>>({});
@@ -108,6 +108,14 @@
         return 'Agriculture';
       case 'certs':
         return 'Certificates';
+      case 'childCivil':
+        return 'Civil Registry';
+      case 'population':
+        return 'National Identity Agency';
+      case 'socialRegistry':
+        return 'Social Registry Office';
+      case 'programme':
+        return 'MoSD Programme MIS';
       default:
         return authority ?? 'Unknown';
     }
@@ -123,6 +131,14 @@
         return '🌾';
       case 'certs':
         return '📜';
+      case 'childCivil':
+        return '📋';
+      case 'population':
+        return '🪪';
+      case 'socialRegistry':
+        return '🏠';
+      case 'programme':
+        return '🗂️';
       default:
         return '◧';
     }
@@ -267,7 +283,7 @@
                   aria-controls="depth3-{trace.id}"
                 >
                   <span class="expand-arrow" aria-hidden="true">{d3open ? '▾' : '▸'}</span>
-                  Proof and credential (signature, issuer, VC)
+                  Cryptographic proof (signature, issuer, artifact)
                 </button>
 
                 {#if d3open}
@@ -291,7 +307,7 @@
                           <td>{trace.proof.holderBound}</td>
                         </tr>
                         <tr>
-                          <th scope="row">Credential</th>
+                          <th scope="row">Evidence artifact</th>
                           <td>{trace.proof.credential}</td>
                         </tr>
                         <tr>
@@ -305,7 +321,7 @@
                       <button
                         class="verify-again-btn"
                         onclick={() => verifyAgain(trace.id)}
-                        aria-label="Verify credential signature again"
+                        aria-label="Verify cryptographic proof again"
                       >
                         [verify again]
                       </button>
@@ -316,24 +332,26 @@
                       {/if}
                     </div>
 
-                    <button
-                      class="expand-btn expand-btn-inner"
-                      onclick={() => toggleRaw(trace.id)}
-                      aria-expanded={rawOpen}
-                      aria-controls="raw-{trace.id}"
-                    >
-                      <span class="expand-arrow" aria-hidden="true">{rawOpen ? '▾' : '▸'}</span>
-                      Raw SD-JWT
-                    </button>
-                    {#if rawOpen}
-                      <div id="raw-{trace.id}" class="raw-jwt">
-                        <code class="mono" aria-label="Raw SD-JWT credential (synthetic)"
-                          >eyJhbGciOiJFZERTQSIsInR5cCI6InZjK3NkLWp3dCJ9.&#x2B;[synthetic-demo-data]&#x2B;.&#x2B;_disclosure_&#x2B;</code
-                        >
-                        <p class="raw-note">
-                          (Synthetic demo data - not a real credential)
-                        </p>
-                      </div>
+                    {#if trace.proof.credential === 'SD-JWT VC'}
+                      <button
+                        class="expand-btn expand-btn-inner"
+                        onclick={() => toggleRaw(trace.id)}
+                        aria-expanded={rawOpen}
+                        aria-controls="raw-{trace.id}"
+                      >
+                        <span class="expand-arrow" aria-hidden="true">{rawOpen ? '▾' : '▸'}</span>
+                        Raw SD-JWT
+                      </button>
+                      {#if rawOpen}
+                        <div id="raw-{trace.id}" class="raw-jwt">
+                          <code class="mono" aria-label="Raw SD-JWT credential (synthetic)"
+                            >eyJhbGciOiJFZERTQSIsInR5cCI6InZjK3NkLWp3dCJ9.&#x2B;[synthetic-demo-data]&#x2B;.&#x2B;_disclosure_&#x2B;</code
+                          >
+                          <p class="raw-note">
+                            (Synthetic demo data - not a real credential)
+                          </p>
+                        </div>
+                      {/if}
                     {/if}
                   </div>
                 {/if}
@@ -416,7 +434,7 @@
                 aria-controls="depth3-{trace.id}"
               >
                 <span class="expand-arrow" aria-hidden="true">{d3open ? '▾' : '▸'}</span>
-                Proof and credential (signature, issuer, VC)
+                Cryptographic proof (signature, issuer, artifact)
               </button>
 
               {#if d3open}
@@ -440,7 +458,7 @@
                         <td>{trace.proof.holderBound}</td>
                       </tr>
                       <tr>
-                        <th scope="row">Credential</th>
+                        <th scope="row">Evidence artifact</th>
                         <td>{trace.proof.credential}</td>
                       </tr>
                       <tr>
@@ -454,7 +472,7 @@
                     <button
                       class="verify-again-btn"
                       onclick={() => verifyAgain(trace.id)}
-                      aria-label="Verify credential signature again"
+                      aria-label="Verify cryptographic proof again"
                     >
                       [verify again]
                     </button>
@@ -465,22 +483,24 @@
                     {/if}
                   </div>
 
-                  <button
-                    class="expand-btn expand-btn-inner"
-                    onclick={() => toggleRaw(trace.id)}
-                    aria-expanded={rawOpen}
-                    aria-controls="raw-{trace.id}"
-                  >
-                    <span class="expand-arrow" aria-hidden="true">{rawOpen ? '▾' : '▸'}</span>
-                    Raw SD-JWT
-                  </button>
-                  {#if rawOpen}
-                    <div id="raw-{trace.id}" class="raw-jwt">
-                      <code class="mono" aria-label="Raw SD-JWT credential (synthetic)"
-                        >eyJhbGciOiJFZERTQSIsInR5cCI6InZjK3NkLWp3dCJ9.&#x2B;[synthetic-demo-data]&#x2B;.&#x2B;_disclosure_&#x2B;</code
-                      >
-                      <p class="raw-note">(Synthetic demo data - not a real credential)</p>
-                    </div>
+                  {#if trace.proof.credential === 'SD-JWT VC'}
+                    <button
+                      class="expand-btn expand-btn-inner"
+                      onclick={() => toggleRaw(trace.id)}
+                      aria-expanded={rawOpen}
+                      aria-controls="raw-{trace.id}"
+                    >
+                      <span class="expand-arrow" aria-hidden="true">{rawOpen ? '▾' : '▸'}</span>
+                      Raw SD-JWT
+                    </button>
+                    {#if rawOpen}
+                      <div id="raw-{trace.id}" class="raw-jwt">
+                        <code class="mono" aria-label="Raw SD-JWT credential (synthetic)"
+                          >eyJhbGciOiJFZERTQSIsInR5cCI6InZjK3NkLWp3dCJ9.&#x2B;[synthetic-demo-data]&#x2B;.&#x2B;_disclosure_&#x2B;</code
+                        >
+                        <p class="raw-note">(Synthetic demo data - not a real credential)</p>
+                      </div>
+                    {/if}
                   {/if}
                 </div>
               {/if}

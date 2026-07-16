@@ -1,8 +1,7 @@
 // Canned scenarios driving the Phase 0 mock. Each scenario is keyed by a stable
 // lookup id (field id, with a few delegated/denial variants) and carries enough
-// to build both a ClaimResult and a ProofTrace whose depth-2 request/response
-// bodies are STRUCTURALLY identical to the real Notary POST /v1/evaluations
-// (EvaluateRequest / EvaluationResponse from registry-notary.openapi.json).
+// to build both a ClaimResult and a ProofTrace using the owning service's real
+// wire contract: Registry Notary evaluations or the child federator bundle.
 //
 // Volatile fields (evaluation_id, issued_at/expires_at, signatures, freshness)
 // are present but value-variable: they are stamped at evaluate() time, never
@@ -18,7 +17,11 @@ export const AUTHORITY_LABEL: Record<NotaryId, string> = {
   civil: SOLMARA_AUTHORITIES.civil.label,
   social: SOLMARA_AUTHORITIES.social.label,
   agri: SOLMARA_AUTHORITIES.agri.label,
-  certs: SOLMARA_AUTHORITIES.certs.label
+  certs: SOLMARA_AUTHORITIES.certs.label,
+  childCivil: SOLMARA_AUTHORITIES.childCivil.label,
+  population: SOLMARA_AUTHORITIES.population.label,
+  socialRegistry: SOLMARA_AUTHORITIES.socialRegistry.label,
+  programme: SOLMARA_AUTHORITIES.programme.label
 };
 
 // Per-notary service id that appears in provenance.generated_by.service_id.
@@ -26,15 +29,11 @@ export const NOTARY_SERVICE_ID: Record<NotaryId, string> = {
   civil: SOLMARA_AUTHORITIES.civil.serviceId,
   social: SOLMARA_AUTHORITIES.social.serviceId,
   agri: SOLMARA_AUTHORITIES.agri.serviceId,
-  certs: SOLMARA_AUTHORITIES.certs.serviceId
-};
-
-// Per-notary public DID and signing key id (did:web), depth-3 crypto.
-export const NOTARY_ISSUER_KEY: Record<NotaryId, string> = {
-  civil: SOLMARA_AUTHORITIES.civil.issuerKey,
-  social: SOLMARA_AUTHORITIES.social.issuerKey,
-  agri: SOLMARA_AUTHORITIES.agri.issuerKey,
-  certs: SOLMARA_AUTHORITIES.certs.issuerKey
+  certs: SOLMARA_AUTHORITIES.certs.serviceId,
+  childCivil: SOLMARA_AUTHORITIES.childCivil.serviceId,
+  population: SOLMARA_AUTHORITIES.population.serviceId,
+  socialRegistry: SOLMARA_AUTHORITIES.socialRegistry.serviceId,
+  programme: SOLMARA_AUTHORITIES.programme.serviceId
 };
 
 // What the Notary sends back as source_authority / the proof "answered" line.
@@ -50,6 +49,7 @@ export type ScenarioResult = {
   claimId: string; // the wire claim id, e.g. 'farmer-registered'
   claimVersion: string;
   subjectPersona?: PersonaKey;
+  applicationOwned?: boolean;
   // ---- request shaping (EvaluateRequest) ----
   purpose: string; // declared purpose
   disclosure: ScenarioDisclosure;
@@ -80,7 +80,7 @@ export type ScenarioResult = {
   // stagger so fields land in a believable cascade, never all at once.
   latencyMs: number;
   staggerOrder: number;
-  // an error scenario performs NO source read (used.source_count = 0)
+  // an error scenario performs NO source read (there is no claim result).
   sourceCount: number;
 };
 
@@ -182,10 +182,10 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   },
 
   // ---------------------------------------------------------------------------
-  // child-benefit (delegated two-hop: social guardian-link, THEN civil reads)
+  // child-benefit (guardian gate, then five source-owned predicates)
   // ---------------------------------------------------------------------------
   'caregiver-link': {
-    notary: 'civil',
+    notary: 'childCivil',
     service: 'childBenefit',
     claimId: 'birth-is-registered',
     claimVersion: '2026-07',
@@ -208,10 +208,10 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     staggerOrder: 0,
     sourceCount: 1
   },
-  // The Civil reads below are HOP TWO: they are only authorized after the social
-  // caregiver-link verify above succeeds. The provider enforces this gate.
+  // The source reads below are only authorized after the caregiver-link verify
+  // above succeeds. The provider enforces this gate.
   'birth-event-exists': {
-    notary: 'civil',
+    notary: 'childCivil',
     service: 'childBenefit',
     claimId: 'birth-is-registered',
     claimVersion: '2026-07',
@@ -235,8 +235,33 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     staggerOrder: 1,
     sourceCount: 1
   },
+  'population-record-active': {
+    notary: 'population',
+    service: 'childBenefit',
+    claimId: 'population-record-active',
+    claimVersion: '2026-07',
+    subjectPersona: 'mateo',
+    purpose: PURPOSES.childBenefitReview,
+    disclosure: 'predicate',
+    delegated: true,
+    value: true,
+    satisfied: true,
+    subjectType: 'person',
+    freshnessDays: 30,
+    asOf: '2026-06-15',
+    state: 'verified',
+    display: 'Population record active: yes',
+    headline: 'Confirmed by the National Identity Agency through a source-owned Notary',
+    answered: 'National Identity Agency answered: population-record-active = true',
+    notDisclosed: 'Not disclosed: identity attributes or population register row',
+    status: 'ok',
+    httpStatus: 200,
+    latencyMs: 1400,
+    staggerOrder: 2,
+    sourceCount: 1
+  },
   'date-of-birth': {
-    notary: 'civil',
+    notary: 'childCivil',
     service: 'childBenefit',
     claimId: 'child-age-under-5',
     claimVersion: '2026-07',
@@ -257,11 +282,11 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     status: 'ok',
     httpStatus: 200,
     latencyMs: 1500,
-    staggerOrder: 2,
+    staggerOrder: 3,
     sourceCount: 1
   },
   'household-composition': {
-    notary: 'social',
+    notary: 'socialRegistry',
     service: 'childBenefit',
     claimId: 'household-below-poverty-threshold',
     claimVersion: '2026-07',
@@ -275,17 +300,17 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     asOf: '2026-05-09',
     state: 'verified',
     display: 'Household below threshold: yes',
-    headline: 'Fetched from Social Protection, size only',
-    answered: 'Ministry of Social Development answered: household-below-poverty-threshold = true',
+    headline: 'Confirmed by the Social Registry Office through its source-owned Notary',
+    answered: 'Social Registry Office answered: household-below-poverty-threshold = true',
     notDisclosed: 'Not disclosed: poverty score or household roster',
     status: 'ok',
     httpStatus: 200,
     latencyMs: 1200,
-    staggerOrder: 3,
+    staggerOrder: 4,
     sourceCount: 1
   },
   'not-already-enrolled': {
-    notary: 'social',
+    notary: 'programme',
     service: 'childBenefit',
     claimId: 'not-already-enrolled',
     claimVersion: '2026-07',
@@ -301,43 +326,13 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     state: 'verified',
     display: 'Not already enrolled: yes',
     headline: 'Confirmed by MoSD programme MIS, no duplicate child-benefit enrollment',
-    answered: 'Ministry of Social Development answered: not-already-enrolled = true',
+    answered: 'MoSD Programme MIS answered: not-already-enrolled = true',
     notDisclosed: 'Not disclosed: other programme records',
     status: 'ok',
     httpStatus: 200,
     latencyMs: 1250,
-    staggerOrder: 4,
-    sourceCount: 1
-  },
-  'eligible-for-child-benefit': {
-    notary: 'social',
-    service: 'childBenefit',
-    claimId: 'eligible-for-child-benefit',
-    claimVersion: '2026-07',
-    subjectPersona: 'mateo',
-    purpose: PURPOSES.childBenefitReview,
-    disclosure: 'decision',
-    delegated: true,
-    value: { eligible: true, benefit: 'child-benefit' },
-    satisfied: true,
-    subjectType: 'person',
-    freshnessDays: 7,
-    asOf: '2026-07-04',
-    state: 'verified',
-    display: 'Eligible for child benefit',
-    reasonCodes: [
-      { code: 'CRA-BRN-01', authority: 'civil', text: 'Birth registration confirmed' },
-      { code: 'MOSD-PMT-01', authority: 'social', text: 'Household is in the priority band' },
-      { code: 'MOSD-MIS-01', authority: 'social', text: 'No duplicate enrollment found' }
-    ],
-    headline: 'Decided by child-benefit Notary from minimized cross-registry predicates',
-    answered: 'Ministry of Social Development answered: eligible-for-child-benefit = true',
-    notDisclosed: 'Not disclosed: raw source rows behind the decision',
-    status: 'ok',
-    httpStatus: 200,
-    latencyMs: 1500,
     staggerOrder: 5,
-    sourceCount: 4
+    sourceCount: 1
   },
 
   // ---------------------------------------------------------------------------
@@ -373,6 +368,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     claimId: 'pension-payment-should-stop',
     claimVersion: '2026-07',
     subjectPersona: 'rafael',
+    applicationOwned: true,
     purpose: PURPOSES.pensionPaymentReview,
     disclosure: 'predicate',
     value: true,
@@ -382,14 +378,14 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     asOf: '2026-05-02',
     state: 'verified',
     display: 'Pension payment should stop: yes',
-    headline: 'Confirmed by SIPF, active payment can be stopped',
-    answered: 'Ministry of Social Development answered: pension-payment-should-stop = true',
+    headline: 'Portal decision from separate CRA and SIPF predicates',
+    answered: 'Portal application answered: person-is-deceased and pension-payment-active were true; pension-payment-should-stop = true',
     notDisclosed: 'Not disclosed: payment amount or cause of death',
     status: 'ok',
     httpStatus: 200,
     latencyMs: 1000,
     staggerOrder: 1,
-    sourceCount: 1
+    sourceCount: 2
   },
   'functioning-assessment': {
     notary: 'social',
@@ -397,7 +393,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     claimId: 'survivor-is-eligible',
     claimVersion: '2026-07',
     subjectPersona: 'rafael',
-    purpose: PURPOSES.pensionPaymentReview,
+    purpose: PURPOSES.survivorBenefitDetermination,
     disclosure: 'predicate',
     value: true,
     satisfied: true,
@@ -407,7 +403,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     state: 'verified',
     display: 'Survivor eligible: yes',
     headline: 'Confirmed by SIPF, survivor eligibility is signed as a predicate',
-    answered: 'Ministry of Social Development answered: survivor-is-eligible = true',
+    answered: 'Social Insurance and Pensions Fund answered: survivor-is-eligible = true',
     notDisclosed: 'Not disclosed: full marriage or pension case record',
     status: 'ok',
     httpStatus: 200,
@@ -415,10 +411,10 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     staggerOrder: 2,
     sourceCount: 1
   },
-  'household-size': {
+  'pension-payment-active': {
     notary: 'social',
     service: 'pension',
-    claimId: 'survivor-is-eligible',
+    claimId: 'pension-payment-active',
     claimVersion: '2026-07',
     subjectPersona: 'rafael',
     purpose: PURPOSES.pensionPaymentReview,
@@ -429,10 +425,10 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     freshnessDays: 30,
     asOf: '2026-05-09',
     state: 'verified',
-    display: 'Beneficiary conflict check: clear',
-    headline: 'Confirmed by SIPF, no conflicting survivor payment is active',
-    answered: 'Ministry of Social Development answered: survivor-is-eligible = true',
-    notDisclosed: 'Not disclosed: other programme payment history',
+    display: 'Pension payment active: yes',
+    headline: 'Confirmed by SIPF, the pension payment is active',
+    answered: 'Social Insurance and Pensions Fund answered: pension-payment-active = true',
+    notDisclosed: 'Not disclosed: payment amount or payment history',
     status: 'ok',
     httpStatus: 200,
     latencyMs: 1250,
@@ -442,25 +438,26 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   'combined-support-eligibility': {
     notary: 'social',
     service: 'pension',
-    claimId: 'survivor-is-eligible',
+    claimId: 'survivor-benefit-eligible',
     claimVersion: '2026-07',
     subjectPersona: 'rafael',
+    applicationOwned: true,
     purpose: PURPOSES.survivorBenefitDetermination,
     disclosure: 'decision',
-    value: { eligible: true, support_band: 'B' },
+    value: true,
     satisfied: true,
     subjectType: 'person',
     freshnessDays: 7,
     asOf: '2026-06-21',
     state: 'verified',
-    display: 'Eligible (support band B)',
+    display: 'Survivor benefit eligible: yes',
     reasonCodes: [
       { code: 'CIV-DRN-01', authority: 'civil', text: 'Death registration confirmed' },
       { code: 'SIPF-PAY-02', authority: 'social', text: 'Active pension payment should stop' },
       { code: 'SIPF-SUR-01', authority: 'social', text: 'Survivor relationship is eligible' }
     ],
-    headline: 'Sealed by 3 authorities, no central data lake',
-    answered: 'Ministry of Social Development answered: survivor-is-eligible = true',
+    headline: 'Portal decision from three source-owned predicates, no central data lake',
+    answered: 'Portal application answered: source predicates were true; survivor-benefit-eligible = true',
     notDisclosed: 'Not disclosed: the raw inputs each authority used',
     status: 'ok',
     httpStatus: 200,
@@ -472,34 +469,30 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // ---------------------------------------------------------------------------
   // citizen self-service gallery fixture
   // ---------------------------------------------------------------------------
-  'certificate-summary': {
+  'citizen-record-status': {
     notary: 'certs',
     service: 'citizen',
-    claimId: 'citizen-self-service-summary',
+    claimId: 'citizen-self-service-ready',
     claimVersion: '2026-07',
     subjectPersona: 'elena',
+    applicationOwned: true,
     purpose: PURPOSES.citizenSelfService,
-    disclosure: 'object',
-    value: {
-      certificate_type: 'birth',
-      certificate_id: 'CSR-BIRTH-2001',
-      issued_on: '2001-03-12',
-      registry_office: 'Solmara Central Civil Registry'
-    },
-    satisfied: null,
+    disclosure: 'decision',
+    value: true,
+    satisfied: true,
     subjectType: 'person',
     freshnessDays: 365,
     asOf: '2026-06-01',
-    state: 'fetched',
-    display: 'Birth certificate summary (CSR-BIRTH-2001)',
-    headline: 'Fetched from Civil Registry as a signed certificate summary',
-    answered: 'Civil Registration Authority answered: citizen-self-service-summary = CSR-BIRTH-2001',
-    notDisclosed: 'Not disclosed: scanned certificate image and witness signatures',
+    state: 'verified',
+    display: 'Civil and population records active: yes',
+    headline: 'Portal check from separate CRA and NIA predicates',
+    answered: 'Portal application answered: civil-record-linked and citizen-population-record-active were true; citizen-self-service-ready = true',
+    notDisclosed: 'Not disclosed: certificate facts or population register attributes',
     status: 'ok',
     httpStatus: 200,
     latencyMs: 1600,
     staggerOrder: 0,
-    sourceCount: 1
+    sourceCount: 2
   },
 
   // ---------------------------------------------------------------------------
@@ -565,7 +558,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // ERROR: a hard failure (503). Scoped to the field, framed as minimization. No
   // source read, no value.
   error: {
-    notary: 'social',
+    notary: 'socialRegistry',
     service: 'childBenefit',
     claimId: 'household-below-poverty-threshold',
     claimVersion: '2026-07',
@@ -581,7 +574,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     display: 'Could not reach Social Protection; other evidence is unaffected',
     reasonCode: 'upstream_unavailable',
     headline: 'Could not reach Social Protection, the other authorities are unaffected',
-    answered: 'Ministry of Social Development answered: 503, no data returned',
+    answered: 'Social Registry Office answered: 503, no data returned',
     notDisclosed: 'Not disclosed: nothing, there is no central lake so this failure is isolated',
     status: 'error',
     httpStatus: 503,
@@ -596,17 +589,17 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     claimId: 'survivor-is-eligible',
     claimVersion: '2026-07',
     subjectPersona: 'rafael',
-    purpose: PURPOSES.pensionPaymentReview,
+    purpose: PURPOSES.survivorBenefitDetermination,
     disclosure: 'predicate',
     value: true,
     satisfied: true,
     subjectType: 'person',
-    freshnessDays: -120, // expired: expires_at is in the past relative to issued
+    freshnessDays: 90,
     asOf: '2025-09-30',
     state: 'stale',
     display: 'Survivor eligibility is stale and needs refresh',
     headline: 'Fetched from SIPF, but older than the freshness rule',
-    answered: 'Ministry of Social Development answered: survivor-is-eligible = true (stale)',
+    answered: 'Social Insurance and Pensions Fund answered: survivor-is-eligible = true (stale)',
     notDisclosed: 'Not disclosed: the full pension case record',
     status: 'ok',
     httpStatus: 200,

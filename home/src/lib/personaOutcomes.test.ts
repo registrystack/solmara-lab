@@ -49,7 +49,8 @@ describe('personaOutcomes', () => {
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0].storyId).toBe('birth-to-child-benefit');
     expect(outcomes[0].stepId).toBe('positive');
-    expect(outcomes[0].text.length).toBeGreaterThan(0);
+    expect(outcomes[0].text).toContain('five minimized, source-owned predicates');
+    expect(outcomes[0].text).not.toMatch(/eligible|credential/i);
     expect(personaOutcomeHref(outcomes[0])).toBe('/stories/birth-to-child-benefit#positive');
   });
 

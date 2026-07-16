@@ -54,6 +54,14 @@
         return 'Agri';
       case 'certs':
         return 'Certs';
+      case 'childCivil':
+        return 'Child Civil';
+      case 'population':
+        return 'Population';
+      case 'socialRegistry':
+        return 'Social Registry';
+      case 'programme':
+        return 'Programme';
       default:
         return trace.authority ?? 'Unknown';
     }

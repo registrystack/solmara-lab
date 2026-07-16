@@ -62,13 +62,13 @@ jobs:
           just metadata-publish
       - name: Validate
         run: |
-          just release-pins v0.8.4
+          just release-pins v0.10.0
           just lint
           just test
           just compose
       - name: Start stack
         run: just up
-      - name: Smoke
+      - name: Smoke and PostgreSQL restart persistence
         run: just smoke
       - name: Portal live e2e
         run: just portal-live-e2e

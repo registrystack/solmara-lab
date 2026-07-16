@@ -1,0 +1,108 @@
+version: 1
+
+registry:
+  id: solmara-nagdi-agriculture
+
+integrations:
+  farmer-voucher-by-farmer:
+    file: integrations/farmer-voucher-by-farmer/integration.yaml
+  livestock-movement-by-farmer:
+    file: integrations/livestock-movement-by-farmer/integration.yaml
+
+entities:
+  nagdi_farmer:
+    file: entities/nagdi_farmer.yaml
+  nagdi_herd:
+    file: entities/nagdi_herd.yaml
+
+services:
+  voucher:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+    legal_basis: agricultural-data-act
+    consent: not_required
+    access:
+      scopes: ["nagdi_agriculture:evidence_verification"]
+    consultations:
+      farmer:
+        integration: farmer-voucher-by-farmer
+        input:
+          farmer_id: request.target.identifiers.farmer_id
+    claims:
+      farmer-registered:
+        cel: farmer.matched && farmer.farmer_registered
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]
+      data-use-authorized-for-purpose:
+        cel: farmer.matched && farmer.data_use_authorized
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]
+      eligible-for-climate-smart-input-voucher:
+        cel: >-
+          farmer.matched && farmer.farmer_registered
+            && farmer.data_use_authorized
+            && farmer.active_smallholder_farmer
+            && farmer.active_farm_parcel
+            && farmer.crop_declared_for_season
+            && farmer.district_climate_risk_active
+            && farmer.voucher_entitlement_current
+            && farmer.voucher_not_redeemed
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]
+    credential_profiles:
+      climate_smart_voucher_sd_jwt:
+        format: dc+sd-jwt
+        type: https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility
+        validity: 10m
+        claims:
+          - farmer-registered
+          - data-use-authorized-for-purpose
+          - eligible-for-climate-smart-input-voucher
+
+  livestock:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
+    legal_basis: agricultural-data-act
+    consent: not_required
+    access:
+      scopes: ["nagdi_agriculture:evidence_verification"]
+    consultations:
+      herd:
+        integration: livestock-movement-by-farmer
+        input:
+          farmer_id: request.target.identifiers.farmer_id
+    claims:
+      registered-herd:
+        cel: herd.matched && herd.registered_herd
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]
+      origin-district-not-quarantined-for-species:
+        cel: herd.matched && herd.origin_district_not_quarantined_for_species
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]
+      eligible-for-livestock-movement-permit:
+        cel: >-
+          herd.matched && herd.registered_herd
+            && herd.origin_district_not_quarantined_for_species
+            && herd.herd_vaccination_current
+            && herd.destination_district_open
+            && herd.no_conflicting_open_movement_permit
+        disclosure:
+          default: predicate
+          allowed: [predicate, redacted]
+    credential_profiles:
+      livestock_movement_sd_jwt:
+        format: dc+sd-jwt
+        type: https://id.registrystack.org/solmara/vct/livestock-movement-permit
+        validity: 10m
+        claims:
+          - registered-herd
+          - origin-district-not-quarantined-for-species
+          - eligible-for-livestock-movement-permit

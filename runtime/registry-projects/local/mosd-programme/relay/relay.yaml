@@ -1,0 +1,118 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: true
+    allowed_clients:
+    - programme-notary
+    audiences:
+    - registry-relay
+    issuer: http://127.0.0.1:8090
+    jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+catalog:
+  base_url: http://127.0.0.1:8080
+  publisher: solmara-mosd-programme
+  title: solmara-mosd-programme governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: minimization
+      path: artifacts/evidence/enrollment-by-uin/minimization.json
+      sha256: sha256:2d57d4d6bf1f97aba14b447b84f844af70791a8eac8bff7be2cc72a4aa3fce83
+    - class: negative_security
+      path: artifacts/evidence/enrollment-by-uin/negative-security.json
+      sha256: sha256:5468291382c61d128d2aff47dfbb7151ae1736c72d64b7a69e1209cd67d95282
+    - class: conformance
+      path: artifacts/evidence/enrollment-by-uin/conformance.json
+      sha256: sha256:be306951c683bbe6b02eff0202e8f4ed78c7a4379bc921d3b2f5e0ed0fcad2e4
+    integration_packs:
+    - hash: sha256:f3c7c1d244dd12ff23ec92de6b44b50adc7195e1fed39bc7226d022eb4194284
+      path: artifacts/integration-packs/enrollment-by-uin.json
+      sha256: sha256:056cb318d4c9a49271f5283d52dfa282ff351af8b480d88c74eeaa6de7dcee33
+    private_bindings:
+    - hash: sha256:0cb86f544d14128977aeb6b69b43d9700c4668c395c8b1a790750e4225463cbe
+      path: artifacts/private-bindings/child-benefit-enrollment.json
+      sha256: sha256:e92f9f56ef5027c5a9292628d1d96f7a9c313496e21f6200d8e512b2a1d31778
+    public_contracts:
+    - hash: sha256:9da47bc7171991c51e098b44cb0667595b344d5f4c2b994a67f0c3b401d4b5b3
+      path: artifacts/consultation-contracts/child-benefit-enrollment.json
+      sha256: sha256:253ee934a9c9bbf725e233f90c195d057893eeea14bc9bc12330c0957245ff10
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: programme-notary
+    principal_id: programme-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 9069287079765840165
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 891105660075992367
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      interval: 1m
+      mode: interval
+  description: Materialized mosd_enroll entity
+  entities: []
+  id: mosd_enroll
+  owner: solmara-mosd-programme
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: mosd_enroll:aggregate
+      metadata_scope: registry-internal:materialization
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 1
+      max_limit: 1
+      require_purpose_header: false
+    id: materialization_5f676d9c112ce16b7ede827eab122868889c2a4c9a1d4b38a214beecadc245bf
+    materialization: snapshot
+    primary_key: uin
+    refresh:
+      interval: 1m
+      mode: interval
+    schema:
+      fields:
+      - name: duplicate_flag
+        nullable: false
+        sensitive: false
+        type: boolean
+      - name: uin
+        nullable: false
+        sensitive: false
+        type: string
+      strict: true
+    source:
+      format:
+        csv:
+          delimiter: null
+          header_row: 1
+          quote: null
+      path: /var/lib/solmara/ministries/social-development/fixtures/programme_mis_enrollment.csv
+      type: file
+  title: mosd_enroll
+  update_frequency: as_needed
+deployment:
+  profile: local
+instance:
+  environment: local
+  id: programme-mis-relay
+server:
+  bind: 127.0.0.1:8080
+standards: {}

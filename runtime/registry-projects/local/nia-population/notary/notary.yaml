@@ -1,0 +1,155 @@
+audit:
+  hash_secret_env: REGISTRY_NOTARY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  api_keys:
+  - fingerprint:
+      name: NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH
+      provider: env
+    id: child-benefit-federator
+    scopes:
+    - evidence:nia:child-benefit:read
+  - fingerprint:
+      name: NIA_CITIZEN_CLIENT_TOKEN_HASH
+      provider: env
+    id: citizen-portal
+    scopes:
+    - evidence:nia:citizen:read
+cel:
+  worker_memory_bytes: 1073741824
+deployment:
+  profile: local
+evidence:
+  allowed_purposes:
+  - https://id.registrystack.org/solmara/purpose/child-benefit-review
+  - https://id.registrystack.org/solmara/purpose/citizen-self-service
+  claims:
+  - credential_profiles: []
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        population:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            alive:
+              nullable: false
+              type: boolean
+            identity_status:
+              max_bytes: 128
+              nullable: false
+              type: string
+          profile:
+            contract_hash: sha256:7163d2e5e636f41478b1b2de6dbd4812d1ff8956c012133b6ac86c4b7e3c08ef
+            id: solmara-nia-population.nia-child-benefit.population
+      type: registry_backed
+    formats:
+    - application/vnd.registry-notary.claim-result+json
+    id: population-record-active
+    purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
+    required_scopes:
+    - evidence:nia:child-benefit:read
+    rule:
+      bindings: {}
+      expression: |-
+        population.matched && population.identity_status == 'active'
+          && population.alive == true
+      type: cel
+    subject_type: person
+    title: population record active
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  - credential_profiles:
+    - nia-citizen-status.citizen-population-status
+    disclosure:
+      allowed:
+      - predicate
+      - redacted
+      default: predicate
+      downgrade: deny
+    evidence_mode:
+      consultations:
+        population:
+          inputs:
+            uin: request.target.identifiers.solmara_uin
+          outputs:
+            alive:
+              nullable: false
+              type: boolean
+            identity_status:
+              max_bytes: 128
+              nullable: false
+              type: string
+          profile:
+            contract_hash: sha256:675d2c746c5b75755b76a563523ea43fcf24bc6def2dcaf993a5b06c76900ccb
+            id: solmara-nia-population.nia-citizen-status.population
+      type: registry_backed
+    formats:
+    - application/dc+sd-jwt
+    - application/vnd.registry-notary.claim-result+json
+    id: citizen-population-record-active
+    purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service
+    required_scopes:
+    - evidence:nia:citizen:read
+    rule:
+      bindings: {}
+      expression: |-
+        population.matched && population.identity_status == 'active'
+          && population.alive == true
+      type: cel
+    subject_type: person
+    title: citizen population record active
+    value:
+      nullable: false
+      type: boolean
+    version: '1'
+  credential_profiles:
+    nia-citizen-status.citizen-population-status:
+      allowed_claims:
+      - citizen-population-record-active
+      disclosure:
+        allowed:
+        - value
+        - predicate
+        - redacted
+      format: application/dc+sd-jwt
+      issuer: did:web:id.registrystack.org:solmara:authority:nia
+      signing_key: project-issuer
+      validity_seconds: 600
+      vct: https://id.registrystack.org/solmara/vct/citizen-population-status
+  enabled: true
+  max_credential_validity_seconds: 600
+  relay:
+    allow_insecure_localhost: true
+    allowed_private_cidrs: []
+    base_url: http://127.0.0.1:8080
+    max_in_flight: 8
+    token_file: /run/secrets/nia-notary-relay-token
+    workload_client_id: nia-notary
+  service_id: nia-notary
+  signing_keys:
+    project-issuer:
+      alg: EdDSA
+      kid: did:web:id.registrystack.org:solmara:authority:nia#issuer-key-1
+      private_jwk_env: NIA_NOTARY_ISSUER_JWK
+      provider: local_jwk_env
+      status: active
+  variables: {}
+instance:
+  environment: local
+  id: nia-notary
+server:
+  bind: 127.0.0.1:8081
+  request_timeout: 30s
+state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    url_env: REGISTRY_NOTARY_POSTGRES_URL
+  storage: postgresql

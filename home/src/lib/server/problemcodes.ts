@@ -26,22 +26,6 @@ const CODE_META: Record<
     meaning:
       'The request asked for something the Notary will not serve, such as a raw source row instead of a purpose-limited predicate. The Notary rejects the request rather than reach into the register. This is the clean refusal a skeptic gets when they try a raw row read.',
     coverage: 'Asserted by the published-token smoke: a raw-row read attempt with a published demo token.'
-  },
-  'federation.forbidden': {
-    title: 'Federated call forbidden',
-    status: 403,
-    typeUri: 'https://id.registrystack.org/problems/registry-notary/federation/forbidden',
-    meaning:
-      'A delegated evaluation asked another authority for something outside the agreed scope of the delegation. The receiving Notary refuses the federated call rather than widen the delegation.',
-    coverage: 'Asserted by the federation smoke tests; no wave 1 guided story runs a delegated call yet.'
-  },
-  'federation.replay': {
-    title: 'Federated proof replayed',
-    status: 409,
-    typeUri: 'https://id.registrystack.org/problems/registry-notary/federation/replay',
-    meaning:
-      'A delegated proof was presented more than once. The Notary rejects the repeated attempt so a captured proof cannot be replayed against another authority.',
-    coverage: 'Asserted by the federation smoke tests; no wave 1 guided story runs a delegated call yet.'
   }
 };
 

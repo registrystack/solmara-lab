@@ -1,0 +1,19 @@
+name: livestock-movement-ambiguous
+classification: synthetic
+input: { farmer_id: FR-8888 }
+interactions:
+  - expect: { method: GET, path: /snapshot }
+    respond:
+      status: 200
+      body:
+        - registered_herd: true
+          herd_vaccination_current: true
+          origin_district_not_quarantined_for_species: true
+          destination_district_open: true
+          no_conflicting_open_movement_permit: true
+        - registered_herd: false
+          herd_vaccination_current: false
+          origin_district_not_quarantined_for_species: false
+          destination_district_open: false
+          no_conflicting_open_movement_permit: false
+expect: { outcome: ambiguous, outputs: {}, claims: {} }

@@ -67,8 +67,7 @@ services:
       REGISTRY_RELAY_ATTRIBUTE_RELEASE_PROFILE_ID: solmara-nia-userinfo
       REGISTRY_RELAY_ATTRIBUTE_RELEASE_PROFILE_VERSION: v1
       REGISTRY_RELAY_ATTRIBUTE_RELEASE_PURPOSE: https://id.registrystack.org/solmara/purpose/esignet-identity-verification
-      REGISTRY_RELAY_AUTH_CREDENTIAL_KIND: api_key
-      REGISTRY_RELAY_AUTH_BEARER_TOKEN: ${SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW:?SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW is required; run just gen-secrets}
+      REGISTRY_RELAY_AUTH_BEARER_TOKEN_FILE: /run/secrets/solmara-esignet-relay-token
       REGISTRY_RELAY_SUBJECT_ID_TYPE: national_id
       REGISTRY_RELAY_DEFAULT_CLAIMS: individual_id,name,given_name,family_name,birthdate,gender
       REGISTRY_ESIGNET_AUTH_SUPPORTED_FACTORS: OTP
@@ -84,17 +83,18 @@ services:
       REGISTRY_ESIGNET_KYC_SIGNING_KEY_ALIAS: esignet-relay-kyc
       REGISTRY_ESIGNET_KYC_SIGNING_KEY_PASSWORD: ${REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD:?REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD is required; run just gen-secrets}
       MOSIP_KERNEL_KEYMANAGER_HSM_CONFIG_PATH: /home/mosip/keystore/esignet_local.p12
-    ports:
-      - "${SOLMARA_ESIGNET_PORT:-4308}:8088"
     volumes:
       - esignet-keystore:/home/mosip/keystore
       - esignet-kyc-signing:/home/mosip/kyc-signing
+      - nia-esignet-workload-token:/run/secrets:ro
     depends_on:
       esignet-database:
         condition: service_healthy
       esignet-redis:
         condition: service_healthy
       nia-population-relay:
+        condition: service_healthy
+      nia-workload-agent:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://esignet:8088/v1/esignet/oidc/.well-known/openid-configuration"]
@@ -130,6 +130,33 @@ services:
       retries: 30
       start_period: 30s
 
+  esignet-edge:
+    build:
+      context: .
+      dockerfile: docker/esignet-ui/Dockerfile
+      args:
+        ESIGNET_NGINX_CONF: config/esignet/nginx.conf
+    image: ${SOLMARA_ESIGNET_UI_IMAGE:-solmara-lab-esignet-ui:local}
+    user: root
+    environment:
+      container_user: mosip
+      DEFAULT_WELLKNOWN: "%5B%7B%22name%22%3A%22OpenID%20Configuration%22%2C%22value%22%3A%22%2F.well-known%2Fopenid-configuration%22%7D%2C%7B%22name%22%3A%22Jwks%20Json%22%2C%22value%22%3A%22%2F.well-known%2Fjwks.json%22%7D%2C%7B%22name%22%3A%22Authorization%20Server%22%2C%22value%22%3A%22%2F.well-known%2Foauth-authorization-server%22%7D%5D"
+      SIGN_IN_WITH_ESIGNET_PLUGIN_URL: https://raw.githubusercontent.com/mosip/artifactory-ref-impl/977607990661e864c2adddb9d7de50ea6c651b8f/artifacts/src/mosip-plugins/sign-in-with-esignet/sign-in-with-esignet.zip
+      i18n_url_env: ""
+      theme_url_env: ""
+      images_url_env: ""
+    ports:
+      - "${SOLMARA_ESIGNET_PORT:-4308}:3000"
+    depends_on:
+      esignet:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://esignet-edge:3000/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
   esignet-seed:
     build:
       context: .
@@ -144,32 +171,6 @@ services:
       ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
       ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64 is required; run just gen-secrets}
       ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}/auth/callback","http://localhost:${SOLMARA_PORTAL_PORT:-4300}/auth/callback"]'
-      ESIGNET_REDIS_HOST: esignet-redis
-      ESIGNET_ACCOUNT_SOURCE_LABEL: NIA population Relay profile solmara-nia-userinfo
-      ESIGNET_DEMO_OTP: "111111"
-    entrypoint: ["seed-esignet.py"]
-    depends_on:
-      esignet-database:
-        condition: service_healthy
-      esignet:
-        condition: service_healthy
-    restart: "no"
-
-  esignet-seed-citizen-issuer:
-    build:
-      context: .
-      dockerfile: docker/esignet-seed/Dockerfile
-    image: ${SOLMARA_ESIGNET_SEED_IMAGE:-solmara-lab-esignet-seed:local}
-    environment:
-      PGHOST: esignet-database
-      PGPORT: "5432"
-      PGUSER: postgres
-      PGPASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?SOLMARA_ESIGNET_POSTGRES_PASSWORD is required; run just gen-secrets}
-      ESIGNET_CLIENT_ID: solmara-citizen-issuer
-      ESIGNET_CLIENT_KEY_ID: solmara-citizen-issuer-key-1
-      ESIGNET_CLIENT_NAME: Solmara Citizen Wallet Issuer
-      ESIGNET_CLIENT_PRIVATE_KEY_B64: ${CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64:?CITIZEN_ISSUER_ESIGNET_CLIENT_PRIVATE_KEY_B64 is required; run just gen-secrets}
-      ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["http://127.0.0.1:${SOLMARA_CITIZEN_ISSUER_NOTARY_PORT:-4325}/oid4vci/offer/callback","http://localhost:${SOLMARA_CITIZEN_ISSUER_NOTARY_PORT:-4325}/oid4vci/offer/callback"]'
       ESIGNET_REDIS_HOST: esignet-redis
       ESIGNET_ACCOUNT_SOURCE_LABEL: NIA population Relay profile solmara-nia-userinfo
       ESIGNET_DEMO_OTP: "111111"

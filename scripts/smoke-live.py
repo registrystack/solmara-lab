@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scenarios.common import CLAIM_RESULT_FORMAT, PURPOSES, auth_headers, env_url, http_json, joined_url  # noqa: E402
+from scenarios.common import PURPOSES, auth_headers, http_json, joined_url  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -40,26 +40,44 @@ class ScenarioCase:
 
 SERVICES = (
     NotaryService(
-        "Child Benefit Notary",
-        "CHILD_BENEFIT_NOTARY_URL",
-        "http://127.0.0.1:4321",
-        "CHILD_BENEFIT_NOTARY_TOKEN",
+        "CRA Notary",
+        "CRA_NOTARY_URL",
+        "http://127.0.0.1:4325",
+        "CRA_CHILD_BENEFIT_CLIENT_TOKEN",
         PURPOSES["child_benefit"],
-        (
-            "birth-is-registered",
-            "child-age-under-5",
-            "household-below-poverty-threshold",
-            "not-already-enrolled",
-            "eligible-for-child-benefit",
-        ),
+        ("birth-is-registered", "child-age-under-5"),
     ),
     NotaryService(
-        "Pension Notary",
-        "PENSION_NOTARY_URL",
+        "NIA Notary",
+        "NIA_NOTARY_URL",
+        "http://127.0.0.1:4326",
+        "NIA_CHILD_BENEFIT_CLIENT_TOKEN",
+        PURPOSES["child_benefit"],
+        ("population-record-active",),
+    ),
+    NotaryService(
+        "SRO Notary",
+        "SRO_NOTARY_URL",
+        "http://127.0.0.1:4327",
+        "SRO_CHILD_BENEFIT_CLIENT_TOKEN",
+        PURPOSES["child_benefit"],
+        ("household-below-poverty-threshold",),
+    ),
+    NotaryService(
+        "Programme Notary",
+        "PROGRAMME_NOTARY_URL",
+        "http://127.0.0.1:4328",
+        "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
+        PURPOSES["child_benefit"],
+        ("not-already-enrolled",),
+    ),
+    NotaryService(
+        "SIPF Notary",
+        "SIPF_NOTARY_URL",
         "http://127.0.0.1:4322",
-        "PENSION_NOTARY_TOKEN",
+        "SIPF_PENSION_CLIENT_TOKEN",
         PURPOSES["pension_payment"],
-        ("person-is-deceased", "pension-payment-should-stop", "survivor-is-eligible"),
+        ("pension-payment-active", "survivor-is-eligible"),
     ),
     NotaryService(
         "NAgDI Notary",
@@ -76,14 +94,6 @@ SERVICES = (
             "eligible-for-livestock-movement-permit",
         ),
     ),
-    NotaryService(
-        "Citizen Notary",
-        "PORTAL_CITIZEN_NOTARY_URL",
-        "http://127.0.0.1:4324",
-        "PORTAL_CITIZEN_NOTARY_TOKEN",
-        "https://id.registrystack.org/solmara/purpose/citizen-self-service",
-        ("population-record-active", "civil-record-linked", "citizen-self-service-summary"),
-    ),
 )
 
 SCENARIO_CASES = (
@@ -94,6 +104,7 @@ SCENARIO_CASES = (
         200,
         {
             "birth-is-registered": True,
+            "population-record-active": True,
             "child-age-under-5": True,
             "household-below-poverty-threshold": True,
             "not-already-enrolled": True,
@@ -113,7 +124,7 @@ SCENARIO_CASES = (
         200,
         {"household-below-poverty-threshold": False},
     ),
-    ScenarioCase("child unregistered control", "child_benefit", "unregistered-control", range(400, 500), {}),
+    ScenarioCase("child unregistered control", "child_benefit", "unregistered-control", 200, {"birth-is-registered": False}),
     ScenarioCase(
         "child duplicate enrollment control",
         "child_benefit",
@@ -127,7 +138,7 @@ SCENARIO_CASES = (
         "pension_survivor",
         "stop-payment",
         200,
-        {"person-is-deceased": True, "pension-payment-should-stop": True},
+        {"person-is-deceased": True, "pension-payment-active": True},
     ),
     ScenarioCase(
         "pension stale death control",
@@ -143,7 +154,13 @@ SCENARIO_CASES = (
         200,
         {"survivor-is-eligible": True},
     ),
-    ScenarioCase("pension dissolved marriage control", "pension_survivor", "dissolved-control", range(400, 500), {}),
+    ScenarioCase(
+        "pension dissolved marriage control",
+        "pension_survivor",
+        "dissolved-control",
+        200,
+        {"survivor-is-eligible": False},
+    ),
     ScenarioCase("pension over-disclosure denial", "pension_survivor", "cause-of-death-denial", range(400, 500), {}),
     ScenarioCase(
         "farmer voucher eligible",
@@ -180,9 +197,8 @@ SCENARIO_CASES = (
         "positive",
         200,
         {
-            "population-record-active": True,
+            "citizen-population-record-active": True,
             "civil-record-linked": True,
-            "citizen-self-service-summary": True,
         },
     ),
     ScenarioCase("citizen unsupported purpose denial", "citizen", "purpose-denial", range(400, 500), {}),
@@ -232,9 +248,9 @@ def check_service(service: NotaryService) -> list[str]:
     if not os.environ.get(service.token_env):
         return [f"{service.name}: missing {service.token_env}; run `just generate` before live smoke"]
 
-    health = wait_for_health(base_url, service.name)
-    if health is not None:
-        failures.append(health)
+    readiness = wait_for_readiness(base_url, service.name)
+    if readiness is not None:
+        failures.append(readiness)
 
     headers = auth_headers(os.environ[service.token_env], service.purpose, "application/json")
     result = http_json("GET", joined_url(base_url, "/v1/claims"), headers, timeout=5.0)
@@ -249,8 +265,8 @@ def check_service(service: NotaryService) -> list[str]:
     return failures
 
 
-def wait_for_health(base_url: str, name: str) -> str | None:
-    url = joined_url(base_url, "/healthz")
+def wait_for_readiness(base_url: str, name: str) -> str | None:
+    url = joined_url(base_url, "/ready")
     deadline = time.monotonic() + float(os.environ.get("SOLMARA_SMOKE_READY_TIMEOUT_SECONDS", "90"))
     last_status: int | None = None
     last_error = ""
@@ -262,7 +278,7 @@ def wait_for_health(base_url: str, name: str) -> str | None:
             return None
         time.sleep(1)
     detail = f"status {last_status}" if last_status is not None else last_error or "no response"
-    return f"{name}: /healthz did not become ready at {url} ({detail})"
+    return f"{name}: /ready did not become ready at {url} ({detail})"
 
 
 def check_case(case: ScenarioCase) -> list[str]:

@@ -4,35 +4,51 @@ export type SolmaraAuthority = {
   id: NotaryId;
   label: string;
   serviceId: string;
-  issuerKey: string;
 };
 
 // One Solmara authority source for portal labels, mock provenance, and live
-// trace copy. Service endpoints use real TLS hosts from environment config.
+// trace copy. Service endpoints come from environment config; transport security
+// is a deployment concern and is not inferred from an evidence response.
 export const SOLMARA_AUTHORITIES: Record<NotaryId, SolmaraAuthority> = {
   civil: {
     id: 'civil',
     label: 'Civil Registration Authority',
-    serviceId: 'citizen-notary',
-    issuerKey: 'did:web:id.registrystack.org:solmara:notary:citizen#key-1'
+    serviceId: 'cra-notary'
   },
   social: {
     id: 'social',
-    label: 'Ministry of Social Development',
-    serviceId: 'citizen-notary',
-    issuerKey: 'did:web:id.registrystack.org:solmara:notary:citizen#key-1'
+    label: 'Social Insurance and Pensions Fund',
+    serviceId: 'sipf-notary'
   },
   agri: {
     id: 'agri',
     label: 'National Agricultural Data Institute',
-    serviceId: 'citizen-notary',
-    issuerKey: 'did:web:id.registrystack.org:solmara:notary:citizen#key-1'
+    serviceId: 'nagdi-notary'
   },
   certs: {
     id: 'certs',
     label: 'Civil Registration Authority',
-    serviceId: 'citizen-notary',
-    issuerKey: 'did:web:id.registrystack.org:solmara:notary:citizen#key-1'
+    serviceId: 'cra-notary'
+  },
+  childCivil: {
+    id: 'childCivil',
+    label: 'Civil Registration Authority',
+    serviceId: 'cra-notary'
+  },
+  population: {
+    id: 'population',
+    label: 'National Identity Agency',
+    serviceId: 'nia-notary'
+  },
+  socialRegistry: {
+    id: 'socialRegistry',
+    label: 'Social Registry Office',
+    serviceId: 'sro-notary'
+  },
+  programme: {
+    id: 'programme',
+    label: 'MoSD Programme MIS',
+    serviceId: 'programme-notary'
   }
 };
 

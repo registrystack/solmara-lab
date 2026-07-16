@@ -1,0 +1,36 @@
+version: 1
+id: nagdi_herd
+revision: 1
+primary_key: herd_id
+schema:
+  type: object
+  additionalProperties: false
+  required:
+    - herd_id
+    - farmer_id
+    - registered_herd
+    - herd_vaccination_current
+    - origin_district_not_quarantined_for_species
+    - destination_district_open
+    - no_conflicting_open_movement_permit
+  properties:
+    herd_id:
+      type: string
+      minLength: 11
+      maxLength: 11
+      pattern: "^HERD-[0-9]{6}$"
+    farmer_id:
+      type: string
+      minLength: 7
+      maxLength: 16
+      pattern: "^FR-[0-9]+$"
+    registered_herd: { type: boolean }
+    herd_vaccination_current: { type: boolean }
+    origin_district_not_quarantined_for_species: { type: boolean }
+    destination_district_open: { type: boolean }
+    no_conflicting_open_movement_permit: { type: boolean }
+materialization:
+  max_records: 1000000
+  max_bytes: 128MiB
+  refresh: 1m
+  retain_generations: 2

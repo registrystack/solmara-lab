@@ -130,7 +130,7 @@ describe('EvidenceField - fetch', () => {
       }),
       onRecheck
     });
-    expect(screen.getByText(/fetched from Ministry of Social Development/i)).toBeInTheDocument();
+    expect(screen.getByText(/fetched from Social Insurance and Pensions Fund/i)).toBeInTheDocument();
     expect(screen.getByText(/older than the 6-month rule/i)).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: /Re-check/i }));
     expect(onRecheck).toHaveBeenCalledOnce();
@@ -145,7 +145,7 @@ describe('EvidenceField - waits name the authority', () => {
       field: decisionField,
       result: result({ state: 'in_flight', display: '', authority: 'social' })
     });
-    expect(screen.getByText(/Ministry of Social Development/i)).toBeInTheDocument();
+    expect(screen.getByText(/Social Insurance and Pensions Fund/i)).toBeInTheDocument();
     expect(screen.queryByText(/^Loading\.\.\.$/)).not.toBeInTheDocument();
   });
 
@@ -157,7 +157,7 @@ describe('EvidenceField - waits name the authority', () => {
       elapsedMs: 12000,
       onKeepWaiting
     });
-    expect(screen.getByText(/Still checking with Ministry of Social Development/i)).toBeInTheDocument();
+    expect(screen.getByText(/Still checking with Social Insurance and Pensions Fund/i)).toBeInTheDocument();
     expect(screen.getByText(/\(12s\)/)).toBeInTheDocument();
     expect(screen.getByText(/it's a live call/i)).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: /keep waiting/i }));
@@ -175,7 +175,7 @@ describe('EvidenceField - error and ambiguous', () => {
       result: result({ state: 'error', display: '', authority: 'social' }),
       onRetry
     });
-    expect(screen.getByText(/Couldn't reach Ministry of Social Development just now/i)).toBeInTheDocument();
+    expect(screen.getByText(/Couldn't reach Social Insurance and Pensions Fund just now/i)).toBeInTheDocument();
     expect(screen.getByText(/Other evidence is unaffected/i)).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: /Try again/i }));
     expect(onRetry).toHaveBeenCalledOnce();
@@ -207,7 +207,7 @@ describe('EvidenceField - error and ambiguous', () => {
         authority: 'social'
       })
     });
-    expect(screen.getByText(/Recovered · Ministry of Social Development answered/i)).toBeInTheDocument();
+    expect(screen.getByText(/Recovered · Social Insurance and Pensions Fund answered/i)).toBeInTheDocument();
     expect(screen.getByText(/retried just now/i)).toBeInTheDocument();
   });
 });

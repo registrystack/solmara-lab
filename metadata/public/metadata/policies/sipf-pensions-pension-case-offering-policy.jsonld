@@ -12,8 +12,7 @@
           "operator": "isAnyOf",
           "rightOperand": [
             "https://id.registrystack.org/solmara/purpose/pension-payment-review",
-            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination",
-            "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+            "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
           ]
         }
       ]

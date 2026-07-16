@@ -19,7 +19,7 @@ DIGEST_RE = re.compile(r"^Digest:\s+(sha256:[0-9a-f]{64})$", re.MULTILINE)
 
 
 def main(argv: list[str]) -> int:
-    tag = argv[1] if len(argv) > 1 else "v0.8.4"
+    tag = argv[1] if len(argv) > 1 else "v0.10.0"
     versions = read_versions(ROOT / "versions.env")
     failures: list[str] = []
 

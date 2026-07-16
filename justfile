@@ -18,6 +18,26 @@ generate:
     @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m solmara_lab.generate; else echo "generator/pyproject.toml missing"; exit 1; fi
     scripts/gen-secrets.py
 
+# Validate every authority-owned Registry project in both deployment profiles.
+registry-projects-check:
+    scripts/registry-projects.sh check
+
+# Run every synthetic authority integration fixture offline.
+registry-projects-test:
+    scripts/registry-projects.sh test
+
+# Build private Relay and Notary inputs for every authority-owned project.
+registry-projects-build environment="local":
+    scripts/registry-projects.sh build {{environment}}
+
+# Refresh the committed runtime closure from all authored authority projects.
+registry-projects-sync:
+    scripts/registry-projects.sh sync-runtime
+
+# Prove the committed runtime closure matches the authored authority projects.
+registry-projects-runtime-check:
+    scripts/registry-projects.sh check-runtime
+
 # Generate only local secrets.
 gen-secrets:
     scripts/gen-secrets.py
@@ -40,7 +60,6 @@ lint:
     scripts/check-fiction.sh
     scripts/check-image-pins.py
     scripts/check-config-secrets.py
-    uv run scripts/render-hosted-configs.py --check
     just metadata-publish-check
     just metadata-lint
     @if [ -f portal/package.json ]; then cd portal && pnpm check; fi
@@ -52,7 +71,7 @@ test:
     uv run python3 -m unittest discover -s scenario-runner -p 'test_*.py'
     @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
     @if [ -f home/package.json ]; then cd home && pnpm test; fi
-    python3 -m unittest discover -s scripts -p 'test_*.py'
+    uv run python3 -m unittest discover -s scripts -p 'test_*.py'
 
 # Validate Compose files without starting services.
 compose:
@@ -86,15 +105,19 @@ reset:
 reset-esignet:
     @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml down -v
 
-# Run story and federation smokes against the running local topology.
+# Run story and authority-application smokes against the running local topology.
 smoke:
     scripts/smoke.sh
 
 # Run only live HTTP checks against the running local topology.
 smoke-live:
-    scripts/smoke-live.py
+    uv run --locked scripts/smoke-live.py
 
-# Smoke eSignet discovery and the NIA attribute-release profile.
+# Prove all six Notary databases survive exact `just down` / `just up` recreation.
+notary-state-restart-proof:
+    uv run --locked scripts/notary_state_restart.py
+
+# Smoke eSignet discovery; portal login proves the NIA attribute-release path end to end.
 smoke-esignet *args:
     uv run scripts/smoke-esignet.py {{args}}
 
@@ -119,7 +142,7 @@ hosted-smoke *args:
     uv run scripts/smoke-hosted.py {{args}}
 
 # Verify pinned Registry Stack images match a published release tag.
-release-pins tag="v0.8.4":
+release-pins tag="v0.10.0":
     scripts/check-release-pins.py {{tag}}
 
 # Run release-readiness and security-oriented checks.

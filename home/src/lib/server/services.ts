@@ -95,7 +95,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/interior-civil/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/cra-civil/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/cra-civil/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/interior-civil' }
     ]
   },
@@ -110,7 +111,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/interior-population/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/nia-population/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/nia-population/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/interior-population' }
     ]
   },
@@ -125,7 +127,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/social-development/config/sro-relay.yaml' },
+      { label: 'Registry project', path: 'projects/sro-social/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/sro-social/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/social-development' }
     ]
   },
@@ -140,7 +143,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/social-development/config/programme-mis-relay.yaml' },
+      { label: 'Registry project', path: 'projects/mosd-programme/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/mosd-programme/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/social-development' }
     ]
   },
@@ -155,7 +159,8 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/labour-pensions/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/sipf-pensions/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/sipf-pensions/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/labour-pensions' }
     ]
   },
@@ -170,57 +175,100 @@ export const SERVICES: ServiceDef[] = [
     probePath: '/',
     semantics: 'auth-gated',
     configPaths: [
-      { label: 'Relay manifest', path: 'ministries/agriculture-nagdi/config/relay.yaml' },
+      { label: 'Registry project', path: 'projects/nagdi-agriculture/registry-stack.yaml' },
+      { label: 'Generated Relay config', path: 'runtime/registry-projects/local/nagdi-agriculture/relay/relay.yaml' },
       { label: 'Seed and fixtures', path: 'ministries/agriculture-nagdi' }
     ]
   },
   {
-    id: 'child-benefit-notary',
-    label: 'Child benefit notary',
-    role: 'notary',
+    id: 'child-benefit-federator',
+    label: 'Child benefit federator',
+    role: 'shared',
     purpose: 'child-benefit-review',
-    blurb: 'Evaluates child benefit eligibility claims and issues the enrollment-eligibility credential.',
-    probeEnv: 'CHILD_BENEFIT_NOTARY_URL',
+    blurb: 'Collects minimized source-owned predicates as ordinary application evidence. It does not make the eligibility decision.',
+    probeEnv: 'CHILD_BENEFIT_FEDERATOR_URL',
     probeDefault: 'http://127.0.0.1:4321',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'notaries/child-benefit.yaml' }]
+    probePath: '/health',
+    semantics: 'health',
+    configPaths: [{ label: 'Federator service', path: 'scenario-runner/child_benefit_federator.py' }]
   },
   {
-    id: 'pension-notary',
-    label: 'Pension notary',
+    id: 'cra-notary',
+    label: 'CRA notary',
     role: 'notary',
+    authority: 'Civil Registration Authority',
+    purpose: 'child-benefit-review, pension-payment-review, citizen-self-service',
+    blurb: 'Answers civil-registration predicates for child benefit, pension review, and citizen services.',
+    probeEnv: 'CRA_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4325',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/cra-civil/notary/notary.yaml' }]
+  },
+  {
+    id: 'nia-notary',
+    label: 'NIA notary',
+    role: 'notary',
+    authority: 'National Identity Agency',
+    purpose: 'child-benefit-review, citizen-self-service',
+    blurb: 'Answers active population-record predicates and owns the citizen population-status credential.',
+    probeEnv: 'NIA_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4326',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/nia-population/notary/notary.yaml' }]
+  },
+  {
+    id: 'sro-notary',
+    label: 'SRO notary',
+    role: 'notary',
+    authority: 'Social Registry Office',
+    purpose: 'child-benefit-review',
+    blurb: 'Answers the household poverty-threshold predicate from the social registry.',
+    probeEnv: 'SRO_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4327',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/sro-social/notary/notary.yaml' }]
+  },
+  {
+    id: 'programme-notary',
+    label: 'Programme MIS notary',
+    role: 'notary',
+    authority: 'Ministry of Social Development Programme MIS',
+    purpose: 'child-benefit-review',
+    blurb: 'Answers the duplicate-enrollment predicate from programme records.',
+    probeEnv: 'PROGRAMME_NOTARY_URL',
+    probeDefault: 'http://127.0.0.1:4328',
+    probePath: '/v1/claims',
+    semantics: 'auth-gated',
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/mosd-programme/notary/notary.yaml' }]
+  },
+  {
+    id: 'sipf-notary',
+    label: 'SIPF notary',
+    role: 'notary',
+    authority: 'Social Insurance and Pensions Fund',
     purpose: 'pension-payment-review, survivor-benefit-determination',
-    blurb: 'Evaluates pension stop and survivor benefit claims.',
-    probeEnv: 'PENSION_NOTARY_URL',
+    blurb: 'Answers pension-payment and survivor-benefit predicates and owns the survivor credential.',
+    probeEnv: 'SIPF_NOTARY_URL',
     probeDefault: 'http://127.0.0.1:4322',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'notaries/pension.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/sipf-pensions/notary/notary.yaml' }]
   },
   {
     id: 'nagdi-notary',
     label: 'NAgDI notary',
     role: 'notary',
+    authority: 'National Agricultural Data Institute',
     purpose: 'voucher-eligibility-review, livestock-movement-control',
     blurb: 'Evaluates farmer voucher and livestock movement claims.',
     probeEnv: 'NAGDI_NOTARY_URL',
     probeDefault: 'http://127.0.0.1:4323',
     probePath: '/v1/claims',
     semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'notaries/nagdi.yaml' }]
-  },
-  {
-    id: 'citizen-notary',
-    label: 'Citizen notary',
-    role: 'notary',
-    purpose: 'citizen-self-service',
-    blurb: 'Serves the citizen portal preview evidence for the selected persona.',
-    probeEnv: 'PORTAL_CITIZEN_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4324',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Notary config', path: 'notaries/citizen.yaml' }]
+    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/nagdi-agriculture/notary/notary.yaml' }]
   }
 ];
 
@@ -253,9 +301,10 @@ export function statusProbes(portalUrl: string, readEnv: Record<string, string |
 }
 
 /**
- * Group the topology for the anatomy page: relays under their authority,
- * notaries under the purpose they enforce, and the shared services. Config paths
- * become repo links, with the in-repo relative path preserved as visible text.
+ * Group the topology for the anatomy page: relays and Notaries under their
+ * authority, and shared services such as the child-benefit evidence collector.
+ * Config paths become repo links, with the
+ * in-repo relative path preserved as visible text.
  */
 export function topologyGroups(repoUrl: string): TopologyGroup[] {
   const shared = SERVICES.filter((service) => service.role === 'shared');
@@ -271,9 +320,9 @@ export function topologyGroups(repoUrl: string): TopologyGroup[] {
     },
     {
       key: 'notaries',
-      title: 'Notaries grouped by purpose',
+      title: 'Source-owned Notaries',
       blurb:
-        'A Notary certifies evidence for a specific purpose. It reads from the Relays it needs, evaluates the claim, and issues a purpose-limited credential without ever handing back raw register rows.',
+        'Each authority runs one Notary beside its Relay. Applications collect minimized, source-attributed predicates without moving raw rows or asking a Notary to compose the final programme decision.',
       services: notaries.map((service) => toTopologyService(service, repoUrl))
     },
     {

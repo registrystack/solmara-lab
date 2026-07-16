@@ -142,6 +142,24 @@ export type ResponseSource = {
   note?: string;
 };
 
+export type SourceTraceItem = {
+  authority?: string;
+  service_id?: string;
+  claims?: string[];
+  claim_id?: string;
+  profile?: string;
+  request_source?: RequestSource;
+  response_source?: ResponseSource;
+  request_summary?: {
+    method?: string;
+    url?: string;
+    purpose?: string;
+    disclosure?: string;
+    claims?: string[];
+  };
+  response_summary?: ResponseSource & { results?: unknown[] };
+};
+
 export type CredentialSummary = {
   status: 'issued' | 'not_issued' | 'not_attempted';
   profile: string;
@@ -162,7 +180,9 @@ export type StepRunResult = {
   step_id: string;
   friendly: { title: string; message: string; status: string; facts: { label: string; value: unknown }[] };
   request_source: RequestSource;
+  request_sources?: RequestSource[];
   response_source: ResponseSource;
+  source_trace?: SourceTraceItem[];
   credential_source?: RequestSource;
   credential_response_source?: ResponseSource;
   credential?: CredentialSummary;

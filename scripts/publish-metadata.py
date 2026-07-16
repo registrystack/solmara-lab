@@ -15,70 +15,156 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ASSEMBLY = ROOT / "metadata" / "assembly.yaml"
+CHILD_BENEFIT_PURPOSE = (
+    "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+)
+PENSION_PAYMENT_PURPOSE = (
+    "https://id.registrystack.org/solmara/purpose/pension-payment-review"
+)
+SURVIVOR_BENEFIT_PURPOSE = (
+    "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
+)
+VOUCHER_REVIEW_PURPOSE = (
+    "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
+)
+CHILD_BENEFIT_COLLECTION_MEDIA_TYPE = "application/json"
+CHILD_BENEFIT_FEDERATOR_URL = (
+    "https://child-benefit-federator.solmara.registrystack.org"
+)
 
 DATASET_OFFERING_DEFAULTS = {
     "cra-civil": {
         "evidence_type": "birth-registration-evidence",
         "entity": "civil_person",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
-        "concepts": ["https://publicschema.org/crvs/Birth", "https://publicschema.org/crvs/Death"],
+        "endpoint": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
+        "discovery": "https://cra-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "concepts": [
+            "https://publicschema.org/crvs/Birth",
+            "https://publicschema.org/crvs/Death",
+        ],
     },
     "nia-population": {
         "evidence_type": "population-status-evidence",
         "entity": "person",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://nia-notary.solmara.registrystack.org/v1/evaluations",
+        "discovery": "https://nia-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/Person"],
     },
     "sro-social": {
         "evidence_type": "household-poverty-evidence",
         "entity": "household",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
-        "concepts": ["https://publicschema.org/Household", "https://publicschema.org/SocioEconomicProfile"],
+        "endpoint": "https://sro-notary.solmara.registrystack.org/v1/evaluations",
+        "discovery": "https://sro-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "concepts": [
+            "https://publicschema.org/Household",
+            "https://publicschema.org/SocioEconomicProfile",
+        ],
     },
     "mosd-programme": {
         "evidence_type": "beneficiary-enrollment-evidence",
         "entity": "enrollment",
         "service": "child-benefit-review",
-        "endpoint": "https://child-benefit-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
+        "discovery": "https://programme-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/sp/Enrollment"],
     },
     "sipf-pensions": {
         "evidence_type": "pension-case-evidence",
         "entity": "pension_case",
         "service": "pension-survivor-review",
-        "endpoint": "https://pension-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
+        "discovery": "https://sipf-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "purposes": [PENSION_PAYMENT_PURPOSE, SURVIVOR_BENEFIT_PURPOSE],
         "concepts": ["https://id.registrystack.org/solmara/semantics/pension-case"],
     },
     "nagdi-agriculture": {
         "evidence_type": "farmer-voucher-evidence",
         "entity": "farmer_voucher",
         "service": "nagdi-voucher-review",
-        "endpoint": "https://nagdi-notary.solmara.registrystack.org/evidence/v1",
+        "endpoint": "https://nagdi-notary.solmara.registrystack.org/v1/evaluations",
+        "discovery": "https://nagdi-notary.solmara.registrystack.org/.well-known/evidence-service",
+        "purposes": [VOUCHER_REVIEW_PURPOSE],
         "concepts": ["https://publicschema.org/Farm"],
     },
 }
 
 GRAY_REGISTRIES = [
-    {"id": "land-cadastre", "title": "Land registry and cadastre", "owner": "Ministry of Lands and Survey", "wave": 2},
-    {"id": "taxpayer", "title": "Taxpayer registry", "owner": "Solmara Revenue Authority", "wave": 2},
-    {"id": "business", "title": "Business registry", "owner": "Solmara Business Registration Service", "wave": 2},
-    {"id": "beneficial-ownership", "title": "Beneficial ownership register", "owner": "Solmara Business Registration Service", "wave": 2},
-    {"id": "disability", "title": "Disability registry", "owner": "Disability Assessment Board", "wave": 3},
-    {"id": "education", "title": "Education learner registry", "owner": "Ministry of Education", "wave": 3},
-    {"id": "health-facilities", "title": "Health facility registry", "owner": "Ministry of Health", "wave": 3},
-    {"id": "patient-immunization", "title": "Patient and immunization registry", "owner": "Ministry of Health", "wave": None},
-    {"id": "transport-licences", "title": "Vehicle and driving licence registry", "owner": "Ministry of Transport", "wave": None},
-    {"id": "customs-traders", "title": "Customs trader registry", "owner": "Customs Service", "wave": None},
+    {
+        "id": "land-cadastre",
+        "title": "Land registry and cadastre",
+        "owner": "Ministry of Lands and Survey",
+        "wave": 2,
+    },
+    {
+        "id": "taxpayer",
+        "title": "Taxpayer registry",
+        "owner": "Solmara Revenue Authority",
+        "wave": 2,
+    },
+    {
+        "id": "business",
+        "title": "Business registry",
+        "owner": "Solmara Business Registration Service",
+        "wave": 2,
+    },
+    {
+        "id": "beneficial-ownership",
+        "title": "Beneficial ownership register",
+        "owner": "Solmara Business Registration Service",
+        "wave": 2,
+    },
+    {
+        "id": "disability",
+        "title": "Disability registry",
+        "owner": "Disability Assessment Board",
+        "wave": 3,
+    },
+    {
+        "id": "education",
+        "title": "Education learner registry",
+        "owner": "Ministry of Education",
+        "wave": 3,
+    },
+    {
+        "id": "health-facilities",
+        "title": "Health facility registry",
+        "owner": "Ministry of Health",
+        "wave": 3,
+    },
+    {
+        "id": "patient-immunization",
+        "title": "Patient and immunization registry",
+        "owner": "Ministry of Health",
+        "wave": None,
+    },
+    {
+        "id": "transport-licences",
+        "title": "Vehicle and driving licence registry",
+        "owner": "Ministry of Transport",
+        "wave": None,
+    },
+    {
+        "id": "customs-traders",
+        "title": "Customs trader registry",
+        "owner": "Customs Service",
+        "wave": None,
+    },
 ]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("assembly", nargs="?", type=Path, default=DEFAULT_ASSEMBLY)
-    parser.add_argument("--check", action="store_true", help="Fail if committed output is stale")
+    parser.add_argument(
+        "--check", action="store_true", help="Fail if committed output is stale"
+    )
     args = parser.parse_args()
 
     assembly_path = abs_path(args.assembly)
@@ -141,31 +227,59 @@ def load_fragments(assembly: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return by_dataset
 
 
-def build_bundle(manifest: dict[str, Any], fragment_index: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    authorities = {authority["id"]: authority for authority in manifest.get("authorities", [])}
+def build_bundle(
+    manifest: dict[str, Any], fragment_index: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    authorities = {
+        authority["id"]: authority for authority in manifest.get("authorities", [])
+    }
     evidence_types = {item["id"]: item for item in manifest.get("evidence_types", [])}
     services = {item["id"]: item for item in manifest.get("public_services", [])}
     data_services = {item["id"]: item for item in manifest.get("data_services", [])}
-    datasets = [normalize_dataset(dataset, fragment_index) for dataset in manifest.get("datasets", [])]
+    datasets = [
+        normalize_dataset(dataset, fragment_index)
+        for dataset in manifest.get("datasets", [])
+    ]
     offerings = []
     for dataset in datasets:
         source_offerings = dataset.pop("source_evidence_offerings", [])
         if source_offerings:
-            offerings.extend(normalize_source_offering(dataset, offering, authorities) for offering in source_offerings)
+            offerings.extend(
+                normalize_source_offering(dataset, offering, authorities)
+                for offering in source_offerings
+            )
         else:
             offerings.append(synthetic_offering(dataset, authorities))
 
     # NAgDI has two live evidence paths in wave 1; keep both visible to the visitor center.
-    if not any(offering["id"] == "nagdi-agriculture-livestock-movement-offering" for offering in offerings):
-        nagdi = next(dataset for dataset in datasets if dataset["id"] == "nagdi-agriculture")
-        livestock = synthetic_offering(nagdi, authorities, evidence_type="livestock-movement-evidence", entity="livestock_movement")
+    if not any(
+        offering["id"] == "nagdi-agriculture-livestock-movement-offering"
+        for offering in offerings
+    ):
+        nagdi = next(
+            dataset for dataset in datasets if dataset["id"] == "nagdi-agriculture"
+        )
+        livestock = synthetic_offering(
+            nagdi,
+            authorities,
+            evidence_type="livestock-movement-evidence",
+            entity="livestock_movement",
+        )
         livestock["id"] = "nagdi-agriculture-livestock-movement-offering"
         livestock["title"] = "NAgDI livestock movement evidence offering"
-        livestock["description"] = "Livestock movement-control predicates for permit checks."
+        livestock["description"] = (
+            "Livestock movement-control predicates for permit checks."
+        )
         livestock["public_services"] = ["livestock-movement-control"]
-        livestock["purposes"] = ["https://id.registrystack.org/solmara/purpose/livestock-movement-control"]
+        livestock["purposes"] = [
+            "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
+        ]
         livestock["semantics"]["concepts"] = ["https://publicschema.org/livestock-type"]
         offerings.append(livestock)
+
+    collection_offering_id = "solmara.child-benefit.authority-predicate-collection"
+    if not any(offering["id"] == collection_offering_id for offering in offerings):
+        offerings.append(child_benefit_collection_offering(authorities))
 
     policies = [policy_for_offering(offering) for offering in offerings]
     catalog = {
@@ -192,14 +306,21 @@ def build_bundle(manifest: dict[str, Any], fragment_index: dict[str, dict[str, A
     }
 
 
-def normalize_dataset(dataset: dict[str, Any], fragment_index: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def normalize_dataset(
+    dataset: dict[str, Any], fragment_index: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     fragment = fragment_index.get(dataset["id"], {})
     defaults = DATASET_OFFERING_DEFAULTS.get(dataset["id"], {})
-    entities = [normalize_entity(item, fragment.get("purposes", []), defaults) for item in dataset.get("entities", [])]
+    entities = [
+        normalize_entity(item, fragment.get("purposes", []), defaults)
+        for item in dataset.get("entities", [])
+    ]
     return {
         "id": dataset["id"],
         "title": text(dataset.get("title"), humanize(dataset["id"])),
-        "description": text(dataset.get("description"), f"{humanize(dataset['id'])} published metadata."),
+        "description": text(
+            dataset.get("description"), f"{humanize(dataset['id'])} published metadata."
+        ),
         "access_rights": dataset.get("access_rights", "restricted"),
         "authority": fragment.get("authority", {}),
         "application_profiles": fragment.get("application_profiles", []),
@@ -209,17 +330,26 @@ def normalize_dataset(dataset: dict[str, Any], fragment_index: dict[str, dict[st
     }
 
 
-def normalize_entity(entity: str | dict[str, Any], purposes: list[str], defaults: dict[str, Any]) -> dict[str, Any]:
+def normalize_entity(
+    entity: str | dict[str, Any], purposes: list[str], defaults: dict[str, Any]
+) -> dict[str, Any]:
     if isinstance(entity, str):
         entity = {"name": entity}
     fields = entity.get("fields", [])
-    concepts = sorted({concept for field in fields for concept in field.get("concepts", [])})
+    concepts = sorted(
+        {concept for field in fields for concept in field.get("concepts", [])}
+    )
     if not concepts:
-        concepts = defaults.get("concepts", ["https://id.registrystack.org/solmara/semantics/registry-record"])
+        concepts = defaults.get(
+            "concepts",
+            ["https://id.registrystack.org/solmara/semantics/registry-record"],
+        )
     return {
         "name": entity["name"],
         "title": text(entity.get("title"), humanize(entity["name"])),
-        "description": text(entity.get("description"), f"{humanize(entity['name'])} entity metadata."),
+        "description": text(
+            entity.get("description"), f"{humanize(entity['name'])} entity metadata."
+        ),
         "identifiers": entity.get("identifiers", []),
         "fields": fields,
         "purposes": purposes,
@@ -227,8 +357,16 @@ def normalize_entity(entity: str | dict[str, Any], purposes: list[str], defaults
     }
 
 
-def normalize_source_offering(dataset: dict[str, Any], offering: dict[str, Any], authorities: dict[str, Any]) -> dict[str, Any]:
-    default = synthetic_offering(dataset, authorities, evidence_type=offering.get("evidence_type"), entity=offering.get("entity"))
+def normalize_source_offering(
+    dataset: dict[str, Any], offering: dict[str, Any], authorities: dict[str, Any]
+) -> dict[str, Any]:
+    default = synthetic_offering(
+        dataset,
+        authorities,
+        evidence_type=offering.get("evidence_type"),
+        entity=offering.get("entity"),
+    )
+    policy = offering.get("policy") if isinstance(offering.get("policy"), dict) else {}
     default.update(
         {
             "id": offering["id"],
@@ -236,9 +374,11 @@ def normalize_source_offering(dataset: dict[str, Any], offering: dict[str, Any],
             "title": text(offering.get("title"), default["title"]),
             "description": text(offering.get("description"), default["description"]),
             "lookup_keys": offering.get("lookup_keys", []),
-            "public_services": offering.get("procedure_contexts", default["public_services"]),
+            "public_services": offering.get(
+                "procedure_contexts", default["public_services"]
+            ),
             "access": offering.get("access", default["access"]),
-            "purposes": offering.get("purposes", dataset["purposes"]),
+            "purposes": policy.get("purpose", dataset["purposes"]),
         }
     )
     default["policy"] = f"{default['id']}-policy"
@@ -253,13 +393,21 @@ def synthetic_offering(
     entity: str | None = None,
 ) -> dict[str, Any]:
     defaults = DATASET_OFFERING_DEFAULTS.get(dataset["id"], {})
-    evidence_type = evidence_type or defaults.get("evidence_type", f"{dataset['id']}-evidence")
+    evidence_type = evidence_type or defaults.get(
+        "evidence_type", f"{dataset['id']}-evidence"
+    )
     entity = entity or defaults.get("entity") or dataset["entities"][0]["name"]
     authority = dataset.get("authority", {})
     authority_id = authority.get("id", dataset["id"])
-    endpoint = defaults.get("endpoint", "https://metadata.solmara.registrystack.org/evidence/v1")
+    endpoint = defaults.get(
+        "endpoint", "https://metadata.solmara.registrystack.org/v1/evaluations"
+    )
+    discovery = defaults.get(
+        "discovery",
+        "https://metadata.solmara.registrystack.org/.well-known/evidence-service",
+    )
     offering_id = f"{dataset['id']}-{evidence_type.replace('-evidence', '')}-offering"
-    purposes = dataset.get("purposes", [])
+    purposes = defaults.get("purposes", dataset.get("purposes", []))
     return {
         "id": offering_id,
         "iri": f"https://id.registrystack.org/solmara/evidence-offerings/{slug(offering_id)}",
@@ -269,20 +417,63 @@ def synthetic_offering(
         "entity": entity,
         "evidence_type": evidence_type,
         "issuing_authority": authorities.get(authority_id, authority),
-        "lookup_keys": ["uin"] if entity not in {"farmer_voucher", "livestock_movement"} else ["farmer_id"],
+        "lookup_keys": ["uin"]
+        if entity not in {"farmer_voucher", "livestock_movement"}
+        else ["farmer_id"],
         "public_services": [defaults.get("service", "citizen-self-service")],
         "access": {
             "kind": "evidence-verification-api",
             "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
             "endpoint_url": endpoint,
-            "discovery_url": endpoint.replace("/evidence/v1", "/.well-known/evidence-service"),
+            "discovery_url": discovery,
         },
         "purposes": purposes,
         "semantics": {
-            "concepts": defaults.get("concepts", ["https://id.registrystack.org/solmara/semantics/registry-record"]),
+            "concepts": defaults.get(
+                "concepts",
+                ["https://id.registrystack.org/solmara/semantics/registry-record"],
+            ),
             "application_profiles": ["cpsv-ap"],
         },
         "policy": f"{offering_id}-policy",
+    }
+
+
+def child_benefit_collection_offering(authorities: dict[str, Any]) -> dict[str, Any]:
+    offering_id = "solmara.child-benefit.authority-predicate-collection"
+    return {
+        "id": offering_id,
+        "iri": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
+        "title": "Child Benefit Authority Predicate Collection",
+        "description": (
+            "A transient collection of source-owned child benefit predicates. "
+            "It contains no copied source rows and no composed eligibility decision."
+        ),
+        "dataset": "mosd-programme",
+        "entity": "enrollment",
+        "evidence_type": "child-benefit-authority-predicate-collection-evidence",
+        "issuing_authority": authorities["mosd-programme-mis"],
+        "lookup_keys": ["uin"],
+        "public_services": ["child-benefit-review"],
+        "access": {
+            "kind": "authority-predicate-collection-api",
+            "conforms_to": "https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1",
+            "endpoint_url": f"{CHILD_BENEFIT_FEDERATOR_URL}/v1/evaluations",
+            "discovery_url": f"{CHILD_BENEFIT_FEDERATOR_URL}/v1/claims",
+            "media_type": CHILD_BENEFIT_COLLECTION_MEDIA_TYPE,
+            "ruleset": "source-owned-child-benefit-predicates-v1",
+        },
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "semantics": {
+            "concepts": [
+                "https://publicschema.org/Person",
+                "https://publicschema.org/crvs/Birth",
+                "https://publicschema.org/Household",
+                "https://publicschema.org/sp/Enrollment",
+            ],
+            "application_profiles": ["cpsv-ap"],
+        },
+        "policy": "solmara-child-benefit-authority-predicate-collection-policy",
     }
 
 
@@ -298,7 +489,11 @@ def policy_for_offering(offering: dict[str, Any]) -> dict[str, Any]:
             {
                 "action": "use",
                 "constraint": [
-                    {"leftOperand": "purpose", "operator": "isAnyOf", "rightOperand": offering["purposes"]}
+                    {
+                        "leftOperand": "purpose",
+                        "operator": "isAnyOf",
+                        "rightOperand": offering["purposes"],
+                    }
                 ],
             }
         ],
@@ -307,21 +502,32 @@ def policy_for_offering(offering: dict[str, Any]) -> dict[str, Any]:
 
 def dcat_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
     return {
-        "@context": {"dcat": "http://www.w3.org/ns/dcat#", "dct": "http://purl.org/dc/terms/"},
+        "@context": {
+            "dcat": "http://www.w3.org/ns/dcat#",
+            "dct": "http://purl.org/dc/terms/",
+        },
         "@type": "dcat:Catalog",
         "@id": "https://metadata.solmara.registrystack.org/metadata/dcat.jsonld",
         "dct:title": catalog["title"],
         "dct:description": catalog["description"],
         "dcat:dataset": [
-            {"@id": f"https://id.registrystack.org/solmara/datasets/{dataset['id']}", "dct:title": dataset["title"]}
+            {
+                "@id": f"https://id.registrystack.org/solmara/datasets/{dataset['id']}",
+                "dct:title": dataset["title"],
+            }
             for dataset in catalog["datasets"]
         ],
     }
 
 
-def cpsv_catalog(catalog: dict[str, Any], offerings: list[dict[str, Any]]) -> dict[str, Any]:
+def cpsv_catalog(
+    catalog: dict[str, Any], offerings: list[dict[str, Any]]
+) -> dict[str, Any]:
     return {
-        "@context": {"cpsv": "http://purl.org/vocab/cpsv#", "dct": "http://purl.org/dc/terms/"},
+        "@context": {
+            "cpsv": "http://purl.org/vocab/cpsv#",
+            "dct": "http://purl.org/dc/terms/",
+        },
         "@type": "cpsv:PublicServiceCatalog",
         "@id": "https://metadata.solmara.registrystack.org/metadata/cpsv-ap.jsonld",
         "dct:title": "Solmara Wave 1 public services",
@@ -338,19 +544,27 @@ def ogc_records(catalog: dict[str, Any]) -> dict[str, Any]:
                 "type": "Feature",
                 "id": dataset["id"],
                 "geometry": None,
-                "properties": {"title": dataset["title"], "authority": dataset["authority"].get("name", "")},
+                "properties": {
+                    "title": dataset["title"],
+                    "authority": dataset["authority"].get("name", ""),
+                },
             }
             for dataset in catalog["datasets"]
         ],
     }
 
 
-def render_files(manifest_path: Path, manifest: dict[str, Any], bundle: dict[str, Any]) -> dict[Path, str | bytes]:
+def render_files(
+    manifest_path: Path, manifest: dict[str, Any], bundle: dict[str, Any]
+) -> dict[Path, str | bytes]:
     files: dict[Path, str | bytes] = {
         Path("metadata/metadata.yaml"): manifest_path.read_text(encoding="utf-8"),
         Path("metadata/catalog.json"): json_text(bundle["catalog"]),
         Path("metadata/evidence-offerings.json"): json_text(
-            {"schema_version": "registry-manifest-evidence-offerings/v1", "offerings": bundle["evidence_offerings"]}
+            {
+                "schema_version": "registry-manifest-evidence-offerings/v1",
+                "offerings": bundle["evidence_offerings"],
+            }
         ),
         Path("metadata/policies.jsonld"): json_text({"@graph": bundle["policies"]}),
         Path("metadata/dcat.jsonld"): json_text(bundle["dcat"]),
@@ -360,7 +574,9 @@ def render_files(manifest_path: Path, manifest: dict[str, Any], bundle: dict[str
         Path("metadata/ogc-records/items.json"): json_text(bundle["ogc_records"]),
     }
     for offering in bundle["evidence_offerings"]:
-        files[Path("metadata/evidence-offerings") / f"{offering['id']}.json"] = json_text(offering)
+        files[Path("metadata/evidence-offerings") / f"{offering['id']}.json"] = (
+            json_text(offering)
+        )
     for policy in bundle["policies"]:
         files[Path("metadata/policies") / f"{policy['id']}.jsonld"] = json_text(policy)
 
@@ -368,18 +584,30 @@ def render_files(manifest_path: Path, manifest: dict[str, Any], bundle: dict[str
     files[Path("metadata/index.json")] = json_text(index)
     files[Path(".well-known/api-catalog")] = json_text(api_catalog())
     files[Path(".well-known/registry-manifest.json")] = json_text(
-        {"schema_version": "registry-manifest-discovery/v1", "index": "/metadata/index.json", "catalog": "/metadata/catalog.json"}
+        {
+            "schema_version": "registry-manifest-discovery/v1",
+            "index": "/metadata/index.json",
+            "catalog": "/metadata/catalog.json",
+        }
     )
     return files
 
 
-def metadata_index(files: dict[Path, str | bytes], catalog: dict[str, Any]) -> dict[str, Any]:
+def metadata_index(
+    files: dict[Path, str | bytes], catalog: dict[str, Any]
+) -> dict[str, Any]:
     artifacts = []
     for relative, payload in files.items():
         if str(relative).startswith(".well-known/"):
             continue
         raw = payload if isinstance(payload, bytes) else payload.encode("utf-8")
-        artifacts.append({"path": str(relative), "media_type": media_type(relative), "sha256": sha256_uri(raw)})
+        artifacts.append(
+            {
+                "path": str(relative),
+                "media_type": media_type(relative),
+                "sha256": sha256_uri(raw),
+            }
+        )
     artifacts.sort(key=lambda item: item["path"])
     return {
         "schema_version": "registry-manifest-index/v1",
@@ -390,7 +618,9 @@ def metadata_index(files: dict[Path, str | bytes], catalog: dict[str, Any]) -> d
         "evidence_offerings": "/metadata/evidence-offerings.json",
         "policies": "/metadata/policies.jsonld",
         "dcat": "/metadata/dcat.jsonld",
-        "service_catalogues": [{"id": "cpsv-ap", "version": "3.2.0", "url": "/metadata/cpsv-ap.jsonld"}],
+        "service_catalogues": [
+            {"id": "cpsv-ap", "version": "3.2.0", "url": "/metadata/cpsv-ap.jsonld"}
+        ],
         "shacl": "/metadata/shacl.jsonld",
         "ogc_records_items": "/metadata/ogc-records/items.json",
         "application_profiles": catalog["application_profiles"],
@@ -399,14 +629,48 @@ def metadata_index(files: dict[Path, str | bytes], catalog: dict[str, Any]) -> d
 
 def api_catalog() -> dict[str, Any]:
     items = [
-        {"href": "/metadata/catalog.json", "type": "application/json", "title": "Registry metadata catalog"},
-        {"href": "/metadata/dcat.jsonld", "type": "application/ld+json", "title": "Base DCAT catalog"},
-        {"href": "/metadata/cpsv-ap.jsonld", "type": "application/ld+json", "title": "cpsv-ap service catalogue"},
-        {"href": "/metadata/evidence-offerings.json", "type": "application/json", "title": "Evidence offerings"},
-        {"href": "/metadata/policies.jsonld", "type": "application/ld+json", "title": "Policy metadata"},
-        {"href": "/metadata/ogc-records/items.json", "type": "application/geo+json", "title": "OGC Records item collection"},
+        {
+            "href": "/metadata/catalog.json",
+            "type": "application/json",
+            "title": "Registry metadata catalog",
+        },
+        {
+            "href": "/metadata/dcat.jsonld",
+            "type": "application/ld+json",
+            "title": "Base DCAT catalog",
+        },
+        {
+            "href": "/metadata/cpsv-ap.jsonld",
+            "type": "application/ld+json",
+            "title": "cpsv-ap service catalogue",
+        },
+        {
+            "href": "/metadata/evidence-offerings.json",
+            "type": "application/json",
+            "title": "Evidence offerings",
+        },
+        {
+            "href": "/metadata/policies.jsonld",
+            "type": "application/ld+json",
+            "title": "Policy metadata",
+        },
+        {
+            "href": "/metadata/ogc-records/items.json",
+            "type": "application/geo+json",
+            "title": "OGC Records item collection",
+        },
     ]
-    return {"linkset": [{"anchor": "/.well-known/api-catalog", "describedby": [{"href": "/metadata/index.json", "type": "application/json"}], "item": items}]}
+    return {
+        "linkset": [
+            {
+                "anchor": "/.well-known/api-catalog",
+                "describedby": [
+                    {"href": "/metadata/index.json", "type": "application/json"}
+                ],
+                "item": items,
+            }
+        ]
+    }
 
 
 def stale_files(root: Path, generated: dict[Path, str | bytes]) -> list[str]:
@@ -425,7 +689,11 @@ def media_type(path: Path) -> str:
         return "application/ld+json"
     if name.endswith(".yaml"):
         return "application/yaml"
-    if name.endswith(".json") or name.endswith("api-catalog") or name.endswith("cpsv-ap"):
+    if (
+        name.endswith(".json")
+        or name.endswith("api-catalog")
+        or name.endswith("cpsv-ap")
+    ):
         return "application/json"
     return "application/octet-stream"
 

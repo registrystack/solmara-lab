@@ -1,0 +1,45 @@
+version: 1
+
+entities:
+  sro_child:
+    provider:
+      type: csv
+      path: /var/lib/solmara/ministries/social-development/fixtures/child_benefit_household.csv
+      header_row: 1
+    columns:
+      uin: uin
+      poverty_band: poverty_band
+    source_revision: solmara-sro-child-benefit-projection-v1
+    generation: "2026-07-14"
+
+callers:
+  child-benefit-federator:
+    api_key_fingerprint: { secret: SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH }
+    scopes: ["sro_social:evidence_verification"]
+
+relay:
+  origin: https://sro-relay.solmara.registrystack.org
+  issuer: https://workload-issuer.solmara.registrystack.org
+  jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: [sro-notary]
+
+notary_relay:
+  base_url: http://127.0.0.1:8080
+  workload_client_id: sro-notary
+  token_file: /run/secrets/sro-notary-relay-token
+
+relay_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+notary_cel:
+  worker_memory_bytes: 1073741824
+
+deployment:
+  profile: hosted_lab
+  relay: { service: sro-social-relay }
+  notary: { service: sro-notary }

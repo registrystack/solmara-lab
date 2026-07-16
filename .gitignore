@@ -22,6 +22,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 dist/
+projects/*/.registry-stack/
 *.log
 config/postgres/ssl/*
 !config/postgres/ssl/.gitkeep

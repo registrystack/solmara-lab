@@ -1,0 +1,46 @@
+version: 1
+entities:
+  civil_people:
+    provider:
+      type: csv
+      path: /var/lib/solmara/ministries/interior-civil/fixtures/civil_person_projection.csv
+      header_row: 1
+    columns:
+      uin: uin
+      birth_date: birth_date
+      birth_brn: birth_brn
+      deceased: deceased
+    source_revision: cra-civil-projection-v1
+    generation: 2026-07-14
+callers:
+  child-benefit-federator:
+    api_key_fingerprint: { secret: CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH }
+    scopes: ["evidence:cra:child-benefit:read"]
+  pension-review-desk:
+    api_key_fingerprint: { secret: CRA_PENSION_CLIENT_TOKEN_HASH }
+    scopes: ["evidence:cra:pension:read"]
+  citizen-portal:
+    api_key_fingerprint: { secret: CRA_CITIZEN_CLIENT_TOKEN_HASH }
+    scopes: ["evidence:cra:citizen:read"]
+relay:
+  origin: http://127.0.0.1:8080
+  issuer: http://127.0.0.1:8090
+  jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: []
+notary_relay:
+  base_url: http://127.0.0.1:8080
+  workload_client_id: cra-notary
+  token_file: /run/secrets/cra-notary-relay-token
+relay_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+notary_state:
+  postgresql:
+    root_certificate_path: /etc/solmara/postgres/root.crt
+notary_cel:
+  worker_memory_bytes: 1073741824
+deployment:
+  profile: local
+  relay: { service: cra-civil-relay }
+  notary: { service: cra-notary }

@@ -76,7 +76,7 @@ const agriSubsidy: ServiceForm = {
 const educationGrant: ServiceForm = {
   slug: 'child-benefit',
   title: 'Birth to Child Benefit',
-  authorities: ['social', 'civil'],
+  authorities: ['childCivil', 'population', 'socialRegistry', 'programme'],
   fields: [
     {
       id: 'child-benefit-consent',
@@ -89,9 +89,19 @@ const educationGrant: ServiceForm = {
       label: 'Child birth registered',
       kind: 'verify',
       claim: 'birth-is-registered',
-      notary: 'civil',
+      notary: 'childCivil',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: place of birth and registration officer',
+      delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
+    },
+    {
+      id: 'population-record-active',
+      label: 'Population record active',
+      kind: 'verify',
+      claim: 'population-record-active',
+      notary: 'population',
+      purpose: PURPOSES.childBenefitReview,
+      disclose: 'Not disclosed: identity attributes or population register row',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
     },
     {
@@ -99,7 +109,7 @@ const educationGrant: ServiceForm = {
       label: 'Child age under 5',
       kind: 'verify',
       claim: 'child-age-under-5',
-      notary: 'civil',
+      notary: 'childCivil',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: full birth certificate or exact birth date',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -109,7 +119,7 @@ const educationGrant: ServiceForm = {
       label: 'Household below threshold',
       kind: 'verify',
       claim: 'household-below-poverty-threshold',
-      notary: 'social',
+      notary: 'socialRegistry',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: poverty score or household roster',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -119,19 +129,9 @@ const educationGrant: ServiceForm = {
       label: 'Not already enrolled',
       kind: 'verify',
       claim: 'not-already-enrolled',
-      notary: 'social',
+      notary: 'programme',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: other programme records',
-      delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
-    },
-    {
-      id: 'eligible-for-child-benefit',
-      label: 'Eligibility',
-      kind: 'decision',
-      claim: 'eligible-for-child-benefit',
-      notary: 'social',
-      purpose: PURPOSES.childBenefitReview,
-      disclose: 'Not disclosed: raw source rows behind the decision',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
     }
   ]
@@ -170,17 +170,17 @@ const socialCash: ServiceForm = {
       kind: 'verify',
       claim: 'survivor-is-eligible',
       notary: 'social',
-      purpose: PURPOSES.pensionPaymentReview,
+      purpose: PURPOSES.survivorBenefitDetermination,
       disclose: 'Not disclosed: the full marriage record'
     },
     {
-      id: 'household-size',
-      label: 'Beneficiary conflict check',
+      id: 'pension-payment-active',
+      label: 'Pension payment active?',
       kind: 'verify',
-      claim: 'survivor-is-eligible',
+      claim: 'pension-payment-active',
       notary: 'social',
       purpose: PURPOSES.pensionPaymentReview,
-      disclose: 'Not disclosed: other programme payment history'
+      disclose: 'Not disclosed: payment amount or payment history'
     },
     {
       id: 'social-requested-amount',
@@ -193,7 +193,7 @@ const socialCash: ServiceForm = {
       id: 'combined-support-eligibility',
       label: 'Eligibility decision',
       kind: 'decision',
-      claim: 'survivor-is-eligible',
+      claim: 'survivor-benefit-eligible',
       notary: 'social',
       purpose: PURPOSES.survivorBenefitDetermination,
       disclose: 'Not disclosed: the raw inputs each authority used',

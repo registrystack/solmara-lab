@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { readPurposes } from '$lib/server/data';
 import { joinedUrl, runtime } from '$lib/server/runtime';
 import { buildPublicUrlMap, rewriteRequestUrls } from '$lib/server/urlmap';
+import { parsePublishedTokens, publishRequestTokens } from '$lib/server/tokens';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ fetch, params, request }) => {
@@ -19,7 +20,7 @@ export const POST: RequestHandler = async ({ fetch, params, request }) => {
   }
   const body = (await response.json()) as { result?: Record<string, unknown> };
   if (body && typeof body.result === 'object' && body.result) {
-    body.result = rewriteRequestUrls(body.result, buildPublicUrlMap());
+    body.result = publishRequestTokens(rewriteRequestUrls(body.result, buildPublicUrlMap()), parsePublishedTokens());
   }
   return json(body);
 };

@@ -9,17 +9,17 @@
     {
       "media_type": "application/json",
       "path": "metadata/catalog.json",
-      "sha256": "sha256:66fd359b4ee775d031815421c5d3bd6ef8be38d95ff81df21a9ab897e514320c"
+      "sha256": "sha256:2db419cefb6b0659792ac1ceb803d21a8fafd54eb75eefdced7496fdc8a480f4"
     },
     {
       "media_type": "application/json",
       "path": "metadata/cpsv-ap",
-      "sha256": "sha256:bcd5656ee79d7dd3611fc78a05fabc4f7810dc86ac60de3045ac3c1cf7cbc7c4"
+      "sha256": "sha256:ddfccb6700668ba4753a0ddfe00e80f3c2cfc60192863f84e1f76cd4529aa01d"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/cpsv-ap.jsonld",
-      "sha256": "sha256:bcd5656ee79d7dd3611fc78a05fabc4f7810dc86ac60de3045ac3c1cf7cbc7c4"
+      "sha256": "sha256:ddfccb6700668ba4753a0ddfe00e80f3c2cfc60192863f84e1f76cd4529aa01d"
     },
     {
       "media_type": "application/ld+json",
@@ -29,47 +29,57 @@
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings.json",
-      "sha256": "sha256:8a40e8705566aefcfa737a94433325097ac81fb7b42f1d375221b976741b307e"
+      "sha256": "sha256:bb079ab2166568c5e175438da8e6fd37edb5dc48bc2a93f38f409f4445b0db89"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/cra-birth-registration-offering.json",
-      "sha256": "sha256:6b5992fe54ff6e67c6162476a56ef23ee14cab9dbdf69f7469977b1339048f6f"
+      "sha256": "sha256:519d0e195db9fe938057c7dd2c4819b31c237cb7a7da06228a1cab3fc287fafd"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/cra-death-registration-offering.json",
+      "sha256": "sha256:8231e762fefa587af31560c759916754d53a5f742ad923385fd214eeac6884f1"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/mosd-programme-beneficiary-enrollment-offering.json",
-      "sha256": "sha256:78ccf1502861b178eb86e85eab4fd9801429e34da50c288175cc92e989b648d1"
+      "sha256": "sha256:90a2f91491e0d32615016c663cba787fad9c225287af741b7dfa4fa0f2c94fef"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/nagdi-agriculture-farmer-voucher-offering.json",
-      "sha256": "sha256:b4947356664ad751b1f7fa6276bdc61100434513997a69424f51767632de2bbc"
+      "sha256": "sha256:4920058bf44aa821eb48c8723072ffac8d1e1691e4ca2028b596a401169b4286"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/nagdi-agriculture-livestock-movement-offering.json",
-      "sha256": "sha256:1648842e4f991629e0e5dc0b8d18e830f9e9b98014eab3b0ed888356863b5fbe"
+      "sha256": "sha256:62a87e2b217ae731012a82d3c7e660e1430dbe0cfdbfe0711e16a049e4ec47d2"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/nia-population-population-status-offering.json",
-      "sha256": "sha256:5b37e8e482d445d927c7c7f525c28492b5b41b5e78cb6b34232b977a95d17e15"
+      "sha256": "sha256:ce917bdb721637857697e7ce6f13dc2ddb4c4ed584a353da22cc253561cd2e42"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/sipf-pensions-pension-case-offering.json",
-      "sha256": "sha256:acf0386f8a8abc12426239d2aa737c83b82d77b7dc30d397c7a36e59332ee2f6"
+      "sha256": "sha256:75ba6b9f33fc855e83bd1459fe6ab229b8b624477c7f3d36c00ad97ca0abd930"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/solmara.child-benefit.authority-predicate-collection.json",
+      "sha256": "sha256:1b59dd02b2730d034b180123098768117eceaca0504e4c25846105e978956cfb"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings/sro-social-household-poverty-offering.json",
-      "sha256": "sha256:44da796ac1ed967f89a0a5d6cd5dc2d99461093f9dfc6c6ed443df550abb8a2b"
+      "sha256": "sha256:b2593c8bfe333bcbffff3f5d91f9ce1930654ddc0db86209263b616e915d15c2"
     },
     {
       "media_type": "application/yaml",
       "path": "metadata/metadata.yaml",
-      "sha256": "sha256:7c95a6e8f7996b29bb85eabedb2329ade914ebd0ac799c44c9e4f36ecc904753"
+      "sha256": "sha256:3961e5a3c7d19688039db461f8d8585e6b5d42a4c1c5a58cb759557829d30cc5"
     },
     {
       "media_type": "application/json",
@@ -79,22 +89,27 @@
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies.jsonld",
-      "sha256": "sha256:a058bc0ff1c08bbbc33c0d9f71a733af97c6033d0608f5e3f29c298ca824752b"
+      "sha256": "sha256:9f6b4698c3f2c2f3ba11ea79c64f7cc9c9809c1821c3cd65b35b563ad2537aaf"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/cra-birth-registration-offering-policy.jsonld",
-      "sha256": "sha256:401512532bfb0420068631c84e4fb6b560bdef55813aead1c69df6dbce83a3b6"
+      "sha256": "sha256:5765930b8ba06eb475e1cbea73299bb218da725b0ad0d632d46d2772b0a557ee"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/cra-death-registration-offering-policy.jsonld",
+      "sha256": "sha256:91e8caf238fab79fcb995d2181d3c0d27486e2f0c8a865891f0196d653a850cd"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/mosd-programme-beneficiary-enrollment-offering-policy.jsonld",
-      "sha256": "sha256:980e23cd78f4244ffa6890d457587a95922be192af1435dbb7ca8a6858f86738"
+      "sha256": "sha256:2f10bcafccfb352e80cd01d48acd0a5552ee26bc2ba42b599fe7fbef08a82d84"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/nagdi-agriculture-farmer-voucher-offering-policy.jsonld",
-      "sha256": "sha256:b5d867c55ebcbe152c02140db8d0778da7f0b054b65b16383b9ad7805de9842f"
+      "sha256": "sha256:a1146d20b753132190483bac84b96a2d681e8e2c3ccf5f1b78d8506f4862b322"
     },
     {
       "media_type": "application/ld+json",
@@ -104,17 +119,22 @@
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/nia-population-population-status-offering-policy.jsonld",
-      "sha256": "sha256:aa78904780e72ef893dfae0ff1c9a00973c9d3f86cc4f00b88fc0a26f0ca87cf"
+      "sha256": "sha256:2d3a0ff6df7f37513a0ec334e933ae27a3412db2a5e2fd569a1f6be5081bbb9d"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/sipf-pensions-pension-case-offering-policy.jsonld",
-      "sha256": "sha256:44b599e02d31f3ce6c4c4870a856c4fc750bac246a74b35a2af229ca893ab79f"
+      "sha256": "sha256:743025c16e905b278546623c1d2f268502b6c013b667c56ed8d46fd603bc36d9"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/solmara-child-benefit-authority-predicate-collection-policy.jsonld",
+      "sha256": "sha256:7b14a9bf40cdc5da8da1c3dae62c554c19eff14d8b0255984081216b651c57ca"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies/sro-social-household-poverty-offering-policy.jsonld",
-      "sha256": "sha256:d1e5e57c8f8d17c4de77ac246dc1b9fdccad478f79821980cc918236c1d7f794"
+      "sha256": "sha256:2b99e4de49c24e68fb5b203cc43709aa285faad8dd2f0a3760c59846ccc6ae63"
     },
     {
       "media_type": "application/ld+json",

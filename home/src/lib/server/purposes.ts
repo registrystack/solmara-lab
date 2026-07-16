@@ -83,5 +83,5 @@ export function buildPurposeViews(purposes: Purpose[], scenarios: Scenario[]): P
 }
 
 function stripTicks(value: string): string {
-  return value.replace(/^`|`$/g, '');
+  return value.replace(/`/g, '');
 }

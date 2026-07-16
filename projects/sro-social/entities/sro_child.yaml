@@ -1,0 +1,23 @@
+version: 1
+id: sro_child
+revision: 1
+primary_key: uin
+schema:
+  type: object
+  additionalProperties: false
+  required: [uin, poverty_band]
+  properties:
+    uin:
+      type: string
+      minLength: 10
+      maxLength: 10
+      pattern: "^[0-9]{10}$"
+    poverty_band:
+      type: string
+      enum: [priority, standard, not_eligible]
+      maxLength: 16
+materialization:
+  max_records: 1000000
+  max_bytes: 64MiB
+  refresh: 1m
+  retain_generations: 2

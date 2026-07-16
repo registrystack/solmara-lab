@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 
 /**
  * The scenario runner reports compose-internal service URLs (for example
- * `http://child-benefit-notary:8080/...`) because that is what it actually
+ * `http://child-benefit-federator:8080/...`) because that is what it actually
  * calls inside the compose network. None of those hostnames resolve from a
  * visitor's browser, so every user-facing URL and copy-as-curl snippet is
  * rewritten through this single table before it leaves the server.
@@ -14,10 +14,13 @@ import { env } from '$env/dynamic/private';
  * `*.solmara.registrystack.org` URLs.
  */
 const DEFAULT_LOCAL_MAP: Record<string, string> = {
-  'child-benefit-notary:8080': 'http://localhost:4321',
-  'pension-notary:8080': 'http://localhost:4322',
-  'nagdi-notary:8080': 'http://localhost:4323',
-  'citizen-notary:8080': 'http://localhost:4324',
+  'child-benefit-federator:8080': 'http://localhost:4321',
+  'cra-notary:8081': 'http://localhost:4325',
+  'nia-notary:8081': 'http://localhost:4326',
+  'sro-notary:8081': 'http://localhost:4327',
+  'programme-notary:8081': 'http://localhost:4328',
+  'sipf-notary:8081': 'http://localhost:4322',
+  'nagdi-notary:8081': 'http://localhost:4323',
   'cra-civil-relay:8080': 'http://localhost:4311',
   'nia-population-relay:8080': 'http://localhost:4312',
   'sro-social-relay:8080': 'http://localhost:4313',
@@ -72,8 +75,8 @@ export function mapPublicUrl(value: string, map: PublicUrlMap): string {
 
 /**
  * Return a copy of a scenario run result with the internal URLs in its
- * `request_source` and `credential_source` blocks rewritten to host-reachable
- * URLs. The input is not mutated.
+ * request blocks and ordinary source trace rewritten to host-reachable URLs.
+ * The input is not mutated.
  */
 export function rewriteRequestUrls<T extends Record<string, unknown>>(result: T, map: PublicUrlMap): T {
   const clone: Record<string, unknown> = { ...result };
@@ -83,7 +86,24 @@ export function rewriteRequestUrls<T extends Record<string, unknown>>(result: T,
       clone[key] = { ...(source as object), url: mapPublicUrl((source as { url: string }).url, map) };
     }
   }
+  if (Array.isArray(clone.request_sources)) {
+    clone.request_sources = clone.request_sources.map((source) => rewriteSourceUrl(source, map));
+  }
+  if (Array.isArray(clone.source_trace)) {
+    clone.source_trace = clone.source_trace.map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      const trace = { ...(item as Record<string, unknown>) };
+      trace.request_source = rewriteSourceUrl(trace.request_source, map);
+      trace.request_summary = rewriteSourceUrl(trace.request_summary, map);
+      return trace;
+    });
+  }
   return clone as T;
+}
+
+function rewriteSourceUrl(source: unknown, map: PublicUrlMap): unknown {
+  if (!source || typeof source !== 'object' || typeof (source as { url?: unknown }).url !== 'string') return source;
+  return { ...(source as object), url: mapPublicUrl((source as { url: string }).url, map) };
 }
 
 function trimSlash(value: string): string {
