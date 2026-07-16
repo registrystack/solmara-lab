@@ -479,6 +479,7 @@ class QualityScriptTests(unittest.TestCase):
             scanned,
         )
         self.assertIn("projects/cra-civil/environments/local.yaml", scanned)
+        self.assertIn("compose.hosted.yaml", scanned)
         self.assertFalse(any(path.startswith("notaries/") for path in scanned))
         self.assertFalse(any(path.startswith("hosted/notaries/") for path in scanned))
         self.assertTrue(

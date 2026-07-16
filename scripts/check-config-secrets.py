@@ -14,6 +14,7 @@ SCAN_DIRS = [
     "projects",
     "runtime/registry-projects",
     "compose.yaml",
+    "compose.hosted.yaml",
     "compose.esignet.yaml",
 ]
 RAW_SECRET_KEYS = re.compile(
