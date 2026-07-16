@@ -183,6 +183,23 @@ test('story page: stepper runs an evaluate step and a purpose-denial step with a
   await expect(denialLink).toBeVisible({ timeout: 30_000 });
 });
 
+test('citizen story renders runnable curls for each authority call', async ({ page }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires a live scenario runner behind the stack');
+  await page.goto('/stories/citizen-self-service');
+
+  await page.locator('#positive').getByRole('button', { name: 'Evaluate' }).click();
+  const result = page.locator('#positive .step-result');
+  await expect(result).toBeVisible({ timeout: 30_000 });
+  await result.getByText('Technical detail').click();
+
+  const authorityRequests = result.locator('.request-list .peer-call');
+  await expect(authorityRequests).toHaveCount(2);
+  await expect(authorityRequests.getByRole('button', { name: 'Copy as curl' })).toHaveCount(2);
+  await expect(authorityRequests.nth(0)).toContainText('http://localhost:4325/v1/evaluations');
+  await expect(authorityRequests.nth(1)).toContainText('http://localhost:4326/v1/evaluations');
+  await expect(result).not.toContainText('solmara://authority-notaries');
+});
+
 test('story page fits a mobile viewport without horizontal overflow', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'story pages require a live scenario runner to load');
   await page.goto('/stories/birth-to-child-benefit');

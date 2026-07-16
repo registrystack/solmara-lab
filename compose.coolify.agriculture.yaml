@@ -84,7 +84,7 @@ services:
 
   nagdi-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
@@ -93,16 +93,13 @@ services:
       REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_nagdi_consultation_keyring_maintenance:${NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_nagdi_consultation_keyring_reader:${NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
-    volumes:
-      - ./runtime/registry-projects/hosted/nagdi-agriculture/relay:/etc/registry-relay:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
   nagdi-agriculture-relay:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/relay/relay.yaml"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
@@ -110,9 +107,6 @@ services:
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nagdi_consultation_runtime:${NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation?sslmode=require"
     expose: ["8080", "8081"]
     volumes:
-      - ./runtime/registry-projects/hosted/nagdi-agriculture/relay:/etc/registry-relay:ro
-      - ./ministries/agriculture-nagdi:/var/lib/solmara/ministries/agriculture-nagdi:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - nagdi-relay-cache:/var/lib/registry-relay/cache
     depends_on:
       nagdi-relay-state-bootstrap:
@@ -122,7 +116,7 @@ services:
 
   nagdi-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/notary.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml"]
     network_mode: service:nagdi-agriculture-relay
     environment: &nagdi-notary-environment
       <<: *notary-environment
@@ -131,8 +125,6 @@ services:
       NAGDI_CLIENT_TOKEN_HASH: ${NAGDI_CLIENT_TOKEN_HASH}
       NAGDI_NOTARY_ISSUER_JWK: ${NAGDI_NOTARY_ISSUER_JWK}
     volumes:
-      - ./runtime/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - nagdi-workload-token:/run/secrets:ro
     depends_on:
       nagdi-agriculture-relay:
@@ -146,13 +138,11 @@ services:
     image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
-    command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nagdi_owner", "--runtime-role", "solmara_notary_nagdi_runtime"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nagdi_owner", "--runtime-role", "solmara_notary_nagdi_runtime"]
     environment:
       <<: *nagdi-notary-environment
       REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_nagdi_migrator:${NAGDI_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_nagdi?sslmode=require"
     volumes:
-      - ./runtime/registry-projects/hosted/nagdi-agriculture/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - nagdi-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:

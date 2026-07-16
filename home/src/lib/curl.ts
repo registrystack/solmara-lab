@@ -1,6 +1,18 @@
 import type { RequestSource } from '$lib/types';
 
 /**
+ * Select the HTTP requests that a visitor can actually run. Multi-authority
+ * stories use a synthetic primary request to describe orchestration, while
+ * request_sources carries the underlying authority calls.
+ */
+export function runnableRequestSources(
+  primary: RequestSource,
+  sources: RequestSource[] | undefined
+): RequestSource[] {
+  return sources?.length ? sources : [primary];
+}
+
+/**
  * Render a request as a copy-as-curl snippet. Headers are prepared server-side:
  * redacted by default, with only allowlisted synthetic lab tokens republished
  * for the visitor center. URLs are already rewritten to host-reachable ones.

@@ -85,7 +85,7 @@ services:
 
   sipf-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
@@ -95,16 +95,13 @@ services:
       REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_sipf_consultation_keyring_maintenance:${SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sipf_consultation_keyring_reader:${SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation?sslmode=require"
       SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
-    volumes:
-      - ./runtime/registry-projects/hosted/sipf-pensions/relay:/etc/registry-relay:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
   sipf-pensions-relay:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/relay/relay.yaml"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
@@ -114,8 +111,6 @@ services:
       DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
     expose: ["8080", "8081"]
     volumes:
-      - ./runtime/registry-projects/hosted/sipf-pensions/relay:/etc/registry-relay:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - sipf-relay-cache:/var/lib/registry-relay/cache
     depends_on:
       sipf-relay-state-bootstrap:
@@ -125,7 +120,7 @@ services:
 
   sipf-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/notary.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml"]
     network_mode: service:sipf-pensions-relay
     environment: &sipf-notary-environment
       <<: *notary-environment
@@ -134,8 +129,6 @@ services:
       SIPF_PENSION_CLIENT_TOKEN_HASH: ${SIPF_PENSION_CLIENT_TOKEN_HASH}
       SIPF_NOTARY_ISSUER_JWK: ${SIPF_NOTARY_ISSUER_JWK}
     volumes:
-      - ./runtime/registry-projects/hosted/sipf-pensions/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - sipf-workload-token:/run/secrets:ro
     depends_on:
       sipf-pensions-relay:
@@ -149,13 +142,11 @@ services:
     image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
-    command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sipf_owner", "--runtime-role", "solmara_notary_sipf_runtime"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sipf_owner", "--runtime-role", "solmara_notary_sipf_runtime"]
     environment:
       <<: *sipf-notary-environment
       REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_sipf_migrator:${SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_sipf?sslmode=require"
     volumes:
-      - ./runtime/registry-projects/hosted/sipf-pensions/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - sipf-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:

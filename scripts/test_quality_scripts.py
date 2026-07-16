@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -68,6 +69,15 @@ def load_secret_generator():
 
 
 class QualityScriptTests(unittest.TestCase):
+    def test_performance_guide_references_every_k6_entrypoint(self) -> None:
+        guide = (ROOT / "perf" / "README.md").read_text(encoding="utf-8")
+        referenced = set(re.findall(r"perf/k6/[A-Za-z0-9_.-]+\.js", guide))
+        entrypoints = {
+            path.relative_to(ROOT).as_posix()
+            for path in (ROOT / "perf" / "k6").glob("*.js")
+        }
+        self.assertEqual(referenced, entrypoints)
+
     def test_authority_notary_cel_ceiling_is_explicit_and_generated(self) -> None:
         projects = (
             "cra-civil",
@@ -676,26 +686,50 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 self.assertEqual(
                     services["registry-postgresql-bootstrap"]["restart"], "no"
                 )
+                for service_name, service in services.items():
+                    for mount in service.get("volumes") or []:
+                        with self.subTest(service=service_name, mount=mount):
+                            self.assertIn(
+                                mount.split(":", 1)[0],
+                                declared_volumes,
+                                "Coolify authority services must use named volumes; "
+                                "repository bind mounts are not deployable closures",
+                            )
 
                 for key, project, relay_name, notary_name in authorities:
                     with self.subTest(authority=key):
                         relay = services[relay_name]
                         notary = services[notary_name]
                         installer = services[f"{notary_name}-state-install"]
+                        bootstrap = services[f"{key}-relay-state-bootstrap"]
                         relay_mounts = set(relay.get("volumes") or [])
                         notary_mounts = set(notary.get("volumes") or [])
-                        self.assertIn(
-                            f"./runtime/registry-projects/hosted/{project}/relay:/etc/registry-relay:ro",
-                            relay_mounts,
+                        relay_config = (
+                            f"/etc/solmara/registry-projects/hosted/{project}/relay/relay.yaml"
+                        )
+                        notary_config = (
+                            f"/etc/solmara/registry-projects/hosted/{project}/notary/notary.yaml"
+                        )
+                        self.assertEqual(relay["command"], ["--config", relay_config])
+                        self.assertEqual(
+                            bootstrap["command"][
+                                bootstrap["command"].index("--config") + 1
+                            ],
+                            relay_config,
                         )
                         self.assertIn(f"{key}-relay-cache", declared_volumes)
                         self.assertIn(
                             f"{key}-relay-cache:/var/lib/registry-relay/cache",
                             relay_mounts,
                         )
-                        self.assertIn(
-                            f"./runtime/registry-projects/hosted/{project}/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro",
-                            notary_mounts,
+                        self.assertEqual(
+                            notary["command"], ["--config", notary_config]
+                        )
+                        self.assertEqual(
+                            installer["command"][
+                                installer["command"].index("--config") + 1
+                            ],
+                            notary_config,
                         )
                         self.assertEqual(
                             notary["network_mode"], f"service:{relay_name}"
@@ -726,6 +760,39 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                                 for mount in notary_mounts
                             )
                         )
+
+    def test_hosted_authority_images_contain_runtime_closures_and_tls(self) -> None:
+        relay_dockerfile = (ROOT / "docker" / "relay" / "Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        notary_dockerfile = (
+            ROOT / "docker" / "notary" / "Dockerfile"
+        ).read_text(encoding="utf-8")
+        projects = (
+            "cra-civil",
+            "nia-population",
+            "sro-social",
+            "mosd-programme",
+            "sipf-pensions",
+            "nagdi-agriculture",
+        )
+        for project in projects:
+            with self.subTest(project=project):
+                self.assertIn(
+                    f"COPY runtime/registry-projects/hosted/{project}/relay "
+                    f"/etc/solmara/registry-projects/hosted/{project}/relay",
+                    relay_dockerfile,
+                )
+                self.assertIn(
+                    f"COPY runtime/registry-projects/hosted/{project}/notary/notary.yaml "
+                    f"/etc/solmara/registry-projects/hosted/{project}/notary/notary.yaml",
+                    notary_dockerfile,
+                )
+        tls_copy = (
+            "COPY config/postgres/ssl/server.crt /etc/solmara/postgres/root.crt"
+        )
+        self.assertIn(tls_copy, relay_dockerfile)
+        self.assertIn(tls_copy, notary_dockerfile)
 
     def test_hosted_postgresql_image_contains_both_live_source_fixtures(self) -> None:
         dockerfile = (ROOT / "docker" / "postgres" / "Dockerfile").read_text(

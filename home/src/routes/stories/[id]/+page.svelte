@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { RequestSource, Scenario, ScenarioStep, StepRunEnvelope, StepRunResult } from '$lib/types';
-  import { toCurl } from '$lib/curl';
+  import { runnableRequestSources, toCurl } from '$lib/curl';
   import { claimResults, isDenial, problemCode, responseStatus } from '$lib/runresult';
   import CopyButton from '$lib/components/CopyButton.svelte';
 
@@ -62,10 +62,6 @@
       await run(step);
     }
     runningAll = false;
-  }
-
-  function requestBlock(result: StepRunResult): string {
-    return sourceBlock(result.request_source);
   }
 
   function sourceBlock(source: RequestSource): string {
@@ -181,6 +177,7 @@
 
           {#if result}
             {@const denied = isDenial(result)}
+            {@const requestSources = runnableRequestSources(result.request_source, result.request_sources)}
             <div class="step-result" class:denied>
               <h3 class="result-title">{result.friendly?.title ?? 'Response received'}</h3>
               <p class="result-message">{result.friendly?.message ?? ''}</p>
@@ -196,10 +193,30 @@
                 <div class="drawer-body">
                   <div class="drawer-block">
                     <div class="drawer-head">
-                      <h4>Request (published lab token)</h4>
-                      <CopyButton text={toCurl(result.request_source)} label="Copy as curl" />
+                      <h4>
+                        {requestSources.length === 1
+                          ? 'Request (published lab token)'
+                          : `Requests (${requestSources.length} authority calls, published lab tokens)`}
+                      </h4>
+                      {#if requestSources.length === 1}
+                        <CopyButton text={toCurl(requestSources[0])} label="Copy as curl" />
+                      {/if}
                     </div>
-                    <pre>{requestBlock(result)}</pre>
+                    {#if requestSources.length > 1}
+                      <div class="peer-trace request-list">
+                        {#each requestSources as source, requestIndex}
+                          <div class="peer-call">
+                            <div class="drawer-head">
+                              <h5>Authority request {requestIndex + 1} of {requestSources.length}</h5>
+                              <CopyButton text={toCurl(source)} label="Copy as curl" />
+                            </div>
+                            <pre>{sourceBlock(source)}</pre>
+                          </div>
+                        {/each}
+                      </div>
+                    {:else}
+                      <pre>{sourceBlock(requestSources[0])}</pre>
+                    {/if}
                   </div>
                   <div class="drawer-block">
                     <h4>Response (HTTP {responseStatus(result) ?? 'none'})</h4>

@@ -90,7 +90,7 @@ services:
 
   cra-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_cra_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/cra-civil/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_cra_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
@@ -99,16 +99,13 @@ services:
       REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_cra_consultation?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_cra_consultation_keyring_maintenance:${CRA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_cra_consultation?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_cra_consultation_keyring_reader:${CRA_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_cra_consultation?sslmode=require"
-    volumes:
-      - ./runtime/registry-projects/hosted/cra-civil/relay:/etc/registry-relay:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
   nia-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nia_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/nia-population/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nia_consultation_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
@@ -118,16 +115,13 @@ services:
       REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_nia_consultation_keyring_maintenance:${NIA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_nia_consultation?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_nia_consultation_keyring_reader:${NIA_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_nia_consultation?sslmode=require"
       SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
-    volumes:
-      - ./runtime/registry-projects/hosted/nia-population/relay:/etc/registry-relay:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
   cra-civil-relay:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/cra-civil/relay/relay.yaml"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
@@ -135,9 +129,6 @@ services:
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_cra_consultation_runtime:${CRA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_cra_consultation?sslmode=require"
     expose: ["8080", "8081"]
     volumes:
-      - ./runtime/registry-projects/hosted/cra-civil/relay:/etc/registry-relay:ro
-      - ./ministries/interior-civil:/var/lib/solmara/ministries/interior-civil:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - cra-relay-cache:/var/lib/registry-relay/cache
     depends_on:
       cra-relay-state-bootstrap:
@@ -147,7 +138,7 @@ services:
 
   nia-population-relay:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nia-population/relay/relay.yaml"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
@@ -157,8 +148,6 @@ services:
       DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
     expose: ["8080", "8081"]
     volumes:
-      - ./runtime/registry-projects/hosted/nia-population/relay:/etc/registry-relay:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - nia-relay-cache:/var/lib/registry-relay/cache
     depends_on:
       nia-relay-state-bootstrap:
@@ -168,7 +157,7 @@ services:
 
   cra-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/notary.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/cra-civil/notary/notary.yaml"]
     network_mode: service:cra-civil-relay
     environment: &cra-notary-environment
       <<: *notary-environment
@@ -178,8 +167,6 @@ services:
       CRA_PENSION_CLIENT_TOKEN_HASH: ${CRA_PENSION_CLIENT_TOKEN_HASH}
       CRA_CITIZEN_CLIENT_TOKEN_HASH: ${CRA_CITIZEN_CLIENT_TOKEN_HASH}
     volumes:
-      - ./runtime/registry-projects/hosted/cra-civil/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - cra-workload-token:/run/secrets:ro
     depends_on:
       cra-civil-relay:
@@ -193,13 +180,11 @@ services:
     image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
-    command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_cra_owner", "--runtime-role", "solmara_notary_cra_runtime"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/cra-civil/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_cra_owner", "--runtime-role", "solmara_notary_cra_runtime"]
     environment:
       <<: *cra-notary-environment
       REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_cra_migrator:${CRA_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_cra?sslmode=require"
     volumes:
-      - ./runtime/registry-projects/hosted/cra-civil/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - cra-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
@@ -207,7 +192,7 @@ services:
 
   nia-notary:
     <<: *notary-common
-    command: ["--config", "/etc/registry-notary/notary.yaml"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nia-population/notary/notary.yaml"]
     network_mode: service:nia-population-relay
     environment: &nia-notary-environment
       <<: *notary-environment
@@ -217,8 +202,6 @@ services:
       NIA_CITIZEN_CLIENT_TOKEN_HASH: ${NIA_CITIZEN_CLIENT_TOKEN_HASH}
       NIA_NOTARY_ISSUER_JWK: ${NIA_NOTARY_ISSUER_JWK}
     volumes:
-      - ./runtime/registry-projects/hosted/nia-population/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - nia-workload-token:/run/secrets:ro
     depends_on:
       nia-population-relay:
@@ -232,13 +215,11 @@ services:
     image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
-    command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nia_owner", "--runtime-role", "solmara_notary_nia_runtime"]
+    command: ["--config", "/etc/solmara/registry-projects/hosted/nia-population/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nia_owner", "--runtime-role", "solmara_notary_nia_runtime"]
     environment:
       <<: *nia-notary-environment
       REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_nia_migrator:${NIA_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_nia?sslmode=require"
     volumes:
-      - ./runtime/registry-projects/hosted/nia-population/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
-      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
       - nia-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
