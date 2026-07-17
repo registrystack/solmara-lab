@@ -72,8 +72,10 @@ The other public endpoints are:
 ## Image model
 
 Registry Stack Relay and Notary image refs are inputs to the Solmara wrapper
-builds. The `release-candidate` workflow builds the deployable Solmara images
-and reports immutable digest refs for these Coolify variables:
+builds. The `release-candidate` workflow requires a Registry Stack candidate
+or release tag and accepts only Relay and Notary input digests that match the
+committed `versions.env` pins. It builds the deployable Solmara images and
+reports immutable digest refs for these Coolify variables:
 
 - `SOLMARA_RELAY_IMAGE`
 - `SOLMARA_NOTARY_IMAGE`
@@ -86,6 +88,10 @@ and reports immutable digest refs for these Coolify variables:
 - `SOLMARA_ESIGNET_POSTGRES_IMAGE`
 - `SOLMARA_ESIGNET_UI_IMAGE`
 - `SOLMARA_ESIGNET_SEED_IMAGE`
+
+Before dispatching the workflow, run
+`just review-release <registry-stack-tag>` with that same tag. `just review`
+remains the no-argument contributor and CI gate.
 
 Use `image@sha256:<digest>` values in Coolify. Do not deploy mutable tags.
 `REGISTRY_STACK_PLATFORM` defaults to `linux/amd64`; override it only when the

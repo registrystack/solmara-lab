@@ -3,9 +3,13 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [ "$#" -ne 0 ]; then
+  echo "usage: scripts/review.sh" >&2
+  exit 2
+fi
+
 "$root/scripts/check-fiction.sh"
 "$root/scripts/check-image-pins.py"
-"$root/scripts/check-release-pins.py" v0.10.0
 "$root/scripts/check-config-secrets.py"
 uv run --project "$root" "$root/scripts/publish-metadata.py" --check
 uv run --project "$root" "$root/scripts/metadata-lint.py"
