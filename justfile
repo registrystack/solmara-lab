@@ -141,10 +141,15 @@ home-live-e2e:
 hosted-smoke *args:
     uv run scripts/smoke-hosted.py {{args}}
 
-# Verify pinned Registry Stack images match a published release tag.
-release-pins tag="v0.10.0":
-    scripts/check-release-pins.py {{tag}}
+# Verify committed Registry Stack image pins match a candidate or release tag.
+release-pins tag:
+    scripts/check-release-pins.py "$1"
 
 # Run release-readiness and security-oriented checks.
 review:
+    scripts/review.sh
+
+# Run release review against an explicit Registry Stack candidate or release tag.
+review-release tag:
+    scripts/check-release-pins.py "$1"
     scripts/review.sh

@@ -9,6 +9,9 @@ on:
       registry_notary_image:
         description: Digest-pinned registry-notary image
         required: true
+      registry_stack_tag:
+        description: Registry Stack candidate or release tag matching the supplied image digests
+        required: true
       solmara_image_tag:
         description: Tag for Solmara-owned images. Defaults to the workflow commit SHA.
         required: false
@@ -23,6 +26,7 @@ jobs:
     env:
       REGISTRY_RELAY_IMAGE: ${{ inputs.registry_relay_image }}
       REGISTRY_NOTARY_IMAGE: ${{ inputs.registry_notary_image }}
+      REGISTRY_STACK_TAG: ${{ inputs.registry_stack_tag }}
       SOLMARA_IMAGE_REGISTRY: ghcr.io/registrystack
       SOLMARA_IMAGE_TAG: ${{ inputs.solmara_image_tag || github.sha }}
       POSTGRES_IMAGE: postgres:16-alpine
@@ -62,10 +66,10 @@ jobs:
           just metadata-publish
       - name: Validate
         run: |
-          just release-pins v0.10.0
           just lint
           just test
           just compose
+          just review-release "$REGISTRY_STACK_TAG"
       - name: Start stack
         run: just up
       - name: Smoke and PostgreSQL restart persistence

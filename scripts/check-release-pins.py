@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-import re
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -16,18 +16,44 @@ IMAGE_KEYS = {
 }
 PIN_RE = re.compile(r"^(?P<image>[^@\s]+)@(?P<digest>sha256:[0-9a-f]{64})$")
 DIGEST_RE = re.compile(r"^Digest:\s+(sha256:[0-9a-f]{64})$", re.MULTILINE)
+TAG_RE = re.compile(
+    r"^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$"
+)
 
 
 def main(argv: list[str]) -> int:
-    tag = argv[1] if len(argv) > 1 else "v0.10.0"
+    if len(argv) != 2 or not argv[1]:
+        print("usage: check-release-pins.py <registry-stack-tag>", file=sys.stderr)
+        return 2
+
+    tag = argv[1]
+    if not TAG_RE.fullmatch(tag):
+        print(
+            "check-release-pins: tag must match "
+            "vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-PRERELEASE",
+            file=sys.stderr,
+        )
+        return 2
+
     versions = read_versions(ROOT / "versions.env")
     failures: list[str] = []
 
+    for key in IMAGE_KEYS:
+        pinned = versions.get(key)
+        override = os.environ.get(key)
+        if pinned and override and override != pinned:
+            failures.append(f"{key} environment override must match versions.env")
+
+    if failures:
+        for failure in failures:
+            print(f"check-release-pins: {failure}", file=sys.stderr)
+        return 1
+
     for key, image in IMAGE_KEYS.items():
-        pinned = os.environ.get(key) or versions.get(key)
-        source = "environment" if os.environ.get(key) else "versions.env"
+        pinned = versions.get(key)
         if not pinned:
-            failures.append(f"{key} is missing from {source}")
+            failures.append(f"{key} is missing from versions.env")
             continue
         match = PIN_RE.match(pinned)
         if not match:
@@ -39,7 +65,7 @@ def main(argv: list[str]) -> int:
         release_digest = inspect_tag_digest(f"{image}:{tag}")
         if release_digest != match.group("digest"):
             failures.append(
-                f"{key} from {source} pins {match.group('digest')}, "
+                f"{key} from versions.env pins {match.group('digest')}, "
                 f"but {image}:{tag} resolves to {release_digest}"
             )
 

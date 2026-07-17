@@ -66,8 +66,9 @@ just up-esignet # local stack with eSignet-backed portal login
 just smoke-esignet # eSignet public discovery smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
-just release-pins v0.10.0 # compare versions.env against published GHCR tags
-just review     # security and release-readiness checks
+just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
+just review     # normal security and release-readiness checks
+just review-release <registry-stack-tag> # candidate review with published pin validation
 ```
 
 `just generate` rewrites generated fixtures. Review those diffs like any other
@@ -135,6 +136,11 @@ workflow summary for Coolify env vars:
 `SOLMARA_PORTAL_IMAGE`, `SOLMARA_SCENARIO_RUNNER_IMAGE`,
 `SOLMARA_ESIGNET_RELAY_IMAGE`, `SOLMARA_ESIGNET_POSTGRES_IMAGE`,
 `SOLMARA_ESIGNET_UI_IMAGE`, and `SOLMARA_ESIGNET_SEED_IMAGE`.
+
+Its manually supplied Registry Stack tag is required and must resolve to the
+same Relay and Notary digests committed in `versions.env`. Run the same
+candidate-only gate locally with `just review-release <registry-stack-tag>`;
+the normal contributor and CI gate remains `just review`.
 
 For local eSignet testing, run `just up-esignet` instead of `just up`, then
 sign in through the portal with Elena's fixture `legacy_nid` and static OTP
