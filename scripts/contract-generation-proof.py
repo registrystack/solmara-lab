@@ -20,7 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, NoReturn, Sequence
 
 import yaml
 
@@ -166,6 +166,29 @@ def preserve_cleanup_failure(
         )
         return
     raise failure
+
+
+def raise_mixed_notary_timeout(
+    container_name: str,
+    timeout_error: subprocess.TimeoutExpired,
+    *,
+    environment: Mapping[str, str] | None,
+    emergency_cleanup: Callable[[], subprocess.CompletedProcess[str]] | None = None,
+) -> NoReturn:
+    cleanup = emergency_cleanup or (
+        lambda: run(
+            ["docker", "rm", "--force", container_name],
+            environment=environment,
+            timeout=30,
+            check=False,
+        )
+    )
+    preserve_cleanup_failure(
+        cleanup,
+        environment=environment,
+        primary_failure_active=True,
+    )
+    raise ProofFailure("mixed-generation Notary unexpectedly kept serving") from timeout_error
 
 
 def make_successor(project: Path) -> None:
@@ -451,8 +474,11 @@ def main() -> int:
                     check=False,
                 )
             except subprocess.TimeoutExpired as error:
-                run(["docker", "rm", "--force", mixed_name], check=False)
-                raise ProofFailure("mixed-generation Notary unexpectedly kept serving") from error
+                raise_mixed_notary_timeout(
+                    mixed_name,
+                    error,
+                    environment=environment,
+                )
             (evidence / "mixed-notary.log").write_text(mixed.stdout, encoding="utf-8")
             if mixed.returncode == 0:
                 raise ProofFailure("mixed-generation Notary unexpectedly activated")

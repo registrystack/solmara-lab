@@ -159,6 +159,39 @@ class ContractGenerationProofTests(unittest.TestCase):
         self.assertNotIn(secret, diagnostic)
         self.assertNotIn(self.proof.GREEN_SUBJECT, diagnostic)
 
+    def test_mixed_timeout_preserves_primary_when_emergency_cleanup_fails(self) -> None:
+        secret = "emergency-cleanup-secret"
+        cleanup_failures = (
+            lambda: subprocess.CompletedProcess(
+                ["docker"],
+                1,
+                f"remove failed; credential={secret}; subject={self.proof.BLUE_SUBJECT}",
+            ),
+            lambda: (_ for _ in ()).throw(
+                subprocess.TimeoutExpired(["docker", "rm"], timeout=1)
+            ),
+        )
+        for emergency_cleanup in cleanup_failures:
+            with self.subTest(emergency_cleanup=emergency_cleanup):
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    with self.assertRaisesRegex(
+                        self.proof.ProofFailure,
+                        "mixed-generation Notary unexpectedly kept serving",
+                    ):
+                        self.proof.raise_mixed_notary_timeout(
+                            "bounded-mixed-notary",
+                            subprocess.TimeoutExpired(
+                                ["docker", "compose"], timeout=45
+                            ),
+                            environment={"EMERGENCY_TOKEN": secret},
+                            emergency_cleanup=emergency_cleanup,
+                        )
+                diagnostic = stderr.getvalue()
+                self.assertIn("secondary cleanup failure", diagnostic)
+                self.assertNotIn(secret, diagnostic)
+                self.assertNotIn(self.proof.BLUE_SUBJECT, diagnostic)
+
     def test_workflows_use_the_pinned_compiler_and_live_proof(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         candidate = (ROOT / ".github" / "workflows" / "release-candidate.yml").read_text(
