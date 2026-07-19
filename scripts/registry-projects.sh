@@ -3,7 +3,7 @@ set -eu
 
 ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 VERSION_FILE="$ROOT/versions.env"
-REGISTRYCTL=${REGISTRYCTL_BIN:-registryctl}
+REGISTRYCTL=${REGISTRYCTL_BIN:-}
 
 required_version=$(sed -n 's/^REGISTRYCTL_VERSION=//p' "$VERSION_FILE")
 if [ -z "$required_version" ]; then
@@ -11,6 +11,9 @@ if [ -z "$required_version" ]; then
   exit 1
 fi
 
+if [ -z "$REGISTRYCTL" ]; then
+  REGISTRYCTL=$("$ROOT/scripts/registryctl-pinned.sh" path)
+fi
 actual_version=$("$REGISTRYCTL" --version 2>/dev/null || true)
 if [ "$actual_version" != "registryctl $required_version" ]; then
   echo "registryctl $required_version is required; got ${actual_version:-no executable}" >&2
