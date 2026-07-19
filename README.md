@@ -15,8 +15,7 @@ From this repository:
 
 ```bash
 just setup
-just generate
-just up
+just up-generated
 just smoke
 just portal-live-e2e
 just down
@@ -26,6 +25,20 @@ just down
 project name by default so two local clones do not share containers or volumes.
 Use `just down` to stop services while keeping local data. Use `just reset` only
 when you intend to delete this checkout's Compose volumes.
+
+`up-generated` is the single clean-checkout generate/start journey. It creates
+the synthetic fixtures and local secrets, regenerates every authority's Relay
+and Notary closure with the real `registryctl` version pinned in `versions.env`,
+compares those closures with the committed runtime, and starts the topology.
+If the exact tool version is not installed, the helper downloads the matching
+release binary and verifies it against the release SHA-256 file.
+
+`registry-projects-runtime-check` can run the compiler comparison without
+starting services. `contract-generation-proof` is a separate release gate for
+one bounded SRO authority pair. It compiles a harmless successor, proves the
+blue pair works, rejects a mixed Relay/Notary generation before Relay execution
+or source dispatch, activates the complete successor, and proves it works. Its
+temporary Compose project and volumes are removed when the check finishes.
 
 The first wave covers three journeys:
 
@@ -66,6 +79,9 @@ just up-esignet # local stack with eSignet-backed portal login
 just smoke-esignet # eSignet public discovery smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
+just up-generated # clean-checkout generation, compiler comparison, and start
+just registry-projects-runtime-check # regenerate and compare all authority runtime closures
+just contract-generation-proof # release-only live SRO blue/mixed/successor proof
 just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
 just review     # normal security and release-readiness checks
 just review-release <registry-stack-tag> # candidate review with published pin validation

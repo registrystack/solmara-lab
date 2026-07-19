@@ -18,6 +18,12 @@ generate:
     @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m solmara_lab.generate; else echo "generator/pyproject.toml missing"; exit 1; fi
     scripts/gen-secrets.py
 
+# Generate a clean checkout, verify compiler output, and start the local topology.
+up-generated:
+    just generate
+    just registry-projects-runtime-check
+    just up
+
 # Validate every authority-owned Registry project in both deployment profiles.
 registry-projects-check:
     scripts/registry-projects.sh check
@@ -37,6 +43,10 @@ registry-projects-sync:
 # Prove the committed runtime closure matches the authored authority projects.
 registry-projects-runtime-check:
     scripts/registry-projects.sh check-runtime
+
+# Exercise one complete compiler-generated SRO blue-green release transition.
+contract-generation-proof:
+    uv run --locked scripts/contract-generation-proof.py
 
 # Generate only local secrets.
 gen-secrets:

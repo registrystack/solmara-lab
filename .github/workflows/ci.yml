@@ -30,6 +30,11 @@ jobs:
         run: just lint
       - name: Test
         run: just test
+      - name: Verify compiler-generated authority projects
+        run: |
+          just registry-projects-check
+          just registry-projects-test
+          just registry-projects-runtime-check
       - name: Generate local secrets
         run: just gen-secrets
       - name: Compose

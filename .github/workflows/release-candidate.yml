@@ -68,8 +68,11 @@ jobs:
         run: |
           just lint
           just test
+          just registry-projects-runtime-check
           just compose
           just review-release "$REGISTRY_STACK_TAG"
+      - name: Prove SRO contract generation transition
+        run: just contract-generation-proof
       - name: Start stack
         run: just up
       - name: Smoke and PostgreSQL restart persistence
