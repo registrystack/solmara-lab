@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import yaml
@@ -89,6 +94,70 @@ class ContractGenerationProofTests(unittest.TestCase):
             message = str(rejected.exception)
             self.assertIn("test credential", message)
             self.assertNotIn(secret.decode("utf-8"), message)
+
+    def test_failed_command_output_is_actionable_bounded_and_redacted(self) -> None:
+        secret = "runtime-secret-that-must-not-appear"
+        output_lines = "\n".join(f"diagnostic line {index}" for index in range(40))
+        command = (
+            'printf "%s\\n" "explanation: registry image was unavailable" '
+            '"$INHERITED_TOKEN" "2300027390"; '
+            f'printf "%s\\n" "{output_lines}"; exit 7'
+        )
+        with mock.patch.dict(os.environ, {"INHERITED_TOKEN": secret}, clear=False):
+            with self.assertRaises(self.proof.ProofFailure) as rejected:
+                self.proof.run(["/bin/sh", "-c", command])
+        message = str(rejected.exception)
+        self.assertIn("explanation: registry image was unavailable", message)
+        self.assertIn("command output (redacted and bounded)", message)
+        self.assertNotIn(secret, message)
+        self.assertNotIn(self.proof.BLUE_SUBJECT, message)
+        diagnostic = message.split("command output (redacted and bounded):\n", 1)[1]
+        self.assertLessEqual(
+            len(diagnostic.splitlines()), self.proof.MAX_DIAGNOSTIC_LINES
+        )
+        self.assertLessEqual(
+            len(diagnostic.encode("utf-8")), self.proof.MAX_DIAGNOSTIC_BYTES
+        )
+
+    def test_cleanup_failures_are_fatal_without_a_primary_failure(self) -> None:
+        failures = (
+            lambda: subprocess.CompletedProcess(["docker"], 1, "cleanup rejected"),
+            lambda: (_ for _ in ()).throw(
+                subprocess.TimeoutExpired(["docker"], timeout=1)
+            ),
+            lambda: (_ for _ in ()).throw(OSError("unsafe operating-system detail")),
+        )
+        for cleanup in failures:
+            with self.subTest(cleanup=cleanup):
+                with self.assertRaises(self.proof.ProofFailure):
+                    self.proof.preserve_cleanup_failure(
+                        cleanup,
+                        environment={},
+                        primary_failure_active=False,
+                    )
+
+    def test_cleanup_failure_does_not_replace_primary_and_is_safely_reported(self) -> None:
+        secret = "cleanup-secret-that-must-not-appear"
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaisesRegex(self.proof.ProofFailure, "primary proof failure"):
+                try:
+                    raise self.proof.ProofFailure("primary proof failure")
+                finally:
+                    self.proof.preserve_cleanup_failure(
+                        lambda: subprocess.CompletedProcess(
+                            ["docker"],
+                            1,
+                            f"cleanup explanation; credential={secret}; subject={self.proof.GREEN_SUBJECT}",
+                        ),
+                        environment={"CLEANUP_TOKEN": secret},
+                        primary_failure_active=sys.exc_info()[0] is not None,
+                    )
+        diagnostic = stderr.getvalue()
+        self.assertIn("secondary cleanup failure", diagnostic)
+        self.assertIn("cleanup explanation", diagnostic)
+        self.assertNotIn(secret, diagnostic)
+        self.assertNotIn(self.proof.GREEN_SUBJECT, diagnostic)
 
     def test_workflows_use_the_pinned_compiler_and_live_proof(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")

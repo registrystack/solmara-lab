@@ -20,7 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import yaml
 
@@ -33,6 +33,10 @@ BLUE_SUBJECT = "2300027390"
 GREEN_SUBJECT = "2300018263"
 RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
 SENSITIVE_ENV_MARKERS = ("TOKEN", "PASSWORD", "SECRET", "JWK")
+MAX_DIAGNOSTIC_LINES = 12
+MAX_DIAGNOSTIC_LINE_BYTES = 256
+MAX_DIAGNOSTIC_BYTES = 4096
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 class ProofFailure(RuntimeError):
@@ -53,6 +57,63 @@ def read_env(path: Path) -> dict[str, str]:
     return values
 
 
+def diagnostic_environment(environment: Mapping[str, str] | None) -> dict[str, str]:
+    return dict(os.environ if environment is None else environment)
+
+
+def bounded_redacted_output(
+    output: str, environment: Mapping[str, str] | None
+) -> str:
+    redacted = output
+    values = [BLUE_SUBJECT, GREEN_SUBJECT]
+    values.extend(
+        value
+        for name, value in diagnostic_environment(environment).items()
+        if value and any(marker in name for marker in SENSITIVE_ENV_MARKERS)
+    )
+    for value in sorted(set(values), key=len, reverse=True):
+        redacted = redacted.replace(value, "[redacted]")
+    redacted = ANSI_ESCAPE.sub("", redacted)
+    lines = [
+        "".join(
+            character
+            if character.isprintable() or character == "\t"
+            else "?"
+            for character in line
+        )
+        for line in redacted.splitlines()
+    ]
+    if not lines:
+        return "(no command output captured)"
+    if len(lines) > MAX_DIAGNOSTIC_LINES:
+        lines = [*lines[:6], "... output lines omitted ...", *lines[-5:]]
+    bounded_lines = []
+    for line in lines:
+        encoded = line.encode("utf-8")
+        if len(encoded) > MAX_DIAGNOSTIC_LINE_BYTES:
+            line = encoded[:MAX_DIAGNOSTIC_LINE_BYTES].decode("utf-8", errors="ignore")
+            line += "..."
+        bounded_lines.append(line)
+    bounded = "\n".join(bounded_lines)
+    encoded = bounded.encode("utf-8")
+    if len(encoded) > MAX_DIAGNOSTIC_BYTES:
+        bounded = encoded[:MAX_DIAGNOSTIC_BYTES].decode("utf-8", errors="ignore")
+    return bounded
+
+
+def command_failure(
+    executable: str,
+    returncode: int,
+    output: str,
+    environment: Mapping[str, str] | None,
+) -> ProofFailure:
+    diagnostic = bounded_redacted_output(output, environment)
+    return ProofFailure(
+        f"{Path(executable).name} command failed with exit {returncode}\n"
+        f"command output (redacted and bounded):\n{diagnostic}"
+    )
+
+
 def run(
     arguments: Sequence[str],
     *,
@@ -71,8 +132,40 @@ def run(
         check=False,
     )
     if check and result.returncode != 0:
-        raise ProofFailure(f"{Path(arguments[0]).name} command failed with exit {result.returncode}")
+        raise command_failure(arguments[0], result.returncode, result.stdout, environment)
     return result
+
+
+def preserve_cleanup_failure(
+    cleanup: Callable[[], subprocess.CompletedProcess[str]],
+    *,
+    environment: Mapping[str, str] | None,
+    primary_failure_active: bool,
+) -> None:
+    failure: ProofFailure | None = None
+    try:
+        result = cleanup()
+    except subprocess.TimeoutExpired:
+        failure = ProofFailure("docker Compose cleanup timed out")
+    except OSError:
+        failure = ProofFailure("docker Compose cleanup could not start")
+    else:
+        if result.returncode != 0:
+            failure = command_failure(
+                "docker compose cleanup",
+                result.returncode,
+                result.stdout,
+                environment,
+            )
+    if failure is None:
+        return
+    if primary_failure_active:
+        print(
+            f"contract-generation-proof: secondary cleanup failure: {failure}",
+            file=sys.stderr,
+        )
+        return
+    raise failure
 
 
 def make_successor(project: Path) -> None:
@@ -396,7 +489,16 @@ def main() -> int:
 
             scan_paths([blue, green, evidence], sensitive_patterns(environment))
         finally:
-            run([*green_compose, "down", "--volumes", "--remove-orphans"], environment=environment, check=False)
+            preserve_cleanup_failure(
+                lambda: run(
+                    [*green_compose, "down", "--volumes", "--remove-orphans"],
+                    environment=environment,
+                    timeout=120,
+                    check=False,
+                ),
+                environment=environment,
+                primary_failure_active=sys.exc_info()[0] is not None,
+            )
 
     print("contract-generation-proof: blue success, mixed rejection, and successor success passed")
     return 0
