@@ -50,6 +50,36 @@ class ContractGenerationProofTests(unittest.TestCase):
             after = yaml.safe_load(integration.read_text(encoding="utf-8"))
             self.assertEqual(before | {"revision": 2}, after)
 
+    def test_proof_uses_the_digest_pinned_feature_runtime(self) -> None:
+        runtime = (
+            "ghcr.io/registrystack/solmara-lab-relay-runtime@sha256:"
+            + "a" * 64
+        )
+        self.assertEqual(
+            self.proof.relay_runtime_image(
+                {
+                    "REGISTRY_RELAY_IMAGE": (
+                        "ghcr.io/registrystack/registry-relay@sha256:" + "b" * 64
+                    ),
+                    "SOLMARA_RELAY_RUNTIME_IMAGE": runtime,
+                }
+            ),
+            runtime,
+        )
+
+    def test_proof_rejects_a_mutable_feature_runtime_reference(self) -> None:
+        with self.assertRaisesRegex(
+            self.proof.ProofFailure,
+            "must pin the published feature runtime by digest",
+        ):
+            self.proof.relay_runtime_image(
+                {
+                    "SOLMARA_RELAY_RUNTIME_IMAGE": (
+                        "ghcr.io/registrystack/solmara-lab-relay-runtime:v0.13.0"
+                    )
+                }
+            )
+
     def test_mixed_override_replaces_only_notary_generation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
