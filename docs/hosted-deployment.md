@@ -113,6 +113,25 @@ just registry-projects-sync
 just registry-projects-runtime-check
 ```
 
+Hosted Relay does not boot those compiler outputs as unsigned non-local
+configuration. Each Relay wrapper carries an instance-bound signed Config
+Bundle, its public trust anchor, and no private signing key. Verify that every
+signed closure still projects exactly to the compiler output:
+
+```bash
+just hosted-relay-bundles-check
+```
+
+When a hosted Relay config or artifact changes, use an offline private JWK and
+its public-only JWK with
+`scripts/generate-hosted-relay-bundles.py`. Increment the bundle sequence and
+generate into a new staging directory, review the config and manifest diffs,
+then replace the committed bundle set. Never commit the private JWK. A first
+deployment seeds sequence zero only into an empty Relay cache volume; successful
+Relay startup audits and persists the signed sequence. Later image rollback
+cannot lower that durable sequence. Publish a higher signed sequence for a
+normal rollback, or use Registry Relay's reviewed break-glass procedure.
+
 Each authority application needs only the variables referenced by its Compose
 file. At minimum, provide:
 

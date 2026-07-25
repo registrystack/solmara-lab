@@ -1,0 +1,20 @@
+{
+  "schema": "registry.platform.config_trust_anchor.v1",
+  "product": "registry-relay",
+  "environment": "hosted",
+  "stream_id": "solmara-hosted-nagdi-agriculture",
+  "instance_id": "nagdi-agriculture-relay",
+  "signers": [
+    {
+      "kid": "0TiuAJUJc2oYr8DhDdqgsAnl_RSej7-731DWTOhdSu4",
+      "jwk": {
+        "kty": "OKP",
+        "kid": "solmara-hosted-relay-config-2026-07-25",
+        "alg": "EdDSA",
+        "crv": "Ed25519",
+        "x": "bmfusAem-Zz6IvSGa479gGdBMAovTEUPelPgGxwm7jg"
+      },
+      "enabled": true
+    }
+  ]
+}

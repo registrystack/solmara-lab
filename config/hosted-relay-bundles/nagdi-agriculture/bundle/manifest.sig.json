@@ -1,0 +1,10 @@
+{
+  "schema": "registry.platform.config_bundle_signatures.v1",
+  "signatures": [
+    {
+      "kid": "0TiuAJUJc2oYr8DhDdqgsAnl_RSej7-731DWTOhdSu4",
+      "alg": "EdDSA",
+      "sig": "HH5--0M0GfG5zxAT9g45HYF-p9Jt6ltnvYnF_r2o6btJG6idXDLB0bMxoBgjPAF2AsEq5N6tLVvHydrh1sOpCg"
+    }
+  ]
+}

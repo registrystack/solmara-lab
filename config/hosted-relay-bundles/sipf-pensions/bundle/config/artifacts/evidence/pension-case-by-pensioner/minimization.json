@@ -1,0 +1,1 @@
+{"class":"minimization","integration":"solmara-sipf-pension-case-by-pensioner","operations":{},"outputs":{"payment_status":{"from":"snapshot.record.payment_status","max_bytes":128,"maximum":null,"minimum":null,"nullable":false,"type":"string"}},"schema":"registry.project.integration-evidence.v1"}

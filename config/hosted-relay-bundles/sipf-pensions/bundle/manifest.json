@@ -1,0 +1,65 @@
+{
+  "schema": "registry.platform.config_bundle.v1",
+  "product": "registry-relay",
+  "environment": "hosted",
+  "stream_id": "solmara-hosted-sipf-pensions",
+  "instance_id": "sipf-pensions-relay",
+  "bundle_id": "solmara-hosted-sipf-pensions-sequence-1",
+  "sequence": 1,
+  "config_hash": "sha256:17ffc50ba1e6e4e050fb6b384bb750253352a0189d000a477caf6e652e829daf",
+  "files": [
+    {
+      "path": "config/artifacts/consultation-contracts/sipf-pension-payment-review-pension.json",
+      "sha256": "sha256:21eca329ac5c7d87291eff868247acd763a56a15920ce7a23a7b8b5dd29753ec"
+    },
+    {
+      "path": "config/artifacts/consultation-contracts/sipf-survivor-benefit-survivor.json",
+      "sha256": "sha256:718a57529960909aa4904412ae1010544352817a16db8bd3670a9f4baca4e52f"
+    },
+    {
+      "path": "config/artifacts/evidence/pension-case-by-pensioner/conformance.json",
+      "sha256": "sha256:835002ccbffb2a459808c4d2da2b7a631d7d6f0940c0aa73b0c7169cfb04299c"
+    },
+    {
+      "path": "config/artifacts/evidence/pension-case-by-pensioner/minimization.json",
+      "sha256": "sha256:7955c481459333ab942755b224be6da87f180ea87b3e6bb35e1b56ddcdab5660"
+    },
+    {
+      "path": "config/artifacts/evidence/pension-case-by-pensioner/negative-security.json",
+      "sha256": "sha256:dd7bf51e1b1a639d515b9aad9e3b598aa7b4f54760b191a8c363e28abd4e8a2d"
+    },
+    {
+      "path": "config/artifacts/evidence/pension-case-by-survivor/conformance.json",
+      "sha256": "sha256:036a62f001ad4028a5c732f10cbea5c09bbb8c42fdd2bdc40675942bf7fd990f"
+    },
+    {
+      "path": "config/artifacts/evidence/pension-case-by-survivor/minimization.json",
+      "sha256": "sha256:1a5c2d191a2468a4898556ef0e1cc164847f8df69e86a09c8f4c73eb1c705e5f"
+    },
+    {
+      "path": "config/artifacts/evidence/pension-case-by-survivor/negative-security.json",
+      "sha256": "sha256:4ee198ac5719ce112ceb91f596e75dcbd933a8d6ceb0051910b876a3789147c7"
+    },
+    {
+      "path": "config/artifacts/integration-packs/pension-case-by-pensioner.json",
+      "sha256": "sha256:c2991a8c90ecfaad79f28d60801f0a2772b0851d44a6ddc09fdcb1cc16498750"
+    },
+    {
+      "path": "config/artifacts/integration-packs/pension-case-by-survivor.json",
+      "sha256": "sha256:0e5d17671c4bb70f2de35ebd92dc7fc745fa96539c89aaecb823014ea570b0c0"
+    },
+    {
+      "path": "config/artifacts/private-bindings/sipf-pension-payment-review-pension.json",
+      "sha256": "sha256:a61426e41ec476090f81cad40af7c2cd841e78f656e95d0e59c28447772f2579"
+    },
+    {
+      "path": "config/artifacts/private-bindings/sipf-survivor-benefit-survivor.json",
+      "sha256": "sha256:e073578d218287585af339adda4092ff7e3545f52ac7000c515e38acad1c4791"
+    },
+    {
+      "path": "config/relay.yaml",
+      "sha256": "sha256:17ffc50ba1e6e4e050fb6b384bb750253352a0189d000a477caf6e652e829daf"
+    }
+  ],
+  "created_at": "2026-07-25T17:00:39.364434Z"
+}

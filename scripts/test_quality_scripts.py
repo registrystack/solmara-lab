@@ -771,6 +771,10 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 r"@sha256:[0-9a-f]{64}$"
             ),
         )
+        self.assertRegex(
+            versions["VOLUME_INIT_IMAGE"],
+            r"^busybox@sha256:[0-9a-f]{64}$",
+        )
         self.assertEqual(
             versions["SOLMARA_RELAY_RUNTIME_DEV_IMAGE"],
             "solmara-lab-registry-relay:v0.13.0-attribute-release",
@@ -835,7 +839,19 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             release_workflow,
         )
         self.assertIn(
+            "VOLUME_INIT_IMAGE=${{ env.VOLUME_INIT_IMAGE }}",
+            release_workflow,
+        )
+        self.assertIn(
             'echo "- ${SOLMARA_RELAY_RUNTIME_IMAGE}"',
+            release_workflow,
+        )
+        self.assertLess(
+            release_workflow.index("- name: Build and push hosted Relay image"),
+            release_workflow.index("- name: Verify hosted Relay signed bundles"),
+        )
+        self.assertIn(
+            "config verify-bundle",
             release_workflow,
         )
 
@@ -920,10 +936,17 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                         notary = services[notary_name]
                         installer = services[f"{notary_name}-state-install"]
                         bootstrap = services[f"{key}-relay-state-bootstrap"]
+                        config_state_init = services[
+                            f"{key}-relay-config-state-init"
+                        ]
                         relay_mounts = set(relay.get("volumes") or [])
+                        bootstrap_mounts = set(bootstrap.get("volumes") or [])
+                        config_state_mounts = set(
+                            config_state_init.get("volumes") or []
+                        )
                         notary_mounts = set(notary.get("volumes") or [])
                         relay_config = (
-                            f"/etc/solmara/registry-projects/hosted/{project}/relay/relay.yaml"
+                            f"/etc/solmara/hosted-relay-bundles/{project}/bootstrap.yaml"
                         )
                         notary_config = (
                             f"/etc/solmara/registry-projects/hosted/{project}/notary/notary.yaml"
@@ -939,6 +962,25 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                         self.assertIn(
                             f"{key}-relay-cache:/var/lib/registry-relay/cache",
                             relay_mounts,
+                        )
+                        self.assertIn(
+                            f"{key}-relay-cache:/var/lib/registry-relay/cache",
+                            bootstrap_mounts,
+                        )
+                        self.assertEqual(config_state_init["user"], "0:0")
+                        self.assertEqual(
+                            config_state_init["entrypoint"],
+                            ["/bin/busybox", "sh", "-eu", "-c"],
+                        )
+                        self.assertIn(
+                            f"{key}-relay-cache:/var/lib/registry-relay/cache",
+                            config_state_mounts,
+                        )
+                        self.assertEqual(
+                            bootstrap["depends_on"][
+                                f"{key}-relay-config-state-init"
+                            ]["condition"],
+                            "service_completed_successfully",
                         )
                         self.assertEqual(
                             notary["command"], ["--config", notary_config]
@@ -997,15 +1039,23 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         for project in projects:
             with self.subTest(project=project):
                 self.assertIn(
-                    f"COPY runtime/registry-projects/hosted/{project}/relay "
-                    f"/etc/solmara/registry-projects/hosted/{project}/relay",
-                    relay_dockerfile,
-                )
-                self.assertIn(
                     f"COPY runtime/registry-projects/hosted/{project}/notary/notary.yaml "
                     f"/etc/solmara/registry-projects/hosted/{project}/notary/notary.yaml",
                     notary_dockerfile,
                 )
+        self.assertIn(
+            "COPY config/hosted-relay-bundles "
+            "/etc/solmara/hosted-relay-bundles",
+            relay_dockerfile,
+        )
+        self.assertIn(
+            "COPY --from=volume-init /bin/busybox /bin/busybox",
+            relay_dockerfile,
+        )
+        self.assertNotIn(
+            "COPY runtime/registry-projects/hosted/",
+            relay_dockerfile,
+        )
         tls_copy = (
             "COPY config/postgres/ssl/server.crt /etc/solmara/postgres/root.crt"
         )

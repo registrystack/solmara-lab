@@ -1,0 +1,1 @@
+{"class":"minimization","integration":"enrollment-by-uin","operations":{},"outputs":{"duplicate_flag":{"from":"snapshot.record.duplicate_flag","max_bytes":null,"maximum":null,"minimum":null,"nullable":false,"type":"boolean"}},"schema":"registry.project.integration-evidence.v1"}
