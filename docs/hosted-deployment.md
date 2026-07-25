@@ -163,40 +163,27 @@ include secret values when the caller has sensitive read access.
 
 ## Workload identity prerequisite
 
-Each hosted authority Notary reads a short-lived Relay workload token from a
-read-only external volume. The authority Compose files declare these volumes
-with names such as `solmara-cra-workload-token`; they do not mint long-lived
-tokens at container startup. Every token uses audience `registry-relay`, and
-its `azp`, `sub`, scopes, key, and output file belong to one workload identity.
+Each hosted authority application runs a loopback-only workload agent that
+rotates a five-minute Relay token into its authority-owned named volume. The
+Notary runtime and state installer mount that volume read-only and wait for the
+agent to become healthy. Private workload JWKs enter only as Coolify production
+secrets; they are not present in images, public metadata, or Compose defaults.
+A missing, malformed, or expired token keeps the dependent workload unready.
 
-Before deploying an authority application:
+The public half of every hosted workload key is committed at
+`metadata/public/.well-known/jwks.json` and served separately at
+`https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json`.
+Relay tokens use that HTTPS origin as `iss`, while the token agents remain
+bound to container loopback. Keep the public JWKS and all corresponding
+Coolify private JWKs in one reviewed rotation.
 
-1. Create its external workload-token volume.
-2. Configure the hosted workload issuer for audience `registry-relay` and the
-   matching authority Notary identity.
-3. Have the issuer rotate the token file into that volume.
-4. Confirm only the Notary runtime and state installer mount the volume, both
-   read-only.
-
-A missing or expired token keeps the Notary unready. Do not replace this flow
-with a static API token in Compose.
-
-The NIA issuer has one additional, separately keyed identity for eSignet. Use
+The eSignet application has a separate NIA identity with
 `azp=solmara-esignet`, `sub=solmara-esignet`, and exactly the
-`population:identity_release` scope. Publish that key alongside the NIA Notary
-key at the NIA issuer's JWKS endpoint, and rotate the token as
-`solmara-esignet-relay-token`, owned by UID/GID `1001:1001`, into the external
-`solmara-nia-esignet-workload-token` volume. Only the hosted workload issuer
-and eSignet may mount this volume. The NIA Notary and its state installer must
-continue to mount only `solmara-nia-workload-token`, so neither can read the
-eSignet credential.
-
-Create and populate the eSignet-only external volume before deploying
-`compose.coolify.esignet.yaml`. The eSignet plugin rereads the token file for
-each Relay request, so issuer rotation does not require an eSignet restart. An
-unreadable, empty, malformed, or expired file fails the Relay-backed
-authentication path closed. Do not copy the token into a Coolify environment
-variable or reuse the NIA Notary identity.
+`population:identity_release` scope. Its agent writes
+`solmara-esignet-relay-token` as UID/GID `1001:1001` into an eSignet-owned
+volume. The eSignet plugin rereads that file for each Relay request, so normal
+rotation does not require an eSignet restart. Do not copy the token itself into
+a Coolify environment variable or reuse the NIA Notary identity.
 
 ## Coolify application setup
 

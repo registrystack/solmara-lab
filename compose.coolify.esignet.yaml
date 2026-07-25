@@ -26,6 +26,23 @@ services:
       timeout: 5s
       retries: 30
 
+  nia-esignet-workload-agent:
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    command: ["python", "scripts/relay_workload_identity_agent.py"]
+    restart: unless-stopped
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"solmara-esignet","subject":"solmara-esignet","scopes":["population:identity_release"],"token_file":"/run/secrets/solmara-esignet-relay-token","private_jwk_env":"NIA_ESIGNET_RELAY_WORKLOAD_JWK","token_uid":1001,"token_gid":1001}]
+      NIA_ESIGNET_RELAY_WORKLOAD_JWK: ${NIA_ESIGNET_RELAY_WORKLOAD_JWK}
+    volumes:
+      - nia-esignet-workload-token:/run/secrets
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   esignet:
     image: ${SOLMARA_ESIGNET_RELAY_IMAGE:?set digest-pinned Solmara eSignet relay image}
     user: root
@@ -89,6 +106,8 @@ services:
       esignet-database:
         condition: service_healthy
       esignet-redis:
+        condition: service_healthy
+      nia-esignet-workload-agent:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://esignet:8088/v1/esignet/oidc/.well-known/openid-configuration"]
@@ -182,5 +201,3 @@ volumes:
   esignet-kyc-signing:
   esignet-redis-data:
   nia-esignet-workload-token:
-    external: true
-    name: ${NIA_ESIGNET_WORKLOAD_TOKEN_VOLUME:-solmara-nia-esignet-workload-token}

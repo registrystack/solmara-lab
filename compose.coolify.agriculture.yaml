@@ -32,6 +32,16 @@ x-relay-config-state-init: &relay-config-state-init
   restart: "no"
   entrypoint: ["/bin/busybox", "sh", "-eu", "-c"]
 
+x-workload-agent-common: &workload-agent-common
+  image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+  command: ["python", "scripts/relay_workload_identity_agent.py"]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)\""]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
@@ -89,6 +99,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  nagdi-workload-agent:
+    <<: *workload-agent-common
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"nagdi-notary","subject":"nagdi-notary","scopes":["registry:consult:livestock","registry:consult:voucher"],"token_file":"/run/secrets/nagdi-notary-relay-token","private_jwk_env":"NAGDI_RELAY_WORKLOAD_JWK"}]
+      NAGDI_RELAY_WORKLOAD_JWK: ${NAGDI_RELAY_WORKLOAD_JWK}
+    volumes:
+      - nagdi-workload-token:/run/secrets
 
   nagdi-relay-config-state-init:
     <<: *relay-config-state-init
@@ -157,6 +177,8 @@ services:
         condition: service_healthy
       nagdi-notary-state-install:
         condition: service_completed_successfully
+      nagdi-workload-agent:
+        condition: service_healthy
     labels:
       solmara.lab.host: nagdi-notary.solmara.registrystack.org
 
@@ -171,14 +193,12 @@ services:
     volumes:
       - nagdi-workload-token:/run/secrets:ro
     depends_on:
+      nagdi-workload-agent:
+        condition: service_healthy
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
 volumes:
   postgres-data:
   nagdi-relay-cache:
-  # The hosted workload issuer rotates the short-lived Notary token into this
-  # authority volume. Runtime and migration containers mount it read-only.
   nagdi-workload-token:
-    external: true
-    name: ${NAGDI_WORKLOAD_TOKEN_VOLUME:-solmara-nagdi-workload-token}

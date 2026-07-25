@@ -3,7 +3,9 @@
 
 The agent binds only to IPv4 loopback. It publishes the public half of every
 configured Ed25519 JWK from one endpoint and atomically maintains one access
-token file per identity. Private JWK values are read indirectly: each bounded
+token file per identity. Tokens may identify either the local loopback issuer
+or a separately published HTTPS issuer whose public-only JWKS contains the same
+keys. Private JWK values are read indirectly: each bounded
 WORKLOAD_IDENTITIES_JSON entry names the environment variable containing its
 JWK JSON.
 """
@@ -13,6 +15,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -58,6 +61,10 @@ MAX_ID = 2_147_483_647
 ENV_NAME_PATTERN = re.compile(r"[A-Z][A-Z0-9_]{0,127}\Z")
 TOKEN_VALUE_PATTERN = re.compile(r"[\x21-\x7e]+\Z")
 BASE64URL_PATTERN = re.compile(r"[A-Za-z0-9_-]+\Z")
+DNS_NAME_PATTERN = re.compile(
+    r"(?=.{1,253}\Z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
+    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z"
+)
 
 
 class ConfigurationError(ValueError):
@@ -259,19 +266,40 @@ class Config:
             issuer_port = parsed_issuer.port
         except ValueError as error:
             raise ConfigurationError("WORKLOAD_ISSUER is not a valid URL") from error
-        if (
-            parsed_issuer.scheme != "http"
-            or parsed_issuer.hostname != bind_host
-            or issuer_port != port
-            or parsed_issuer.netloc != f"{bind_host}:{port}"
-            or parsed_issuer.path
-            or parsed_issuer.query
-            or parsed_issuer.fragment
+        has_unsafe_url_component = (
+            bool(parsed_issuer.path)
+            or bool(parsed_issuer.query)
+            or bool(parsed_issuer.fragment)
             or parsed_issuer.username is not None
             or parsed_issuer.password is not None
-        ):
+        )
+        local_issuer = (
+            parsed_issuer.scheme == "http"
+            and parsed_issuer.hostname == bind_host
+            and issuer_port == port
+            and parsed_issuer.netloc == f"{bind_host}:{port}"
+            and not has_unsafe_url_component
+        )
+        hosted_hostname = parsed_issuer.hostname or ""
+        try:
+            ipaddress.ip_address(hosted_hostname)
+        except ValueError:
+            hosted_hostname_is_ip = False
+        else:
+            hosted_hostname_is_ip = True
+        hosted_issuer = (
+            parsed_issuer.scheme == "https"
+            and not hosted_hostname_is_ip
+            and DNS_NAME_PATTERN.fullmatch(hosted_hostname) is not None
+            and issuer_port in (None, 443)
+            and parsed_issuer.netloc
+            in (hosted_hostname, f"{hosted_hostname}:443")
+            and not has_unsafe_url_component
+        )
+        if not local_issuer and not hosted_issuer:
             raise ConfigurationError(
-                "WORKLOAD_ISSUER must exactly match the configured loopback listener"
+                "WORKLOAD_ISSUER must be the exact loopback listener or a "
+                "path-free HTTPS DNS origin"
             )
 
         token_ttl_seconds = _bounded_integer(

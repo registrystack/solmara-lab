@@ -168,6 +168,10 @@ key is not committed. A sequence-zero baseline is copied only when a Relay
 state volume is empty, allowing first boot while keeping later bundle sequence
 rollback protection durable in that volume.
 
+Hosted workload agents keep Relay bearer credentials short-lived and confined
+to per-consumer volumes. The separately served workload JWKS contains public
+keys only; private workload JWKs remain Coolify secrets.
+
 Run `just registry-projects-sync` after editing an authority project, then
 `just registry-projects-runtime-check` to verify the local and hosted Relay and
 Notary closures are deterministic.

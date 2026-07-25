@@ -32,6 +32,16 @@ x-relay-config-state-init: &relay-config-state-init
   restart: "no"
   entrypoint: ["/bin/busybox", "sh", "-eu", "-c"]
 
+x-workload-agent-common: &workload-agent-common
+  image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+  command: ["python", "scripts/relay_workload_identity_agent.py"]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)\""]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
@@ -90,6 +100,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  sipf-workload-agent:
+    <<: *workload-agent-common
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"sipf-notary","subject":"sipf-notary","scopes":["registry:consult:sipf-pension-payment-review","registry:consult:sipf-survivor-benefit"],"token_file":"/run/secrets/sipf-notary-relay-token","private_jwk_env":"SIPF_RELAY_WORKLOAD_JWK"}]
+      SIPF_RELAY_WORKLOAD_JWK: ${SIPF_RELAY_WORKLOAD_JWK}
+    volumes:
+      - sipf-workload-token:/run/secrets
 
   sipf-relay-config-state-init:
     <<: *relay-config-state-init
@@ -161,6 +181,8 @@ services:
         condition: service_healthy
       sipf-notary-state-install:
         condition: service_completed_successfully
+      sipf-workload-agent:
+        condition: service_healthy
     labels:
       solmara.lab.host: sipf-notary.solmara.registrystack.org
 
@@ -177,12 +199,10 @@ services:
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
+      sipf-workload-agent:
+        condition: service_healthy
 
 volumes:
   postgres-data:
   sipf-relay-cache:
-  # The hosted workload issuer rotates the short-lived Notary token into this
-  # authority volume. Runtime and migration containers mount it read-only.
   sipf-workload-token:
-    external: true
-    name: ${SIPF_WORKLOAD_TOKEN_VOLUME:-solmara-sipf-workload-token}
