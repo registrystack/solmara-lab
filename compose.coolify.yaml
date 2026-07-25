@@ -11,6 +11,17 @@ services:
     labels:
       solmara.lab.host: metadata.solmara.registrystack.org
 
+  workload-issuer:
+    image: ${SOLMARA_STATIC_METADATA_IMAGE:?set digest-pinned Solmara static metadata image}
+    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/.well-known/jwks.json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      solmara.lab.host: workload-issuer.solmara.registrystack.org
+
   scenario-runner:
     image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
     environment:

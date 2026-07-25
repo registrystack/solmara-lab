@@ -48,6 +48,36 @@ def load_yaml(path: Path) -> dict[str, object]:
     return value
 
 
+def regular_file_tree(root: Path) -> dict[str, bytes]:
+    if not root.is_dir():
+        fail(f"missing artifact directory {root}")
+    files: dict[str, bytes] = {}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            fail(f"artifact tree contains symlink {relative}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            fail(f"artifact tree contains non-file {relative}")
+        files[relative] = path.read_bytes()
+    return files
+
+
+def verify_artifact_closure(
+    project: str, bundled_artifacts: Path, source_artifacts: Path
+) -> None:
+    bundled_files = regular_file_tree(bundled_artifacts)
+    source_files = regular_file_tree(source_artifacts)
+    if bundled_files.keys() != source_files.keys():
+        fail(f"{project} signed artifact paths differ from compiler output")
+    for relative, bundled_content in bundled_files.items():
+        if bundled_content != source_files[relative]:
+            fail(
+                f"{project} signed artifact {relative} differs from compiler output"
+            )
+
+
 def main() -> int:
     registryctl = registryctl_path()
     for project in PROJECTS:
@@ -66,6 +96,8 @@ def main() -> int:
             / "relay"
             / "relay.yaml"
         )
+        bundled_artifacts = bundle_dir / "config" / "artifacts"
+        source_artifacts = source_config_path.parent / "artifacts"
         for required in (
             bootstrap_path,
             anchor_path,
@@ -96,6 +128,7 @@ def main() -> int:
         unsigned_projection.pop("config_trust", None)
         if unsigned_projection != source:
             fail(f"{project} signed config differs from compiler output")
+        verify_artifact_closure(project, bundled_artifacts, source_artifacts)
 
         anchor = json.loads(anchor_path.read_text(encoding="utf-8"))
         manifest = json.loads(

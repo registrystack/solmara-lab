@@ -360,6 +360,7 @@ class QualityScriptTests(unittest.TestCase):
             (ROOT / "compose.coolify.esignet.yaml").read_text(encoding="utf-8")
         )
         hosted_esignet = hosted_compose["services"]["esignet"]
+        hosted_agent = hosted_compose["services"]["nia-esignet-workload-agent"]
         for esignet in (local_esignet, hosted_esignet):
             self.assertEqual(
                 esignet["environment"]["REGISTRY_RELAY_AUTH_BEARER_TOKEN_FILE"],
@@ -376,6 +377,36 @@ class QualityScriptTests(unittest.TestCase):
             local_esignet["depends_on"]["nia-workload-agent"]["condition"],
             "service_healthy",
         )
+        self.assertEqual(
+            hosted_esignet["depends_on"]["nia-esignet-workload-agent"]["condition"],
+            "service_healthy",
+        )
+        hosted_identity = json.loads(
+            hosted_agent["environment"]["WORKLOAD_IDENTITIES_JSON"]
+        )
+        self.assertEqual(
+            hosted_agent["environment"]["WORKLOAD_ISSUER"],
+            "https://workload-issuer.solmara.registrystack.org",
+        )
+        self.assertEqual(
+            hosted_agent["environment"]["NIA_ESIGNET_RELAY_WORKLOAD_JWK"],
+            "${NIA_ESIGNET_RELAY_WORKLOAD_JWK}",
+        )
+        self.assertEqual(
+            hosted_identity,
+            [
+                {
+                    "audience": "registry-relay",
+                    "azp": "solmara-esignet",
+                    "subject": "solmara-esignet",
+                    "scopes": ["population:identity_release"],
+                    "token_file": "/run/secrets/solmara-esignet-relay-token",
+                    "private_jwk_env": "NIA_ESIGNET_RELAY_WORKLOAD_JWK",
+                    "token_uid": 1001,
+                    "token_gid": 1001,
+                }
+            ],
+        )
         self.assertNotIn("ports", local_esignet)
         local_esignet_edge = yaml.safe_load(
             (ROOT / "compose.esignet.yaml").read_text(encoding="utf-8")
@@ -391,13 +422,7 @@ class QualityScriptTests(unittest.TestCase):
             "config/esignet/nginx.conf",
             local_esignet_edge["build"]["args"]["ESIGNET_NGINX_CONF"],
         )
-        self.assertEqual(
-            hosted_compose["volumes"]["nia-esignet-workload-token"],
-            {
-                "external": True,
-                "name": "${NIA_ESIGNET_WORKLOAD_TOKEN_VOLUME:-solmara-nia-esignet-workload-token}",
-            },
-        )
+        self.assertIsNone(hosted_compose["volumes"]["nia-esignet-workload-token"])
 
         hosted_interior = yaml.safe_load(
             (ROOT / "compose.coolify.interior.yaml").read_text(encoding="utf-8")
@@ -409,6 +434,39 @@ class QualityScriptTests(unittest.TestCase):
                     for volume in hosted_interior["services"][service_name]["volumes"]
                 )
             )
+
+        jwks = json.loads(
+            (
+                ROOT / "metadata" / "public" / ".well-known" / "jwks.json"
+            ).read_text(encoding="utf-8")
+        )
+        expected_kids = {
+            value
+            for value in load_secret_generator().JWK_KIDS.values()
+            if "relay-workload-key" in value
+        }
+        self.assertEqual({key["kid"] for key in jwks["keys"]}, expected_kids)
+        self.assertEqual(len(jwks["keys"]), len(expected_kids))
+        for key in jwks["keys"]:
+            self.assertEqual(set(key), {"alg", "crv", "kid", "kty", "x"})
+            self.assertEqual(key["alg"], "EdDSA")
+            self.assertEqual(key["crv"], "Ed25519")
+            self.assertEqual(key["kty"], "OKP")
+
+        hosted_core = yaml.safe_load(
+            (ROOT / "compose.coolify.yaml").read_text(encoding="utf-8")
+        )
+        issuer = hosted_core["services"]["workload-issuer"]
+        self.assertEqual(
+            issuer["labels"]["solmara.lab.host"],
+            "workload-issuer.solmara.registrystack.org",
+        )
+        self.assertTrue(
+            any(
+                "/.well-known/jwks.json" in part
+                for part in issuer["healthcheck"]["test"]
+            )
+        )
 
         retired_static_names = {
             "SOLMARA_ESIGNET_IDENTITY_RELEASE_RAW",
@@ -935,6 +993,8 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                         relay = services[relay_name]
                         notary = services[notary_name]
                         installer = services[f"{notary_name}-state-install"]
+                        workload_agent_name = f"{key}-workload-agent"
+                        workload_agent = services[workload_agent_name]
                         bootstrap = services[f"{key}-relay-state-bootstrap"]
                         config_state_init = services[
                             f"{key}-relay-config-state-init"
@@ -1009,6 +1069,43 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                                 "condition"
                             ],
                             "service_completed_successfully",
+                        )
+                        self.assertEqual(
+                            notary["depends_on"][workload_agent_name]["condition"],
+                            "service_healthy",
+                        )
+                        self.assertEqual(
+                            installer["depends_on"][workload_agent_name]["condition"],
+                            "service_healthy",
+                        )
+                        workload_environment = workload_agent["environment"]
+                        workload_identity = json.loads(
+                            workload_environment["WORKLOAD_IDENTITIES_JSON"]
+                        )
+                        self.assertEqual(
+                            workload_environment["WORKLOAD_ISSUER"],
+                            "https://workload-issuer.solmara.registrystack.org",
+                        )
+                        private_jwk_env = f"{key.upper()}_RELAY_WORKLOAD_JWK"
+                        self.assertEqual(
+                            workload_environment[private_jwk_env],
+                            f"${{{private_jwk_env}}}",
+                        )
+                        self.assertEqual(len(workload_identity), 1)
+                        self.assertEqual(
+                            workload_identity[0]["private_jwk_env"],
+                            private_jwk_env,
+                        )
+                        self.assertEqual(
+                            workload_identity[0]["token_file"],
+                            f"/run/secrets/{key}-notary-relay-token",
+                        )
+                        self.assertIn(
+                            f"{key}-workload-token:/run/secrets",
+                            workload_agent["volumes"],
+                        )
+                        self.assertIsNone(
+                            compose["volumes"][f"{key}-workload-token"]
                         )
                         self.assertEqual(
                             notary["labels"]["solmara.lab.host"],

@@ -32,6 +32,16 @@ x-relay-config-state-init: &relay-config-state-init
   restart: "no"
   entrypoint: ["/bin/busybox", "sh", "-eu", "-c"]
 
+x-workload-agent-common: &workload-agent-common
+  image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+  command: ["python", "scripts/relay_workload_identity_agent.py"]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)\""]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
@@ -95,6 +105,26 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  cra-workload-agent:
+    <<: *workload-agent-common
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"cra-notary","subject":"cra-notary","scopes":["registry:consult:cra-child-benefit","registry:consult:cra-citizen-record","registry:consult:cra-pension-death"],"token_file":"/run/secrets/cra-notary-relay-token","private_jwk_env":"CRA_RELAY_WORKLOAD_JWK"}]
+      CRA_RELAY_WORKLOAD_JWK: ${CRA_RELAY_WORKLOAD_JWK}
+    volumes:
+      - cra-workload-token:/run/secrets
+
+  nia-workload-agent:
+    <<: *workload-agent-common
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"nia-notary","subject":"nia-notary","scopes":["registry:consult:nia-child-benefit","registry:consult:nia-citizen-status"],"token_file":"/run/secrets/nia-notary-relay-token","private_jwk_env":"NIA_RELAY_WORKLOAD_JWK"}]
+      NIA_RELAY_WORKLOAD_JWK: ${NIA_RELAY_WORKLOAD_JWK}
+    volumes:
+      - nia-workload-token:/run/secrets
 
   cra-relay-config-state-init:
     <<: *relay-config-state-init
@@ -217,6 +247,8 @@ services:
         condition: service_healthy
       cra-notary-state-install:
         condition: service_completed_successfully
+      cra-workload-agent:
+        condition: service_healthy
     labels:
       solmara.lab.host: cra-notary.solmara.registrystack.org
 
@@ -231,6 +263,8 @@ services:
     volumes:
       - cra-workload-token:/run/secrets:ro
     depends_on:
+      cra-workload-agent:
+        condition: service_healthy
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
@@ -252,6 +286,8 @@ services:
         condition: service_healthy
       nia-notary-state-install:
         condition: service_completed_successfully
+      nia-workload-agent:
+        condition: service_healthy
     labels:
       solmara.lab.host: nia-notary.solmara.registrystack.org
 
@@ -266,6 +302,8 @@ services:
     volumes:
       - nia-workload-token:/run/secrets:ro
     depends_on:
+      nia-workload-agent:
+        condition: service_healthy
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
@@ -273,11 +311,5 @@ volumes:
   postgres-data:
   cra-relay-cache:
   nia-relay-cache:
-  # The hosted workload issuer rotates each short-lived Notary token into its
-  # authority volume. Runtime and migration containers mount the volume read-only.
   cra-workload-token:
-    external: true
-    name: ${CRA_WORKLOAD_TOKEN_VOLUME:-solmara-cra-workload-token}
   nia-workload-token:
-    external: true
-    name: ${NIA_WORKLOAD_TOKEN_VOLUME:-solmara-nia-workload-token}

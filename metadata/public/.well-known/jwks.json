@@ -1,0 +1,53 @@
+{
+  "keys": [
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-cra-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "UazABMCeaN2hgksLJmeJfdk8bZDT2gRweCno-LEKK3g"
+    },
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-nagdi-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "zAgQ4qvveNcLrj-YGFKzMVp-KTQL47RFkHr0x1xR0e4"
+    },
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-nia-esignet-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "isAltfG5GvqFX5DZmj9NNFfiNDJVvhNtHpyQtQIWI-o"
+    },
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-nia-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "GxzXobbS9FQp73ZpKeIDP2wDSwM9k8JzGTvO3pJy64M"
+    },
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-programme-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "-pveKSRIMRjmeEBGp9Fa5nzCAdre0uiqL2Ryxczf8uY"
+    },
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-sipf-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "cKQaa0lD6RxXIpYUpF5RAQgD0g2MRCo2ere_UwHgrK8"
+    },
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "solmara-sro-relay-workload-key-1",
+      "kty": "OKP",
+      "x": "GzGnvI5XJfSqo9skMrFfv7cdK_nqjy-qD-AkFNy87rM"
+    }
+  ]
+}

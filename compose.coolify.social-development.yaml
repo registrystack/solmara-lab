@@ -32,6 +32,16 @@ x-relay-config-state-init: &relay-config-state-init
   restart: "no"
   entrypoint: ["/bin/busybox", "sh", "-eu", "-c"]
 
+x-workload-agent-common: &workload-agent-common
+  image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+  command: ["python", "scripts/relay_workload_identity_agent.py"]
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)\""]
+    interval: 10s
+    timeout: 5s
+    retries: 6
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
@@ -94,6 +104,26 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  sro-workload-agent:
+    <<: *workload-agent-common
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"sro-notary","subject":"sro-notary","scopes":["registry:consult:child-benefit"],"token_file":"/run/secrets/sro-notary-relay-token","private_jwk_env":"SRO_RELAY_WORKLOAD_JWK"}]
+      SRO_RELAY_WORKLOAD_JWK: ${SRO_RELAY_WORKLOAD_JWK}
+    volumes:
+      - sro-workload-token:/run/secrets
+
+  programme-workload-agent:
+    <<: *workload-agent-common
+    environment:
+      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"programme-notary","subject":"programme-notary","scopes":["registry:consult:child-benefit"],"token_file":"/run/secrets/programme-notary-relay-token","private_jwk_env":"PROGRAMME_RELAY_WORKLOAD_JWK"}]
+      PROGRAMME_RELAY_WORKLOAD_JWK: ${PROGRAMME_RELAY_WORKLOAD_JWK}
+    volumes:
+      - programme-workload-token:/run/secrets
 
   sro-relay-config-state-init:
     <<: *relay-config-state-init
@@ -211,6 +241,8 @@ services:
         condition: service_healthy
       sro-notary-state-install:
         condition: service_completed_successfully
+      sro-workload-agent:
+        condition: service_healthy
     labels:
       solmara.lab.host: sro-notary.solmara.registrystack.org
 
@@ -227,6 +259,8 @@ services:
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
+      sro-workload-agent:
+        condition: service_healthy
 
   programme-notary:
     <<: *notary-common
@@ -244,6 +278,8 @@ services:
         condition: service_healthy
       programme-notary-state-install:
         condition: service_completed_successfully
+      programme-workload-agent:
+        condition: service_healthy
     labels:
       solmara.lab.host: programme-notary.solmara.registrystack.org
 
@@ -258,6 +294,8 @@ services:
     volumes:
       - programme-workload-token:/run/secrets:ro
     depends_on:
+      programme-workload-agent:
+        condition: service_healthy
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
@@ -265,11 +303,5 @@ volumes:
   postgres-data:
   sro-relay-cache:
   programme-relay-cache:
-  # The hosted workload issuer rotates each short-lived Notary token into its
-  # authority volume. Runtime and migration containers mount the volume read-only.
   sro-workload-token:
-    external: true
-    name: ${SRO_WORKLOAD_TOKEN_VOLUME:-solmara-sro-workload-token}
   programme-workload-token:
-    external: true
-    name: ${PROGRAMME_WORKLOAD_TOKEN_VOLUME:-solmara-programme-workload-token}

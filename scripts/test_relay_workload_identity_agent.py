@@ -138,6 +138,22 @@ class FakeClock:
 
 
 class WorkloadIdentityAgentTests(unittest.TestCase):
+    def test_https_dns_issuer_is_independent_from_loopback_listener(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            environment, _ = valid_environment(Path(temporary_directory))
+            environment["WORKLOAD_ISSUER"] = (
+                "https://workload-issuer.solmara.registrystack.org"
+            )
+
+            config = agent.Config.from_environ(environment)
+
+            self.assertEqual(config.bind_host, "127.0.0.1")
+            self.assertEqual(config.port, 8090)
+            self.assertEqual(
+                config.issuer,
+                "https://workload-issuer.solmara.registrystack.org",
+            )
+
     def test_each_identity_gets_exact_claims_and_its_own_signature(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
@@ -399,9 +415,19 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
             cases: dict[str, dict[str, str | None]] = {
                 "non_loopback_bind": {"WORKLOAD_BIND_HOST": "0.0.0.0"},
                 "non_loopback_issuer": {"WORKLOAD_ISSUER": "http://localhost:8090"},
-                "https_issuer": {"WORKLOAD_ISSUER": "https://127.0.0.1:8090"},
+                "https_ip_issuer": {"WORKLOAD_ISSUER": "https://127.0.0.1"},
+                "https_localhost_issuer": {"WORKLOAD_ISSUER": "https://localhost"},
+                "https_userinfo_issuer": {
+                    "WORKLOAD_ISSUER": "https://user@example.test"
+                },
+                "https_nonstandard_port": {
+                    "WORKLOAD_ISSUER": "https://issuer.example.test:8443"
+                },
                 "malformed_issuer": {"WORKLOAD_ISSUER": "http://["},
                 "issuer_path": {"WORKLOAD_ISSUER": "http://127.0.0.1:8090/issuer"},
+                "https_issuer_path": {
+                    "WORKLOAD_ISSUER": "https://issuer.example.test/issuer"
+                },
                 "issuer_port_mismatch": {"WORKLOAD_PORT": "8091"},
                 "blank_audience": {
                     "WORKLOAD_IDENTITIES_JSON": identities({"audience": ""})
