@@ -784,6 +784,10 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             'LABEL org.opencontainers.image.base.name="${REGISTRY_RELAY_IMAGE}"',
             dockerfile,
         )
+        self.assertIn(
+            'LABEL org.opencontainers.image.source="https://github.com/registrystack/solmara-lab"',
+            dockerfile,
+        )
         self.assertIn("--features \"${REGISTRY_RELAY_FEATURES}\"", dockerfile)
         self.assertNotIn("--all-features", dockerfile)
 
