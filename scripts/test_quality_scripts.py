@@ -78,7 +78,7 @@ class QualityScriptTests(unittest.TestCase):
         }
         self.assertEqual(referenced, entrypoints)
 
-    def test_authority_notary_cel_ceiling_is_explicit_and_generated(self) -> None:
+    def test_authority_notary_cel_ceiling_is_local_only_and_generated(self) -> None:
         projects = (
             "cra-civil",
             "nia-population",
@@ -87,34 +87,60 @@ class QualityScriptTests(unittest.TestCase):
             "sipf-pensions",
             "nagdi-agriculture",
         )
-        for environment in ("local", "hosted"):
-            for project in projects:
-                with self.subTest(environment=environment, project=project):
-                    authored = yaml.safe_load(
-                        (
-                            ROOT
-                            / "projects"
-                            / project
-                            / "environments"
-                            / f"{environment}.yaml"
-                        ).read_text(encoding="utf-8")
-                    )
-                    generated = yaml.safe_load(
-                        (
-                            ROOT
-                            / "runtime"
-                            / "registry-projects"
-                            / environment
-                            / project
-                            / "notary"
-                            / "notary.yaml"
-                        ).read_text(encoding="utf-8")
-                    )
-                    self.assertEqual(
-                        authored["notary_cel"],
-                        {"worker_memory_bytes": 1_073_741_824},
-                    )
-                    self.assertEqual(generated["cel"], authored["notary_cel"])
+        for project in projects:
+            with self.subTest(environment="local", project=project):
+                local_authored = yaml.safe_load(
+                    (
+                        ROOT
+                        / "projects"
+                        / project
+                        / "environments"
+                        / "local.yaml"
+                    ).read_text(encoding="utf-8")
+                )
+                local_generated = yaml.safe_load(
+                    (
+                        ROOT
+                        / "runtime"
+                        / "registry-projects"
+                        / "local"
+                        / project
+                        / "notary"
+                        / "notary.yaml"
+                    ).read_text(encoding="utf-8")
+                )
+                self.assertEqual(
+                    local_authored["notary_cel"],
+                    {"worker_memory_bytes": 1_073_741_824},
+                )
+                self.assertEqual(
+                    local_generated["cel"],
+                    local_authored["notary_cel"],
+                )
+
+            with self.subTest(environment="hosted", project=project):
+                hosted_authored = yaml.safe_load(
+                    (
+                        ROOT
+                        / "projects"
+                        / project
+                        / "environments"
+                        / "hosted.yaml"
+                    ).read_text(encoding="utf-8")
+                )
+                hosted_generated = yaml.safe_load(
+                    (
+                        ROOT
+                        / "runtime"
+                        / "registry-projects"
+                        / "hosted"
+                        / project
+                        / "notary"
+                        / "notary.yaml"
+                    ).read_text(encoding="utf-8")
+                )
+                self.assertNotIn("notary_cel", hosted_authored)
+                self.assertNotIn("cel", hosted_generated)
 
     def test_generated_secret_contract_uses_authority_owners(self) -> None:
         module = load_secret_generator()
@@ -611,6 +637,16 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 "with project-authoring check/test/build is required",
                 incompatible.stderr,
             )
+
+        registry_projects = (
+            ROOT / "scripts" / "registry-projects.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("--format json", registry_projects)
+        self.assertIn("registryctl-build-output.py", registry_projects)
+        self.assertNotIn(
+            ".registry-stack/build/$environment/private",
+            registry_projects,
+        )
 
     def test_registry_project_secret_references_have_local_producers(self) -> None:
         module = load_secret_generator()
