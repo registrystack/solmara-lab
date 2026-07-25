@@ -107,11 +107,12 @@ committed generated artifact.
 `versions.env` is the root source for published image digests and the exact
 Registry Stack source commit used by Solmara's Relay runtime. The current pins
 are the Registry Stack `v0.13.0` release assets. The published Relay image is
-the immutable runtime base, while `just up` builds and caches a replacement
-Relay binary from the pinned source with the explicitly declared
-`attribute-release` feature. That opt-in is required by the NIA eSignet
-profile because the release Relay intentionally excludes beta API features.
-The build refuses a dirty or mismatched source checkout.
+the immutable release base. The separately published Solmara Relay runtime is
+built from that pinned source with the explicitly declared
+`attribute-release` feature and pinned by digest in the same file. That opt-in
+is required by the NIA eSignet profile because the release Relay intentionally
+excludes beta API features. Normal startup pulls that runtime; the explicit
+`*-dev` recipes rebuild it and refuse a dirty or mismatched source checkout.
 
 Use `just up` rather than invoking `docker compose up` directly so the
 source-pinned Relay runtime is prepared and selected. Because the release
@@ -171,11 +172,12 @@ refusals, the Visitor Center scenario proxy, and the portal live BFF. Add
 `SOLMARA_HOSTED_SMOKE_BROWSER=1` when you also want hosted Playwright coverage
 for the Visitor Center and portal.
 
-The `release-candidate` workflow verifies the pinned Registry Stack source,
-builds and publishes the feature-enabled Relay runtime, then uses its immutable
-digest as the base for the hosted Relay wrapper. It also builds the other
-Solmara-owned images and writes their digest refs to the workflow summary for
-Coolify env vars:
+The `release-candidate` workflow verifies the pinned Registry Stack source and
+uses the published feature-enabled Relay runtime digest as the base for the
+hosted Relay wrapper. The runtime is reviewed and published separately, so a
+Solmara candidate does not recompile it. The workflow builds the Solmara-owned
+images and writes their digest refs, together with the runtime pin, to the
+workflow summary for Coolify env vars:
 `SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
 `SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
 `SOLMARA_PORTAL_IMAGE`, `SOLMARA_SCENARIO_RUNNER_IMAGE`,

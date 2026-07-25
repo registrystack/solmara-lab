@@ -75,11 +75,12 @@ Registry Stack Relay and Notary image refs are inputs to the Solmara wrapper
 builds. The `release-candidate` workflow requires a Registry Stack candidate
 or release tag and accepts only Relay and Notary input digests that match the
 committed `versions.env` pins. It also checks out the exact Registry Stack
-source commit declared there and builds a Relay runtime with the
-`attribute-release` feature required by the NIA eSignet profile. The published
-release Relay remains the immutable runtime base. The feature runtime digest
-then becomes the base of the deployable Solmara Relay wrapper. The workflow
-reports immutable digest refs for these Coolify variables:
+source commit declared there for release and contract verification. The
+separately published Relay runtime enables the `attribute-release` feature
+required by the NIA eSignet profile and is pinned by digest in `versions.env`.
+The workflow uses that reviewed runtime directly as the base of the deployable
+Solmara Relay wrapper instead of recompiling it for every candidate. It reports
+the runtime pin and immutable digest refs for these Coolify variables:
 
 - `SOLMARA_RELAY_IMAGE`
 - `SOLMARA_NOTARY_IMAGE`

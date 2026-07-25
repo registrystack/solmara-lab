@@ -822,18 +822,21 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         release_workflow = (
             ROOT / ".github" / "workflows" / "release-candidate.yml"
         ).read_text(encoding="utf-8")
-        prepare_build = release_workflow.index(
-            "- name: Prepare feature-enabled Relay runtime build"
+        self.assertNotIn(
+            "- name: Build and push feature-enabled Relay runtime",
+            release_workflow,
         )
-        self.assertLess(
-            release_workflow.index("- name: Visitor center e2e"),
-            prepare_build,
+        self.assertIn(
+            "printf 'SOLMARA_RELAY_RUNTIME_IMAGE=%s",
+            release_workflow,
         )
-        self.assertLess(
-            prepare_build,
-            release_workflow.index(
-                "- name: Build and push feature-enabled Relay runtime"
-            ),
+        self.assertIn(
+            "REGISTRY_RELAY_IMAGE=${{ env.SOLMARA_RELAY_RUNTIME_IMAGE }}",
+            release_workflow,
+        )
+        self.assertIn(
+            'echo "- ${SOLMARA_RELAY_RUNTIME_IMAGE}"',
+            release_workflow,
         )
 
     def test_coolify_authority_state_is_postgresql_isolated(self) -> None:
