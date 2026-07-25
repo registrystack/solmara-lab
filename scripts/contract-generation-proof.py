@@ -212,6 +212,12 @@ def make_successor(project: Path) -> None:
     integration.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
 
 
+def make_runtime_readable(root: Path) -> None:
+    root.chmod(0o755)
+    for path in root.rglob("*"):
+        path.chmod(0o755 if path.is_dir() else 0o644)
+
+
 def build_generation(registryctl: Path, source: Path, destination: Path) -> str:
     run(
         [
@@ -229,6 +235,8 @@ def build_generation(registryctl: Path, source: Path, destination: Path) -> str:
     shutil.copytree(private / "relay" / "config", relay)
     notary.mkdir(parents=True)
     shutil.copy2(private / "notary" / "config" / "notary.yaml", notary / "notary.yaml")
+    make_runtime_readable(relay)
+    make_runtime_readable(notary)
     document = yaml.safe_load((notary / "notary.yaml").read_text(encoding="utf-8"))
     return document["evidence"]["claims"][0]["evidence_mode"]["consultations"]["household"]["profile"]["contract_hash"]
 

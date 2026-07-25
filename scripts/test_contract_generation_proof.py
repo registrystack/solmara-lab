@@ -50,6 +50,25 @@ class ContractGenerationProofTests(unittest.TestCase):
             after = yaml.safe_load(integration.read_text(encoding="utf-8"))
             self.assertEqual(before | {"revision": 2}, after)
 
+    def test_proof_copy_is_readable_by_the_unprivileged_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory) / "runtime"
+            nested = runtime / "artifacts"
+            nested.mkdir(parents=True, mode=0o700)
+            config = runtime / "relay.yaml"
+            config.write_text("server: {}\n", encoding="utf-8")
+            config.chmod(0o600)
+            artifact = nested / "contract.json"
+            artifact.write_text("{}\n", encoding="utf-8")
+            artifact.chmod(0o600)
+
+            self.proof.make_runtime_readable(runtime)
+
+            self.assertEqual(runtime.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(nested.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(config.stat().st_mode & 0o777, 0o644)
+            self.assertEqual(artifact.stat().st_mode & 0o777, 0o644)
+
     def test_proof_uses_the_digest_pinned_feature_runtime(self) -> None:
         runtime = (
             "ghcr.io/registrystack/solmara-lab-relay-runtime@sha256:"
