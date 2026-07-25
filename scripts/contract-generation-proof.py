@@ -37,6 +37,9 @@ MAX_DIAGNOSTIC_LINES = 12
 MAX_DIAGNOSTIC_LINE_BYTES = 256
 MAX_DIAGNOSTIC_BYTES = 4096
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+SOLMARA_RELAY_RUNTIME = re.compile(
+    r"ghcr\.io/registrystack/solmara-lab-relay-runtime@sha256:[0-9a-f]{64}"
+)
 
 
 class ProofFailure(RuntimeError):
@@ -55,6 +58,15 @@ def read_env(path: Path) -> dict[str, str]:
             raise ProofFailure(f"{path.name} contains an invalid value for {name.strip()}")
         values[name.strip()] = parts[0] if parts else ""
     return values
+
+
+def relay_runtime_image(environment: Mapping[str, str]) -> str:
+    image = environment.get("SOLMARA_RELAY_RUNTIME_IMAGE", "")
+    if SOLMARA_RELAY_RUNTIME.fullmatch(image) is None:
+        raise ProofFailure(
+            "SOLMARA_RELAY_RUNTIME_IMAGE must pin the published feature runtime by digest"
+        )
+    return image
 
 
 def diagnostic_environment(environment: Mapping[str, str] | None) -> dict[str, str]:
@@ -392,6 +404,7 @@ def main() -> int:
     environment.update(os.environ)
     environment.update(
         {
+            "REGISTRY_RELAY_IMAGE": relay_runtime_image(environment),
             "SOLMARA_POSTGRES_PORT": "0",
             "SOLMARA_SRO_RELAY_PORT": "0",
             "SOLMARA_SRO_NOTARY_PORT": "0",
