@@ -14,6 +14,10 @@ IMAGE_KEYS = {
     "REGISTRY_RELAY_IMAGE": "ghcr.io/registrystack/registry-relay",
     "REGISTRY_NOTARY_IMAGE": "ghcr.io/registrystack/registry-notary",
 }
+SOLMARA_RELAY_RUNTIME_REPOSITORY = (
+    "ghcr.io/registrystack/solmara-lab-relay-runtime"
+)
+REGISTRY_STACK_REMOTE = "https://github.com/registrystack/registry-stack.git"
 PIN_RE = re.compile(r"^(?P<image>[^@\s]+)@(?P<digest>sha256:[0-9a-f]{64})$")
 DIGEST_RE = re.compile(r"^Digest:\s+(sha256:[0-9a-f]{64})$", re.MULTILINE)
 TAG_RE = re.compile(
@@ -67,6 +71,17 @@ def main(argv: list[str]) -> int:
             "REGISTRY_RELAY_FEATURES must include attribute-release "
             "for the Solmara eSignet profile"
         )
+    relay_runtime = versions.get("SOLMARA_RELAY_RUNTIME_IMAGE")
+    relay_runtime_match = PIN_RE.match(relay_runtime or "")
+    if (
+        not relay_runtime_match
+        or relay_runtime_match.group("image")
+        != SOLMARA_RELAY_RUNTIME_REPOSITORY
+    ):
+        failures.append(
+            "SOLMARA_RELAY_RUNTIME_IMAGE must pin "
+            f"{SOLMARA_RELAY_RUNTIME_REPOSITORY}@sha256:<digest>"
+        )
 
     for key in IMAGE_KEYS:
         pinned = versions.get(key)
@@ -77,6 +92,22 @@ def main(argv: list[str]) -> int:
     if failures:
         for failure in failures:
             print(f"check-release-pins: {failure}", file=sys.stderr)
+        return 1
+
+    try:
+        tag_commit = resolve_tag_commit(tag)
+    except (RuntimeError, subprocess.CalledProcessError):
+        print(
+            f"check-release-pins: could not resolve Registry Stack tag {tag}",
+            file=sys.stderr,
+        )
+        return 1
+    if source_commit != tag_commit:
+        print(
+            "check-release-pins: REGISTRY_STACK_SOURCE_COMMIT from versions.env "
+            f"is {source_commit}, but {tag} resolves to {tag_commit}",
+            file=sys.stderr,
+        )
         return 1
 
     for key, image in IMAGE_KEYS.items():
@@ -131,6 +162,33 @@ def inspect_tag_digest(ref: str) -> str:
     if not match:
         raise RuntimeError(f"could not find digest in `docker buildx imagetools inspect {ref}` output")
     return match.group(1)
+
+
+def resolve_tag_commit(tag: str) -> str:
+    direct_ref = f"refs/tags/{tag}"
+    peeled_ref = f"{direct_ref}^{{}}"
+    result = subprocess.run(
+        ["git", "ls-remote", REGISTRY_STACK_REMOTE, direct_ref, peeled_ref],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    refs: dict[str, str] = {}
+    for raw_line in result.stdout.splitlines():
+        fields = raw_line.split()
+        if len(fields) != 2 or fields[1] not in {direct_ref, peeled_ref}:
+            raise RuntimeError("Registry Stack tag lookup returned an invalid ref")
+        commit, ref = fields
+        if ref in refs or not COMMIT_RE.fullmatch(commit):
+            raise RuntimeError("Registry Stack tag lookup returned an invalid commit")
+        refs[ref] = commit
+
+    commit = refs.get(peeled_ref) or refs.get(direct_ref)
+    if not commit:
+        raise RuntimeError("Registry Stack tag lookup returned no matching tag")
+    return commit
 
 
 if __name__ == "__main__":
