@@ -19,7 +19,10 @@ sharing the retained result state plane. `registry-projects-review` exposes
 Registryctl's complete redacted acquisition and disclosure explanation when a
 reviewer needs more detail than the concise default report. Release-pin review
 now also rejects a Registryctl version that does not match the selected
-Registry Stack tag.
+Registry Stack tag. Runtime staging consumes Registryctl's versioned JSON build
+report and validates its project-owned output root instead of constructing a
+private compiler path. Hosted Notary profiles now inherit the product's 128 MiB
+CEL worker default; the 1 GiB override remains limited to emulated local runs.
 
 The NIA eSignet profile remains explicit beta functionality. Solmara now
 builds its Relay runtime from the exact v0.13.0 source commit with only the

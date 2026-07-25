@@ -15,8 +15,6 @@ auth:
     id: citizen-portal
     scopes:
     - evidence:nia:citizen:read
-cel:
-  worker_memory_bytes: 1073741824
 deployment:
   profile: hosted_lab
 evidence:

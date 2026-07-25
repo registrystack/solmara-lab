@@ -37,13 +37,27 @@ sipf-pensions
 nagdi-agriculture
 "
 
+build_project_output() {
+  project=$1
+  environment=$2
+  project_directory="$ROOT/projects/$project"
+  echo "registryctl build: $project ($environment)" >&2
+  build_report=$(
+    "$REGISTRYCTL" build \
+      --project-dir "$project_directory" \
+      --environment "$environment" \
+      --format json
+  )
+  printf '%s\n' "$build_report" |
+    python3 "$ROOT/scripts/registryctl-build-output.py" \
+      --project-dir "$project_directory" \
+      --environment "$environment"
+}
+
 build_projects() {
   environment=$1
   for project in $projects; do
-    echo "registryctl build: $project ($environment)"
-    "$REGISTRYCTL" build \
-      --project-dir "$ROOT/projects/$project" \
-      --environment "$environment"
+    build_project_output "$project" "$environment"
   done
 }
 
@@ -69,9 +83,9 @@ check_projects() {
 stage_runtime() {
   destination=$1
   for environment in local hosted; do
-    build_projects "$environment"
     for project in $projects; do
-      source="$ROOT/projects/$project/.registry-stack/build/$environment/private"
+      build_root=$(build_project_output "$project" "$environment")
+      source="$build_root/private"
       target="$destination/$environment/$project"
       mkdir -p "$target/relay" "$target/notary"
       cp -R "$source/relay/config/." "$target/relay/"

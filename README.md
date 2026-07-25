@@ -34,11 +34,14 @@ If the exact tool version is not installed, the helper downloads the matching
 release binary and verifies it against the release SHA-256 file.
 
 `registry-projects-runtime-check` can run the compiler comparison without
-starting services. `contract-generation-proof` is a separate release gate for
-one bounded SRO authority pair. It compiles a harmless successor, proves the
-blue pair works, rejects a mixed Relay/Notary generation before Relay execution
-or source dispatch, activates the complete successor, and proves it works. Its
-temporary Compose project and volumes are removed when the check finishes.
+starting services. The project wrapper consumes Registryctl's versioned JSON
+build report and validates its project-owned output root rather than depending
+on Registryctl's private build-directory layout. `contract-generation-proof`
+is a separate release gate for one bounded SRO authority pair. It compiles a
+harmless successor, proves the blue pair works, rejects a mixed Relay/Notary
+generation before Relay execution or source dispatch, activates the complete
+successor, and proves it works. Its temporary Compose project and volumes are
+removed when the check finishes.
 
 The first wave covers three journeys:
 
