@@ -12,6 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RELAY = "ghcr.io/registrystack/registry-relay@sha256:" + "1" * 64
 NOTARY = "ghcr.io/registrystack/registry-notary@sha256:" + "2" * 64
+RELAY_RUNTIME = "ghcr.io/registrystack/solmara-lab-relay-runtime@sha256:" + "3" * 64
+VOLUME_INIT = "busybox@sha256:" + "4" * 64
 
 
 def load_check_image_pins():
@@ -33,7 +35,10 @@ class ImagePinTests(unittest.TestCase):
         self.root = Path(self.directory.name)
         self.module.ROOT = self.root
         (self.root / "versions.env").write_text(
-            f"REGISTRY_RELAY_IMAGE={RELAY}\nREGISTRY_NOTARY_IMAGE={NOTARY}\n",
+            f"REGISTRY_RELAY_IMAGE={RELAY}\n"
+            f"REGISTRY_NOTARY_IMAGE={NOTARY}\n"
+            f"SOLMARA_RELAY_RUNTIME_IMAGE={RELAY_RUNTIME}\n"
+            f"VOLUME_INIT_IMAGE={VOLUME_INIT}\n",
             encoding="utf-8",
         )
 
