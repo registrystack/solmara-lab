@@ -149,6 +149,40 @@ class ContractGenerationProofTests(unittest.TestCase):
             len(diagnostic.encode("utf-8")), self.proof.MAX_DIAGNOSTIC_BYTES
         )
 
+    def test_failed_generation_reports_redacted_bootstrap_logs(self) -> None:
+        secret = "bootstrap-secret-that-must-not-appear"
+        compose = ["docker", "compose", "--project-name", "proof"]
+        with mock.patch.object(
+            self.proof,
+            "run",
+            side_effect=[
+                subprocess.CompletedProcess(compose, 1, "service failed"),
+                subprocess.CompletedProcess(
+                    compose,
+                    0,
+                    f"sro-relay-state-bootstrap | migration rejected {secret}",
+                ),
+            ],
+        ) as mocked_run:
+            with self.assertRaises(self.proof.ProofFailure) as rejected:
+                self.proof.start_generation(
+                    compose,
+                    {"REGISTRY_RELAY_STATE_MIGRATION_PASSWORD": secret},
+                )
+        message = str(rejected.exception)
+        self.assertIn("failed service logs", message)
+        self.assertIn("migration rejected", message)
+        self.assertNotIn(secret, message)
+        self.assertEqual(mocked_run.call_count, 2)
+        self.assertEqual(
+            mocked_run.call_args_list[1].args[0][-3:],
+            [
+                "postgres",
+                "registry-postgresql-bootstrap",
+                "sro-relay-state-bootstrap",
+            ],
+        )
+
     def test_cleanup_failures_are_fatal_without_a_primary_failure(self) -> None:
         failures = (
             lambda: subprocess.CompletedProcess(["docker"], 1, "cleanup rejected"),
