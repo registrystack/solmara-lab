@@ -47,6 +47,25 @@ build_projects() {
   done
 }
 
+check_projects() {
+  detail=$1
+  for project in $projects; do
+    for environment in local hosted; do
+      echo "registryctl check: $project ($environment)"
+      if [ "$detail" = "explain" ]; then
+        "$REGISTRYCTL" check \
+          --project-dir "$ROOT/projects/$project" \
+          --environment "$environment" \
+          --explain
+      else
+        "$REGISTRYCTL" check \
+          --project-dir "$ROOT/projects/$project" \
+          --environment "$environment"
+      fi
+    done
+  done
+}
+
 stage_runtime() {
   destination=$1
   for environment in local hosted; do
@@ -71,14 +90,10 @@ case "$action" in
     done
     ;;
   check)
-    for project in $projects; do
-      for environment in local hosted; do
-        echo "registryctl check: $project ($environment)"
-        "$REGISTRYCTL" check \
-          --project-dir "$ROOT/projects/$project" \
-          --environment "$environment"
-      done
-    done
+    check_projects concise
+    ;;
+  review)
+    check_projects explain
     ;;
   build)
     environment=${2:-}
@@ -107,7 +122,7 @@ case "$action" in
     diff -ruN "$ROOT/runtime/registry-projects" "$temporary/registry-projects"
     ;;
   *)
-    echo "usage: $0 <test|check|build <local|hosted>|sync-runtime|check-runtime>" >&2
+    echo "usage: $0 <test|check|review|build <local|hosted>|sync-runtime|check-runtime>" >&2
     exit 2
     ;;
 esac

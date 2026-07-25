@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_DIRS = {
+    ".cache",
     ".git",
     ".venv",
     ".svelte-kit",

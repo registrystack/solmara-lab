@@ -5,14 +5,14 @@ Notary owns an independent PostgreSQL database and role set. PostgreSQL servers
 may be shared within a local or hosted Compose application, but databases,
 owners, migrators, and runtime roles are never shared between Notaries.
 
-| Authority | Relay service | Notary service | Database | Local Relay / Notary |
-|---|---|---|---|---|
-| Civil Registration Authority (CRA) | `cra-civil-relay` | `cra-notary` | `solmara_notary_cra` | `4311` / `4325` |
-| National Identity Agency (NIA) | `nia-population-relay` | `nia-notary` | `solmara_notary_nia` | `4312` / `4326` |
-| Social Registry Office (SRO) | `sro-social-relay` | `sro-notary` | `solmara_notary_sro` | `4313` / `4327` |
-| Programme MIS | `programme-mis-relay` | `programme-notary` | `solmara_notary_programme` | `4314` / `4328` |
-| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` | `sipf-notary` | `solmara_notary_sipf` | `4315` / `4322` |
-| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` | `nagdi-notary` | `solmara_notary_nagdi` | `4316` / `4323` |
+| Authority | Relay service | Notary service | Relay state database | Notary database | Local Relay / Notary |
+|---|---|---|---|---|---|
+| Civil Registration Authority (CRA) | `cra-civil-relay` | `cra-notary` | `solmara_relay_cra_consultation_v013` | `solmara_notary_cra` | `4311` / `4325` |
+| National Identity Agency (NIA) | `nia-population-relay` | `nia-notary` | `solmara_relay_nia_consultation_v013` | `solmara_notary_nia` | `4312` / `4326` |
+| Social Registry Office (SRO) | `sro-social-relay` | `sro-notary` | `solmara_relay_sro_consultation_v013` | `solmara_notary_sro` | `4313` / `4327` |
+| Programme MIS | `programme-mis-relay` | `programme-notary` | `solmara_relay_programme_consultation_v013` | `solmara_notary_programme` | `4314` / `4328` |
+| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` | `sipf-notary` | `solmara_relay_sipf_consultation_v013` | `solmara_notary_sipf` | `4315` / `4322` |
+| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` | `nagdi-notary` | `solmara_relay_nagdi_consultation_v013` | `solmara_notary_nagdi` | `4316` / `4323` |
 
 The local topology shares one PostgreSQL server for developer convenience.
 Hosted authority applications keep the same database boundaries within their
@@ -105,6 +105,33 @@ Do not run an older Notary binary against a forward-migrated schema. If an
 upgrade cannot be completed, restore the pre-upgrade database and the matching
 image and configuration together. The normative product procedure is the
 [Registry Notary PostgreSQL state operations guide](https://github.com/registrystack/registry-stack/blob/main/products/notary/docs/postgresql-state-operations.md).
+
+### Registry Stack v0.13.0 cutover
+
+Registry Stack v0.13.0 removes `provenance.consent` from the exact retained
+Relay result contract. Old and v0.13.0 Relay binaries must not share a
+consultation state plane. Solmara enforces that boundary with
+`REGISTRY_RELAY_STATE_EPOCH=v013` in `versions.env`. The PostgreSQL bootstrap
+uses the epoch in every Relay database and role name and runs idempotently on
+fresh and existing clusters.
+
+For the v0.10.0 to v0.13.0 cutover:
+
+1. Stop new authority traffic and stop every old Relay and Notary writer.
+2. Drain retained terminal replay lifetimes, then back up every old Relay and
+   Notary database with its exact image and configuration refs.
+3. Deploy the v0.13.0 Compose closure. The bootstrap creates the new `v013`
+   Relay databases and roles, and each Relay bootstraps its empty state plane.
+   The Notary installers migrate or attest the existing Notary databases.
+4. Require every Relay and Notary `/ready` check, `state doctor`, the complete
+   local or hosted smoke, and the PostgreSQL restart-persistence proof before
+   reopening traffic.
+
+Keep the old, unsuffixed Relay databases quiesced until the rollback window
+closes. A rollback restores the pre-upgrade Notary backups and matching
+v0.10.0 images and configs, then reconnects the old Relay binaries only to the
+old Relay databases. Never point a v0.13.0 Relay at an unsuffixed database or
+an old Relay at a `v013` database.
 
 The local topology deliberately pins PostgreSQL 16 and its
 `/var/lib/postgresql/data` mount layout. Do not change the image tag to 18 in

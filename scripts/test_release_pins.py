@@ -42,7 +42,12 @@ class ReleasePinTests(unittest.TestCase):
         self.root = Path(self.directory.name)
         self.module.ROOT = self.root
         (self.root / "versions.env").write_text(
-            f"REGISTRY_RELAY_IMAGE={RELAY}\nREGISTRY_NOTARY_IMAGE={NOTARY}\n",
+            f"REGISTRY_RELAY_IMAGE={RELAY}\n"
+            f"REGISTRY_NOTARY_IMAGE={NOTARY}\n"
+            "REGISTRYCTL_VERSION=1.0.0\n"
+            "REGISTRY_STACK_SOURCE_REF=v1.0.0\n"
+            f"REGISTRY_STACK_SOURCE_COMMIT={'a' * 40}\n"
+            "REGISTRY_RELAY_FEATURES=attribute-release\n",
             encoding="utf-8",
         )
 
@@ -99,6 +104,22 @@ class ReleasePinTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_candidate_prerelease_tag_is_accepted(self) -> None:
+        versions = (self.root / "versions.env").read_text(encoding="utf-8")
+        (self.root / "versions.env").write_text(
+            versions.replace(
+                "REGISTRYCTL_VERSION=1.0.0",
+                "REGISTRYCTL_VERSION=1.0.0-rc.1",
+            ),
+            encoding="utf-8",
+        )
+        versions = (self.root / "versions.env").read_text(encoding="utf-8")
+        (self.root / "versions.env").write_text(
+            versions.replace(
+                "REGISTRY_STACK_SOURCE_REF=v1.0.0",
+                "REGISTRY_STACK_SOURCE_REF=v1.0.0-rc.1",
+            ),
+            encoding="utf-8",
+        )
         with mock.patch.object(
             self.module,
             "inspect_tag_digest",
@@ -108,6 +129,57 @@ class ReleasePinTests(unittest.TestCase):
                 self.module.main(["check-release-pins.py", "v1.0.0-rc.1"]),
                 0,
             )
+
+    def test_registryctl_version_must_match_release_tag(self) -> None:
+        versions = (self.root / "versions.env").read_text(encoding="utf-8")
+        (self.root / "versions.env").write_text(
+            versions.replace(
+                "REGISTRYCTL_VERSION=1.0.0",
+                "REGISTRYCTL_VERSION=0.13.0",
+            ),
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(self.module, "inspect_tag_digest") as inspect,
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 1)
+
+        inspect.assert_not_called()
+        self.assertIn(
+            "REGISTRYCTL_VERSION from versions.env is 0.13.0, expected 1.0.0",
+            stderr.getvalue(),
+        )
+
+    def test_relay_source_ref_and_feature_must_match_the_release(self) -> None:
+        versions = (self.root / "versions.env").read_text(encoding="utf-8")
+        (self.root / "versions.env").write_text(
+            versions.replace(
+                "REGISTRY_STACK_SOURCE_REF=v1.0.0",
+                "REGISTRY_STACK_SOURCE_REF=v0.13.0",
+            ).replace(
+                "REGISTRY_RELAY_FEATURES=attribute-release",
+                "REGISTRY_RELAY_FEATURES=ogcapi-features",
+            ),
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(self.module, "inspect_tag_digest") as inspect,
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 1)
+
+        inspect.assert_not_called()
+        self.assertIn(
+            "REGISTRY_STACK_SOURCE_REF from versions.env is v0.13.0, expected v1.0.0",
+            stderr.getvalue(),
+        )
+        self.assertIn(
+            "REGISTRY_RELAY_FEATURES must include attribute-release",
+            stderr.getvalue(),
+        )
 
     def test_mismatched_environment_override_fails_before_registry_lookup(self) -> None:
         stderr = io.StringIO()

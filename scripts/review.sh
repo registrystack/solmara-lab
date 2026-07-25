@@ -14,7 +14,7 @@ fi
 uv run --project "$root" "$root/scripts/publish-metadata.py" --check
 uv run --project "$root" "$root/scripts/metadata-lint.py"
 
-if grep -RIn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=ssl \
+if grep -RIn --exclude-dir=.git --exclude-dir=.cache --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=ssl \
   -E "(BEGIN (RSA|OPENSSH|EC|PRIVATE) KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9_]{20,})" "$root"; then
   echo "Potential secret material found in repository files." >&2
   exit 1

@@ -7,12 +7,20 @@ set -eu
 # databases. Passwords arrive through the deployment secret store and are
 # never printed.
 
+relay_state_epoch=${REGISTRY_RELAY_STATE_EPOCH:-v013}
+case "$relay_state_epoch" in
+  "" | *[!a-z0-9_]*)
+    echo "REGISTRY_RELAY_STATE_EPOCH must contain only lowercase letters, digits, and underscores" >&2
+    exit 1
+    ;;
+esac
+
 provision_relay() {
   key=$1
   runtime_password=$2
   maintenance_password=$3
   reader_password=$4
-  database="solmara_relay_${key}_consultation"
+  database="solmara_relay_${key}_consultation_${relay_state_epoch}"
   owner="${database}_owner"
   runtime="${database}_runtime"
   maintenance="${database}_keyring_maintenance"

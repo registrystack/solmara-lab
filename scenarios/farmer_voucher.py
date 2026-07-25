@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .common import CLAIM_RESULT_FORMAT, PURPOSES, SD_JWT_VC_FORMAT, auth_headers, credential_attempt, evaluation_body, friendly_result, http_json, missing_runtime_token, request_source, source_response, standard_error_result
+from .common import CLAIM_RESULT_FORMAT, PURPOSES, auth_headers, credential_attempt, evaluation_body, friendly_result, http_json, missing_runtime_token, request_source, source_response, standard_error_result
 from .service_config import service_token, service_token_env, service_url
 
 
@@ -107,9 +107,8 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     purpose = request_purpose(config, step_id)
     token = service_token(SERVICE_ID)
     credential_profile = credential_profile_for_step(step_id)
-    evaluation_format = SD_JWT_VC_FORMAT if step_id in CREDENTIAL_STEPS else CLAIM_RESULT_FORMAT
-    headers = auth_headers(token, purpose, evaluation_format if step_id != "discover" else "application/json")
-    body = None if step_id == "discover" else evaluation_body(subject or "", claims, scheme="farmer_id", format=evaluation_format)
+    headers = auth_headers(token, purpose, CLAIM_RESULT_FORMAT if step_id != "discover" else "application/json")
+    body = None if step_id == "discover" else evaluation_body(subject or "", claims, scheme="farmer_id")
     if step_id != "discover" and not subject:
         return standard_error_result(step_id)
     request = request_source("GET" if step_id == "discover" else "POST", url, headers, body)

@@ -78,7 +78,6 @@ evidence:
             id: solmara-sipf-pensions.sipf-survivor-benefit.survivor
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: survivor-is-eligible
     purpose: https://id.registrystack.org/solmara/purpose/survivor-benefit-determination

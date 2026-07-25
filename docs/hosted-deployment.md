@@ -74,7 +74,11 @@ The other public endpoints are:
 Registry Stack Relay and Notary image refs are inputs to the Solmara wrapper
 builds. The `release-candidate` workflow requires a Registry Stack candidate
 or release tag and accepts only Relay and Notary input digests that match the
-committed `versions.env` pins. It builds the deployable Solmara images and
+committed `versions.env` pins. It also checks out the exact Registry Stack
+source commit declared there and builds a Relay runtime with the
+`attribute-release` feature required by the NIA eSignet profile. The published
+release Relay remains the immutable runtime base. The feature runtime digest
+then becomes the base of the deployable Solmara Relay wrapper. The workflow
 reports immutable digest refs for these Coolify variables:
 
 - `SOLMARA_RELAY_IMAGE`
@@ -217,6 +221,13 @@ The bootstrap container creates only the authority keys listed in
 `SOLMARA_RELAY_DATABASES` and `SOLMARA_NOTARY_DATABASES`. The serving Relay and
 Notary receive runtime credentials only. Schema installation uses dedicated
 jobs and never gives migration credentials to a serving process.
+
+Registry Stack v0.13.0 uses the `v013` Relay state epoch from `versions.env`.
+On an existing cluster, the idempotent bootstrap creates a separate
+per-authority Relay database and role set before the v0.13.0 Relay starts.
+Quiesce the old Relay writers first and do not reuse their unsuffixed
+consultation databases. Follow the complete stopped-writer and rollback
+procedure in [`notary-postgresql-state.md`](notary-postgresql-state.md).
 
 Back up, restore, and upgrade each Notary database independently. See
 [`notary-postgresql-state.md`](notary-postgresql-state.md) for the database map

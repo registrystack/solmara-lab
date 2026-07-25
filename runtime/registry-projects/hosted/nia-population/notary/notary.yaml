@@ -92,7 +92,6 @@ evidence:
             id: solmara-nia-population.nia-citizen-status.population
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: citizen-population-record-active
     purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service

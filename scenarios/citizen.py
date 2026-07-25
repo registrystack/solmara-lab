@@ -8,7 +8,6 @@ from typing import Any
 from .common import (
     CLAIM_RESULT_FORMAT,
     PURPOSES,
-    SD_JWT_VC_FORMAT,
     StepHttpResult,
     auth_headers,
     credential_attempt,
@@ -204,7 +203,6 @@ def authority_requests(
                 purpose,
                 subject,
                 NIA_CLAIMS,
-                SD_JWT_VC_FORMAT,
             ),
         ]
     return []

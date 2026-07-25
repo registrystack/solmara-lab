@@ -1,4 +1,4 @@
-ARG REGISTRY_NOTARY_IMAGE=ghcr.io/registrystack/registry-notary@sha256:a1206ca0e6059c3bd88b84060a9be28cf5399abae6c94a9bf1d545cdaeefc639
+ARG REGISTRY_NOTARY_IMAGE=ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297
 FROM ${REGISTRY_NOTARY_IMAGE}
 
 COPY runtime/registry-projects/hosted/cra-civil/notary/notary.yaml /etc/solmara/registry-projects/hosted/cra-civil/notary/notary.yaml

@@ -28,6 +28,10 @@ up-generated:
 registry-projects-check:
     scripts/registry-projects.sh check
 
+# Print the complete redacted acquisition and disclosure plan for every authority.
+registry-projects-review:
+    scripts/registry-projects.sh review
+
 # Run every synthetic authority integration fixture offline.
 registry-projects-test:
     scripts/registry-projects.sh test
@@ -93,7 +97,8 @@ compose:
 
 # Start the local topology.
 up:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
+    scripts/build-relay-runtime.sh
+    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
 
 # Stop the local topology without removing local volumes.
 down:
@@ -101,7 +106,8 @@ down:
 
 # Start the local topology with eSignet-backed portal login.
 up-esignet:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
+    scripts/build-relay-runtime.sh
+    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
 
 # Stop the local eSignet topology without removing local volumes.
 down-esignet:
@@ -151,7 +157,7 @@ home-live-e2e:
 hosted-smoke *args:
     uv run scripts/smoke-hosted.py {{args}}
 
-# Verify committed Registry Stack image pins match a candidate or release tag.
+# Verify committed Registry Stack release inputs match a candidate or release tag.
 release-pins tag:
     scripts/check-release-pins.py "$1"
 

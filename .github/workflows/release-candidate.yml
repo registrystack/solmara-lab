@@ -37,6 +37,25 @@ jobs:
       STATIC_METADATA_IMAGE: python:3.12-alpine
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout Registry Stack Relay source
+        uses: actions/checkout@v4
+        with:
+          repository: registrystack/registry-stack
+          ref: ${{ env.REGISTRY_STACK_TAG }}
+          path: vendor/registry-stack
+      - name: Verify Registry Stack Relay source
+        run: |
+          set -euo pipefail
+          set -a
+          source versions.env
+          set +a
+          test "$REGISTRY_STACK_SOURCE_REF" = "$REGISTRY_STACK_TAG"
+          test "$(git -C vendor/registry-stack rev-parse HEAD)" = "$REGISTRY_STACK_SOURCE_COMMIT"
+          {
+            printf 'REGISTRY_STACK_SOURCE_COMMIT=%s\n' "$REGISTRY_STACK_SOURCE_COMMIT"
+            printf 'REGISTRY_RELAY_FEATURES=%s\n' "$REGISTRY_RELAY_FEATURES"
+            printf 'REGISTRY_STACK_SOURCE_DIR=%s/vendor/registry-stack\n' "$GITHUB_WORKSPACE"
+          } >> "$GITHUB_ENV"
       - name: Checkout eSignet relay authenticator
         uses: actions/checkout@v4
         with:
@@ -87,6 +106,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare feature-enabled Relay runtime build
+        run: cp docker/relay-runtime/Dockerfile vendor/registry-stack/Dockerfile.solmara-relay-runtime
+      - name: Build and push feature-enabled Relay runtime
+        id: relay-runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: vendor/registry-stack
+          file: vendor/registry-stack/Dockerfile.solmara-relay-runtime
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay-runtime:${{ env.SOLMARA_IMAGE_TAG }}
+          build-args: |
+            REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}
+            REGISTRY_STACK_SOURCE_COMMIT=${{ env.REGISTRY_STACK_SOURCE_COMMIT }}
+            REGISTRY_RELAY_FEATURES=${{ env.REGISTRY_RELAY_FEATURES }}
       - name: Build and push hosted Relay image
         uses: docker/build-push-action@v6
         with:
@@ -96,7 +130,7 @@ jobs:
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
           build-args: |
-            REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}
+            REGISTRY_RELAY_IMAGE=${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay-runtime@${{ steps.relay-runtime.outputs.digest }}
       - name: Build and push hosted Notary image
         uses: docker/build-push-action@v6
         with:
@@ -197,7 +231,7 @@ jobs:
           {
             echo "### Solmara image digests"
             echo
-            for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal solmara-lab-esignet-relay solmara-lab-esignet-postgres solmara-lab-esignet-ui solmara-lab-esignet-seed; do
+            for image in solmara-lab-relay-runtime solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal solmara-lab-esignet-relay solmara-lab-esignet-postgres solmara-lab-esignet-ui solmara-lab-esignet-seed; do
               ref="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
               digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
               echo "- ${SOLMARA_IMAGE_REGISTRY}/${image}@${digest}"
