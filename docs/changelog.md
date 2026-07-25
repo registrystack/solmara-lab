@@ -3,6 +3,32 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-07-25 Registry Stack v0.13.0 adoption
+
+The lab now pins the Registry Stack `v0.13.0` Relay and Notary image digests
+and the matching Registryctl binary. All six authored projects pass the
+v0.13.0 compiler checks and fixture suites. Regenerated Notary configuration
+keeps SD-JWT under credential issuance profiles while removing it from claim
+evaluation formats, which now advertise only the canonical claim-result
+format.
+
+Relay consultation state uses the release-owned `v013` database epoch. The
+idempotent PostgreSQL bootstrap creates new per-authority databases and roles
+on fresh or existing clusters, preventing old and v0.13.0 Relay binaries from
+sharing the retained result state plane. `registry-projects-review` exposes
+Registryctl's complete redacted acquisition and disclosure explanation when a
+reviewer needs more detail than the concise default report. Release-pin review
+now also rejects a Registryctl version that does not match the selected
+Registry Stack tag.
+
+The NIA eSignet profile remains explicit beta functionality. Solmara now
+builds its Relay runtime from the exact v0.13.0 source commit with only the
+required `attribute-release` feature, using the published Relay image as its
+runtime base. The release-candidate workflow publishes that source-bound
+runtime before the hosted wrapper. PostgreSQL health checks now probe the TCP
+server, preventing bootstrap jobs from racing PostgreSQL's temporary
+initialization server on a fresh volume.
+
 ## 2026-07-16 Registry Stack v0.10.0 adoption
 
 The lab now uses the authenticated Relay and Notary image digests and

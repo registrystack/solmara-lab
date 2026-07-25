@@ -81,6 +81,7 @@ just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
 just up-generated # clean-checkout generation, compiler comparison, and start
 just registry-projects-runtime-check # regenerate and compare all authority runtime closures
+just registry-projects-review # complete redacted acquisition and disclosure reports
 just contract-generation-proof # release-only live SRO blue/mixed/successor proof
 just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
 just review     # normal security and release-readiness checks
@@ -92,12 +93,20 @@ committed generated artifact.
 
 ## Image Pins
 
-`versions.env` is the root source for published image digests. The Compose
-fallbacks mirror it so direct `docker compose` runs still use pinned Registry
-Stack images. The current pins are the Registry Stack `v0.10.0` release digest
-assets. Because that release publishes amd64 images, Compose defaults
-`REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when the release
-publishes an image for another platform.
+`versions.env` is the root source for published image digests and the exact
+Registry Stack source commit used by Solmara's Relay runtime. The current pins
+are the Registry Stack `v0.13.0` release assets. The published Relay image is
+the immutable runtime base, while `just up` builds and caches a replacement
+Relay binary from the pinned source with the explicitly declared
+`attribute-release` feature. That opt-in is required by the NIA eSignet
+profile because the release Relay intentionally excludes beta API features.
+The build refuses a dirty or mismatched source checkout.
+
+Use `just up` rather than invoking `docker compose up` directly so the
+source-pinned Relay runtime is prepared and selected. Because the release
+publishes amd64 images, Compose defaults `REGISTRY_STACK_PLATFORM` to
+`linux/amd64`; override it only when every selected base image is available
+for another platform.
 
 Every authority runs one Relay and one Notary. Relay consultation state and all
 Notary correctness state are PostgreSQL-backed. `just gen-secrets` creates
@@ -105,6 +114,13 @@ local PostgreSQL TLS material and distinct runtime and migrator passwords for
 each authority. See
 [`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md) for the
 database map, diagnosis, backup, recovery, and upgrade workflow.
+
+Registry Stack v0.13.0 changes the exact retained Relay result shape. The
+release-owned `REGISTRY_RELAY_STATE_EPOCH=v013` pin gives every authority a
+fresh consultation database and role set, so v0.10.0 and v0.13.0 Relay
+binaries cannot share one state plane. Do not override it to the old,
+unsuffixed database names. The PostgreSQL runbook describes the stopped-writer
+cutover and rollback boundary.
 
 ## Hosted Deployment
 
@@ -144,9 +160,11 @@ refusals, the Visitor Center scenario proxy, and the portal live BFF. Add
 `SOLMARA_HOSTED_SMOKE_BROWSER=1` when you also want hosted Playwright coverage
 for the Visitor Center and portal.
 
-The `release-candidate` workflow builds digest-pinned Solmara-owned images for
-the hosted wrappers and app services, then writes the digest refs to the
-workflow summary for Coolify env vars:
+The `release-candidate` workflow verifies the pinned Registry Stack source,
+builds and publishes the feature-enabled Relay runtime, then uses its immutable
+digest as the base for the hosted Relay wrapper. It also builds the other
+Solmara-owned images and writes their digest refs to the workflow summary for
+Coolify env vars:
 `SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
 `SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
 `SOLMARA_PORTAL_IMAGE`, `SOLMARA_SCENARIO_RUNNER_IMAGE`,

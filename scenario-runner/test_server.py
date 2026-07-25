@@ -299,6 +299,10 @@ class ScenarioRunnerServerTest(unittest.TestCase):
         )
         self.assertEqual(captured["claim_ids"], ["survivor-is-eligible"])
         self.assertTrue(captured["url"].endswith("/v1/credentials"))
+        self.assertEqual(
+            result["request_source"]["body"]["format"],
+            common.CLAIM_RESULT_FORMAT,
+        )
         self.assertEqual(result["credential"]["status"], "issued")
 
     def test_farmer_voucher_purpose_override_reaches_request_source(self) -> None:
@@ -309,6 +313,10 @@ class ScenarioRunnerServerTest(unittest.TestCase):
         )
         self.assertEqual(
             payload["result"]["request_source"]["headers"]["Data-Purpose"], purpose
+        )
+        self.assertEqual(
+            payload["result"]["request_source"]["body"]["format"],
+            common.CLAIM_RESULT_FORMAT,
         )
 
     def test_farmer_voucher_denial_step_ignores_override(self) -> None:
@@ -407,6 +415,10 @@ class ScenarioRunnerServerTest(unittest.TestCase):
         self.assertEqual(
             [body["claims"] for _, body in calls],
             [["civil-record-linked"], ["citizen-population-record-active"]],
+        )
+        self.assertEqual(
+            [body["format"] for _, body in calls],
+            [common.CLAIM_RESULT_FORMAT, common.CLAIM_RESULT_FORMAT],
         )
         self.assertEqual(
             [trace["service_id"] for trace in result["source_trace"]],

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Registry Stack image pins match a published release tag."""
+"""Verify Registry Stack release inputs match a published release tag."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ TAG_RE = re.compile(
     r"^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
     r"(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$"
 )
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def main(argv: list[str]) -> int:
@@ -38,6 +39,34 @@ def main(argv: list[str]) -> int:
 
     versions = read_versions(ROOT / "versions.env")
     failures: list[str] = []
+    release_version = tag.removeprefix("v")
+
+    registryctl_version = versions.get("REGISTRYCTL_VERSION")
+    if registryctl_version != release_version:
+        failures.append(
+            "REGISTRYCTL_VERSION from versions.env "
+            f"is {registryctl_version or 'missing'}, expected {release_version}"
+        )
+
+    source_ref = versions.get("REGISTRY_STACK_SOURCE_REF")
+    if source_ref != tag:
+        failures.append(
+            "REGISTRY_STACK_SOURCE_REF from versions.env "
+            f"is {source_ref or 'missing'}, expected {tag}"
+        )
+    source_commit = versions.get("REGISTRY_STACK_SOURCE_COMMIT")
+    if not source_commit or not COMMIT_RE.fullmatch(source_commit):
+        failures.append(
+            "REGISTRY_STACK_SOURCE_COMMIT must be exactly 40 lowercase hex characters"
+        )
+    relay_features = set(
+        filter(None, versions.get("REGISTRY_RELAY_FEATURES", "").split(","))
+    )
+    if "attribute-release" not in relay_features:
+        failures.append(
+            "REGISTRY_RELAY_FEATURES must include attribute-release "
+            "for the Solmara eSignet profile"
+        )
 
     for key in IMAGE_KEYS:
         pinned = versions.get(key)
@@ -74,7 +103,7 @@ def main(argv: list[str]) -> int:
             print(f"check-release-pins: {failure}", file=sys.stderr)
         return 1
 
-    print(f"check-release-pins: Registry Stack images match {tag}")
+    print(f"check-release-pins: Registry Stack release inputs match {tag}")
     return 0
 
 

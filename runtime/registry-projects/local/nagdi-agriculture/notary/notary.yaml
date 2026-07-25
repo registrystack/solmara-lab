@@ -52,7 +52,6 @@ evidence:
             id: solmara-nagdi-agriculture.livestock.herd
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: eligible-for-livestock-movement-permit
     purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
@@ -107,7 +106,6 @@ evidence:
             id: solmara-nagdi-agriculture.livestock.herd
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: origin-district-not-quarantined-for-species
     purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
@@ -157,7 +155,6 @@ evidence:
             id: solmara-nagdi-agriculture.livestock.herd
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: registered-herd
     purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
@@ -216,7 +213,6 @@ evidence:
             id: solmara-nagdi-agriculture.voucher.farmer
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: data-use-authorized-for-purpose
     purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
@@ -275,7 +271,6 @@ evidence:
             id: solmara-nagdi-agriculture.voucher.farmer
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: eligible-for-climate-smart-input-voucher
     purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
@@ -342,7 +337,6 @@ evidence:
             id: solmara-nagdi-agriculture.voucher.farmer
       type: registry_backed
     formats:
-    - application/dc+sd-jwt
     - application/vnd.registry-notary.claim-result+json
     id: farmer-registered
     purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review

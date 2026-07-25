@@ -11,6 +11,19 @@ ran=1
 if [ "${SOLMARA_SMOKE_LIVE:-1}" != "0" ]; then
   ran=1
   "$root/scripts/smoke-relay-sources.py"
+  compose=(
+    docker compose
+    --env-file "$root/versions.env"
+    --env-file "$root/.env"
+    -f "$root/compose.yaml"
+  )
+  nia_esignet_relay_token=$(
+    "${compose[@]}" exec -T nia-workload-agent \
+      cat /run/esignet-secrets/solmara-esignet-relay-token
+  )
+  NIA_ESIGNET_RELAY_TOKEN="$nia_esignet_relay_token" \
+    "$root/scripts/smoke-nia-attribute-release.py"
+  unset nia_esignet_relay_token
   # The signing smokes need cryptography from the locked project environment.
   uv run --locked --project "$root" "$root/scripts/smoke-live.py"
   uv run --locked --project "$root" "$root/scripts/notary_state_restart.py"

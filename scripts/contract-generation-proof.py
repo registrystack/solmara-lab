@@ -328,7 +328,12 @@ def successful_evaluation(payload: Any, subject: str) -> bool:
     )
 
 
-def relay_activity_counts(compose: Sequence[str], environment: Mapping[str, str]) -> tuple[int, int]:
+def relay_activity_counts(
+    compose: Sequence[str], environment: Mapping[str, str]
+) -> tuple[int, int]:
+    state_epoch = environment.get("REGISTRY_RELAY_STATE_EPOCH", "")
+    if re.fullmatch(r"[a-z0-9_]+", state_epoch) is None:
+        raise ProofFailure("REGISTRY_RELAY_STATE_EPOCH is missing or invalid")
     sql = (
         "SELECT (SELECT count(*) FROM relay_state_private.consultation_completion_intent),"
         "(SELECT count(*) FROM relay_state_private.dispatch_permit WHERE dispatched_at IS NOT NULL);"
@@ -344,7 +349,7 @@ def relay_activity_counts(compose: Sequence[str], environment: Mapping[str, str]
             "--username",
             user,
             "--dbname",
-            "solmara_relay_sro_consultation",
+            f"solmara_relay_sro_consultation_{state_epoch}",
             "--tuples-only",
             "--no-align",
             "--command",

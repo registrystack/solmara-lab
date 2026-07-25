@@ -557,6 +557,26 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             ]
             self.assertEqual(commands, expected)
 
+            log.write_text("", encoding="utf-8")
+            review = subprocess.run(
+                [str(ROOT / "scripts" / "registry-projects.sh"), "review"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "REGISTRYCTL_BIN": str(registryctl),
+                    "REGISTRYCTL_LOG": str(log),
+                },
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(review.returncode, 0, review.stderr)
+            review_commands = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                review_commands,
+                [f"{command} --explain" for command in expected],
+            )
+
             registryctl.write_text(
                 "#!/bin/sh\necho 'registryctl 0.8.3'\n",
                 encoding="utf-8",
@@ -621,6 +641,130 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
 
         self.assertEqual(consumed - produced, set())
         self.assertEqual(consumed - declared, set())
+
+    def test_relay_consultation_state_uses_the_v013_epoch(self) -> None:
+        versions = dict(
+            line.split("=", 1)
+            for line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#") and "=" in line
+        )
+        self.assertEqual(versions["REGISTRY_RELAY_STATE_EPOCH"], "v013")
+
+        compose_names = (
+            "compose.yaml",
+            "compose.coolify.interior.yaml",
+            "compose.coolify.social-development.yaml",
+            "compose.coolify.labour-pensions.yaml",
+            "compose.coolify.agriculture.yaml",
+        )
+        epoch_reference = "${REGISTRY_RELAY_STATE_EPOCH:-v013}"
+        for compose_name in compose_names:
+            with self.subTest(compose=compose_name):
+                compose_path = ROOT / compose_name
+                raw = compose_path.read_text(encoding="utf-8")
+                compose = yaml.safe_load(raw)
+                services = compose["services"]
+                self.assertEqual(
+                    services["postgres"]["environment"][
+                        "REGISTRY_RELAY_STATE_EPOCH"
+                    ],
+                    epoch_reference,
+                )
+                self.assertEqual(
+                    services["postgres"]["healthcheck"]["test"],
+                    [
+                        "CMD-SHELL",
+                        "pg_isready -h 127.0.0.1 -U "
+                        "$${POSTGRES_USER} -d $${POSTGRES_DB}",
+                    ],
+                )
+                for authority in ("cra", "nia", "sro", "programme", "sipf", "nagdi"):
+                    legacy = f"solmara_relay_{authority}_consultation"
+                    self.assertNotIn(f"{legacy}_runtime", raw)
+                    self.assertNotIn(f"{legacy}_owner", raw)
+                    self.assertNotIn(f"/{legacy}?sslmode=require", raw)
+
+                state_urls = [
+                    environment["REGISTRY_RELAY_CONSULTATION_DATABASE_URL"]
+                    for service in services.values()
+                    if (
+                        environment := service.get("environment")
+                    )
+                    and "REGISTRY_RELAY_CONSULTATION_DATABASE_URL" in environment
+                ]
+                self.assertTrue(state_urls)
+                self.assertTrue(
+                    all(f"_consultation_{epoch_reference}" in url for url in state_urls)
+                )
+
+                bootstrap_commands = [
+                    service["command"]
+                    for name, service in services.items()
+                    if name.endswith("-relay-state-bootstrap")
+                ]
+                self.assertTrue(bootstrap_commands)
+                for command in bootstrap_commands:
+                    owner = command[command.index("--owner-role") + 1]
+                    self.assertIn(f"_consultation_{epoch_reference}_owner", owner)
+
+        provisioner = (ROOT / "scripts" / "init-notary-postgresql.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            'database="solmara_relay_${key}_consultation_${relay_state_epoch}"',
+            provisioner,
+        )
+        self.assertIn(
+            "REGISTRY_RELAY_STATE_EPOCH must contain only lowercase letters",
+            provisioner,
+        )
+
+    def test_relay_runtime_opts_into_only_the_required_beta_feature(self) -> None:
+        versions = dict(
+            line.split("=", 1)
+            for line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#") and "=" in line
+        )
+        self.assertEqual(versions["REGISTRY_STACK_SOURCE_REF"], "v0.13.0")
+        self.assertRegex(versions["REGISTRY_STACK_SOURCE_COMMIT"], r"^[0-9a-f]{40}$")
+        self.assertEqual(versions["REGISTRY_RELAY_FEATURES"], "attribute-release")
+
+        dockerfile = (
+            ROOT / "docker" / "relay-runtime" / "Dockerfile"
+        ).read_text(encoding="utf-8")
+        self.assertIn("FROM ${REGISTRY_RELAY_IMAGE}", dockerfile)
+        self.assertIn(
+            'LABEL org.opencontainers.image.base.name="${REGISTRY_RELAY_IMAGE}"',
+            dockerfile,
+        )
+        self.assertIn("--features \"${REGISTRY_RELAY_FEATURES}\"", dockerfile)
+        self.assertNotIn("--all-features", dockerfile)
+
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+        self.assertEqual(justfile.count("scripts/build-relay-runtime.sh"), 2)
+        self.assertEqual(
+            justfile.count(
+                'REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_IMAGE"'
+            ),
+            2,
+        )
+
+        release_workflow = (
+            ROOT / ".github" / "workflows" / "release-candidate.yml"
+        ).read_text(encoding="utf-8")
+        prepare_build = release_workflow.index(
+            "- name: Prepare feature-enabled Relay runtime build"
+        )
+        self.assertLess(
+            release_workflow.index("- name: Visitor center e2e"),
+            prepare_build,
+        )
+        self.assertLess(
+            prepare_build,
+            release_workflow.index(
+                "- name: Build and push feature-enabled Relay runtime"
+            ),
+        )
 
     def test_coolify_authority_state_is_postgresql_isolated(self) -> None:
         authority_groups = {
