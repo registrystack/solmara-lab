@@ -268,6 +268,46 @@ def compose_command(project_name: str, override: Path | None = None) -> list[str
     return command
 
 
+def start_generation(
+    compose: Sequence[str], environment: Mapping[str, str]
+) -> None:
+    result = run(
+        [
+            *compose,
+            "up",
+            "--detach",
+            "--wait",
+            "--wait-timeout",
+            "180",
+            "sro-notary",
+        ],
+        environment=environment,
+        timeout=300,
+        check=False,
+    )
+    if result.returncode == 0:
+        return
+    logs = run(
+        [
+            *compose,
+            "logs",
+            "--no-color",
+            "postgres",
+            "registry-postgresql-bootstrap",
+            "sro-relay-state-bootstrap",
+        ],
+        environment=environment,
+        timeout=30,
+        check=False,
+    )
+    raise command_failure(
+        "docker",
+        result.returncode,
+        f"{result.stdout}\nfailed service logs:\n{logs.stdout}",
+        environment,
+    )
+
+
 def wait_for_ready(url: str, timeout: int = 120) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -448,11 +488,7 @@ def main() -> int:
 
         try:
             print("contract-generation-proof: starting the complete blue generation")
-            run(
-                [*blue_compose, "up", "--detach", "--wait", "--wait-timeout", "180", "sro-notary"],
-                environment=environment,
-                timeout=300,
-            )
+            start_generation(blue_compose, environment)
             blue_url = shared_notary_url(blue_compose, environment)
             wait_for_ready(blue_url)
             blue_response = evaluate(blue_url, token, BLUE_SUBJECT)
@@ -512,11 +548,7 @@ def main() -> int:
             run([*blue_compose, "down", "--remove-orphans"], environment=environment)
 
             print("contract-generation-proof: activating the complete successor generation")
-            run(
-                [*green_compose, "up", "--detach", "--wait", "--wait-timeout", "180", "sro-notary"],
-                environment=environment,
-                timeout=300,
-            )
+            start_generation(green_compose, environment)
             green_url = shared_notary_url(green_compose, environment)
             wait_for_ready(green_url)
             green_response = evaluate(green_url, token, GREEN_SUBJECT)
