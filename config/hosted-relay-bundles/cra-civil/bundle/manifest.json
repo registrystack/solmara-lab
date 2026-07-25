@@ -1,0 +1,57 @@
+{
+  "schema": "registry.platform.config_bundle.v1",
+  "product": "registry-relay",
+  "environment": "hosted",
+  "stream_id": "solmara-hosted-cra-civil",
+  "instance_id": "cra-civil-relay",
+  "bundle_id": "solmara-hosted-cra-civil-sequence-1",
+  "sequence": 1,
+  "config_hash": "sha256:f9553f2b560a722b11c4ed16e35221c52246059498dfe3a53f865d6c1a0f3b6c",
+  "files": [
+    {
+      "path": "config/artifacts/consultation-contracts/cra-child-benefit-civil.json",
+      "sha256": "sha256:c557bd62579855c17a5fcfd756caaeb2ed5fe6606b49350b8249fd488e47b7cb"
+    },
+    {
+      "path": "config/artifacts/consultation-contracts/cra-citizen-record-civil.json",
+      "sha256": "sha256:68f176b1f86e32312740310c17dcfda850312daeb471ad19d71d30f28d3e2c27"
+    },
+    {
+      "path": "config/artifacts/consultation-contracts/cra-pension-death-civil.json",
+      "sha256": "sha256:e9972065be18eedf1eb1e331531586d761f1b14b38d19103e5e3e35622596878"
+    },
+    {
+      "path": "config/artifacts/evidence/civil-person-by-uin/conformance.json",
+      "sha256": "sha256:89240aa696a2d5ca7c9ecb82c97d2c0820cdda99e08e2c7a6231421e6ac8243f"
+    },
+    {
+      "path": "config/artifacts/evidence/civil-person-by-uin/minimization.json",
+      "sha256": "sha256:5fa0459553307e10c55a7613981afdc2a42c0ea02e2bb93fe76ad6f2d2fcd263"
+    },
+    {
+      "path": "config/artifacts/evidence/civil-person-by-uin/negative-security.json",
+      "sha256": "sha256:2613360dc2b35b1e02aa276bc52ff7ff35fc083dc4713d1036df405eb3523f0f"
+    },
+    {
+      "path": "config/artifacts/integration-packs/civil-person-by-uin.json",
+      "sha256": "sha256:f40e80c4b2438f07c01708e3734c6fd19921d1a141c0422fae3dcd93de11444e"
+    },
+    {
+      "path": "config/artifacts/private-bindings/cra-child-benefit-civil.json",
+      "sha256": "sha256:beaa10610496ebb358e67483555735813ccb2dc7489714ce59e1dc7f4803372f"
+    },
+    {
+      "path": "config/artifacts/private-bindings/cra-citizen-record-civil.json",
+      "sha256": "sha256:a5ee1310ec5308ff9408fb59c7f9cd7dceef6a6539b576e63a191a0635dfbc9c"
+    },
+    {
+      "path": "config/artifacts/private-bindings/cra-pension-death-civil.json",
+      "sha256": "sha256:6e6fdcddc1ddc8725f1364f8d88eee050c64f2cfe792b37500ab0b1d86b8073f"
+    },
+    {
+      "path": "config/relay.yaml",
+      "sha256": "sha256:f9553f2b560a722b11c4ed16e35221c52246059498dfe3a53f865d6c1a0f3b6c"
+    }
+  ],
+  "created_at": "2026-07-25T17:00:39.189454Z"
+}

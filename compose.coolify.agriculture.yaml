@@ -25,6 +25,13 @@ x-relay-bootstrap-common: &relay-bootstrap-common
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: "no"
 
+x-relay-config-state-init: &relay-config-state-init
+  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
+  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+  user: "0:0"
+  restart: "no"
+  entrypoint: ["/bin/busybox", "sh", "-eu", "-c"]
+
 x-notary-common: &notary-common
   image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
@@ -83,9 +90,23 @@ services:
       postgres:
         condition: service_healthy
 
+  nagdi-relay-config-state-init:
+    <<: *relay-config-state-init
+    command:
+      - |
+        /bin/busybox mkdir -p /var/lib/registry-relay/cache
+        /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache
+        if ! /bin/busybox test -e /var/lib/registry-relay/cache/config-bundle-antirollback.json; then
+          /bin/busybox cp /etc/solmara/hosted-relay-bundles/nagdi-agriculture/antirollback-seed.json /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chmod 0600 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+        fi
+    volumes:
+      - nagdi-relay-cache:/var/lib/registry-relay/cache
+
   nagdi-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/nagdi-agriculture/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
@@ -94,13 +115,17 @@ services:
       REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_maintenance:${NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_reader:${NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+    volumes:
+      - nagdi-relay-cache:/var/lib/registry-relay/cache
     depends_on:
+      nagdi-relay-config-state-init:
+        condition: service_completed_successfully
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
   nagdi-agriculture-relay:
     <<: *relay-common
-    command: ["--config", "/etc/solmara/registry-projects/hosted/nagdi-agriculture/relay/relay.yaml"]
+    command: ["--config", "/etc/solmara/hosted-relay-bundles/nagdi-agriculture/bootstrap.yaml"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}

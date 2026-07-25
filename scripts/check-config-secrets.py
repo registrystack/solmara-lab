@@ -13,6 +13,7 @@ SCAN_DIRS = [
     "metadata",
     "projects",
     "runtime/registry-projects",
+    "config/hosted-relay-bundles",
     "compose.yaml",
     "compose.hosted.yaml",
     "compose.esignet.yaml",

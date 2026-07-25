@@ -1,0 +1,41 @@
+{
+  "schema": "registry.platform.config_bundle.v1",
+  "product": "registry-relay",
+  "environment": "hosted",
+  "stream_id": "solmara-hosted-sro-social",
+  "instance_id": "sro-social-relay",
+  "bundle_id": "solmara-hosted-sro-social-sequence-1",
+  "sequence": 1,
+  "config_hash": "sha256:c80e4b08837015b0189373c16f91c61af84ec884300fd53e12b5e58bfacd73d5",
+  "files": [
+    {
+      "path": "config/artifacts/consultation-contracts/child-benefit-household.json",
+      "sha256": "sha256:77470bdaa56f3bf30beb1734e0aa0fd676068b09f45d576ce32cae4a51920efb"
+    },
+    {
+      "path": "config/artifacts/evidence/child-benefit-household-by-uin/conformance.json",
+      "sha256": "sha256:d89eed72dc7259ad5e645543668896ef781314bd8d56b3bcd36d3622688b5f24"
+    },
+    {
+      "path": "config/artifacts/evidence/child-benefit-household-by-uin/minimization.json",
+      "sha256": "sha256:7992e9674748854ae462ff87d054ab88e00aa5671c04de3b11c4863194fdbdd0"
+    },
+    {
+      "path": "config/artifacts/evidence/child-benefit-household-by-uin/negative-security.json",
+      "sha256": "sha256:2862a52ca5baefa27db4330b1e8aaf5287c338be2e4733c10695528cd11c0b95"
+    },
+    {
+      "path": "config/artifacts/integration-packs/child-benefit-household-by-uin.json",
+      "sha256": "sha256:37e318640dfa27a08d743cd4ff429a9af319c703660bebebb1e671eb1f8e1974"
+    },
+    {
+      "path": "config/artifacts/private-bindings/child-benefit-household.json",
+      "sha256": "sha256:907216b35efab81bb09f63b0e39725c941a42890e9a1c9ad5516560549a765ee"
+    },
+    {
+      "path": "config/relay.yaml",
+      "sha256": "sha256:c80e4b08837015b0189373c16f91c61af84ec884300fd53e12b5e58bfacd73d5"
+    }
+  ],
+  "created_at": "2026-07-25T17:00:39.283469Z"
+}

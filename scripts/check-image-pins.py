@@ -11,6 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 LINE_RE = re.compile(r"^([A-Z0-9_]+)=([^#\s]+)$")
 PIN_RE = re.compile(r"^[^#\s]+@sha256:[0-9a-f]{64}$")
 REGISTRY_STACK_IMAGE_KEYS = {"REGISTRY_RELAY_IMAGE", "REGISTRY_NOTARY_IMAGE"}
+PINNED_IMAGE_KEYS = REGISTRY_STACK_IMAGE_KEYS | {
+    "SOLMARA_RELAY_RUNTIME_IMAGE",
+    "VOLUME_INIT_IMAGE",
+}
 COMPOSE_FALLBACK_RE = re.compile(
     r"\$\{(?P<key>REGISTRY_(?:RELAY|NOTARY)_IMAGE):-(?P<value>[^}]+)\}"
 )
@@ -34,12 +38,12 @@ def main() -> int:
             continue
         key, value = match.groups()
         values[key] = value
-        if key in REGISTRY_STACK_IMAGE_KEYS and not PIN_RE.match(value):
+        if key in PINNED_IMAGE_KEYS and not PIN_RE.match(value):
             failures.append(f"versions.env:{line_no}: {key} must use image@sha256:<64 hex>")
         if "@latest" in value or ":latest" in value:
             failures.append(f"versions.env:{line_no}: latest tags are not allowed")
 
-    for key in REGISTRY_STACK_IMAGE_KEYS:
+    for key in PINNED_IMAGE_KEYS:
         if key not in values:
             failures.append(f"versions.env: {key} is required")
 

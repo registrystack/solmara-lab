@@ -87,6 +87,7 @@ just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
 just up-generated # clean-checkout generation, compiler comparison, and start
 just registry-projects-runtime-check # regenerate and compare all authority runtime closures
+just hosted-relay-bundles-check # verify hosted Relay signatures and config closure
 just registry-projects-review # complete redacted acquisition and disclosure reports
 just contract-generation-proof # release-only live SRO blue/mixed/successor proof
 just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
@@ -160,6 +161,12 @@ not define custom Docker networks; cross-authority calls use the public
 authority-owned PostgreSQL state, persistent Relay snapshot caches, and
 workload credentials. Notary containers do not use Redis or a writable state
 directory.
+
+Hosted Relay starts from instance-bound signed Config Bundles. The wrapper
+contains only the public trust anchors and signed closures; the offline signing
+key is not committed. A sequence-zero baseline is copied only when a Relay
+state volume is empty, allowing first boot while keeping later bundle sequence
+rollback protection durable in that volume.
 
 Run `just registry-projects-sync` after editing an authority project, then
 `just registry-projects-runtime-check` to verify the local and hosted Relay and

@@ -1,0 +1,41 @@
+{
+  "schema": "registry.platform.config_bundle.v1",
+  "product": "registry-relay",
+  "environment": "hosted",
+  "stream_id": "solmara-hosted-mosd-programme",
+  "instance_id": "programme-mis-relay",
+  "bundle_id": "solmara-hosted-mosd-programme-sequence-1",
+  "sequence": 1,
+  "config_hash": "sha256:ca2a5a971a0836a07a45d90fd34eddfc2d3f0fa7ee81f4e383a4904a68d10867",
+  "files": [
+    {
+      "path": "config/artifacts/consultation-contracts/child-benefit-enrollment.json",
+      "sha256": "sha256:253ee934a9c9bbf725e233f90c195d057893eeea14bc9bc12330c0957245ff10"
+    },
+    {
+      "path": "config/artifacts/evidence/enrollment-by-uin/conformance.json",
+      "sha256": "sha256:be306951c683bbe6b02eff0202e8f4ed78c7a4379bc921d3b2f5e0ed0fcad2e4"
+    },
+    {
+      "path": "config/artifacts/evidence/enrollment-by-uin/minimization.json",
+      "sha256": "sha256:2d57d4d6bf1f97aba14b447b84f844af70791a8eac8bff7be2cc72a4aa3fce83"
+    },
+    {
+      "path": "config/artifacts/evidence/enrollment-by-uin/negative-security.json",
+      "sha256": "sha256:5468291382c61d128d2aff47dfbb7151ae1736c72d64b7a69e1209cd67d95282"
+    },
+    {
+      "path": "config/artifacts/integration-packs/enrollment-by-uin.json",
+      "sha256": "sha256:056cb318d4c9a49271f5283d52dfa282ff351af8b480d88c74eeaa6de7dcee33"
+    },
+    {
+      "path": "config/artifacts/private-bindings/child-benefit-enrollment.json",
+      "sha256": "sha256:e92f9f56ef5027c5a9292628d1d96f7a9c313496e21f6200d8e512b2a1d31778"
+    },
+    {
+      "path": "config/relay.yaml",
+      "sha256": "sha256:ca2a5a971a0836a07a45d90fd34eddfc2d3f0fa7ee81f4e383a4904a68d10867"
+    }
+  ],
+  "created_at": "2026-07-25T17:00:39.322248Z"
+}

@@ -48,6 +48,10 @@ registry-projects-sync:
 registry-projects-runtime-check:
     scripts/registry-projects.sh check-runtime
 
+# Verify signed hosted Relay closures against their public trust anchors.
+hosted-relay-bundles-check:
+    uv run --locked scripts/check-hosted-relay-bundles.py
+
 # Exercise one complete compiler-generated SRO blue-green release transition.
 contract-generation-proof:
     uv run --locked scripts/contract-generation-proof.py
@@ -74,6 +78,7 @@ lint:
     scripts/check-fiction.sh
     scripts/check-image-pins.py
     scripts/check-config-secrets.py
+    just hosted-relay-bundles-check
     just metadata-publish-check
     just metadata-lint
     @if [ -f portal/package.json ]; then cd portal && pnpm check; fi
