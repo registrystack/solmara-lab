@@ -22,6 +22,7 @@ ARG REGISTRY_RELAY_IMAGE
 ARG REGISTRY_STACK_SOURCE_COMMIT
 ARG REGISTRY_RELAY_FEATURES
 LABEL org.opencontainers.image.base.name="${REGISTRY_RELAY_IMAGE}"
+LABEL org.opencontainers.image.source="https://github.com/registrystack/solmara-lab"
 LABEL org.opencontainers.image.revision="${REGISTRY_STACK_SOURCE_COMMIT}"
 LABEL org.registrystack.solmara.relay-features="${REGISTRY_RELAY_FEATURES}"
 
