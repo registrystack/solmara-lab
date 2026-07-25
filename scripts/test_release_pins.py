@@ -38,6 +38,14 @@ class ReleasePinTests(unittest.TestCase):
         os.environ.pop("REGISTRY_NOTARY_IMAGE", None)
 
         self.module = load_check_release_pins()
+        self.resolve_tag_implementation = self.module.resolve_tag_commit
+        self.resolve_tag = mock.patch.object(
+            self.module,
+            "resolve_tag_commit",
+            return_value="a" * 40,
+        )
+        self.resolve_tag.start()
+        self.addCleanup(self.resolve_tag.stop)
         self.directory = tempfile.TemporaryDirectory()
         self.root = Path(self.directory.name)
         self.module.ROOT = self.root
@@ -47,7 +55,10 @@ class ReleasePinTests(unittest.TestCase):
             "REGISTRYCTL_VERSION=1.0.0\n"
             "REGISTRY_STACK_SOURCE_REF=v1.0.0\n"
             f"REGISTRY_STACK_SOURCE_COMMIT={'a' * 40}\n"
-            "REGISTRY_RELAY_FEATURES=attribute-release\n",
+            "REGISTRY_RELAY_FEATURES=attribute-release\n"
+            f"SOLMARA_RELAY_RUNTIME_IMAGE="
+            f"{self.module.SOLMARA_RELAY_RUNTIME_REPOSITORY}"
+            f"@sha256:{'3' * 64}\n",
             encoding="utf-8",
         )
 
@@ -152,6 +163,57 @@ class ReleasePinTests(unittest.TestCase):
             stderr.getvalue(),
         )
 
+    def test_source_commit_must_match_resolved_release_tag(self) -> None:
+        self.module.resolve_tag_commit.return_value = "b" * 40
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(self.module, "inspect_tag_digest") as inspect,
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 1)
+
+        inspect.assert_not_called()
+        self.assertIn(
+            f"REGISTRY_STACK_SOURCE_COMMIT from versions.env is {'a' * 40}",
+            stderr.getvalue(),
+        )
+        self.assertIn(
+            f"v1.0.0 resolves to {'b' * 40}",
+            stderr.getvalue(),
+        )
+
+    def test_resolve_tag_commit_prefers_the_peeled_annotated_tag(self) -> None:
+        direct = "1" * 40
+        peeled = "2" * 40
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=(
+                f"{direct}\trefs/tags/v1.0.0\n"
+                f"{peeled}\trefs/tags/v1.0.0^{{}}\n"
+            ),
+            stderr="",
+        )
+        with mock.patch.object(self.module.subprocess, "run", return_value=completed):
+            self.assertEqual(
+                self.resolve_tag_implementation("v1.0.0"),
+                peeled,
+            )
+
+    def test_resolve_tag_commit_accepts_a_lightweight_tag(self) -> None:
+        direct = "3" * 40
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=f"{direct}\trefs/tags/v1.0.0\n",
+            stderr="",
+        )
+        with mock.patch.object(self.module.subprocess, "run", return_value=completed):
+            self.assertEqual(
+                self.resolve_tag_implementation("v1.0.0"),
+                direct,
+            )
+
     def test_relay_source_ref_and_feature_must_match_the_release(self) -> None:
         versions = (self.root / "versions.env").read_text(encoding="utf-8")
         (self.root / "versions.env").write_text(
@@ -178,6 +240,33 @@ class ReleasePinTests(unittest.TestCase):
         )
         self.assertIn(
             "REGISTRY_RELAY_FEATURES must include attribute-release",
+            stderr.getvalue(),
+        )
+
+    def test_relay_runtime_must_be_published_and_digest_pinned(self) -> None:
+        versions = (self.root / "versions.env").read_text(encoding="utf-8")
+        (self.root / "versions.env").write_text(
+            versions.replace(
+                (
+                    f"{self.module.SOLMARA_RELAY_RUNTIME_REPOSITORY}"
+                    f"@sha256:{'3' * 64}"
+                ),
+                "solmara-lab-registry-relay:local",
+            ),
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(self.module, "inspect_tag_digest") as inspect,
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 1)
+
+        inspect.assert_not_called()
+        self.module.resolve_tag_commit.assert_not_called()
+        self.assertIn(
+            "SOLMARA_RELAY_RUNTIME_IMAGE must pin "
+            f"{self.module.SOLMARA_RELAY_RUNTIME_REPOSITORY}@sha256:<digest>",
             stderr.getvalue(),
         )
 

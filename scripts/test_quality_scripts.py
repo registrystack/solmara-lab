@@ -764,6 +764,17 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         self.assertEqual(versions["REGISTRY_STACK_SOURCE_REF"], "v0.13.0")
         self.assertRegex(versions["REGISTRY_STACK_SOURCE_COMMIT"], r"^[0-9a-f]{40}$")
         self.assertEqual(versions["REGISTRY_RELAY_FEATURES"], "attribute-release")
+        self.assertRegex(
+            versions["SOLMARA_RELAY_RUNTIME_IMAGE"],
+            (
+                r"^ghcr\.io/registrystack/solmara-lab-relay-runtime"
+                r"@sha256:[0-9a-f]{64}$"
+            ),
+        )
+        self.assertEqual(
+            versions["SOLMARA_RELAY_RUNTIME_DEV_IMAGE"],
+            "solmara-lab-registry-relay:v0.13.0-attribute-release",
+        )
 
         dockerfile = (
             ROOT / "docker" / "relay-runtime" / "Dockerfile"
@@ -784,6 +795,25 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             ),
             2,
         )
+        self.assertEqual(
+            justfile.count(
+                'REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_DEV_IMAGE"'
+            ),
+            2,
+        )
+        normal_up = justfile.split("\nup:\n", 1)[1].split("\n\n", 1)[0]
+        normal_esignet = justfile.split("\nup-esignet:\n", 1)[1].split(
+            "\n\n",
+            1,
+        )[0]
+        self.assertNotIn("build-relay-runtime.sh", normal_up)
+        self.assertNotIn("build-relay-runtime.sh", normal_esignet)
+
+        review_script = (ROOT / "scripts" / "review.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('git -C "$root" grep -I -n', review_script)
+        self.assertNotIn("grep -RIn", review_script)
 
         release_workflow = (
             ROOT / ".github" / "workflows" / "release-candidate.yml"

@@ -78,7 +78,10 @@ just smoke-live # live Notary checks only
 just portal-compose-smoke # HTTP smoke against the Compose portal and live BFF
 just portal-live-e2e # browser e2e against the running local stack
 just hosted-smoke # public hosted health, endpoint, scenario, and portal checks
+just up # local stack with mock portal login
 just up-esignet # local stack with eSignet-backed portal login
+just up-dev # explicit source-built Relay development stack
+just up-esignet-dev # source-built Relay development stack with eSignet
 just smoke-esignet # eSignet public discovery smoke
 just down       # stop the local Compose topology without deleting volumes
 just reset      # stop the local Compose topology and delete its volumes
@@ -90,6 +93,11 @@ just release-pins <registry-stack-tag> # compare committed versions.env pins aga
 just review     # normal security and release-readiness checks
 just review-release <registry-stack-tag> # candidate review with published pin validation
 ```
+
+Normal startup pulls the immutable feature-enabled Relay runtime pinned in
+`versions.env`; it does not clone or compile Registry Stack. The `*-dev`
+recipes are the explicit source-build path. They verify the pinned source
+commit and build a separate local image, leaving the standalone path unchanged.
 
 `just generate` rewrites generated fixtures. Review those diffs like any other
 committed generated artifact.
