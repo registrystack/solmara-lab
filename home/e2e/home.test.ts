@@ -126,6 +126,18 @@ test('country, developer, and status inventories have dedicated routes', async (
   await expect(page.locator('#status .status')).toHaveCount(17);
 });
 
+test('non-developer page data excludes developer-only published tokens', async ({ request }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE === 'live', 'uses the offline server token fixture');
+
+  for (const path of ['/', '/country', '/status']) {
+    const response = await request.get(path);
+    expect(await response.text(), path).not.toContain('route-scope-test-token');
+  }
+
+  const developerResponse = await request.get('/developers');
+  expect(await developerResponse.text()).toContain('route-scope-test-token');
+});
+
 test('purposes page lists every purpose with plain language and working anchors', async ({ page }) => {
   await page.goto('/purposes');
   await expect(page.locator('.reference-card')).toHaveCount(6);
@@ -226,6 +238,13 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires a live scenario runner behind the stack');
   await page.goto('/');
 
+  await expect(
+    page.locator('#proof .proof-grid > div').filter({ hasText: 'live registries' }).locator('strong')
+  ).toHaveText('6');
+  await expect(
+    page.locator('#solmara-preview .country-facts > div').filter({ hasText: 'Live registries' }).locator('dd')
+  ).toHaveText('6');
+
   // The boundary challenge appears only after a successful live evidence run.
   await expect(page.locator('#purpose-limitation')).toHaveCount(0);
 
@@ -269,6 +288,47 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   await page.getByText('See the technical refusal code').click();
   const denialLink = page.locator('#purpose-limitation .problem a[href^="/problem-codes"]');
   await expect(denialLink).toBeVisible();
+});
+
+test('purpose lens: a needs-attention result never renders as successful evidence', async ({ page }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires live scenario metadata');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await page.route('**/api/scenarios/birth-to-child-benefit/steps/positive/run', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        result: {
+          step_id: 'positive',
+          friendly: {
+            title: 'Request needs attention.',
+            message: 'A downstream authority is unavailable.',
+            status: 'needs_attention',
+            facts: []
+          },
+          request_source: {
+            method: 'POST',
+            url: 'http://child-benefit-federator:8080/v1/evaluations',
+            headers: {}
+          },
+          response_source: {
+            status: 503,
+            body: { code: 'authority.unavailable' }
+          }
+        }
+      })
+    });
+  });
+
+  await page.getByRole('button', { name: 'Run the check without sharing records' }).click();
+
+  await expect(page.locator('#purpose-lens .result-placeholder')).toContainText('Request needs attention.');
+  await expect(page.locator('#purpose-lens .result-placeholder')).toContainText(
+    'A downstream authority is unavailable.'
+  );
+  await expect(page.locator('#purpose-lens .result-lead')).toHaveCount(0);
+  await expect(page.locator('#purpose-limitation')).toHaveCount(0);
+  await expect(page.locator('.journey-steps')).not.toHaveClass(/journey-complete/);
 });
 
 test('story page: stepper runs an evaluate step and a purpose-denial step with a linked problem code', async ({ page }) => {

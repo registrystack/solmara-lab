@@ -1,7 +1,13 @@
 <script lang="ts">
   import type { Purpose, Scenario, StepRunEnvelope, StepRunResult } from '$lib/types';
   import { toCurl } from '$lib/curl';
-  import { claimResults, hopsFromResult, isDenial, problemCode } from '$lib/runresult';
+  import {
+    claimResults,
+    hasExpectedSuccessfulClaims,
+    hopsFromResult,
+    isDenial,
+    problemCode
+  } from '$lib/runresult';
   import CopyButton from './CopyButton.svelte';
 
   export let scenarios: Scenario[] = [];
@@ -22,6 +28,7 @@
     'household-below-poverty-threshold': "Household meets the benefit's income rule",
     'not-already-enrolled': 'No existing child-benefit enrolment'
   };
+  const expectedEvidenceIds = Object.keys(evidenceLabels);
 
   let firstResult: StepRunResult | null = null;
   let flipResult: StepRunResult | null = null;
@@ -43,12 +50,15 @@
   $: trace = hopsFromResult(firstResult);
   $: authorities = trace.map((hop) => hop.split(':')[0]).filter((authority, index, list) => list.indexOf(authority) === index);
   $: disclosed = claimResults(firstResult).filter((claim) => claim.satisfied !== false);
+  $: firstRunSucceeded = hasExpectedSuccessfulClaims(firstResult, expectedEvidenceIds);
   $: flipCode = flipResult ? problemCode(flipResult) : null;
   $: flipDenied = isDenial(flipResult);
   $: journeyStatus = running
     ? 'Checking the four government offices.'
-    : firstResult
+    : firstRunSucceeded
       ? 'The five answers have returned. Mateo’s records stayed with the offices that hold them.'
+      : runFailed
+        ? 'The live check needs attention before any answers can be used.'
       : 'Ready to run the check without sharing records.';
 
   $: flipHeaders = (selectedPurpose ? { 'Data-Purpose': selectedPurpose } : {}) as Record<string, string>;
@@ -86,7 +96,7 @@
       ]);
     }
     firstResult = await resultPromise;
-    runFailed = firstResult === null;
+    runFailed = !hasExpectedSuccessfulClaims(firstResult, expectedEvidenceIds);
     running = false;
   }
 
@@ -117,7 +127,7 @@
 
     <ol
       class:journey-running={running}
-      class:journey-complete={Boolean(firstResult)}
+      class:journey-complete={firstRunSucceeded}
       class="journey-steps"
       aria-label="What happens during the live check"
     >
@@ -155,7 +165,7 @@
         <button class="primary" on:click={ask} disabled={running || !defaultScenario}>
           {running
             ? 'Checking four government offices…'
-            : firstResult
+            : firstRunSucceeded
               ? 'Run the check without sharing records again'
               : 'Run the check without sharing records'}
         </button>
@@ -166,18 +176,23 @@
       </div>
 
       <div class="lens-result" aria-busy={running}>
-        {#if !firstResult}
+        {#if !firstRunSucceeded}
           <div class="result-placeholder">
             <p class="eyebrow">What comes back</p>
-            <h3>{running ? 'The four offices are checking…' : 'Run the check to see what travels'}</h3>
+            <h3>
+              {running
+                ? 'The four offices are checking…'
+                : runFailed
+                  ? firstResult?.friendly.title ?? 'The live check did not complete.'
+                  : 'Run the check to see what travels'}
+            </h3>
             <p>
               {running
                 ? 'Each office is checking its own records and preparing only a yes-or-no answer.'
+                : runFailed
+                  ? firstResult?.friendly.message ?? 'Try again when the scenario runner is healthy.'
                 : 'The result will show the answers the team receives and the personal information that stays private.'}
             </p>
-            {#if runFailed}
-              <p class="empty">The live check did not complete. Try again when the scenario runner is healthy.</p>
-            {/if}
           </div>
         {:else}
           <div class="result-content result-reveal">
@@ -230,7 +245,7 @@
       </div>
     </div>
 
-    {#if firstResult}
+    {#if firstRunSucceeded}
       <div class="boundary-challenge boundary-reveal" id="purpose-limitation">
         <div>
           <p class="eyebrow">Now test the safeguard</p>
