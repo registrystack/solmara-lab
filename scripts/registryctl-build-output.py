@@ -56,7 +56,6 @@ def parse_build_output(
     if not isinstance(output_value, str) or not output_value:
         raise BuildReportError("the JSON report has no output root")
     output = Path(output_value)
-
     try:
         project_root = project_directory.resolve(strict=True)
         output_root = (
