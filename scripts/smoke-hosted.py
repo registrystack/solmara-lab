@@ -90,16 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         (
             "eSignet backend",
             lambda: run_command(
-                [
-                    sys.executable,
-                    str(ROOT / "scripts" / "smoke-esignet.py"),
-                    "--relay-url",
-                    relay_url(targets, "SOLMARA_NIA_RELAY_URL"),
-                    "--esignet-url",
-                    targets.esignet_url,
-                    "--esignet-ui-url",
-                    targets.esignet_ui_url,
-                ],
+                esignet_smoke_command(targets),
                 env,
                 cwd=ROOT,
             ),
@@ -182,6 +173,17 @@ def main(argv: list[str] | None = None) -> int:
     suffix = " with browser e2e" if args.browser else ""
     print(f"smoke-hosted: Solmara hosted smoke passed{suffix}")
     return 0
+
+
+def esignet_smoke_command(targets: HostedTargets) -> list[str]:
+    return [
+        sys.executable,
+        str(ROOT / "scripts" / "smoke-esignet.py"),
+        "--esignet-url",
+        targets.esignet_url,
+        "--esignet-ui-url",
+        targets.esignet_ui_url,
+    ]
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -341,13 +343,6 @@ def hosted_env(
         if target.env_name:
             env[target.env_name] = target.base_url
     return env
-
-
-def relay_url(targets: HostedTargets, env_name: str) -> str:
-    for relay in targets.relays:
-        if relay.env_name == env_name:
-            return relay.base_url
-    raise SmokeFailure(f"missing relay target for {env_name}")
 
 
 def check_public_routes(targets: HostedTargets, timeout: float) -> None:
