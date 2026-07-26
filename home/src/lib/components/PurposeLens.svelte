@@ -75,7 +75,7 @@
 <section class="page-band live-demo" id="purpose-lens">
   <div class="content">
     <div class="section-intro live-demo-intro">
-      <p class="eyebrow">Run the live example</p>
+      <p class="eyebrow">No. 02 · Run the live example</p>
       <h2>Can Mateo's child-benefit application be reviewed without copying his records?</h2>
       <p>
         A programme needs five bounded facts from four authorities. Run the real request, then try

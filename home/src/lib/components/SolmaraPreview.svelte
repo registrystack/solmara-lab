@@ -18,7 +18,7 @@
 <section class="page-band solmara-preview" id="solmara-preview">
   <div class="content solmara-preview-grid">
     <div>
-      <p class="eyebrow">The fictional setting</p>
+      <p class="eyebrow">No. 06 · The fictional setting</p>
       <h2>One synthetic country, with real working boundaries</h2>
       <p>
         The Republic of Solmara provides a coherent place, cast, and government for the lab. Its

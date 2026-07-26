@@ -21,7 +21,13 @@
 </script>
 
 <header class="topbar">
-  <a class="brand" href="/">Solmara Lab</a>
+  <a class="brand" href="/">
+    <span class="brand-mark" aria-hidden="true">SL</span>
+    <span class="brand-copy">
+      <strong>Solmara Lab</strong>
+      <small>Registry Stack demo</small>
+    </span>
+  </a>
   <nav aria-label="Solmara Lab pages">
     {#each links as link}
       <a href={link.href} aria-current={isCurrent(link.href) ? 'page' : undefined}>{link.label}</a>

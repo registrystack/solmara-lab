@@ -337,12 +337,33 @@ The hero should normally fit within 750 CSS pixels on desktop and must not use
 The primary heading uses a maximum readable width and must not dominate more
 than half of a common desktop viewport.
 
-Primary actions use the teal filled style. Secondary actions use an outlined
-style. Text links remain visually quieter.
+Solmara keeps a forest and teal identity that distinguishes the lab from the
+Registry Stack product site. The relationship between the two sites is shown
+through shared visual details rather than by copying the product site's blue:
 
-The page uses alternating neutral, mint, sky, and dark sections to distinguish
-the narrative stages. Cards within a section must not all compete at the same
-visual weight.
+- Public Sans carries the narrative hierarchy.
+- IBM Plex Mono is used for compact, tracked editorial kickers and real
+  technical values.
+- The header includes a compact square mark and identifies the site as a
+  Registry Stack demo.
+- Homepage narrative stages use numbered kickers.
+- Panels are flat and rule-led, with small corner radii and minimal shadow.
+- Centered section introductions use a short double rule to separate the
+  explanation from the interactive or comparative content.
+
+Primary actions use a filled style. On the dark green hero, the primary action
+uses a white surface and forest text. Secondary actions use an outlined style.
+Text links remain visually quieter.
+
+The page uses alternating white, soft mint, pale green, and dark forest
+sections to distinguish the narrative stages. Blue-green gradients are not
+used as a general card treatment. Cards within a section must not all compete
+at the same visual weight.
+
+The live request and live result align to the top and size to their own
+content. They must not stretch to equal height when this creates unused space.
+The purpose-refusal placeholder is compact and visually subordinate to the
+successful evidence result.
 
 Technical material uses IBM Plex Mono only where it represents a real
 identifier, command, request, or response.

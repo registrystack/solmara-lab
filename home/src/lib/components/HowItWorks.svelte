@@ -1,7 +1,7 @@
 <section class="page-band how-it-works" id="how-it-works">
   <div class="content">
     <div class="section-intro">
-      <p class="eyebrow">How it works</p>
+      <p class="eyebrow">No. 01 · How it works</p>
       <h2>Keep authority with the source. Share only the evidence.</h2>
       <p>
         Solmara does not assemble a new national master database. Each authority keeps its records,

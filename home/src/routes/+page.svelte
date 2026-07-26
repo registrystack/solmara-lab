@@ -45,7 +45,7 @@
     <div class="content">
       <div class="section-intro split-intro">
         <div>
-          <p class="eyebrow">Guided stories</p>
+          <p class="eyebrow">No. 03 · Guided stories</p>
           <h2>Three policy problems, proven end to end</h2>
         </div>
         <p>
