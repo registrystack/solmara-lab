@@ -23,7 +23,7 @@
   <div class="content">
     <div class="status-preview-head">
       <div>
-        <p class="eyebrow">Live operational evidence</p>
+        <p class="eyebrow">No. 07 · Live operational evidence</p>
         <h2>{healthy} of {status.length} checks are responding as expected</h2>
         <p>
           {#if down === 0}

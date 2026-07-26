@@ -14,6 +14,8 @@ test('landing renders with header nav and every section in order', async ({ page
 
   // Persistent synthetic-data banner and header nav on every page.
   await expect(page.getByText('Synthetic Solmara data')).toBeVisible();
+  await expect(page.locator('.brand-mark')).toHaveText('SL');
+  await expect(page.locator('.brand-copy')).toContainText('Registry Stack demo');
   const nav = page.getByRole('navigation', { name: 'Solmara Lab pages' });
   for (const label of NAV_LINKS) {
     await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
@@ -208,6 +210,15 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   await page.getByRole('button', { name: 'Run the live review' }).click();
   await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#purpose-lens .result-lead')).toContainText('No source records were shared');
+
+  // The request card sizes to its content instead of stretching to match the
+  // denser result card and leaving a large dead area below the caption.
+  const requestDeadSpace = await page.locator('#purpose-lens .lens-request').evaluate((card) => {
+    const caption = card.querySelector('.quiet-caption');
+    if (!caption) return Number.POSITIVE_INFINITY;
+    return card.getBoundingClientRect().bottom - caption.getBoundingClientRect().bottom;
+  });
+  expect(requestDeadSpace).toBeLessThan(80);
 
   // Alternate purposes and raw requests stay out of the primary flow. When the
   // visitor opens them, the native select remains bounded by its card and uses

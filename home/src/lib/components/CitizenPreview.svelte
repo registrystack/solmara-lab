@@ -15,7 +15,7 @@
   <div class="content">
     <div class="section-intro split-intro">
       <div>
-        <p class="eyebrow">Citizen demo</p>
+        <p class="eyebrow">No. 04 · Citizen demo</p>
         <h2>Open the portal as a synthetic person</h2>
       </div>
       <p>
