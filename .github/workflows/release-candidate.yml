@@ -33,7 +33,7 @@ jobs:
       ESIGNET_POSTGRES_IMAGE: postgres:16
       ESIGNET_BASE_IMAGE: mosipid/esignet-with-plugins:1.8.0
       ESIGNET_UI_IMAGE: mosipid/oidc-ui:1.8.0
-      ESIGNET_RELAY_AUTHENTICATOR_REF: 9c066ae897cd3966333d7d75fc77db2e6dc7342c
+      ESIGNET_RELAY_AUTHENTICATOR_REF: 2e7d0e452a778e048f2c259391397d1e1844318e
       STATIC_METADATA_IMAGE: python:3.12-alpine
     steps:
       - uses: actions/checkout@v4
