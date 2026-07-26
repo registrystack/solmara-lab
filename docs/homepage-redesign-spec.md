@@ -181,70 +181,91 @@ honestly rather than replaced with stale claims.
 
 ### How it works
 
-The three steps are:
+The explanation uses ordinary public-service language before introducing
+Registry Stack terminology:
 
-1. **Ask a permitted question.** A programme states the purpose and the
-   minimum facts it needs.
-2. **Keep records at the source.** Each authority evaluates only its own
-   records and returns limited evidence.
-3. **Decide in the programme.** The programme applies its policy. Registry
-   Stack supplies evidence, not the final entitlement decision.
+1. **The service asks.** It explains why it is asking and requests only the
+   answers needed for the application.
+2. **Each office checks.** Every government office checks the records it
+   already holds. No new master database is created.
+3. **Only answers return.** The service receives the minimum yes-or-no
+   answers, not addresses, scores, or registry rows.
+4. **The service decides.** The service applies its own policy. Registry Stack
+   does not decide entitlement.
 
-A boundary note states that no national master database is assembled.
+Terms such as purpose, evidence, source authority, claim identifier, and
+programme appear only after this mental model is established or inside
+technical disclosures.
 
 ### Live purpose-limitation example
 
-The example is framed as:
+The example is framed as a story about a person and a public-service team:
 
-> Can Mateo's child-benefit application be reviewed without copying his
-> records?
+> Can the child-benefit team check Mateo's application without collecting his
+> personal records?
 
-Before the run, show:
+Before the run, explain that Mateo has applied, the team needs five yes-or-no
+answers, and four government offices already hold the relevant records. Show
+the five questions in plain language:
 
-- Requester: Child-benefit programme
-- Purpose: Child-benefit review
-- Evidence needed: five yes-or-no facts
-- Held back: source rows and unrelated personal details
+- Is Mateo's birth registered?
+- Is his population record active?
+- Is he under five?
+- Does his household meet the benefit's income rule?
+- Is he not already enrolled for this benefit?
 
-The primary action is `Run the live review`.
+State explicitly that the team does not ask for registry rows, addresses, or
+Mateo's complete personal record.
 
-While running, the action reads `Running live review`.
+The primary action is `Run the check without sharing records`.
+
+While running, a four-step journey highlights in sequence:
+
+1. Mateo applies.
+2. Five questions are sent.
+3. Four offices check.
+4. Only answers return.
+
+The sequence lasts long enough to make the request-to-result relationship
+legible when the services respond immediately. It does not impose an
+artificial delay when the visitor has requested reduced motion. All animation
+is removed by `prefers-reduced-motion: reduce`, while the same state changes
+remain visible.
 
 On success, lead with:
 
-> Five required facts returned. No source records were shared.
+> Five answers received. Mateo's records stayed where they were.
 
-The supporting text must state that the application has evidence for its
-review and that the lab did not make the benefit decision.
+The result uses human-readable answer labels and separates:
 
-The result separates:
+- answers received;
+- what stayed private; and
+- a plain statement that each office checked its own records.
 
-- evidence returned;
-- information held back; and
-- authorities consulted.
-
-HTTP response details are not part of the plain-language trace. They are
-available inside a collapsed `Technical trace` disclosure.
+Authority names, machine-readable claim identifiers, HTTP response details,
+and the request trace are available inside a collapsed
+`See how this works technically` disclosure.
 
 After the successful run, reveal the boundary challenge:
 
-> Prove that the purpose is enforced.
+> Can these answers be reused for something else?
 
 The default challenge attempts to reuse the request under
 `pension-payment-review`.
 
-The primary boundary action is `Try the wrong purpose`.
+The primary boundary action is `Test the safeguard`.
 
 On refusal, lead with:
 
-> Request refused.
+> The request was refused.
 
 The supporting text explains that child-benefit evidence cannot be requested
 for pension review. The stable problem code links to the problem-code
-reference.
+reference inside a collapsed technical disclosure.
 
 An advanced purpose selector and copy-as-curl control remain available inside
-a collapsed `Choose another purpose or inspect the request` disclosure.
+a collapsed `Explore other purposes or inspect the technical request`
+disclosure.
 
 If the scenario runner is unavailable, the component fails closed and
 explains that the live example will return when the service is healthy.

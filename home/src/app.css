@@ -28,6 +28,19 @@
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -1885,7 +1898,7 @@ summary:focus-visible {
 
 .model-steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(1.2rem, 3vw, 2.4rem);
   margin: 0;
   padding: 0;
@@ -1923,6 +1936,77 @@ summary:focus-visible {
   margin-bottom: clamp(2rem, 4vw, 3.2rem);
 }
 
+.journey-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 clamp(1.4rem, 3vw, 2rem);
+  padding: 0;
+  list-style: none;
+}
+
+.journey-steps li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
+  border: 1px solid #c9d8d3;
+  border-top: 2px solid #a9c2b9;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.journey-number {
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid #9eb7ae;
+  background: #fff;
+  color: var(--home-forest);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+}
+
+.journey-steps strong,
+.journey-steps small {
+  display: block;
+}
+
+.journey-steps strong {
+  margin-top: 0.05rem;
+  line-height: 1.25;
+}
+
+.journey-steps small {
+  margin-top: 0.25rem;
+  color: var(--home-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.journey-complete li {
+  border-top-color: var(--home-teal);
+  background: #fff;
+}
+
+.journey-complete .journey-number {
+  border-color: var(--home-teal);
+  background: var(--home-teal);
+  color: #fff;
+}
+
+.journey-running li {
+  animation: journey-step 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--journey-index) * 0.24s);
+}
+
+.journey-running .journey-number {
+  animation: journey-number 0.46s ease both;
+  animation-delay: calc(var(--journey-index) * 0.24s);
+}
+
 .lens {
   align-items: start;
   gap: clamp(1rem, 2.4vw, 1.8rem);
@@ -1942,8 +2026,59 @@ summary:focus-visible {
   display: block;
 }
 
+.lens-request h3 {
+  margin: 0.45rem 0 1rem;
+  font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+  line-height: 1.15;
+}
+
 .lens-result {
   border-top-color: var(--home-gold);
+}
+
+.question-list,
+.answer-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question-list {
+  counter-reset: evidence-question;
+}
+
+.question-list li {
+  display: grid;
+  grid-template-columns: 1.55rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  color: var(--home-ink);
+  line-height: 1.4;
+  counter-increment: evidence-question;
+}
+
+.question-list li::before {
+  content: counter(evidence-question);
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid #a9c2b9;
+  color: var(--home-teal);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+}
+
+.privacy-note {
+  margin: 1.1rem 0 1.25rem;
+  border-left: 2px solid var(--home-teal);
+  padding: 0.75rem 0.9rem;
+  background: var(--home-soft);
+  color: var(--home-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .request-facts {
@@ -2004,6 +2139,19 @@ summary:focus-visible {
   line-height: 1.45;
 }
 
+.answer-list li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: start;
+  line-height: 1.4;
+}
+
+.answer-list li span {
+  color: var(--home-teal);
+  font-weight: 700;
+}
+
 .authority-summary {
   color: var(--home-muted);
   line-height: 1.45;
@@ -2015,6 +2163,21 @@ summary:focus-visible {
 
 .technical-trace .trace {
   margin-top: 0.8rem;
+}
+
+.technical-trace-content {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--home-line);
+  padding-top: 0.9rem;
+}
+
+.technical-trace-content > p,
+.technical-trace-content > h4 {
+  margin: 0 0 0.55rem;
+}
+
+.technical-trace-content .claim-list {
+  margin-bottom: 1rem;
 }
 
 .boundary-challenge {
@@ -2055,6 +2218,74 @@ summary:focus-visible {
 .boundary-answer h4 {
   margin: 0.35rem 0;
   font-size: 1.6rem;
+}
+
+.boundary-code {
+  margin-top: 0.9rem;
+  border-top: 1px solid #dbc17e;
+  padding-top: 0.75rem;
+}
+
+.boundary-code summary {
+  cursor: pointer;
+  color: var(--home-teal);
+  font-weight: 700;
+}
+
+.result-reveal,
+.boundary-reveal {
+  animation: reveal-result 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes journey-step {
+  0% {
+    border-top-color: #a9c2b9;
+    background: rgba(255, 255, 255, 0.66);
+    transform: translateY(0);
+  }
+  55% {
+    border-top-color: var(--home-gold);
+    background: #fffaf0;
+    box-shadow: 0 8px 18px rgba(16, 63, 53, 0.1);
+    transform: translateY(-4px);
+  }
+  100% {
+    border-top-color: var(--home-teal);
+    background: #fff;
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@keyframes journey-number {
+  0% {
+    border-color: #9eb7ae;
+    background: #fff;
+    color: var(--home-forest);
+  }
+  55% {
+    border-color: var(--home-gold);
+    background: var(--home-gold);
+    color: #fff;
+    transform: scale(1.08);
+  }
+  100% {
+    border-color: var(--home-teal);
+    background: var(--home-teal);
+    color: #fff;
+    transform: scale(1);
+  }
+}
+
+@keyframes reveal-result {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .advanced-request {
@@ -2316,7 +2547,12 @@ summary:focus-visible {
     scroll-behavior: auto;
   }
 
-  .button-link:hover {
+  .button-link:hover,
+  .journey-running li,
+  .journey-running .journey-number,
+  .result-reveal,
+  .boundary-reveal {
+    animation: none;
     transform: none;
   }
 }
@@ -2336,8 +2572,9 @@ summary:focus-visible {
   }
 
   .model-steps,
+  .journey-steps,
   .citizen-card-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .lens-request,
@@ -2384,6 +2621,11 @@ summary:focus-visible {
 
   .proof-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .model-steps,
+  .journey-steps {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .request-facts div {
