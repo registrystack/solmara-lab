@@ -31,7 +31,7 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       storyTitle: 'Birth to child benefit',
       stepId: 'positive',
       tone: 'positive',
-      text: 'His review returns five minimized, source-owned predicates for programme policy to decide.'
+      text: 'The child-benefit team receives five yes-or-no answers and remains responsible for the decision.'
     }
   ],
   // Elena Dela Cruz, Mateo's guardian and the citizen self-service positive subject.
@@ -41,14 +41,14 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       storyTitle: 'Birth to child benefit',
       stepId: 'positive',
       tone: 'note',
-      text: "Mateo's guardian: may review his five source predicates after the guardian gate clears."
+      text: "Mateo's guardian can review his five answers after her relationship to him is confirmed."
     },
     {
       storyId: 'citizen-self-service',
       storyTitle: 'Citizen self-service',
       stepId: 'positive',
       tone: 'positive',
-      text: 'Signs into her own portal and previews her own minimized status summary, nothing else.'
+      text: 'Signs into her own portal and sees only her own limited status summary.'
     }
   ],
   // Hana Aquino, child benefit denied above threshold.
@@ -58,7 +58,7 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       storyTitle: 'Birth to child benefit',
       stepId: 'poverty-control',
       tone: 'refusal',
-      text: 'Refused: her household sits above the poverty threshold, exactly as designed.'
+      text: "Her household does not meet the benefit's income rule, so this application is refused."
     }
   ],
   // Tomas Bello, child benefit denied duplicate enrollment.
@@ -145,7 +145,7 @@ const OUTCOMES: Record<string, PersonaOutcome[]> = {
       storyTitle: 'Farmer climate-smart voucher',
       stepId: 'movement-permit',
       tone: 'positive',
-      text: 'Also clears the livestock movement permit, evaluated under its own purpose.'
+      text: 'Also clears the livestock movement permit, checked separately for a different reason.'
     }
   ],
   // Diego Santos, farmer voucher denied: no data-use authorization on file.

@@ -14,15 +14,15 @@
   const storyCopy: Record<string, { problem: string; boundary: string }> = {
     'birth-to-child-benefit': {
       problem: 'Review a child-benefit application without building a new family database.',
-      boundary: 'Five source-owned facts return. Family records and poverty scores stay with their authorities.'
+      boundary: 'Five yes-or-no answers return. Family records and income values stay with the offices that hold them.'
     },
     'death-to-pension-survivor': {
       problem: "Stop a deceased member's pension without disclosing their cause of death.",
-      boundary: 'Life status is enough for the payment review. Sensitive civil-registration details stay private.'
+      boundary: 'The pensions team receives only whether the member is alive. Cause-of-death details stay private.'
     },
     'farmer-climate-smart-voucher': {
       problem: "Review a farmer voucher without exposing the farmer's complete record.",
-      boundary: 'Voucher and livestock evidence are evaluated under separate purposes and separate boundaries.'
+      boundary: 'Voucher and livestock checks ask separate questions for separate reasons.'
     }
   };
 </script>
@@ -46,11 +46,11 @@
       <div class="section-intro split-intro">
         <div>
           <p class="eyebrow">No. 03 · Guided stories</p>
-          <h2>Three policy problems, proven end to end</h2>
+          <h2>See the same idea in three public services</h2>
         </div>
         <p>
-          Each story starts with a public-service problem, follows the real requests, and tests the
-          boundary with a deliberate refusal.
+          Follow each service from its first question to a real answer, then see what happens when
+          someone asks for information they are not allowed to use.
         </p>
       </div>
       <div class="teaser-grid">

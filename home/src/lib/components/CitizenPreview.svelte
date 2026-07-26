@@ -16,11 +16,11 @@
     <div class="section-intro split-intro">
       <div>
         <p class="eyebrow">No. 04 · Citizen demo</p>
-        <h2>Open the portal as a synthetic person</h2>
+        <h2>Try the services as a fictional person</h2>
       </div>
       <p>
-        Follow a successful review, a deliberate refusal, or a farmer voucher path. These are fixed
-        demo identities, not real residents.
+        Choose a fictional person and follow what happens to their application. These are fixed
+        demonstration identities, not real residents.
       </p>
     </div>
 

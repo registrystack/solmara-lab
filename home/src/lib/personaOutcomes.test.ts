@@ -49,8 +49,8 @@ describe('personaOutcomes', () => {
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0].storyId).toBe('birth-to-child-benefit');
     expect(outcomes[0].stepId).toBe('positive');
-    expect(outcomes[0].text).toContain('five minimized, source-owned predicates');
-    expect(outcomes[0].text).not.toMatch(/eligible|credential/i);
+    expect(outcomes[0].text).toContain('five yes-or-no answers');
+    expect(outcomes[0].text).not.toMatch(/predicate|eligible|credential/i);
     expect(personaOutcomeHref(outcomes[0])).toBe('/stories/birth-to-child-benefit#positive');
   });
 
@@ -58,7 +58,7 @@ describe('personaOutcomes', () => {
     const outcomes = personaOutcomes(persona({ roster_primary_id: '2300036523' }));
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0].tone).toBe('refusal');
-    expect(outcomes[0].text).toMatch(/Refused/);
+    expect(outcomes[0].text).toMatch(/refused/i);
   });
 
   it('gives a persona who appears in more than one story more than one outcome line', () => {

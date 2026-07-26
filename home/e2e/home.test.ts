@@ -27,7 +27,7 @@ test('landing renders with header nav and every section in order', async ({ page
     })
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Run the child-benefit example' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Run the live review' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run the check without sharing records' })).toBeVisible();
 
   // Landing sections follow one story-first path. Full country, developer, and
   // status inventories own dedicated routes.
@@ -56,6 +56,28 @@ test('landing fits a mobile viewport without horizontal overflow', async ({ page
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(overflow).toBe(false);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Get the answer');
+});
+
+test('landing teaches the live example in plain language and respects reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+
+  await expect(
+    page.getByRole('heading', {
+      name: "Can the child-benefit team check Mateo's application without collecting his personal records?"
+    })
+  ).toBeVisible();
+  await expect(page.locator('.journey-steps > li')).toHaveCount(4);
+  await expect(page.locator('.question-list > li')).toHaveCount(5);
+  await expect(page.locator('#purpose-lens')).toContainText('Mateo applies');
+  await expect(page.locator('#purpose-lens')).toContainText('Only answers return');
+  await expect(page.locator('#purpose-lens')).toContainText('does not ask for registry rows');
+
+  await page.locator('.journey-steps').evaluate((journey) => journey.classList.add('journey-running'));
+  const animationNames = await page.locator('.journey-steps > li').evaluateAll((steps) =>
+    steps.map((step) => getComputedStyle(step).animationName)
+  );
+  expect(animationNames.every((name) => name === 'none')).toBe(true);
 });
 
 test('reference routes render real content with a back link', async ({ page }) => {
@@ -207,9 +229,12 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   // The boundary challenge appears only after a successful live evidence run.
   await expect(page.locator('#purpose-limitation')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Run the live review' }).click();
+  await page.getByRole('button', { name: 'Run the check without sharing records' }).click();
+  await expect(page.locator('.journey-steps')).toHaveClass(/journey-running/);
   await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('#purpose-lens .result-lead')).toContainText('No source records were shared');
+  await expect(page.locator('#purpose-lens .result-lead')).toContainText("Mateo's records stayed where they were");
+  await expect(page.locator('#purpose-lens .answer-list')).toContainText('Birth registration confirmed');
+  await expect(page.locator('#purpose-lens .technical-trace')).not.toHaveAttribute('open', '');
 
   // The request card sizes to its content instead of stretching to match the
   // denser result card and leaving a large dead area below the caption.
@@ -237,9 +262,13 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   await expect(advanced.locator('.request-inspector')).not.toHaveAttribute('open', '');
 
   // The default challenge reuses the evidence request for pension review.
-  await page.getByRole('button', { name: 'Try the wrong purpose' }).click();
+  await page.getByRole('button', { name: 'Test the safeguard' }).click();
+  await expect(page.locator('#purpose-limitation')).toContainText('The request was refused', {
+    timeout: 30_000
+  });
+  await page.getByText('See the technical refusal code').click();
   const denialLink = page.locator('#purpose-limitation .problem a[href^="/problem-codes"]');
-  await expect(denialLink).toBeVisible({ timeout: 30_000 });
+  await expect(denialLink).toBeVisible();
 });
 
 test('story page: stepper runs an evaluate step and a purpose-denial step with a linked problem code', async ({ page }) => {
