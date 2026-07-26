@@ -108,6 +108,13 @@ test('reference surfaces stay scannable and fit a mobile viewport', async ({ pag
   await expect(page.locator('.change-detail').first()).not.toHaveAttribute('open', '');
 });
 
+test('metadata explorer does not present outage fallbacks as zero live counts', async ({ page }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE === 'live', 'requires the offline metadata outage fixture');
+  await page.goto('/explorer');
+  await expect(page.locator('.reference-facts')).toHaveCount(0);
+  await expect(page.locator('.explorer-page')).toContainText('Metadata service is unavailable');
+});
+
 test('country, developer, and status inventories have dedicated routes', async ({ page }) => {
   for (const path of ['/country', '/developers', '/status']) {
     const response = await page.goto(path);
@@ -329,6 +336,49 @@ test('purpose lens: a needs-attention result never renders as successful evidenc
   await expect(page.locator('#purpose-lens .result-lead')).toHaveCount(0);
   await expect(page.locator('#purpose-limitation')).toHaveCount(0);
   await expect(page.locator('.journey-steps')).not.toHaveClass(/journey-complete/);
+});
+
+test('purpose lens: an unexpected error never renders as a successful safeguard refusal', async ({ page }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires live scenario metadata');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Run the check without sharing records' }).click();
+  await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
+
+  await page.route('**/api/scenarios/birth-to-child-benefit/steps/positive/run', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        result: {
+          step_id: 'positive',
+          friendly: {
+            title: 'Request needs attention.',
+            message: 'The downstream service could not complete the safeguard test.',
+            status: 'needs_attention',
+            facts: []
+          },
+          request_source: {
+            method: 'POST',
+            url: 'http://child-benefit-federator:8080/v1/evaluations',
+            headers: {}
+          },
+          response_source: {
+            status: 503,
+            body: { code: 'authority.unavailable' }
+          }
+        }
+      })
+    });
+  });
+  await page.getByRole('button', { name: 'Test the safeguard' }).click();
+
+  const boundaryResult = page.locator('#purpose-limitation .boundary-result');
+  await expect(boundaryResult).toContainText('Test needs attention');
+  await expect(boundaryResult).toContainText(
+    'The downstream service could not complete the safeguard test.'
+  );
+  await expect(boundaryResult).not.toContainText('Safeguard worked');
+  await expect(boundaryResult).not.toContainText('Evidence returned');
 });
 
 test('story page: stepper runs an evaluate step and a purpose-denial step with a linked problem code', async ({ page }) => {

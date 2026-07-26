@@ -10,12 +10,14 @@
   $: offeringsByAuthority = groupOfferings(metadata.offerings);
   $: policies = (metadata.policies ?? []) as any[];
   $: entityCount = metadata.catalog.datasets.reduce((total, dataset) => total + dataset.entities.length, 0);
-  $: facts = [
-    { value: apiItems.length, label: 'catalog links' },
-    { value: entityCount, label: 'registry entities' },
-    { value: metadata.offerings.length, label: 'evidence offerings' },
-    { value: policies.length, label: 'published policies' }
-  ];
+  $: facts = metadata.available
+    ? [
+        { value: apiItems.length, label: 'catalog links' },
+        { value: entityCount, label: 'registry entities' },
+        { value: metadata.offerings.length, label: 'evidence offerings' },
+        { value: policies.length, label: 'published policies' }
+      ]
+    : [];
 
   // Localise a single-language label object (e.g. {en: "..."}) to plain text.
   function label(value: unknown): string {

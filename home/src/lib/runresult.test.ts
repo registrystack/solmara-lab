@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasExpectedSuccessfulClaims } from './runresult';
+import { hasExpectedSuccessfulClaims, isExpectedProblemDenial } from './runresult';
 import type { StepRunResult } from './types';
 
 const expectedClaims = [
@@ -15,6 +15,7 @@ function result(
     friendlyStatus?: string;
     httpStatus?: number;
     claims?: { claim_id: string; satisfied: boolean }[];
+    body?: Record<string, unknown>;
   } = {}
 ): StepRunResult {
   return {
@@ -32,11 +33,13 @@ function result(
     },
     response_source: {
       status: overrides.httpStatus ?? 200,
-      body: {
-        results:
-          overrides.claims ??
-          expectedClaims.map((claim_id) => ({ claim_id, satisfied: true }))
-      }
+      body:
+        overrides.body ??
+        {
+          results:
+            overrides.claims ??
+            expectedClaims.map((claim_id) => ({ claim_id, satisfied: true }))
+        }
     }
   };
 }
@@ -100,5 +103,42 @@ describe('hasExpectedSuccessfulClaims', () => {
         expectedClaims
       )
     ).toBe(false);
+  });
+});
+
+describe('isExpectedProblemDenial', () => {
+  it('accepts only an explicit matching policy code returned with HTTP 403', () => {
+    expect(
+      isExpectedProblemDenial(
+        result({
+          friendlyStatus: 'done',
+          httpStatus: 403,
+          body: { code: 'pdp.purpose_not_permitted' }
+        }),
+        'pdp.purpose_not_permitted'
+      )
+    ).toBe(true);
+  });
+
+  it('rejects authentication errors, server errors, and synthesized codes', () => {
+    for (const candidate of [
+      result({
+        friendlyStatus: 'needs_attention',
+        httpStatus: 401,
+        body: { code: 'auth.invalid_token' }
+      }),
+      result({
+        friendlyStatus: 'needs_attention',
+        httpStatus: 503,
+        body: { code: 'authority.unavailable' }
+      }),
+      result({
+        friendlyStatus: 'needs_attention',
+        httpStatus: 403,
+        body: {}
+      })
+    ]) {
+      expect(isExpectedProblemDenial(candidate, 'pdp.purpose_not_permitted')).toBe(false);
+    }
   });
 });

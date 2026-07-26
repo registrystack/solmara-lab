@@ -50,12 +50,9 @@ export function hasExpectedSuccessfulClaims(
 }
 
 /**
- * Extract the stable problem code from a denial response. Notary denials are
- * problem+json with a `code`; fall back to the trailing segment of a `type`
- * URI, then to other common fields.
+ * Extract only a problem code explicitly returned by the service.
  */
-export function problemCode(result: StepRunResult | null | undefined): string | null {
-  const status = responseStatus(result);
+export function explicitProblemCode(result: StepRunResult | null | undefined): string | null {
   const body = responseBody(result);
   const direct = body.code ?? body.problem_code ?? body.error;
   if (typeof direct === 'string' && direct) return direct;
@@ -63,9 +60,29 @@ export function problemCode(result: StepRunResult | null | undefined): string | 
     const tail = body.type.split(/[/#]/).filter(Boolean).pop();
     if (tail) return tail;
   }
+  return null;
+}
+
+/**
+ * Extract the stable problem code from a denial response. Notary denials are
+ * problem+json with a `code`; fall back to the trailing segment of a `type`
+ * URI, then to a compatibility code for older error responses.
+ */
+export function problemCode(result: StepRunResult | null | undefined): string | null {
+  const status = responseStatus(result);
+  const explicit = explicitProblemCode(result);
+  if (explicit) return explicit;
   // Only surface a synthesized code when the response actually denied.
   if (status !== null && status >= 400) return 'pdp.purpose_not_permitted';
   return null;
+}
+
+/** Match the exact policy refusal that a safeguard demonstration expects. */
+export function isExpectedProblemDenial(
+  result: StepRunResult | null | undefined,
+  expectedCode: string
+): boolean {
+  return responseStatus(result) === 403 && explicitProblemCode(result) === expectedCode;
 }
 
 export function isDenial(result: StepRunResult | null | undefined): boolean {

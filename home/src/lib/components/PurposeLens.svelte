@@ -3,10 +3,10 @@
   import { toCurl } from '$lib/curl';
   import {
     claimResults,
+    explicitProblemCode,
     hasExpectedSuccessfulClaims,
     hopsFromResult,
-    isDenial,
-    problemCode
+    isExpectedProblemDenial
   } from '$lib/runresult';
   import CopyButton from './CopyButton.svelte';
 
@@ -51,8 +51,9 @@
   $: authorities = trace.map((hop) => hop.split(':')[0]).filter((authority, index, list) => list.indexOf(authority) === index);
   $: disclosed = claimResults(firstResult).filter((claim) => claim.satisfied !== false);
   $: firstRunSucceeded = hasExpectedSuccessfulClaims(firstResult, expectedEvidenceIds);
-  $: flipCode = flipResult ? problemCode(flipResult) : null;
-  $: flipDenied = isDenial(flipResult);
+  $: flipCode = explicitProblemCode(flipResult);
+  $: flipDenied = isExpectedProblemDenial(flipResult, 'pdp.purpose_not_permitted');
+  $: flipSucceeded = hasExpectedSuccessfulClaims(flipResult, expectedEvidenceIds);
   $: journeyStatus = running
     ? 'Checking the four government offices.'
     : firstRunSucceeded
@@ -277,10 +278,22 @@
                 </p>
               </details>
             </div>
-          {:else}
+          {:else if flipSucceeded}
             <div class="answer">
               <h4>Evidence returned</h4>
               <p>That purpose is permitted for this request, so the services answered.</p>
+            </div>
+          {:else}
+            <div class="boundary-answer">
+              <p class="eyebrow">Test needs attention</p>
+              <h4>{flipResult.friendly.title}</h4>
+              <p>{flipResult.friendly.message}</p>
+              {#if flipCode}
+                <details class="boundary-code">
+                  <summary>See the returned problem code</summary>
+                  <p class="problem"><code>{flipCode}</code></p>
+                </details>
+              {/if}
             </div>
           {/if}
         </div>
