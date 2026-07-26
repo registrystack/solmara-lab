@@ -12,6 +12,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
+      HOME_PUBLISHED_TOKENS: '{"child-benefit-federator":"route-scope-test-token"}',
       STATIC_METADATA_URL: 'http://127.0.0.1:9',
       SCENARIO_RUNNER_URL: 'http://127.0.0.1:9',
       PORT: String(port)

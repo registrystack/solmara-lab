@@ -12,8 +12,42 @@ type FetchLike = typeof fetch;
 
 export { readPurposes } from './purposes';
 
-export async function loadHomeData(fetcher: FetchLike = fetch): Promise<HomeData> {
-  const [metadata, scenarioResult, purposes, personas, districts, provinces, country, services, versions, status, smoke, seed, changelogLatest] =
+export type CountryData = Pick<
+  HomeData,
+  'metadata' | 'personas' | 'districts' | 'provinces' | 'country' | 'portalUrl'
+>;
+
+export type LandingData = Pick<
+  HomeData,
+  | 'metadata'
+  | 'scenarios'
+  | 'purposes'
+  | 'personas'
+  | 'districts'
+  | 'provinces'
+  | 'country'
+  | 'status'
+  | 'smoke'
+  | 'changelogLatest'
+  | 'portalUrl'
+>;
+
+export type DeveloperData = Pick<
+  HomeData,
+  'publishedTokens' | 'curlExamples' | 'versions' | 'repoUrl'
+>;
+
+export type StatusData = Pick<
+  HomeData,
+  'status' | 'versions' | 'smoke' | 'seed' | 'changelogLatest'
+>;
+
+/**
+ * Load the public landing-page story without developer-only token material.
+ * Credentials are intentionally confined to loadDeveloperData().
+ */
+export async function loadLandingData(fetcher: FetchLike = fetch): Promise<LandingData> {
+  const [metadata, scenarioResult, purposes, personas, districts, provinces, country, status, smoke, changelogLatest] =
     await Promise.all([
       fetchMetadata(fetcher),
       fetchScenarios(fetcher),
@@ -22,37 +56,79 @@ export async function loadHomeData(fetcher: FetchLike = fetch): Promise<HomeData
       readJson('geo/districts.geojson'),
       readJson('geo/provinces.geojson'),
       readJson('geo/country.geojson'),
-      readComposeServices(),
-      readVersions(),
       readStatus(fetcher),
       readSmokeEvidence(),
-      readSeedSummary(),
       readChangelogLatest()
     ]);
-
-  const publishedTokens = parsePublishedTokens();
 
   return {
     metadata,
     scenarios: scenarioResult.scenarios,
-    defaultScenarioId: scenarioResult.defaultScenarioId,
     purposes,
     personas,
     districts,
     provinces,
     country,
     status,
-    services,
-    versions,
     smoke,
-    seed,
-    publishedTokens,
-    curlExamples: buildCurlExamples(publishedTokens),
     changelogLatest,
-    repoUrl: runtime.repoUrl,
-    generatedAt: new Date().toISOString(),
     portalUrl: runtime.portalUrl
   };
+}
+
+/**
+ * This is the only page-data loader allowed to publish the synthetic demo
+ * credentials and token-bearing curl examples.
+ */
+export async function loadDeveloperData(): Promise<DeveloperData> {
+  const publishedTokens = parsePublishedTokens();
+  return {
+    publishedTokens,
+    curlExamples: buildCurlExamples(publishedTokens),
+    versions: await readVersions(),
+    repoUrl: runtime.repoUrl
+  };
+}
+
+/**
+ * Load only the country route's public fields. Raw published tokens and
+ * token-bearing curl examples belong to the developer route and must never
+ * enter a non-developer page-data payload.
+ */
+export async function loadCountryData(fetcher: FetchLike = fetch): Promise<CountryData> {
+  const [metadata, personas, districts, provinces, country] = await Promise.all([
+    fetchMetadata(fetcher),
+    readPersonas(),
+    readJson('geo/districts.geojson'),
+    readJson('geo/provinces.geojson'),
+    readJson('geo/country.geojson')
+  ]);
+
+  return {
+    metadata,
+    personas,
+    districts,
+    provinces,
+    country,
+    portalUrl: runtime.portalUrl
+  };
+}
+
+/**
+ * Load only operational evidence for the status route. Keeping this return
+ * shape explicit prevents developer-only token material from being serialized
+ * as unused page data.
+ */
+export async function loadStatusData(fetcher: FetchLike = fetch): Promise<StatusData> {
+  const [status, versions, smoke, seed, changelogLatest] = await Promise.all([
+    readStatus(fetcher),
+    readVersions(),
+    readSmokeEvidence(),
+    readSeedSummary(),
+    readChangelogLatest()
+  ]);
+
+  return { status, versions, smoke, seed, changelogLatest };
 }
 
 /**

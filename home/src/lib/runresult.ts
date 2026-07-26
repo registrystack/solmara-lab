@@ -29,6 +29,27 @@ export function claimResults(result: StepRunResult | null | undefined): ClaimRes
 }
 
 /**
+ * Accept a live evidence response only when the runner completed successfully
+ * and returned exactly the expected satisfied claims. This keeps partial,
+ * duplicated, or unexpectedly broad disclosure out of success-only UI.
+ */
+export function hasExpectedSuccessfulClaims(
+  result: StepRunResult | null | undefined,
+  expectedClaimIds: string[]
+): boolean {
+  const status = responseStatus(result);
+  if (result?.friendly.status !== 'done' || status === null || status < 200 || status >= 300) {
+    return false;
+  }
+
+  const expected = new Set(expectedClaimIds);
+  const claims = claimResults(result);
+  if (expected.size === 0 || claims.length !== expected.size) return false;
+
+  return claims.every((claim) => claim.satisfied === true && expected.delete(claim.id)) && expected.size === 0;
+}
+
+/**
  * Extract the stable problem code from a denial response. Notary denials are
  * problem+json with a `code`; fall back to the trailing segment of a `type`
  * URI, then to other common fields.

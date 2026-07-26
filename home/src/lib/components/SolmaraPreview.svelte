@@ -11,7 +11,7 @@
     ? new Set(metadata.catalog.datasets.map((dataset) => dataset.authority?.id ?? dataset.authority?.name).filter(Boolean)).size
     : null;
   $: registries = metadata.available
-    ? metadata.catalog.datasets.reduce((total, dataset) => total + dataset.entities.length, 0)
+    ? metadata.catalog.datasets.length
     : null;
 </script>
 
