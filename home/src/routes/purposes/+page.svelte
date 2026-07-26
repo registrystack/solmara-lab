@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-  <title>Purpose register · Solmara Visitor's Center</title>
+  <title>Purpose register · Solmara Lab</title>
   <meta name="description" content="The Solmara purpose register in plain language: what each purpose permits, who advertises it, and who enforces it." />
 </svelte:head>
 
@@ -79,6 +79,6 @@
       {/each}
     </div>
 
-    <p class="back"><a href="/">Back to the Visitor's Center</a></p>
+    <p class="back"><a href="/">Back to Solmara Lab</a></p>
   </div>
 </main>

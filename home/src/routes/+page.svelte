@@ -1,88 +1,82 @@
 <script lang="ts">
-  import NationPanel from '$lib/components/NationPanel.svelte';
+  import LandingHero from '$lib/components/LandingHero.svelte';
+  import ProofStrip from '$lib/components/ProofStrip.svelte';
+  import HowItWorks from '$lib/components/HowItWorks.svelte';
   import PurposeLens from '$lib/components/PurposeLens.svelte';
-  import EngineerDoor from '$lib/components/EngineerDoor.svelte';
-  import TrustStrip from '$lib/components/TrustStrip.svelte';
+  import CitizenPreview from '$lib/components/CitizenPreview.svelte';
+  import DeveloperPreview from '$lib/components/DeveloperPreview.svelte';
+  import SolmaraPreview from '$lib/components/SolmaraPreview.svelte';
+  import StatusPreview from '$lib/components/StatusPreview.svelte';
 
   let { data } = $props();
   let home = $derived(data.home);
+
+  const storyCopy: Record<string, { problem: string; boundary: string }> = {
+    'birth-to-child-benefit': {
+      problem: 'Review a child-benefit application without building a new family database.',
+      boundary: 'Five source-owned facts return. Family records and poverty scores stay with their authorities.'
+    },
+    'death-to-pension-survivor': {
+      problem: "Stop a deceased member's pension without disclosing their cause of death.",
+      boundary: 'Life status is enough for the payment review. Sensitive civil-registration details stay private.'
+    },
+    'farmer-climate-smart-voucher': {
+      problem: "Review a farmer voucher without exposing the farmer's complete record.",
+      boundary: 'Voucher and livestock evidence are evaluated under separate purposes and separate boundaries.'
+    }
+  };
 </script>
 
 <svelte:head>
-  <title>Republic of Solmara Visitor's Center</title>
+  <title>Solmara Lab · Purpose-limited government evidence, live</title>
   <meta
     name="description"
-    content="Solmara Lab Visitor's Center for purpose-limited Registry Stack evidence flows."
+    content="A live synthetic country showing how public services request limited, purpose-bound evidence without copying source records."
   />
 </svelte:head>
 
 <main>
+  <LandingHero />
+  <ProofStrip metadata={home.metadata} scenarios={home.scenarios} />
+  <HowItWorks />
   <PurposeLens scenarios={home.scenarios} purposes={home.purposes} />
-
-  <section class="page-band doors" id="doors">
-    <div class="content">
-      <div class="section-heading">
-        <p class="eyebrow">Three doors</p>
-        <h2>Choose the role you are visiting from</h2>
-      </div>
-      <div class="door-grid">
-        <a class="door" href="#nation">
-          <strong>Visit as a citizen</strong>
-          <span>Fixed personas, memorable identifiers, and a handoff to the citizen portal.</span>
-        </a>
-        <a class="door" href="#stories">
-          <strong>Visit as the relying agency</strong>
-          <span>Run a guided story, see the denial, inspect the credential moment.</span>
-        </a>
-        <a class="door" href="#engineer-door">
-          <strong>Visit as an engineer</strong>
-          <span>Metadata, Bruno, OpenAPI links, demo tokens, and a five-command local path.</span>
-        </a>
-      </div>
-    </div>
-  </section>
 
   <section class="page-band stories" id="stories">
     <div class="content">
-      <div class="section-heading">
-        <p class="eyebrow">Guided stories</p>
-        <h2>Three policy problems, each proven end to end</h2>
+      <div class="section-intro split-intro">
+        <div>
+          <p class="eyebrow">Guided stories</p>
+          <h2>Three policy problems, proven end to end</h2>
+        </div>
+        <p>
+          Each story starts with a public-service problem, follows the real requests, and tests the
+          boundary with a deliberate refusal.
+        </p>
       </div>
       <div class="teaser-grid">
         {#if home.scenarios.length === 0}
-          <p class="empty">Scenario runner is unavailable. Story cards will return when the service is healthy.</p>
+          <p class="empty">The scenario runner is unavailable. Story cards will return when the service is healthy.</p>
         {/if}
         {#each home.scenarios as scenario}
+          {@const copy = storyCopy[scenario.id] ?? { problem: scenario.short_title || scenario.title, boundary: scenario.proves }}
           <a class="teaser" href={`/stories/${scenario.id}`}>
             <p class="eyebrow">{scenario.domain}</p>
-            <h3>{scenario.short_title || scenario.title}</h3>
-            <p class="teaser-proves">{scenario.proves}</p>
-            <div class="standards">
-              <span>DCI</span><span>PublicSchema</span><span>SD-JWT VC</span><span>CPSV-AP</span>
-            </div>
-            <span class="teaser-cta">Open the story</span>
+            <h3>{copy.problem}</h3>
+            <p class="teaser-proves">{copy.boundary}</p>
+            <span class="teaser-cta">Run this story</span>
           </a>
         {/each}
       </div>
     </div>
   </section>
 
-  <NationPanel
+  <CitizenPreview personas={home.personas} portalUrl={home.portalUrl} />
+  <DeveloperPreview />
+  <SolmaraPreview
     metadata={home.metadata}
-    personas={home.personas}
     districts={home.districts}
     provinces={home.provinces}
     country={home.country}
-    portalUrl={home.portalUrl}
   />
-
-  <EngineerDoor tokens={home.publishedTokens} curls={home.curlExamples} versions={home.versions} repoUrl={home.repoUrl} />
-
-  <TrustStrip
-    status={home.status}
-    versions={home.versions}
-    smoke={home.smoke}
-    seed={home.seed}
-    changelogLatest={home.changelogLatest}
-  />
+  <StatusPreview status={home.status} smoke={home.smoke} changelogLatest={home.changelogLatest} />
 </main>

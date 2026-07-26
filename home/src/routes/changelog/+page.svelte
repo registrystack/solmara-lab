@@ -6,8 +6,8 @@
 </script>
 
 <svelte:head>
-  <title>Changelog · Solmara Visitor's Center</title>
-  <meta name="description" content="A small dated log of what changed in the Solmara visitor center and lab topology." />
+  <title>Changelog · Solmara Lab</title>
+  <meta name="description" content="A small dated log of what changed in Solmara Lab and its topology." />
 </svelte:head>
 
 <main class="page-band reference-page">
@@ -33,6 +33,6 @@
       </div>
     {/if}
 
-    <p class="back"><a href="/">Back to the Visitor's Center</a></p>
+    <p class="back"><a href="/">Back to Solmara Lab</a></p>
   </div>
 </main>

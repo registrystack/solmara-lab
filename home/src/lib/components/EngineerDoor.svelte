@@ -7,7 +7,7 @@
   export let versions: Record<string, string> = {};
   export let repoUrl = 'https://github.com/registrystack/solmara-lab';
 
-  const quickstart = ['just setup', 'just generate', 'just metadata-publish', 'just up', 'just smoke'];
+  const quickstart = ['just setup', 'just up-generated', 'just smoke', 'just portal-live-e2e', 'just down'];
 </script>
 
 <section class="page-band engineer" id="engineer-door">
@@ -22,6 +22,9 @@
 
         <h3>Reference and tooling</h3>
         <div class="engineer-links">
+          <a href="/explorer">Published metadata explorer</a>
+          <a href="/purposes">Purpose register</a>
+          <a href="/anatomy">System anatomy</a>
           <a href={`${repoUrl}/tree/main/requests`}>Bruno workspace</a>
           <a href="/metadata/catalog.json">Metadata catalog</a>
           <a href="/metadata/evidence-offerings.json">Evidence offerings</a>

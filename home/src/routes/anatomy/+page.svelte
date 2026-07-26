@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Anatomy · Solmara Visitor's Center</title>
+  <title>Anatomy · Solmara Lab</title>
   <meta name="description" content="What an institution actually runs: one Relay and one Notary per authority, application evidence collection, and the entire config for each ministry linked in the repo." />
 </svelte:head>
 
@@ -57,6 +57,6 @@
       </section>
     {/each}
 
-    <p class="back"><a href="/">Back to the Visitor's Center</a></p>
+    <p class="back"><a href="/">Back to Solmara Lab</a></p>
   </div>
 </main>
