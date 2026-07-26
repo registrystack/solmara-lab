@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MetadataBundle, MetadataOffering } from '$lib/types';
   import CopyButton from '$lib/components/CopyButton.svelte';
+  import ReferenceHero from '$lib/components/ReferenceHero.svelte';
 
   export let data: { metadata: MetadataBundle; metadataBase: string };
   $: metadata = data.metadata;
@@ -8,6 +9,13 @@
   $: apiItems = ((metadata.apiCatalog?.linkset as any[])?.[0]?.item ?? []) as { href: string; title: string; type: string }[];
   $: offeringsByAuthority = groupOfferings(metadata.offerings);
   $: policies = (metadata.policies ?? []) as any[];
+  $: entityCount = metadata.catalog.datasets.reduce((total, dataset) => total + dataset.entities.length, 0);
+  $: facts = [
+    { value: apiItems.length, label: 'catalog links' },
+    { value: entityCount, label: 'registry entities' },
+    { value: metadata.offerings.length, label: 'evidence offerings' },
+    { value: policies.length, label: 'published policies' }
+  ];
 
   // Localise a single-language label object (e.g. {en: "..."}) to plain text.
   function label(value: unknown): string {
@@ -48,21 +56,33 @@
   <meta name="description" content="The whole published Solmara metadata surface: catalog, datasets, services, evidence offerings, and policies." />
 </svelte:head>
 
-<main class="page-band explorer-page">
-  <div class="content">
-    <p class="eyebrow">Explorer</p>
-    <h1>The whole published surface</h1>
-    <p class="lede">
-      Everything below is rendered straight from the published metadata bundle, the same bundle the
-      Nation grid reads. Nothing here is hand-maintained. If the metadata service stops, this page
-      degrades rather than showing stale data.
-    </p>
+<main class="reference-surface explorer-page">
+  <ReferenceHero
+    eyebrow="Metadata explorer"
+    title="Inspect what Solmara actually publishes"
+    description="Follow the machine-readable path from catalog discovery to datasets, public services, evidence offerings, and the policies that constrain them. Every item below comes from the published bundle, never a hand-maintained copy."
+    active="explorer"
+    {facts}
+  />
+
+  <section class="page-band reference-body">
+    <div class="content">
 
     {#if !metadata.available}
       <p class="empty">Metadata service is unavailable, so the explorer is intentionally showing nothing rather than stale content.</p>
     {:else}
+      <nav class="section-index" aria-label="Metadata sections">
+        <span>On this page</span>
+        <a href="#api-catalog">Catalog</a>
+        <a href="#datasets">Datasets</a>
+        <a href="#services">Public services</a>
+        <a href="#offerings">Evidence offerings</a>
+        <a href="#policies">Policies</a>
+      </nav>
+
       <section class="explorer-block" id="api-catalog">
-        <h2>Machine-readable catalog (api-catalog)</h2>
+        <p class="section-kicker">Start here</p>
+        <h2>Machine-readable catalog</h2>
         <p class="block-note">The linkset an adopter's tooling discovers first. Each link is a raw artifact you can fetch.</p>
         <div class="artifact-list">
           {#each apiItems as item}
@@ -198,6 +218,7 @@
       </section>
     {/if}
 
-    <p class="back"><a href="/">Back to Solmara Lab</a></p>
-  </div>
+      <p class="back"><a href="/developers">Back to the developer workspace</a></p>
+    </div>
+  </section>
 </main>

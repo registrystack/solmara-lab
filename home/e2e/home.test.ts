@@ -61,8 +61,27 @@ test('reference routes render real content with a back link', async ({ page }) =
     const response = await page.goto(path);
     expect(response?.status(), path).toBe(200);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Back to Solmara Lab' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Developer reference pages' }).getByRole('link')).toHaveCount(5);
+    await expect(page.getByRole('link', { name: 'Back to the developer workspace' })).toBeVisible();
   }
+});
+
+test('reference surfaces stay scannable and fit a mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const path of ['/explorer', '/purposes', '/problem-codes', '/anatomy', '/changelog']) {
+    await page.goto(path);
+    await expect(page.locator('.reference-directory')).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+    );
+    expect(overflow, path).toBe(false);
+  }
+
+  await page.goto('/anatomy');
+  await expect(page.locator('.config-drawer').first()).not.toHaveAttribute('open', '');
+
+  await page.goto('/changelog');
+  await expect(page.locator('.change-detail').first()).not.toHaveAttribute('open', '');
 });
 
 test('country, developer, and status inventories have dedicated routes', async ({ page }) => {
@@ -189,6 +208,22 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   await page.getByRole('button', { name: 'Run the live review' }).click();
   await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#purpose-lens .result-lead')).toContainText('No source records were shared');
+
+  // Alternate purposes and raw requests stay out of the primary flow. When the
+  // visitor opens them, the native select remains bounded by its card and uses
+  // readable story labels instead of long identifier-heavy option labels.
+  const advanced = page.locator('#purpose-limitation .advanced-request');
+  await expect(advanced).not.toHaveAttribute('open', '');
+  await advanced.locator(':scope > summary').click();
+  const purposeSelect = advanced.getByLabel('Alternate purpose');
+  await expect(purposeSelect).toBeVisible();
+  const selectFits = await purposeSelect.evaluate((select) => {
+    const selectRect = select.getBoundingClientRect();
+    const cardRect = select.closest('.purpose-picker')?.getBoundingClientRect();
+    return Boolean(cardRect && selectRect.width <= cardRect.width);
+  });
+  expect(selectFits).toBe(true);
+  await expect(advanced.locator('.request-inspector')).not.toHaveAttribute('open', '');
 
   // The default challenge reuses the evidence request for pension review.
   await page.getByRole('button', { name: 'Try the wrong purpose' }).click();

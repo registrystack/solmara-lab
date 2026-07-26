@@ -20,6 +20,7 @@
     purposes.find((purpose) => purpose.iri !== permittedPurpose)?.iri ??
     '';
   $: if (!selectedPurpose && wrongPurpose) selectedPurpose = wrongPurpose;
+  $: selectedPurposeView = purposes.find((purpose) => purpose.iri === selectedPurpose);
   $: positivePreview = defaultScenario?.steps.find((step) => step.id === 'positive')?.request_preview;
 
   $: trace = hopsFromResult(firstResult);
@@ -179,25 +180,29 @@
         <details class="advanced-request">
           <summary>Choose another purpose or inspect the request</summary>
           <div class="advanced-request-grid">
-            <div>
-              <label>
-                Purpose
-                <select bind:value={selectedPurpose}>
+            <div class="purpose-picker">
+              <label for="alternate-purpose">
+                Alternate purpose
+                <select id="alternate-purpose" bind:value={selectedPurpose}>
                   {#each purposes as purpose}
-                    <option value={purpose.iri}>{purpose.story} ({purpose.slug})</option>
+                    <option value={purpose.iri}>{purpose.story}</option>
                   {/each}
                 </select>
               </label>
-              <button on:click={() => askUnderPurpose(selectedPurpose)} disabled={reasking || !positivePreview}>
-                Ask under the selected purpose
+              <p class="field-help">
+                The request will carry <code>{selectedPurposeView?.slug ?? 'no-purpose-selected'}</code>.
+              </p>
+              <button class="secondary-action" on:click={() => askUnderPurpose(selectedPurpose)} disabled={reasking || !positivePreview}>
+                Run the selected purpose
               </button>
             </div>
-            <div>
+            <details class="request-inspector">
+              <summary>View the request preview and curl</summary>
               <pre>{flipPreviewLine}</pre>
               {#if flipCurl}
                 <CopyButton text={flipCurl} label="Copy as curl" />
               {/if}
-            </div>
+            </details>
           </div>
         </details>
       </div>
