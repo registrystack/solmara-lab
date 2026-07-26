@@ -56,12 +56,14 @@ def parse_build_output(
     if not isinstance(output_value, str) or not output_value:
         raise BuildReportError("the JSON report has no output root")
     output = Path(output_value)
-    if not output.is_absolute():
-        raise BuildReportError("the JSON report output root is not absolute")
 
     try:
         project_root = project_directory.resolve(strict=True)
-        output_root = output.resolve(strict=True)
+        output_root = (
+            output.resolve(strict=True)
+            if output.is_absolute()
+            else (project_root / output).resolve(strict=True)
+        )
         output_root.relative_to(project_root)
     except (FileNotFoundError, RuntimeError, ValueError) as error:
         raise BuildReportError(

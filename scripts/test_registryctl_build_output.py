@@ -59,6 +59,16 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
             self.output.resolve(),
         )
 
+    def test_accepts_the_portable_project_relative_build_root(self) -> None:
+        self.assertEqual(
+            MODULE.parse_build_output(
+                self.report(output=".registry-stack/build/local"),
+                project_directory=self.project,
+                environment="local",
+            ),
+            self.output.resolve(),
+        )
+
     def test_rejects_the_wrong_environment_without_echoing_report_values(self) -> None:
         with self.assertRaisesRegex(
             MODULE.BuildReportError,
@@ -80,6 +90,19 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
         ):
             MODULE.parse_build_output(
                 self.report(output=str(outside)),
+                project_directory=self.project,
+                environment="local",
+            )
+
+    def test_rejects_a_relative_output_root_that_escapes_the_project(self) -> None:
+        outside = Path(self.temporary.name) / "outside"
+        outside.mkdir()
+        with self.assertRaisesRegex(
+            MODULE.BuildReportError,
+            "not a real project-owned directory",
+        ):
+            MODULE.parse_build_output(
+                self.report(output="../outside"),
                 project_directory=self.project,
                 environment="local",
             )
