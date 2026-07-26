@@ -201,8 +201,8 @@ candidate-only gate locally with `just review-release <registry-stack-tag>`;
 the normal contributor and CI gate remains `just review`.
 
 For local eSignet testing, run `just up-esignet` instead of `just up`, then
-sign in through the portal with Elena's fixture `legacy_nid` and static OTP
-`111111`. This sign-in is the end-to-end check of the NIA
+sign in through the portal with Elena's fixture UIN `2300018263` and static
+OTP `111111`. This sign-in is the end-to-end check of the NIA
 `solmara-nia-userinfo` attribute-release profile and its rotating eSignet
 workload identity. Run `just smoke-esignet` for the public discovery checks.
 

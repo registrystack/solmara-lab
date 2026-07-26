@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 const NAV_LINKS = ['Stories', 'Explorer', 'Purposes', 'Problem codes', 'Anatomy', 'Status'];
 
+const evaluationUrl = (configuredUrl: string | undefined, fallbackUrl: string) =>
+  `${(configuredUrl ?? fallbackUrl).replace(/\/+$/, '')}/v1/evaluations`;
+
 test('landing renders with header nav and every section in order', async ({ page }) => {
   const response = await page.goto('/');
   expect(response?.headers()['content-security-policy']).toContain("default-src 'self'");
@@ -195,8 +198,12 @@ test('citizen story renders runnable curls for each authority call', async ({ pa
   const authorityRequests = result.locator('.request-list .peer-call');
   await expect(authorityRequests).toHaveCount(2);
   await expect(authorityRequests.getByRole('button', { name: 'Copy as curl' })).toHaveCount(2);
-  await expect(authorityRequests.nth(0)).toContainText('http://localhost:4325/v1/evaluations');
-  await expect(authorityRequests.nth(1)).toContainText('http://localhost:4326/v1/evaluations');
+  await expect(authorityRequests.nth(0)).toContainText(
+    evaluationUrl(process.env.CRA_NOTARY_URL, 'http://localhost:4325')
+  );
+  await expect(authorityRequests.nth(1)).toContainText(
+    evaluationUrl(process.env.NIA_NOTARY_URL, 'http://localhost:4326')
+  );
   await expect(result).not.toContainText('solmara://authority-notaries');
 });
 

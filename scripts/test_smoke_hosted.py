@@ -238,6 +238,22 @@ class HostedSmokeTests(unittest.TestCase):
         )
         self.assertEqual(smoke_hosted.normalize_argv(["--browser"]), ["--browser"])
 
+    def test_esignet_smoke_uses_only_supported_discovery_arguments(self) -> None:
+        targets = smoke_hosted.default_targets("solmara.registrystack.org")
+
+        command = smoke_hosted.esignet_smoke_command(targets)
+
+        self.assertNotIn("--relay-url", command)
+        self.assertEqual(
+            command[-4:],
+            [
+                "--esignet-url",
+                "https://esignet.solmara.registrystack.org",
+                "--esignet-ui-url",
+                "https://esignet-ui.solmara.registrystack.org",
+            ],
+        )
+
     def test_home_demo_accepts_expected_scenario_flow(self) -> None:
         with StubServer(hosted_routes()) as server:
             smoke_hosted.check_home_demo(server.url, timeout=2)
