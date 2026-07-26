@@ -44,7 +44,7 @@
 </script>
 
 <svelte:head>
-  <title>Explorer · Solmara Visitor's Center</title>
+  <title>Explorer · Solmara Lab</title>
   <meta name="description" content="The whole published Solmara metadata surface: catalog, datasets, services, evidence offerings, and policies." />
 </svelte:head>
 
@@ -198,6 +198,6 @@
       </section>
     {/if}
 
-    <p class="back"><a href="/">Back to the Visitor's Center</a></p>
+    <p class="back"><a href="/">Back to Solmara Lab</a></p>
   </div>
 </main>

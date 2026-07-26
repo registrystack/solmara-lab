@@ -15,17 +15,19 @@
 
   $: defaultScenario = scenarios.find((scenario) => scenario.id === 'birth-to-child-benefit') ?? scenarios[0];
   $: permittedPurpose = defaultScenario?.requester.purpose ?? '';
-  $: if (!selectedPurpose && permittedPurpose) selectedPurpose = permittedPurpose;
+  $: wrongPurpose =
+    purposes.find((purpose) => purpose.slug === 'pension-payment-review')?.iri ??
+    purposes.find((purpose) => purpose.iri !== permittedPurpose)?.iri ??
+    '';
+  $: if (!selectedPurpose && wrongPurpose) selectedPurpose = wrongPurpose;
   $: positivePreview = defaultScenario?.steps.find((step) => step.id === 'positive')?.request_preview;
 
-  // Feel-before-name: only reveal product vocabulary once a run has completed.
-  $: named = firstResult !== null;
   $: trace = hopsFromResult(firstResult);
+  $: authorities = trace.map((hop) => hop.split(':')[0]).filter((authority, index, list) => list.indexOf(authority) === index);
   $: disclosed = claimResults(firstResult).filter((claim) => claim.satisfied !== false);
   $: flipCode = flipResult ? problemCode(flipResult) : null;
   $: flipDenied = isDenial(flipResult);
 
-  // The pending flip request preview and curl update together as the selector changes.
   $: flipHeaders = (selectedPurpose ? { 'Data-Purpose': selectedPurpose } : {}) as Record<string, string>;
   $: flipPreviewLine = positivePreview
     ? `${positivePreview.method} ${positivePreview.url}\nData-Purpose: ${selectedPurpose}`
@@ -55,122 +57,150 @@
     running = false;
   }
 
-  async function reask() {
+  async function askUnderPurpose(purpose: string) {
+    if (!purpose) return;
     reasking = true;
     flipResult = null;
-    flipResult = await runStep('positive', { purpose: selectedPurpose });
+    flipResult = await runStep('positive', { purpose });
     reasking = false;
+  }
+
+  async function tryWrongPurpose() {
+    selectedPurpose = wrongPurpose;
+    await askUnderPurpose(wrongPurpose);
   }
 </script>
 
-<section class="hero" id="purpose-lens">
-  <div class="hero-copy">
-    <h1>Republic of Solmara Visitor's Center</h1>
-    <p class="subtitle">A live exhibit for how one government answers questions about its residents without handing over their records.</p>
-    <div class="time-links" aria-label="Visit by available time">
-      <a href="#purpose-lens">3 minutes: ask a question</a>
-      <a href="#stories">15 minutes: one guided story</a>
-      <a href="#engineer-door">1 hour: run the country yourself</a>
+<section class="page-band live-demo" id="purpose-lens">
+  <div class="content">
+    <div class="section-intro live-demo-intro">
+      <p class="eyebrow">Run the live example</p>
+      <h2>Can Mateo's child-benefit application be reviewed without copying his records?</h2>
+      <p>
+        A programme needs five bounded facts from four authorities. Run the real request, then try
+        to reuse it for the wrong purpose.
+      </p>
     </div>
-  </div>
 
-  <div class="lens" aria-live="polite">
-    <div class="lens-request">
-      <h2>Is Mateo Santos's birth registered, so his family can be reviewed for child benefit?</h2>
-      <div class="actions">
+    <div class="lens" aria-live="polite">
+      <div class="lens-request">
+        <p class="eyebrow">The request</p>
+        <dl class="request-facts">
+          <div><dt>Requester</dt><dd>Child-benefit programme</dd></div>
+          <div><dt>Purpose</dt><dd>Child-benefit review</dd></div>
+          <div><dt>Evidence needed</dt><dd>Five yes-or-no facts</dd></div>
+          <div><dt>Held back</dt><dd>Source rows and unrelated personal details</dd></div>
+        </dl>
         <button class="primary" on:click={ask} disabled={running || !defaultScenario}>
-          {running ? 'Asking' : firstResult ? 'Ask again' : 'Ask'}
+          {running ? 'Running live review' : firstResult ? 'Run the live review again' : 'Run the live review'}
         </button>
+        <p class="quiet-caption">This calls the running Solmara services. The result is not canned.</p>
+        {#if !defaultScenario}
+          <p class="empty">The scenario runner is unavailable. The live example will return when the service is healthy.</p>
+        {/if}
       </div>
-      <p class="quiet-caption">This will ask the government of Solmara, live. Nothing is canned.</p>
-      {#if !defaultScenario}
-        <p class="empty">Scenario runner is unavailable. The live ask will return when the service is healthy.</p>
-      {/if}
-    </div>
 
-    <div class="lens-result">
-      {#if !firstResult}
-        <p class="lens-placeholder">The answer arrives here after you ask.</p>
-      {:else}
-        <ol class="trace">
-          {#each trace as hop}
-            <li>{hop}</li>
-          {/each}
-        </ol>
-        <div class="answer">
-          <h3>{firstResult.friendly?.title ?? 'Answer returned'}</h3>
-          <p>{firstResult.friendly?.message ?? ''}</p>
-        </div>
-        <div class="disclosure-grid">
-          <div>
-            <h4>Disclosed</h4>
-            {#if disclosed.length}
+      <div class="lens-result">
+        {#if !firstResult}
+          <div class="result-placeholder">
+            <p class="eyebrow">The result</p>
+            <h3>Evidence will arrive here</h3>
+            <p>Source authorities keep their rows and return only the facts required for this review.</p>
+          </div>
+        {:else}
+          <p class="eyebrow">The result</p>
+          <div class="answer result-lead">
+            <h3>{disclosed.length} required facts returned. No source records were shared.</h3>
+            <p>
+              The programme now has evidence for its review. Solmara Lab did not make the benefit decision.
+            </p>
+          </div>
+          <div class="disclosure-grid">
+            <div>
+              <h4>Evidence returned</h4>
               <ul class="claim-list">
                 {#each disclosed as claim}
-                  <li><code>{claim.id}</code> {claim.satisfied === true ? 'met' : claim.satisfied === false ? 'not met' : ''}</li>
+                  <li><code>{claim.id}</code></li>
                 {/each}
               </ul>
-            {:else}
-              <p>Only the yes-or-no answers the question needed.</p>
-            {/if}
-          </div>
-          <div>
-            <h4>Held back</h4>
-            <p>Raw register rows, cause of death, poverty scores, and every fact outside this question stayed inside the government.</p>
-          </div>
-        </div>
-      {/if}
-    </div>
-  </div>
-
-  {#if named}
-    <div class="content naming-moment" id="purpose-limitation">
-      <p class="eyebrow">What you just saw</p>
-      <h3>That is purpose limitation.</h3>
-      <p>The government answered exactly the question you were allowed to ask, and nothing more. Now ask the same question under a different purpose and watch what happens.</p>
-
-      <div class="flip">
-        <div class="flip-request">
-          <label>
-            Purpose
-            <select bind:value={selectedPurpose}>
-              {#each purposes as purpose}
-                <option value={purpose.iri}>{purpose.story} ({purpose.iri.split('/').pop()})</option>
-              {/each}
-            </select>
-          </label>
-          <div class="actions">
-            <button on:click={reask} disabled={reasking || !positivePreview}>
-              {reasking ? 'Asking' : 'Ask under this purpose'}
-            </button>
-          </div>
-          <pre>{flipPreviewLine}</pre>
-          {#if flipCurl}
-            <div class="curl-row">
-              <CopyButton text={flipCurl} label="Copy as curl" />
             </div>
-          {/if}
+            <div>
+              <h4>Information held back</h4>
+              <p>Registry rows, addresses, poverty scores, and every fact outside this review stayed at the source.</p>
+            </div>
+          </div>
+          <p class="authority-summary"><strong>Authorities consulted:</strong> {authorities.join(', ')}</p>
+          <details class="drawer technical-trace">
+            <summary>Technical trace</summary>
+            <ol class="trace">
+              {#each trace as hop}
+                <li>{hop}</li>
+              {/each}
+            </ol>
+          </details>
+        {/if}
+      </div>
+    </div>
+
+    {#if firstResult}
+      <div class="boundary-challenge" id="purpose-limitation">
+        <div>
+          <p class="eyebrow">Prove the boundary</p>
+          <h3>Purpose is enforced, not just documented</h3>
+          <p>
+            Try to reuse the child-benefit request for pension review. The same services must refuse it.
+          </p>
+          <button class="primary" on:click={tryWrongPurpose} disabled={reasking || !wrongPurpose}>
+            {reasking ? 'Trying the wrong purpose' : 'Try the wrong purpose'}
+          </button>
         </div>
 
-        <div class="flip-result">
+        <div class="boundary-result" aria-live="polite">
           {#if !flipResult}
-            <p class="lens-placeholder">Pick a purpose and ask. A wrong purpose gets a live refusal.</p>
+            <p class="lens-placeholder">The enforced refusal will appear here.</p>
           {:else if flipDenied}
             <div class="boundary-answer">
-              <h4>{flipResult.friendly?.title ?? 'Request refused'}</h4>
+              <p class="eyebrow">Boundary held</p>
+              <h4>Request refused.</h4>
+              <p>Child-benefit evidence cannot be requested for pension review.</p>
               <p class="problem">
-                Refused with stable problem code:
+                Stable problem code:
                 <a href={`/problem-codes#${flipCode}`}><code>{flipCode}</code></a>
               </p>
             </div>
           {:else}
             <div class="answer">
-              <h4>{flipResult.friendly?.title ?? 'Answer returned'}</h4>
-              <p>That purpose is permitted here, so the government answered.</p>
+              <h4>Evidence returned</h4>
+              <p>That purpose is permitted for this request, so the services answered.</p>
             </div>
           {/if}
         </div>
+
+        <details class="advanced-request">
+          <summary>Choose another purpose or inspect the request</summary>
+          <div class="advanced-request-grid">
+            <div>
+              <label>
+                Purpose
+                <select bind:value={selectedPurpose}>
+                  {#each purposes as purpose}
+                    <option value={purpose.iri}>{purpose.story} ({purpose.slug})</option>
+                  {/each}
+                </select>
+              </label>
+              <button on:click={() => askUnderPurpose(selectedPurpose)} disabled={reasking || !positivePreview}>
+                Ask under the selected purpose
+              </button>
+            </div>
+            <div>
+              <pre>{flipPreviewLine}</pre>
+              {#if flipCurl}
+                <CopyButton text={flipCurl} label="Copy as curl" />
+              {/if}
+            </div>
+          </div>
+        </details>
       </div>
-    </div>
-  {/if}
+    {/if}
+  </div>
 </section>

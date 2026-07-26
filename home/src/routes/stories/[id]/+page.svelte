@@ -117,7 +117,7 @@
 </script>
 
 <svelte:head>
-  <title>{scenario.title} · Solmara Visitor's Center</title>
+  <title>{scenario.title} · Solmara Lab</title>
   <meta name="description" content={scenario.proves} />
 </svelte:head>
 

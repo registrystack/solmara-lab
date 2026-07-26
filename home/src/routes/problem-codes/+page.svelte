@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-  <title>Problem codes · Solmara Visitor's Center</title>
+  <title>Problem codes · Solmara Lab</title>
   <meta name="description" content="The stable problem codes the Solmara stack returns when it refuses a request, in plain language, with the story steps that demonstrate them." />
 </svelte:head>
 
@@ -74,6 +74,6 @@
       {/each}
     </div>
 
-    <p class="back"><a href="/">Back to the Visitor's Center</a></p>
+    <p class="back"><a href="/">Back to Solmara Lab</a></p>
   </div>
 </main>

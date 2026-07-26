@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-const NAV_LINKS = ['Stories', 'Explorer', 'Purposes', 'Problem codes', 'Anatomy', 'Status'];
+const NAV_LINKS = ['How it works', 'Stories', 'Citizen demo', 'Developers', 'Status'];
 
 const evaluationUrl = (configuredUrl: string | undefined, fallbackUrl: string) =>
-  `${(configuredUrl ?? fallbackUrl).replace(/\/+$/, '')}/v1/evaluations`;
+  `${(configuredUrl ?? fallbackUrl).replace('127.0.0.1', 'localhost').replace(/\/+$/, '')}/v1/evaluations`;
 
 test('landing renders with header nav and every section in order', async ({ page }) => {
   const response = await page.goto('/');
@@ -14,29 +14,46 @@ test('landing renders with header nav and every section in order', async ({ page
 
   // Persistent synthetic-data banner and header nav on every page.
   await expect(page.getByText('Synthetic Solmara data')).toBeVisible();
-  const nav = page.getByRole('navigation', { name: 'Visitor center pages' });
+  const nav = page.getByRole('navigation', { name: 'Solmara Lab pages' });
   for (const label of NAV_LINKS) {
     await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
 
-  await expect(page.getByRole('heading', { name: "Republic of Solmara Visitor's Center" })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ask' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      name: "Get the answer a public service needs, without handing over the person's records."
+    })
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Run the child-benefit example' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run the live review' })).toBeVisible();
 
-  // Landing sections in document order: hero, doors, stories, nation, engineer, status.
+  // Landing sections follow one story-first path. Full country, developer, and
+  // status inventories own dedicated routes.
   const sectionIds = await page.locator('main section[id]').evaluateAll((nodes) =>
     nodes.map((node) => node.id)
   );
-  expect(sectionIds).toEqual(['purpose-lens', 'doors', 'stories', 'nation', 'engineer-door', 'status']);
+  expect(sectionIds).toEqual([
+    'hero',
+    'proof',
+    'how-it-works',
+    'purpose-lens',
+    'stories',
+    'citizen-demo',
+    'developer-preview',
+    'solmara-preview',
+    'status-preview'
+  ]);
 
-  // Explorer, purposes, problem codes, anatomy are no longer landing sections.
-  await expect(page.locator('main #explorer')).toHaveCount(0);
+  await expect(page.locator('main #engineer-door')).toHaveCount(0);
+  await expect(page.locator('main #nation')).toHaveCount(0);
+  await expect(page.locator('#stories .standards')).toHaveCount(0);
 });
 
 test('landing fits a mobile viewport without horizontal overflow', async ({ page }) => {
   await page.goto('/');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(overflow).toBe(false);
-  await expect(page.getByRole('heading', { name: "Republic of Solmara Visitor's Center" })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Get the answer');
 });
 
 test('reference routes render real content with a back link', async ({ page }) => {
@@ -44,8 +61,26 @@ test('reference routes render real content with a back link', async ({ page }) =
     const response = await page.goto(path);
     expect(response?.status(), path).toBe(200);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByRole('link', { name: "Back to the Visitor's Center" })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Back to Solmara Lab' })).toBeVisible();
   }
+});
+
+test('country, developer, and status inventories have dedicated routes', async ({ page }) => {
+  for (const path of ['/country', '/developers', '/status']) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(200);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  }
+
+  await page.goto('/country');
+  await expect(page.locator('#nation .persona')).toHaveCount(12);
+
+  await page.goto('/developers');
+  await expect(page.locator('#engineer-door .curl-example')).toHaveCount(4);
+  await expect(page.locator('#engineer-door')).toContainText('pension-payment-review');
+
+  await page.goto('/status');
+  await expect(page.locator('#status .status')).toHaveCount(17);
 });
 
 test('purposes page lists every purpose with plain language and working anchors', async ({ page }) => {
@@ -86,12 +121,12 @@ test('anatomy lists every relay and notary with repo config links', async ({ pag
 });
 
 test('status grid shows the whole topology', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/status');
   await expect(page.locator('#status .status')).toHaveCount(17);
 });
 
 test('engineer door always shows the copy-as-curl examples', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/developers');
   await expect(page.locator('#engineer-door .curl-example')).toHaveCount(4);
   // The skeptic wrong-purpose curl is one of them.
   await expect(page.locator('#engineer-door')).toContainText('pension-payment-review');
@@ -99,22 +134,23 @@ test('engineer door always shows the copy-as-curl examples', async ({ page }) =>
 
 test('persona cards hand off to the portal with a persona query parameter', async ({ page }) => {
   await page.goto('/');
-  const persona = page.locator('.persona-row a.persona-portal').first();
+  await expect(page.locator('#citizen-demo .citizen-card')).toHaveCount(3);
+  const persona = page.locator('#citizen-demo a[href*="?persona="]').first();
   await expect(persona).toHaveAttribute('href', /\?persona=[A-Za-z0-9-]+$/);
 });
 
 test('persona cards say what happens to each persona, linked to their story', async ({ page }) => {
   await page.goto('/');
-  const outcomeLink = page.locator('.persona-row .persona-outcomes a').first();
+  const outcomeLink = page.locator('#citizen-demo .story-outcome-link').first();
   await expect(outcomeLink).toBeVisible();
   await expect(outcomeLink).toHaveAttribute('href', /^\/stories\/[a-z-]+(#[a-z-]+)?$/);
 });
 
 test('the nation map renders district labels on the committed district geometry', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.map .district').first()).toBeVisible();
-  await expect(page.locator('.map .district-label').first()).toBeVisible();
-  await expect(page.locator('.map .district-label', { hasText: 'Ketterin' })).toBeVisible();
+  await expect(page.locator('#solmara-preview .map .district').first()).toBeVisible();
+  await expect(page.locator('#solmara-preview .map .district-label').first()).toBeVisible();
+  await expect(page.locator('#solmara-preview .map .district-label', { hasText: 'Ketterin' })).toBeVisible();
 });
 
 test('explorer renders all five published artifact families from the live bundle', async ({ page }) => {
@@ -130,7 +166,7 @@ test('explorer renders all five published artifact families from the live bundle
 
 test('engineer door publishes the synthetic demo tokens', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'demo tokens come from the container allowlist env');
-  await page.goto('/');
+  await page.goto('/developers');
   await expect(page.locator('#engineer-door .token').first()).toBeVisible();
   await expect(page.locator('#engineer-door .token-disclaimer')).toContainText('synthetic');
 });
@@ -143,23 +179,19 @@ test('landing fails closed when the scenario runner is unavailable', async ({ pa
   await expect(page.locator('.teaser')).toHaveCount(0);
 });
 
-test('purpose lens: first run reveals the naming moment and the flip produces a live denial code', async ({ page }) => {
+test('purpose lens: the live review reveals evidence and the wrong-purpose challenge is refused', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires a live scenario runner behind the stack');
   await page.goto('/');
 
-  // Feel-before-name: no naming moment before the first run.
+  // The boundary challenge appears only after a successful live evidence run.
   await expect(page.locator('#purpose-limitation')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Ask' }).click();
-  // Hydration must have run for the click to do anything; a missing naming
-  // moment here means the page never hydrated, not just a slow backend.
+  await page.getByRole('button', { name: 'Run the live review' }).click();
   await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#purpose-lens .result-lead')).toContainText('No source records were shared');
 
-  // The flip: ask the same question under a purpose this notary does not permit.
-  await page
-    .locator('#purpose-limitation select')
-    .selectOption('https://id.registrystack.org/solmara/purpose/pension-payment-review');
-  await page.getByRole('button', { name: 'Ask under this purpose' }).click();
+  // The default challenge reuses the evidence request for pension review.
+  await page.getByRole('button', { name: 'Try the wrong purpose' }).click();
   const denialLink = page.locator('#purpose-limitation .problem a[href^="/problem-codes"]');
   await expect(denialLink).toBeVisible({ timeout: 30_000 });
 });
