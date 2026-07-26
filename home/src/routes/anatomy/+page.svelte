@@ -1,8 +1,15 @@
 <script lang="ts">
   import type { TopologyGroup } from '$lib/types';
+  import ReferenceHero from '$lib/components/ReferenceHero.svelte';
 
   export let data: { groups: TopologyGroup[]; composeServiceCount: number; repoUrl: string };
   $: groups = data.groups;
+  $: serviceCount = groups.reduce((total, group) => total + group.services.length, 0);
+  $: facts = [
+    { value: groups.length, label: 'topology layers' },
+    { value: serviceCount, label: 'documented services' },
+    { value: data.composeServiceCount, label: 'Compose services' }
+  ];
 </script>
 
 <svelte:head>
@@ -10,53 +17,71 @@
   <meta name="description" content="What an institution actually runs: one Relay and one Notary per authority, application evidence collection, and the entire config for each ministry linked in the repo." />
 </svelte:head>
 
-<main class="page-band reference-page">
-  <div class="content">
-    <p class="eyebrow">Anatomy</p>
-    <h1>The whole country on a laptop</h1>
-    <p class="lede">
-      This is what a Solmara authority actually runs, parsed from the running compose topology. Every
-      authority operates its own Relay (a read-only API over data it already holds) and source-owned
-      Notaries certify minimized evidence close to those registries. Each ministry links to its
-      entire configuration in the repository, so there is nothing hidden.
-    </p>
+<main class="reference-surface reference-page">
+  <ReferenceHero
+    eyebrow="System anatomy"
+    title="See where every trust boundary runs"
+    description="Trace the deployed topology from source-owned registries and Relays through Notaries to the programme services that collect bounded evidence. Every card links back to the configuration that creates it."
+    active="anatomy"
+    {facts}
+  />
 
-    <p class="sovereignty">
-      One Relay per authority is the sovereignty point: no authority hands its rows to a central
-      store, each keeps its own independent audit chain, and a fault or compromise is contained to a
-      single authority rather than the whole country.
-    </p>
+  <section class="page-band reference-body">
+    <div class="content">
+      <nav class="section-index" aria-label="Topology layers">
+        <span>Jump to a layer</span>
+        {#each groups as group}
+          <a href={`#${group.key}`}>{group.title}</a>
+        {/each}
+      </nav>
 
-    {#each groups as group}
-      <section class="topology-group" id={group.key}>
-        <h2>{group.title}</h2>
-        <p class="block-note">{group.blurb}</p>
-        <div class="entity-grid">
-          {#each group.services as service}
-            <article class="entity" id={service.id}>
-              <div class="entity-head">
-                <div>
-                  <h3>{service.label}</h3>
-                  {#if service.authority}<p class="attribution">{service.authority}</p>{/if}
-                  {#if service.purpose}<p class="attribution">Purpose: {service.purpose}</p>{/if}
+      <aside class="principle-callout">
+        <p class="eyebrow">Sovereignty invariant</p>
+        <strong>One authority, one source-owned boundary.</strong>
+        <p>
+          No authority hands its rows to a central store. Each keeps an independent audit chain, so
+          a fault or compromise stays contained rather than becoming a country-wide data exposure.
+        </p>
+      </aside>
+
+      {#each groups as group, index}
+        <section class="topology-group" id={group.key}>
+          <div class="topology-group-head">
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <div>
+              <h2>{group.title}</h2>
+              <p class="block-note">{group.blurb}</p>
+            </div>
+          </div>
+          <div class="entity-grid">
+            {#each group.services as service}
+              <article class="entity topology-card" id={service.id}>
+                <div class="entity-head">
+                  <div>
+                    <h3>{service.label}</h3>
+                    {#if service.authority}<p class="attribution">{service.authority}</p>{/if}
+                    {#if service.purpose}<p class="attribution">Purpose: {service.purpose}</p>{/if}
+                  </div>
                 </div>
-              </div>
-              <p class="muted">{service.blurb}</p>
-              <div class="config-links">
-                <span class="chip-label">Entire config:</span>
-                {#each service.config as link}
-                  <a class="config-link" href={link.url}>
-                    <strong>{link.label}</strong>
-                    <code>{link.path}</code>
-                  </a>
-                {/each}
-              </div>
-            </article>
-          {/each}
-        </div>
-      </section>
-    {/each}
+                <p class="muted">{service.blurb}</p>
+                <details class="config-drawer">
+                  <summary>Open source configuration</summary>
+                  <div class="config-links">
+                    {#each service.config as link}
+                      <a class="config-link" href={link.url}>
+                        <strong>{link.label}</strong>
+                        <code>{link.path}</code>
+                      </a>
+                    {/each}
+                  </div>
+                </details>
+              </article>
+            {/each}
+          </div>
+        </section>
+      {/each}
 
-    <p class="back"><a href="/">Back to Solmara Lab</a></p>
-  </div>
+      <p class="back"><a href="/developers">Back to the developer workspace</a></p>
+    </div>
+  </section>
 </main>
