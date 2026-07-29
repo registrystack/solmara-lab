@@ -146,10 +146,12 @@ loopback-only workload issuer. The consultation issuer writes the Notary token
 to a private, authority-specific volume; duplicating the issuer process avoids
 opening either Relay's loopback JWKS listener onto the shared Compose network.
 
-The `REGISTRY_RELAY_STATE_EPOCH=v013` pin introduced for Registry Stack
-v0.13.0 remains in use because v0.15.2 does not change the retained
-consultation-result schema. Do not override it to the old, unsuffixed database
-names. The PostgreSQL runbook describes the stopped-writer and rollback
+The `REGISTRY_RELAY_STATE_EPOCH=v015` pin starts a fresh Relay state plane for
+the v0.15.2 cache-persistence cutover. Earlier hosted deployments persisted
+PostgreSQL publication pointers but not the immutable snapshot files they
+referenced, so they cannot safely reuse the `v013` databases after adopting
+durable Relay cache volumes. Keep the old `v013` databases quiesced for
+rollback. The PostgreSQL runbook describes the stopped-writer and rollback
 boundary.
 
 ## Hosted Deployment

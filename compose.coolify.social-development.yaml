@@ -71,7 +71,7 @@ services:
       POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
       POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
       SOLMARA_SOURCE_READER_DATABASES: ""
-      REGISTRY_RELAY_STATE_EPOCH: ${REGISTRY_RELAY_STATE_EPOCH:-v013}
+      REGISTRY_RELAY_STATE_EPOCH: ${REGISTRY_RELAY_STATE_EPOCH:-v015}
       SOLMARA_RELAY_DATABASES: sro programme
       SOLMARA_NOTARY_DATABASES: sro programme
       SRO_RELAY_POSTGRES_RUNTIME_PASSWORD: ${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}
@@ -183,15 +183,15 @@ services:
 
   sro-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/sro-social/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/sro-social/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_maintenance:${SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_reader:${SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
+      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_keyring_maintenance:${SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_keyring_reader:${SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
     volumes:
       - sro-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
@@ -202,15 +202,15 @@ services:
 
   programme-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/mosd-programme/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/mosd-programme/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_maintenance:${PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_reader:${PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
+      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_keyring_maintenance:${PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_keyring_reader:${PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
     volumes:
       - programme-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
@@ -257,7 +257,7 @@ services:
       REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
     expose: ["8081"]
     volumes:
       - sro-relay-consultation-cache:/var/lib/registry-relay/cache
@@ -275,7 +275,7 @@ services:
       REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
     expose: ["8081"]
     volumes:
       - programme-relay-consultation-cache:/var/lib/registry-relay/cache
