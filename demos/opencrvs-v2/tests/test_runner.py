@@ -299,6 +299,71 @@ class RelayRuntimeIdentityTests(unittest.TestCase):
         ):
             runner.relay_runtime_identity(versions, compiler)
 
+    def test_binds_evidence_to_the_running_relay_container(self) -> None:
+        commit = "b" * 40
+        image_id = f"sha256:{'1' * 64}"
+        expected = {
+            "version": "registry-relay 0.15.2",
+            "source_commit": commit,
+            "relay_image": "registry-relay:candidate",
+            "relay_image_id": image_id,
+            "development_override": True,
+        }
+        results = [
+            subprocess.CompletedProcess(
+                ["docker", "compose", "ps"],
+                0,
+                stdout=f"{'c' * 64}\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["docker", "container", "inspect"],
+                0,
+                stdout=(
+                    f"{image_id}|registry-relay:candidate|{commit}|"
+                    "attribute-release,crosswalk-runtime\n"
+                ),
+                stderr="",
+            ),
+        ]
+        with mock.patch.object(runner, "run", side_effect=results):
+            self.assertEqual(
+                runner.running_relay_runtime_identity(expected, {}),
+                {
+                    **expected,
+                    "running_container_verified": True,
+                },
+            )
+
+    def test_rejects_running_relay_that_differs_from_declared_identity(self) -> None:
+        expected = {
+            "source_commit": "a" * 40,
+            "relay_image": "relay@sha256:released",
+            "development_override": False,
+        }
+        results = [
+            subprocess.CompletedProcess(
+                ["docker", "compose", "ps"],
+                0,
+                stdout=f"{'c' * 64}\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["docker", "container", "inspect"],
+                0,
+                stdout=(
+                    f"sha256:{'1' * 64}|registry-relay:candidate|{'b' * 40}|"
+                    "attribute-release,crosswalk-runtime\n"
+                ),
+                stderr="",
+            ),
+        ]
+        with (
+            mock.patch.object(runner, "run", side_effect=results),
+            self.assertRaises(runner.DemoFailure),
+        ):
+            runner.running_relay_runtime_identity(expected, {})
+
     def test_rejects_dirty_or_mismatched_development_source(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repository = Path(temporary) / "registry-stack"
@@ -545,6 +610,8 @@ class CredentialVerificationTests(unittest.TestCase):
         vct: str = runner.CREDENTIAL_VCT,
         kid: str = runner.ISSUER_KID,
         embedded_claim_ids: dict[str, str] | None = None,
+        issued_at: int | None = None,
+        expires_at: int | None = None,
     ) -> tuple[str, str, str, dict[str, str], str]:
         issuer_jwk = json.loads(runner.generate_private_jwk(kid))
         issuer_private = Ed25519PrivateKey.from_private_bytes(
@@ -554,6 +621,10 @@ class CredentialVerificationTests(unittest.TestCase):
         requested = disclosed_claims
         if requested is None:
             requested = [(claim, True) for claim in runner.CLAIMS]
+        if issued_at is None:
+            issued_at = int(runner.time.time())
+        if expires_at is None:
+            expires_at = issued_at + runner.CREDENTIAL_VALIDITY_SECONDS
         disclosures = [
             runner.b64url(
                 json.dumps(
@@ -581,8 +652,8 @@ class CredentialVerificationTests(unittest.TestCase):
             ],
             "_sd_alg": "sha-256",
             "cnf": {"kid": holder_id, "jwk": holder_public},
-            "exp": 1_030,
-            "iat": 1_000,
+            "exp": expires_at,
+            "iat": issued_at,
             "iss": issuer,
             "vct": vct,
         }
@@ -618,6 +689,8 @@ class CredentialVerificationTests(unittest.TestCase):
         self.assertTrue(summary["disclosures_match_digests"])
         self.assertTrue(summary["disclosed_claims_verified"])
         self.assertTrue(summary["cnf_matches_ephemeral_holder"])
+        self.assertTrue(summary["currently_valid"])
+        self.assertTrue(summary["authored_lifetime_verified"])
         self.assertEqual(summary["disclosure_count"], len(runner.CLAIMS))
         self.assertEqual(summary["issuer"], runner.CREDENTIAL_ISSUER)
         self.assertNotIn(credential, json.dumps(summary))
@@ -691,6 +764,40 @@ class CredentialVerificationTests(unittest.TestCase):
                 holder_id,
                 holder_public,
             )
+
+    def test_rejects_expired_future_or_wrong_lifetime(self) -> None:
+        now = int(runner.time.time())
+        invalid_lifetimes = (
+            {
+                "issued_at": now - 700,
+                "expires_at": now - 100,
+            },
+            {
+                "issued_at": now + runner.CREDENTIAL_CLOCK_SKEW_SECONDS + 1,
+                "expires_at": (
+                    now
+                    + runner.CREDENTIAL_CLOCK_SKEW_SECONDS
+                    + 1
+                    + runner.CREDENTIAL_VALIDITY_SECONDS
+                ),
+            },
+            {
+                "issued_at": now,
+                "expires_at": now + runner.CREDENTIAL_VALIDITY_SECONDS + 1,
+            },
+        )
+        for lifetime in invalid_lifetimes:
+            with self.subTest(lifetime=lifetime):
+                credential, issuer_jwk, holder_id, holder_public, _ = (
+                    self.make_credential(**lifetime)
+                )
+                with self.assertRaises(runner.DemoFailure):
+                    runner.verify_sd_jwt(
+                        credential,
+                        issuer_jwk,
+                        holder_id,
+                        holder_public,
+                    )
 
 
 class CleanupTests(unittest.TestCase):

@@ -117,9 +117,11 @@ clean at that commit and requires both declared source commits to match. It
 also inspects the Relay image for the matching
 `org.opencontainers.image.revision` label and the exact
 `attribute-release,crosswalk-runtime` feature label. Sanitized evidence records
-the compiler executable SHA-256 and the inspected Relay image ID. These paired
-overrides are for local development proof only. Do not deploy the candidate or
-replace release pins with its tag.
+the compiler executable SHA-256 and the inspected Relay image ID. The proof
+re-inspects the running Relay container and fails if its image ID, image
+reference, source revision, or feature label differs from that declared
+identity. These paired overrides are for local development proof only. Do not
+deploy the candidate or replace release pins with its tag.
 
 Once a release contains the Registryctl profile, Relay's explicit no-cache
 state-plane handling, and the active script-budget correction, update the
@@ -219,7 +221,8 @@ and the authoring compiler identity. It reports public authored bounds
 separately from effective private runtime limits, and requires exactly one
 credential dispatch plus one source dispatch for each live consultation. A
 development proof records the exact shared source commit, compiler executable
-SHA-256, and inspected Relay image ID.
+SHA-256, and running Relay image ID. Issued credentials must be currently valid
+within 30 seconds of clock skew and match the authored 10-minute lifetime.
 
 The runner fails before writing evidence if its scan finds any of the following
 in compiled configuration, existing evidence, container logs, or the pending

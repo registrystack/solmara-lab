@@ -65,6 +65,8 @@ ISSUER_KID = f"{CREDENTIAL_ISSUER}#opencrvs-demo-issuer-key-1"
 CREDENTIAL_VCT = (
     "https://id.registrystack.org/solmara/credential/opencrvs-v2-birth-proof/v1"
 )
+CREDENTIAL_VALIDITY_SECONDS = 600
+CREDENTIAL_CLOCK_SKEW_SECONDS = 30
 CLAIMS = [
     "birth-record-exists",
     "registration-number-matches",
@@ -482,6 +484,52 @@ def relay_runtime_identity(
         "notary_image": versions["REGISTRY_NOTARY_IMAGE"],
         "development_override": True,
     }
+
+
+def running_relay_runtime_identity(
+    expected: Mapping[str, Any],
+    environment: Mapping[str, str],
+) -> dict[str, Any]:
+    container = run(
+        compose_command("ps", "-q", "opencrvs-relay"),
+        env=environment,
+    ).stdout.strip()
+    if re.fullmatch(r"[0-9a-f]{64}", container) is None:
+        raise DemoFailure("the running OpenCRVS Relay container is unavailable")
+    inspected = run(
+        [
+            "docker",
+            "container",
+            "inspect",
+            "--format",
+            (
+                "{{.Image}}|{{.Config.Image}}|"
+                '{{index .Config.Labels "org.opencontainers.image.revision"}}|'
+                '{{index .Config.Labels "org.registrystack.registry-relay.features"}}'
+            ),
+            container,
+        ],
+        env=environment,
+    )
+    parts = inspected.stdout.strip().split("|")
+    if (
+        len(parts) != 4
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", parts[0]) is None
+        or parts[1] != expected.get("relay_image")
+        or parts[2] != expected.get("source_commit")
+        or parts[3] != "attribute-release,crosswalk-runtime"
+        or (
+            expected.get("relay_image_id") is not None
+            and parts[0] != expected["relay_image_id"]
+        )
+    ):
+        raise DemoFailure(
+            "the running Relay does not match the declared image and source identity"
+        )
+    identity = dict(expected)
+    identity["relay_image_id"] = parts[0]
+    identity["running_container_verified"] = True
+    return identity
 
 
 def registry_command(
@@ -1214,7 +1262,16 @@ def verify_sd_jwt(
         )
     issued = payload.get("iat")
     expires = payload.get("exp")
-    if not isinstance(issued, int) or not isinstance(expires, int) or expires <= issued:
+    now = int(time.time())
+    if (
+        not isinstance(issued, int)
+        or isinstance(issued, bool)
+        or not isinstance(expires, int)
+        or isinstance(expires, bool)
+        or expires - issued != CREDENTIAL_VALIDITY_SECONDS
+        or issued > now + CREDENTIAL_CLOCK_SKEW_SECONDS
+        or expires <= now - CREDENTIAL_CLOCK_SKEW_SECONDS
+    ):
         raise DemoFailure("the SD-JWT lifetime is invalid")
     return {
         "format": CREDENTIAL_FORMAT,
@@ -1223,6 +1280,8 @@ def verify_sd_jwt(
         "kid": header.get("kid"),
         "algorithm": header.get("alg"),
         "lifetime_seconds": expires - issued,
+        "currently_valid": True,
+        "authored_lifetime_verified": True,
         "disclosure_count": len(disclosures),
         "issuer_signature_valid": True,
         "disclosures_match_digests": True,
@@ -1372,6 +1431,12 @@ def proof() -> None:
     runtime = read_dotenv(RUNTIME_ENV)
     environment = compose_environment(external, runtime)
     wait_ready(notary_url(), timeout=10)
+    versions = read_dotenv(ROOT / "versions.env")
+    compiler = registryctl_identity(versions)
+    registry_runtime = running_relay_runtime_identity(
+        relay_runtime_identity(versions, compiler),
+        environment,
+    )
     offline = offline_checks()
     oauth, oauth_token = oauth_probe(external)
     url = notary_url()
@@ -1445,9 +1510,6 @@ def proof() -> None:
     logs = run(compose_command("logs", "--no-color"), env=environment).stdout.encode(
         "utf-8"
     )
-    versions = read_dotenv(ROOT / "versions.env")
-    compiler = registryctl_identity(versions)
-    registry_runtime = relay_runtime_identity(versions, compiler)
     artifacts = compiled_artifacts()
     evidence: dict[str, Any] = {
         "schema_version": "solmara.opencrvs-v2-demo.evidence.v1",
