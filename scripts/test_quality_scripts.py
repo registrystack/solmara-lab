@@ -20,6 +20,24 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class ComposeLoader(yaml.SafeLoader):
+    """Safe loader that treats Compose merge tags as their underlying value."""
+
+
+def _construct_compose_tag(
+    loader: ComposeLoader, node: yaml.Node
+) -> object:
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node)
+    if isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node)
+    return loader.construct_scalar(node)
+
+
+for compose_tag in ("!override", "!reset"):
+    ComposeLoader.add_constructor(compose_tag, _construct_compose_tag)
+
+
 def load_smoke_live():
     spec = importlib.util.spec_from_file_location(
         "smoke_live", ROOT / "scripts" / "smoke-live.py"
@@ -141,6 +159,42 @@ class QualityScriptTests(unittest.TestCase):
                 )
                 self.assertNotIn("notary_cel", hosted_authored)
                 self.assertNotIn("cel", hosted_generated)
+
+    def test_registry_project_reference_schemas_use_exact_uin_bounds(self) -> None:
+        schema_paths = sorted((ROOT / "projects").glob("*/entities/*.yaml"))
+        schema_paths.extend(
+            sorted(
+                (ROOT / "projects").glob(
+                    "*/integrations/*/integration.yaml"
+                )
+            )
+        )
+
+        def assert_exact_uin_bounds(value: object, path: Path) -> None:
+            if isinstance(value, dict):
+                if value.get("pattern") == "^[0-9]{10}$":
+                    self.assertEqual(
+                        value.get("minLength"),
+                        10,
+                        f"{path} must state the exact UIN lower bound",
+                    )
+                    self.assertEqual(
+                        value.get("maxLength"),
+                        10,
+                        f"{path} must state the exact UIN upper bound",
+                    )
+                for nested in value.values():
+                    assert_exact_uin_bounds(nested, path)
+            elif isinstance(value, list):
+                for nested in value:
+                    assert_exact_uin_bounds(nested, path)
+
+        for path in schema_paths:
+            with self.subTest(schema=path.relative_to(ROOT)):
+                assert_exact_uin_bounds(
+                    yaml.safe_load(path.read_text(encoding="utf-8")),
+                    path,
+                )
 
     def test_generated_secret_contract_uses_authority_owners(self) -> None:
         module = load_secret_generator()
@@ -289,6 +343,14 @@ class QualityScriptTests(unittest.TestCase):
                 {"registry:consult:livestock", "registry:consult:voucher"},
             ),
         }
+        relay_services = {
+            "cra-workload-agent": "cra-civil-relay",
+            "nia-workload-agent": "nia-population-relay",
+            "sro-workload-agent": "sro-social-relay",
+            "programme-workload-agent": "programme-mis-relay",
+            "sipf-workload-agent": "sipf-pensions-relay",
+            "nagdi-workload-agent": "nagdi-agriculture-relay",
+        }
         for service_name, (client_id, scopes) in expected.items():
             with self.subTest(service=service_name):
                 environment = services[service_name]["environment"]
@@ -322,6 +384,36 @@ class QualityScriptTests(unittest.TestCase):
                     "WORKLOAD_PRIVATE_JWK_ENV",
                 ):
                     self.assertNotIn(retired, environment)
+                relay_service = relay_services[service_name]
+                self.assertEqual(
+                    services[service_name]["network_mode"],
+                    f"service:{relay_service}",
+                )
+                self.assertNotIn("WORKLOAD_BIND_HOST", environment)
+                self.assertEqual(
+                    services[service_name]["depends_on"][relay_service]["condition"],
+                    "service_started",
+                )
+
+                consultation_service = service_name.replace(
+                    "-workload-agent", "-consultation-workload-agent"
+                )
+                consultation_relay = f"{relay_service}-consultation"
+                consultation_agent = services[consultation_service]
+                consultation_environment = consultation_agent["environment"]
+                consultation_identities = json.loads(
+                    consultation_environment["WORKLOAD_IDENTITIES_JSON"]
+                )
+                self.assertEqual(consultation_identities, [notary])
+                self.assertEqual(
+                    consultation_agent["network_mode"],
+                    f"service:{consultation_relay}",
+                )
+                self.assertNotIn("WORKLOAD_BIND_HOST", consultation_environment)
+                self.assertEqual(
+                    consultation_agent["depends_on"][consultation_relay]["condition"],
+                    "service_started",
+                )
 
         nia_identities = json.loads(
             services["nia-workload-agent"]["environment"]["WORKLOAD_IDENTITIES_JSON"]
@@ -352,6 +444,45 @@ class QualityScriptTests(unittest.TestCase):
             "nia-esignet-workload-token:/run/esignet-secrets",
             services["nia-notary"]["volumes"],
         )
+
+        hosted_overlay = yaml.load(
+            (ROOT / "compose.hosted.yaml").read_text(encoding="utf-8"),
+            Loader=ComposeLoader,
+        )
+        hosted_services = hosted_overlay["services"]
+        hosted_volumes = hosted_overlay["volumes"]
+        external_volume_names = {
+            "cra": "${CRA_WORKLOAD_TOKEN_VOLUME:-solmara-cra-workload-token}",
+            "nia": "${NIA_WORKLOAD_TOKEN_VOLUME:-solmara-nia-workload-token}",
+            "sro": "${SRO_WORKLOAD_TOKEN_VOLUME:-solmara-sro-workload-token}",
+            "programme": (
+                "${PROGRAMME_WORKLOAD_TOKEN_VOLUME:"
+                "-solmara-programme-workload-token}"
+            ),
+            "sipf": "${SIPF_WORKLOAD_TOKEN_VOLUME:-solmara-sipf-workload-token}",
+            "nagdi": "${NAGDI_WORKLOAD_TOKEN_VOLUME:-solmara-nagdi-workload-token}",
+        }
+        for service_name in expected:
+            authority = service_name.removesuffix("-workload-agent")
+            consultation_service = (
+                f"{authority}-consultation-workload-agent"
+            )
+            with self.subTest(hosted_authority=authority):
+                self.assertEqual(
+                    hosted_services[service_name]["profiles"],
+                    ["local-workload-issuer"],
+                )
+                self.assertEqual(
+                    hosted_services[consultation_service]["profiles"],
+                    ["local-workload-issuer"],
+                )
+                volume = hosted_volumes[
+                    f"{authority}-consultation-workload-token"
+                ]
+                self.assertTrue(volume["external"])
+                self.assertEqual(
+                    volume["name"], external_volume_names[authority]
+                )
 
         local_esignet = yaml.safe_load(
             (ROOT / "compose.esignet.yaml").read_text(encoding="utf-8")
@@ -487,8 +618,10 @@ class QualityScriptTests(unittest.TestCase):
         authored_profile = project["services"]["nia-population-records"]["api"][
             "attribute_release_profiles"
         ]["solmara-nia-userinfo"]
-        self.assertEqual(authored_profile["subject"]["input"], "individual_id")
+        self.assertNotIn("input", authored_profile["subject"])
         self.assertEqual(authored_profile["subject"]["source_field"], "uin")
+        self.assertEqual(authored_profile["subject"]["id_type"], "national_id")
+        self.assertNotIn("response", authored_profile)
         self.assertEqual(
             authored_profile["claims"]["individual_id"]["source_field"], "uin"
         )
@@ -612,8 +745,11 @@ if [ "${1:-}" = "--version" ]; then
 fi
 if [ "${2:-}" = "--help" ]; then
   case "${1:-}" in
-    check | test | build) exit 0 ;;
+    check | test | build | capabilities) exit 0 ;;
   esac
+fi
+if [ "${1:-}" = "authoring" ] && [ "${2:-}" = "editor" ] && [ "${3:-}" = "--help" ]; then
+  exit 0
 fi
 printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
 """,
@@ -661,6 +797,54 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 [f"{command} --explain" for command in expected],
             )
 
+            log.write_text("", encoding="utf-8")
+            capabilities = subprocess.run(
+                [str(ROOT / "scripts" / "registry-projects.sh"), "capabilities"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "REGISTRYCTL_BIN": str(registryctl),
+                    "REGISTRYCTL_LOG": str(log),
+                },
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(capabilities.returncode, 0, capabilities.stderr)
+            capability_commands = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                capability_commands,
+                [
+                    f"capabilities --project-dir {ROOT / 'projects' / project} "
+                    f"--environment {environment}"
+                    for project in projects
+                    for environment in ("local", "hosted")
+                ],
+            )
+
+            log.write_text("", encoding="utf-8")
+            editor = subprocess.run(
+                [str(ROOT / "scripts" / "registry-projects.sh"), "editor"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "REGISTRYCTL_BIN": str(registryctl),
+                    "REGISTRYCTL_LOG": str(log),
+                },
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(editor.returncode, 0, editor.stderr)
+            editor_commands = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                editor_commands,
+                [
+                    f"authoring editor --project-dir {ROOT / 'projects' / project}"
+                    for project in projects
+                ],
+            )
+
             registryctl.write_text(
                 "#!/bin/sh\necho 'registryctl 0.8.3'\n",
                 encoding="utf-8",
@@ -692,7 +876,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             )
             self.assertEqual(incompatible.returncode, 1)
             self.assertIn(
-                "with project-authoring check/test/build is required",
+                "with project-authoring check/test/build/capabilities is required",
                 incompatible.stderr,
             )
 
@@ -701,6 +885,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         ).read_text(encoding="utf-8")
         self.assertIn("--format json", registry_projects)
         self.assertIn("registryctl-build-output.py", registry_projects)
+        self.assertIn("registryctl-test-output.py", registry_projects)
         self.assertNotIn(
             ".registry-stack/build/$environment/private",
             registry_projects,
@@ -813,30 +998,92 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             provisioner,
         )
 
-    def test_relay_runtime_opts_into_only_the_required_beta_feature(self) -> None:
+    def test_generated_public_and_consultation_relays_are_separate(self) -> None:
+        projects = (
+            "cra-civil",
+            "nia-population",
+            "sro-social",
+            "mosd-programme",
+            "sipf-pensions",
+            "nagdi-agriculture",
+        )
+        for project in projects:
+            for environment in ("local", "hosted"):
+                with self.subTest(project=project, environment=environment):
+                    authored = yaml.safe_load(
+                        (
+                            ROOT
+                            / "projects"
+                            / project
+                            / "environments"
+                            / f"{environment}.yaml"
+                        ).read_text(encoding="utf-8")
+                    )
+                    relay_root = (
+                        ROOT
+                        / "runtime"
+                        / "registry-projects"
+                        / environment
+                        / project
+                        / "relay"
+                    )
+                    public = yaml.safe_load(
+                        (relay_root / "relay.yaml").read_text(encoding="utf-8")
+                    )
+                    consultation = yaml.safe_load(
+                        (relay_root / "relay-consultation.yaml").read_text(
+                            encoding="utf-8"
+                        )
+                    )
+                    service_id = authored["deployment"]["relay"]["service"]
+                    workload_id = authored["notary_relay"]["workload_client_id"]
+                    self.assertNotIn("consultation", public)
+                    self.assertIn("consultation", consultation)
+                    self.assertEqual(public["instance"]["id"], service_id)
+                    self.assertEqual(
+                        consultation["instance"]["id"], f"{service_id}-consultation"
+                    )
+                    self.assertEqual(public["datasets"], consultation["datasets"])
+                    self.assertEqual(
+                        public["auth"]["oidc"]["allowed_clients"],
+                        sorted(set(authored["relay"].get("allowed_clients", []))),
+                    )
+                    self.assertEqual(
+                        consultation["auth"]["oidc"]["allowed_clients"],
+                        [workload_id],
+                    )
+                    self.assertEqual(
+                        consultation["consultation"]["authorized_workload"][
+                            "client_value"
+                        ],
+                        workload_id,
+                    )
+                    self.assertEqual(
+                        consultation["server"]["bind"], "127.0.0.1:8080"
+                    )
+
+    def test_relay_uses_canonical_release_with_explicit_source_dev_path(self) -> None:
         versions = dict(
             line.split("=", 1)
             for line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines()
             if line and not line.startswith("#") and "=" in line
         )
-        self.assertEqual(versions["REGISTRY_STACK_SOURCE_REF"], "v0.13.0")
-        self.assertRegex(versions["REGISTRY_STACK_SOURCE_COMMIT"], r"^[0-9a-f]{40}$")
-        self.assertEqual(versions["REGISTRY_RELAY_FEATURES"], "attribute-release")
         self.assertRegex(
-            versions["SOLMARA_RELAY_RUNTIME_IMAGE"],
-            (
-                r"^ghcr\.io/registrystack/solmara-lab-relay-runtime"
-                r"@sha256:[0-9a-f]{64}$"
-            ),
+            versions["REGISTRY_STACK_SOURCE_REF"],
+            r"^v[0-9]+\.[0-9]+\.[0-9]+$",
         )
+        self.assertRegex(versions["REGISTRY_STACK_SOURCE_COMMIT"], r"^[0-9a-f]{40}$")
+        self.assertNotIn("REGISTRY_RELAY_FEATURES", versions)
+        self.assertNotIn("SOLMARA_RELAY_RUNTIME_IMAGE", versions)
         self.assertRegex(
             versions["VOLUME_INIT_IMAGE"],
             r"^busybox@sha256:[0-9a-f]{64}$",
         )
         self.assertEqual(
-            versions["SOLMARA_RELAY_RUNTIME_DEV_IMAGE"],
-            "solmara-lab-registry-relay:v0.13.0-attribute-release",
+            versions["SOLMARA_RELAY_DEV_IMAGE"],
+            "solmara-lab-registry-relay:source",
         )
+        self.assertEqual(int(versions["SOLMARA_RELAY_BUNDLE_SEQUENCE"]), 2)
 
         dockerfile = (
             ROOT / "docker" / "relay-runtime" / "Dockerfile"
@@ -850,20 +1097,16 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             'LABEL org.opencontainers.image.source="https://github.com/registrystack/solmara-lab"',
             dockerfile,
         )
-        self.assertIn("--features \"${REGISTRY_RELAY_FEATURES}\"", dockerfile)
+        self.assertIn("--package registry-relay", dockerfile)
+        self.assertNotIn("--features", dockerfile)
         self.assertNotIn("--all-features", dockerfile)
 
         justfile = (ROOT / "justfile").read_text(encoding="utf-8")
         self.assertEqual(justfile.count("scripts/build-relay-runtime.sh"), 2)
+        self.assertNotIn("SOLMARA_RELAY_RUNTIME_IMAGE", justfile)
         self.assertEqual(
             justfile.count(
-                'REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_IMAGE"'
-            ),
-            2,
-        )
-        self.assertEqual(
-            justfile.count(
-                'REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_DEV_IMAGE"'
+                'REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_DEV_IMAGE"'
             ),
             2,
         )
@@ -874,6 +1117,8 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         )[0]
         self.assertNotIn("build-relay-runtime.sh", normal_up)
         self.assertNotIn("build-relay-runtime.sh", normal_esignet)
+        self.assertNotIn("REGISTRY_RELAY_IMAGE=", normal_up)
+        self.assertNotIn("REGISTRY_RELAY_IMAGE=", normal_esignet)
 
         review_script = (ROOT / "scripts" / "review.sh").read_text(
             encoding="utf-8"
@@ -888,22 +1133,16 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             "- name: Build and push feature-enabled Relay runtime",
             release_workflow,
         )
+        self.assertNotIn("SOLMARA_RELAY_RUNTIME_IMAGE", release_workflow)
         self.assertIn(
-            "printf 'SOLMARA_RELAY_RUNTIME_IMAGE=%s",
-            release_workflow,
-        )
-        self.assertIn(
-            "REGISTRY_RELAY_IMAGE=${{ env.SOLMARA_RELAY_RUNTIME_IMAGE }}",
+            "REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}",
             release_workflow,
         )
         self.assertIn(
             "VOLUME_INIT_IMAGE=${{ env.VOLUME_INIT_IMAGE }}",
             release_workflow,
         )
-        self.assertIn(
-            'echo "- ${SOLMARA_RELAY_RUNTIME_IMAGE}"',
-            release_workflow,
-        )
+        self.assertIn("SOLMARA_RELAY_BUNDLE_SEQUENCE", release_workflow)
         self.assertLess(
             release_workflow.index("- name: Build and push hosted Relay image"),
             release_workflow.index("- name: Verify hosted Relay signed bundles"),
@@ -912,6 +1151,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             "config verify-bundle",
             release_workflow,
         )
+        self.assertIn('"$project/consultation"', release_workflow)
 
     def test_coolify_authority_state_is_postgresql_isolated(self) -> None:
         authority_groups = {
@@ -991,6 +1231,8 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 for key, project, relay_name, notary_name in authorities:
                     with self.subTest(authority=key):
                         relay = services[relay_name]
+                        consultation_relay_name = f"{relay_name}-consultation"
+                        consultation_relay = services[consultation_relay_name]
                         notary = services[notary_name]
                         installer = services[f"{notary_name}-state-install"]
                         workload_agent_name = f"{key}-workload-agent"
@@ -999,37 +1241,85 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                         config_state_init = services[
                             f"{key}-relay-config-state-init"
                         ]
+                        consultation_config_state_init = services[
+                            f"{key}-relay-consultation-config-state-init"
+                        ]
                         relay_mounts = set(relay.get("volumes") or [])
+                        consultation_relay_mounts = set(
+                            consultation_relay.get("volumes") or []
+                        )
                         bootstrap_mounts = set(bootstrap.get("volumes") or [])
                         config_state_mounts = set(
                             config_state_init.get("volumes") or []
                         )
+                        consultation_config_state_mounts = set(
+                            consultation_config_state_init.get("volumes") or []
+                        )
                         notary_mounts = set(notary.get("volumes") or [])
-                        relay_config = (
+                        public_relay_config = (
                             f"/etc/solmara/hosted-relay-bundles/{project}/bootstrap.yaml"
+                        )
+                        consultation_relay_config = (
+                            f"/etc/solmara/hosted-relay-bundles/{project}/"
+                            "consultation/bootstrap.yaml"
                         )
                         notary_config = (
                             f"/etc/solmara/registry-projects/hosted/{project}/notary/notary.yaml"
                         )
-                        self.assertEqual(relay["command"], ["--config", relay_config])
+                        self.assertEqual(
+                            relay["command"], ["--config", public_relay_config]
+                        )
+                        self.assertEqual(
+                            consultation_relay["command"],
+                            [
+                                "--config",
+                                consultation_relay_config,
+                                "--bind",
+                                "127.0.0.1:8080",
+                            ],
+                        )
                         self.assertEqual(
                             bootstrap["command"][
                                 bootstrap["command"].index("--config") + 1
                             ],
-                            relay_config,
+                            consultation_relay_config,
                         )
                         self.assertIn(f"{key}-relay-cache", declared_volumes)
+                        self.assertIn(
+                            f"{key}-relay-consultation-cache", declared_volumes
+                        )
                         self.assertIn(
                             f"{key}-relay-cache:/var/lib/registry-relay/cache",
                             relay_mounts,
                         )
                         self.assertIn(
-                            f"{key}-relay-cache:/var/lib/registry-relay/cache",
+                            f"{key}-relay-consultation-cache:"
+                            "/var/lib/registry-relay/cache",
+                            consultation_relay_mounts,
+                        )
+                        self.assertIn(
+                            f"{key}-relay-consultation-cache:"
+                            "/var/lib/registry-relay/cache",
                             bootstrap_mounts,
                         )
+                        self.assertNotIn(
+                            "REGISTRY_RELAY_CONSULTATION_DATABASE_URL",
+                            relay["environment"],
+                        )
+                        self.assertIn(
+                            "REGISTRY_RELAY_CONSULTATION_DATABASE_URL",
+                            consultation_relay["environment"],
+                        )
+                        self.assertEqual(relay["expose"], ["8080"])
+                        self.assertEqual(consultation_relay["expose"], ["8081"])
+                        self.assertNotIn("labels", consultation_relay)
                         self.assertEqual(config_state_init["user"], "0:0")
                         self.assertEqual(
                             config_state_init["entrypoint"],
+                            ["/bin/busybox", "sh", "-eu", "-c"],
+                        )
+                        self.assertEqual(
+                            consultation_config_state_init["entrypoint"],
                             ["/bin/busybox", "sh", "-eu", "-c"],
                         )
                         self.assertIn(
@@ -1037,8 +1327,25 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                             config_state_mounts,
                         )
                         self.assertEqual(
+                            relay["depends_on"][f"{key}-relay-config-state-init"][
+                                "condition"
+                            ],
+                            "service_completed_successfully",
+                        )
+                        self.assertIn(
+                            f"{key}-relay-consultation-cache:"
+                            "/var/lib/registry-relay/cache",
+                            consultation_config_state_mounts,
+                        )
+                        self.assertEqual(
                             bootstrap["depends_on"][
-                                f"{key}-relay-config-state-init"
+                                f"{key}-relay-consultation-config-state-init"
+                            ]["condition"],
+                            "service_completed_successfully",
+                        )
+                        self.assertEqual(
+                            consultation_relay["depends_on"][
+                                f"{key}-relay-state-bootstrap"
                             ]["condition"],
                             "service_completed_successfully",
                         )
@@ -1052,7 +1359,8 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                             notary_config,
                         )
                         self.assertEqual(
-                            notary["network_mode"], f"service:{relay_name}"
+                            notary["network_mode"],
+                            f"service:{consultation_relay_name}",
                         )
                         self.assertEqual(notary["user"], "65534:65534")
                         self.assertNotIn(
@@ -1301,23 +1609,50 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 expected_migrator = f"{expected_database}_migrator"
                 expected_owner = f"{expected_database}_owner"
                 installer_name = f"{service_name}-state-install"
-                workload_agent = f"{database_key}-workload-agent"
+                public_workload_agent = f"{database_key}-workload-agent"
+                workload_agent = f"{database_key}-consultation-workload-agent"
 
                 runtime = services[service_name]
                 installer = services[installer_name]
                 agent = services[workload_agent]
+                consultation_relay_name = f"{relay_name}-consultation"
+                public_relay = services[relay_name]
+                consultation_relay = services[consultation_relay_name]
                 runtime_url = runtime["environment"]["REGISTRY_NOTARY_POSTGRES_URL"]
                 migrator_url = installer["environment"][
                     "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL"
                 ]
-                relay_url = services[relay_name]["environment"][
+                relay_url = consultation_relay["environment"][
                     "REGISTRY_RELAY_CONSULTATION_DATABASE_URL"
                 ]
-                relay_cache = f"{database_key}-relay-cache"
+                relay_cache = f"{database_key}-relay-consultation-cache"
+                workload_token = f"{database_key}-consultation-workload-token"
                 self.assertIn(relay_cache, declared_volumes)
+                self.assertIn(workload_token, declared_volumes)
                 self.assertIn(
                     f"{relay_cache}:/var/lib/registry-relay/cache",
-                    services[relay_name]["volumes"],
+                    consultation_relay["volumes"],
+                )
+                self.assertNotIn(
+                    "REGISTRY_RELAY_CONSULTATION_DATABASE_URL",
+                    public_relay["environment"],
+                )
+                self.assertEqual(
+                    public_relay["command"],
+                    ["--config", "/etc/registry-relay/relay.yaml"],
+                )
+                self.assertEqual(
+                    consultation_relay["command"],
+                    [
+                        "--config",
+                        "/etc/registry-relay/relay-consultation.yaml",
+                        "--bind",
+                        "127.0.0.1:8080",
+                    ],
+                )
+                self.assertEqual(
+                    consultation_relay["environment"]["REGISTRY_RELAY_BIND"],
+                    "127.0.0.1:8080",
                 )
                 self.assertIn(f"{expected_runtime}:", runtime_url)
                 self.assertIn(f"/{expected_database}?sslmode=require", runtime_url)
@@ -1329,7 +1664,9 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 self.assertIn(expected_owner, installer["command"])
                 self.assertIn(expected_runtime, installer["command"])
                 self.assertEqual(installer["restart"], "no")
-                self.assertEqual(runtime["network_mode"], f"service:{relay_name}")
+                self.assertEqual(
+                    runtime["network_mode"], f"service:{consultation_relay_name}"
+                )
                 self.assertEqual(runtime["user"], "65534:65534")
                 self.assertEqual(
                     runtime["healthcheck"]["test"],
@@ -1341,7 +1678,37 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                         "http://127.0.0.1:8081/ready",
                     ],
                 )
-                self.assertEqual(agent["network_mode"], f"service:{relay_name}")
+                self.assertEqual(
+                    services[public_workload_agent]["network_mode"],
+                    f"service:{relay_name}",
+                )
+                self.assertEqual(
+                    agent["network_mode"], f"service:{consultation_relay_name}"
+                )
+                self.assertNotIn("WORKLOAD_BIND_HOST", agent["environment"])
+                self.assertEqual(
+                    agent["environment"]["WORKLOAD_ISSUER"],
+                    "http://127.0.0.1:8090",
+                )
+                self.assertIn(
+                    f"{workload_token}:/run/secrets:ro", runtime["volumes"]
+                )
+                self.assertIn(
+                    f"{workload_token}:/run/secrets:ro", installer["volumes"]
+                )
+                authored_environment = yaml.safe_load(
+                    (
+                        ROOT
+                        / "projects"
+                        / project
+                        / "environments"
+                        / "local.yaml"
+                    ).read_text(encoding="utf-8")
+                )
+                self.assertEqual(
+                    authored_environment["relay"]["jwks_url"],
+                    "http://127.0.0.1:8090/.well-known/jwks.json",
+                )
                 self.assertEqual(
                     installer["depends_on"]["registry-postgresql-bootstrap"][
                         "condition"
@@ -1444,7 +1811,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
                 service = services[service_id]
                 self.assertEqual(
                     service["network_mode"],
-                    f"service:{relay_id}",
+                    f"service:{relay_id}-consultation",
                 )
                 self.assertEqual(
                     service["labels"]["solmara.lab.host"],

@@ -32,6 +32,14 @@ registry-projects-check:
 registry-projects-review:
     scripts/registry-projects.sh review
 
+# Inspect compiled, declared, enabled, used, and missing capabilities.
+registry-projects-capabilities:
+    scripts/registry-projects.sh capabilities
+
+# Install or refresh version-matched VS Code and Zed schema mappings.
+registry-projects-editor:
+    scripts/registry-projects.sh editor
+
 # Run every synthetic authority integration fixture offline.
 registry-projects-test:
     scripts/registry-projects.sh test
@@ -102,12 +110,12 @@ compose:
 
 # Start the local topology.
 up:
-    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
 
 # Build Registry Relay from the pinned source for explicit local development.
 up-dev:
     scripts/build-relay-runtime.sh
-    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_DEV_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
+    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_DEV_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
 
 # Stop the local topology without removing local volumes.
 down:
@@ -115,12 +123,12 @@ down:
 
 # Start the local topology with eSignet-backed portal login.
 up-esignet:
-    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
+    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
 
 # Build Registry Relay from the pinned source for explicit local eSignet development.
 up-esignet-dev:
     scripts/build-relay-runtime.sh
-    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_RUNTIME_DEV_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
+    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_DEV_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
 
 # Stop the local eSignet topology without removing local volumes.
 down-esignet:

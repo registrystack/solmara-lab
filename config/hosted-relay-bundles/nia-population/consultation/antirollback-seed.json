@@ -1,0 +1,9 @@
+{
+  "key": {
+    "product": "registry-relay",
+    "environment": "hosted",
+    "stream_id": "solmara-hosted-nia-population-consultation"
+  },
+  "last_sequence": 0,
+  "last_config_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}

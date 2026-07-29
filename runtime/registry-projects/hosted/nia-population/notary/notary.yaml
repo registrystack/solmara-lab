@@ -43,7 +43,7 @@ evidence:
               nullable: false
               type: string
           profile:
-            contract_hash: sha256:7163d2e5e636f41478b1b2de6dbd4812d1ff8956c012133b6ac86c4b7e3c08ef
+            contract_hash: sha256:2b34d7466e4f45126055cdb3ec18026a6f0cf3051a863ad951eedfe6ed729958
             id: solmara-nia-population.nia-child-benefit.population
       type: registry_backed
     formats:
@@ -86,7 +86,7 @@ evidence:
               nullable: false
               type: string
           profile:
-            contract_hash: sha256:675d2c746c5b75755b76a563523ea43fcf24bc6def2dcaf993a5b06c76900ccb
+            contract_hash: sha256:9433a86942bdfbb1add5e45e2c3462eb224a2e8097be0267a52eeaaecfde0c69
             id: solmara-nia-population.nia-citizen-status.population
       type: registry_backed
     formats:

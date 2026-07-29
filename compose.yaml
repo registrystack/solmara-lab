@@ -8,7 +8,7 @@ x-notary-environment: &notary-environment
   REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
 
 x-relay-common: &relay-common
-  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:00681003d06667cde377e15640a3825eec97aca26f486cde2e9f5013ef56819e}
+  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:71082176f00107e420ffe79471f0bd3375c3dd1ae1c3c8c3a24100c602fa82b7}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: unless-stopped
   environment: *relay-environment
@@ -19,7 +19,7 @@ x-relay-common: &relay-common
     retries: 3
 
 x-notary-common: &notary-common
-  image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+  image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   user: "65534:65534"
   restart: unless-stopped
@@ -38,7 +38,7 @@ x-notary-common: &notary-common
     retries: 3
 
 x-relay-bootstrap-common: &relay-bootstrap-common
-  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:00681003d06667cde377e15640a3825eec97aca26f486cde2e9f5013ef56819e}
+  image: ${REGISTRY_RELAY_IMAGE:-ghcr.io/registrystack/registry-relay@sha256:71082176f00107e420ffe79471f0bd3375c3dd1ae1c3c8c3a24100c602fa82b7}
   platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
   restart: "no"
 
@@ -250,7 +250,7 @@ services:
 
   cra-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay-consultation.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
@@ -268,7 +268,7 @@ services:
 
   nia-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay-consultation.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
@@ -287,7 +287,7 @@ services:
 
   sro-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay-consultation.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
@@ -305,7 +305,7 @@ services:
 
   programme-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay-consultation.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
@@ -323,7 +323,7 @@ services:
 
   sipf-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay-consultation.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
@@ -342,7 +342,7 @@ services:
 
   nagdi-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/registry-relay/relay-consultation.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
@@ -364,10 +364,92 @@ services:
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
+    ports:
+      - "${SOLMARA_CRA_RELAY_PORT:-4311}:8080"
+    volumes:
+      - ./runtime/registry-projects/local/cra-civil/relay:/etc/registry-relay:ro
+      - ./ministries/interior-civil:/var/lib/solmara/ministries/interior-civil:ro
+      - cra-relay-cache:/var/lib/registry-relay/cache
+
+  nia-population-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
+      SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
+      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
+    ports:
+      - "${SOLMARA_NIA_RELAY_PORT:-4312}:8080"
+    volumes:
+      - ./runtime/registry-projects/local/nia-population/relay:/etc/registry-relay:ro
+      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
+      - nia-relay-cache:/var/lib/registry-relay/cache
+
+  sro-social-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
+    ports:
+      - "${SOLMARA_SRO_RELAY_PORT:-4313}:8080"
+    volumes:
+      - ./runtime/registry-projects/local/sro-social/relay:/etc/registry-relay:ro
+      - ./ministries/social-development:/var/lib/solmara/ministries/social-development:ro
+      - sro-relay-cache:/var/lib/registry-relay/cache
+
+  programme-mis-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
+    ports:
+      - "${SOLMARA_PROGRAMME_RELAY_PORT:-4314}:8080"
+    volumes:
+      - ./runtime/registry-projects/local/mosd-programme/relay:/etc/registry-relay:ro
+      - ./ministries/social-development:/var/lib/solmara/ministries/social-development:ro
+      - programme-relay-cache:/var/lib/registry-relay/cache
+
+  sipf-pensions-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
+      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
+      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
+    ports:
+      - "${SOLMARA_SIPF_RELAY_PORT:-4315}:8080"
+    volumes:
+      - ./runtime/registry-projects/local/sipf-pensions/relay:/etc/registry-relay:ro
+      - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
+      - sipf-relay-cache:/var/lib/registry-relay/cache
+
+  nagdi-agriculture-relay:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
+    ports:
+      - "${SOLMARA_NAGDI_RELAY_PORT:-4316}:8080"
+    volumes:
+      - ./runtime/registry-projects/local/nagdi-agriculture/relay:/etc/registry-relay:ro
+      - ./ministries/agriculture-nagdi:/var/lib/solmara/ministries/agriculture-nagdi:ro
+      - nagdi-relay-cache:/var/lib/registry-relay/cache
+
+  cra-civil-relay-consultation:
+    <<: *relay-common
+    command: ["--config", "/etc/registry-relay/relay-consultation.yaml", "--bind", "127.0.0.1:8080"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${CRA_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${CRA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
     ports:
-      - "${SOLMARA_CRA_RELAY_PORT:-4311}:8080"
       - "${SOLMARA_CRA_NOTARY_PORT:-4325}:8081"
     networks:
       default:
@@ -376,23 +458,23 @@ services:
       - ./runtime/registry-projects/local/cra-civil/relay:/etc/registry-relay:ro
       - ./ministries/interior-civil:/var/lib/solmara/ministries/interior-civil:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - cra-relay-cache:/var/lib/registry-relay/cache
+      - cra-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
       cra-relay-state-bootstrap:
         condition: service_completed_successfully
 
-  nia-population-relay:
+  nia-population-relay-consultation:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/registry-relay/relay-consultation.yaml", "--bind", "127.0.0.1:8080"]
     environment:
       <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${NIA_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${NIA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
       DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
     ports:
-      - "${SOLMARA_NIA_RELAY_PORT:-4312}:8080"
       - "${SOLMARA_NIA_NOTARY_PORT:-4326}:8081"
     networks:
       default:
@@ -400,21 +482,21 @@ services:
     volumes:
       - ./runtime/registry-projects/local/nia-population/relay:/etc/registry-relay:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - nia-relay-cache:/var/lib/registry-relay/cache
+      - nia-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
       nia-relay-state-bootstrap:
         condition: service_completed_successfully
 
-  sro-social-relay:
+  sro-social-relay-consultation:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/registry-relay/relay-consultation.yaml", "--bind", "127.0.0.1:8080"]
     environment:
       <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SRO_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${SRO_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sro_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
     ports:
-      - "${SOLMARA_SRO_RELAY_PORT:-4313}:8080"
       - "${SOLMARA_SRO_NOTARY_PORT:-4327}:8081"
     networks:
       default:
@@ -423,21 +505,21 @@ services:
       - ./runtime/registry-projects/local/sro-social/relay:/etc/registry-relay:ro
       - ./ministries/social-development:/var/lib/solmara/ministries/social-development:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - sro-relay-cache:/var/lib/registry-relay/cache
+      - sro-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
       sro-relay-state-bootstrap:
         condition: service_completed_successfully
 
-  programme-mis-relay:
+  programme-mis-relay-consultation:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/registry-relay/relay-consultation.yaml", "--bind", "127.0.0.1:8080"]
     environment:
       <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${PROGRAMME_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_programme_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
     ports:
-      - "${SOLMARA_PROGRAMME_RELAY_PORT:-4314}:8080"
       - "${SOLMARA_PROGRAMME_NOTARY_PORT:-4328}:8081"
     networks:
       default:
@@ -446,23 +528,23 @@ services:
       - ./runtime/registry-projects/local/mosd-programme/relay:/etc/registry-relay:ro
       - ./ministries/social-development:/var/lib/solmara/ministries/social-development:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - programme-relay-cache:/var/lib/registry-relay/cache
+      - programme-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
       programme-relay-state-bootstrap:
         condition: service_completed_successfully
 
-  sipf-pensions-relay:
+  sipf-pensions-relay-consultation:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/registry-relay/relay-consultation.yaml", "--bind", "127.0.0.1:8080"]
     environment:
       <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
       DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
     ports:
-      - "${SOLMARA_SIPF_RELAY_PORT:-4315}:8080"
       - "${SOLMARA_SIPF_NOTARY_PORT:-4322}:8081"
     networks:
       default:
@@ -470,21 +552,21 @@ services:
     volumes:
       - ./runtime/registry-projects/local/sipf-pensions/relay:/etc/registry-relay:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - sipf-relay-cache:/var/lib/registry-relay/cache
+      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
       sipf-relay-state-bootstrap:
         condition: service_completed_successfully
 
-  nagdi-agriculture-relay:
+  nagdi-agriculture-relay-consultation:
     <<: *relay-common
-    command: ["--config", "/etc/registry-relay/relay.yaml"]
+    command: ["--config", "/etc/registry-relay/relay-consultation.yaml", "--bind", "127.0.0.1:8080"]
     environment:
       <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NAGDI_RELAY_AUDIT_HASH_SECRET}
       REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${NAGDI_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
       REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nagdi_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
     ports:
-      - "${SOLMARA_NAGDI_RELAY_PORT:-4316}:8080"
       - "${SOLMARA_NAGDI_NOTARY_PORT:-4323}:8081"
     networks:
       default:
@@ -493,7 +575,7 @@ services:
       - ./runtime/registry-projects/local/nagdi-agriculture/relay:/etc/registry-relay:ro
       - ./ministries/agriculture-nagdi:/var/lib/solmara/ministries/agriculture-nagdi:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - nagdi-relay-cache:/var/lib/registry-relay/cache
+      - nagdi-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
       nagdi-relay-state-bootstrap:
         condition: service_completed_successfully
@@ -585,10 +667,94 @@ services:
       nagdi-agriculture-relay:
         condition: service_started
 
+  cra-consultation-workload-agent:
+    <<: *workload-agent-common
+    network_mode: service:cra-civil-relay-consultation
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"cra-notary","subject":"cra-notary","scopes":["registry:consult:cra-child-benefit","registry:consult:cra-citizen-record","registry:consult:cra-pension-death"],"token_file":"/run/secrets/cra-notary-relay-token","private_jwk_env":"CRA_RELAY_WORKLOAD_JWK"}]
+      CRA_RELAY_WORKLOAD_JWK: ${CRA_RELAY_WORKLOAD_JWK}
+    volumes:
+      - cra-consultation-workload-token:/run/secrets
+    depends_on:
+      cra-civil-relay-consultation:
+        condition: service_started
+
+  nia-consultation-workload-agent:
+    <<: *workload-agent-common
+    network_mode: service:nia-population-relay-consultation
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"nia-notary","subject":"nia-notary","scopes":["registry:consult:nia-child-benefit","registry:consult:nia-citizen-status"],"token_file":"/run/secrets/nia-notary-relay-token","private_jwk_env":"NIA_RELAY_WORKLOAD_JWK"}]
+      NIA_RELAY_WORKLOAD_JWK: ${NIA_RELAY_WORKLOAD_JWK}
+    volumes:
+      - nia-consultation-workload-token:/run/secrets
+    depends_on:
+      nia-population-relay-consultation:
+        condition: service_started
+
+  sro-consultation-workload-agent:
+    <<: *workload-agent-common
+    network_mode: service:sro-social-relay-consultation
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"sro-notary","subject":"sro-notary","scopes":["registry:consult:child-benefit"],"token_file":"/run/secrets/sro-notary-relay-token","private_jwk_env":"SRO_RELAY_WORKLOAD_JWK"}]
+      SRO_RELAY_WORKLOAD_JWK: ${SRO_RELAY_WORKLOAD_JWK}
+    volumes:
+      - sro-consultation-workload-token:/run/secrets
+    depends_on:
+      sro-social-relay-consultation:
+        condition: service_started
+
+  programme-consultation-workload-agent:
+    <<: *workload-agent-common
+    network_mode: service:programme-mis-relay-consultation
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"programme-notary","subject":"programme-notary","scopes":["registry:consult:child-benefit"],"token_file":"/run/secrets/programme-notary-relay-token","private_jwk_env":"PROGRAMME_RELAY_WORKLOAD_JWK"}]
+      PROGRAMME_RELAY_WORKLOAD_JWK: ${PROGRAMME_RELAY_WORKLOAD_JWK}
+    volumes:
+      - programme-consultation-workload-token:/run/secrets
+    depends_on:
+      programme-mis-relay-consultation:
+        condition: service_started
+
+  sipf-consultation-workload-agent:
+    <<: *workload-agent-common
+    network_mode: service:sipf-pensions-relay-consultation
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"sipf-notary","subject":"sipf-notary","scopes":["registry:consult:sipf-pension-payment-review","registry:consult:sipf-survivor-benefit"],"token_file":"/run/secrets/sipf-notary-relay-token","private_jwk_env":"SIPF_RELAY_WORKLOAD_JWK"}]
+      SIPF_RELAY_WORKLOAD_JWK: ${SIPF_RELAY_WORKLOAD_JWK}
+    volumes:
+      - sipf-consultation-workload-token:/run/secrets
+    depends_on:
+      sipf-pensions-relay-consultation:
+        condition: service_started
+
+  nagdi-consultation-workload-agent:
+    <<: *workload-agent-common
+    network_mode: service:nagdi-agriculture-relay-consultation
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"nagdi-notary","subject":"nagdi-notary","scopes":["registry:consult:livestock","registry:consult:voucher"],"token_file":"/run/secrets/nagdi-notary-relay-token","private_jwk_env":"NAGDI_RELAY_WORKLOAD_JWK"}]
+      NAGDI_RELAY_WORKLOAD_JWK: ${NAGDI_RELAY_WORKLOAD_JWK}
+    volumes:
+      - nagdi-consultation-workload-token:/run/secrets
+    depends_on:
+      nagdi-agriculture-relay-consultation:
+        condition: service_started
+
   cra-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/notary.yaml"]
-    network_mode: service:cra-civil-relay
+    network_mode: service:cra-civil-relay-consultation
     environment: &cra-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${CRA_NOTARY_AUDIT_HASH_SECRET}
@@ -599,17 +765,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/cra-civil/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - cra-workload-token:/run/secrets:ro
+      - cra-consultation-workload-token:/run/secrets:ro
     depends_on:
-      cra-civil-relay:
+      cra-civil-relay-consultation:
         condition: service_healthy
-      cra-workload-agent:
+      cra-consultation-workload-agent:
         condition: service_healthy
       cra-notary-state-install:
         condition: service_completed_successfully
 
   cra-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_cra_owner", "--runtime-role", "solmara_notary_cra_runtime"]
@@ -619,17 +785,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/cra-civil/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - cra-workload-token:/run/secrets:ro
+      - cra-consultation-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
-      cra-workload-agent:
+      cra-consultation-workload-agent:
         condition: service_healthy
 
   nia-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/notary.yaml"]
-    network_mode: service:nia-population-relay
+    network_mode: service:nia-population-relay-consultation
     environment: &nia-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${NIA_NOTARY_AUDIT_HASH_SECRET}
@@ -640,17 +806,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/nia-population/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - nia-workload-token:/run/secrets:ro
+      - nia-consultation-workload-token:/run/secrets:ro
     depends_on:
-      nia-population-relay:
+      nia-population-relay-consultation:
         condition: service_healthy
-      nia-workload-agent:
+      nia-consultation-workload-agent:
         condition: service_healthy
       nia-notary-state-install:
         condition: service_completed_successfully
 
   nia-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nia_owner", "--runtime-role", "solmara_notary_nia_runtime"]
@@ -660,17 +826,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/nia-population/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - nia-workload-token:/run/secrets:ro
+      - nia-consultation-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
-      nia-workload-agent:
+      nia-consultation-workload-agent:
         condition: service_healthy
 
   sro-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/notary.yaml"]
-    network_mode: service:sro-social-relay
+    network_mode: service:sro-social-relay-consultation
     environment: &sro-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${SRO_NOTARY_AUDIT_HASH_SECRET}
@@ -679,17 +845,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/sro-social/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - sro-workload-token:/run/secrets:ro
+      - sro-consultation-workload-token:/run/secrets:ro
     depends_on:
-      sro-social-relay:
+      sro-social-relay-consultation:
         condition: service_healthy
-      sro-workload-agent:
+      sro-consultation-workload-agent:
         condition: service_healthy
       sro-notary-state-install:
         condition: service_completed_successfully
 
   sro-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sro_owner", "--runtime-role", "solmara_notary_sro_runtime"]
@@ -699,17 +865,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/sro-social/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - sro-workload-token:/run/secrets:ro
+      - sro-consultation-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
-      sro-workload-agent:
+      sro-consultation-workload-agent:
         condition: service_healthy
 
   programme-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/notary.yaml"]
-    network_mode: service:programme-mis-relay
+    network_mode: service:programme-mis-relay-consultation
     environment: &programme-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${PROGRAMME_NOTARY_AUDIT_HASH_SECRET}
@@ -718,17 +884,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/mosd-programme/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - programme-workload-token:/run/secrets:ro
+      - programme-consultation-workload-token:/run/secrets:ro
     depends_on:
-      programme-mis-relay:
+      programme-mis-relay-consultation:
         condition: service_healthy
-      programme-workload-agent:
+      programme-consultation-workload-agent:
         condition: service_healthy
       programme-notary-state-install:
         condition: service_completed_successfully
 
   programme-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_programme_owner", "--runtime-role", "solmara_notary_programme_runtime"]
@@ -738,11 +904,11 @@ services:
     volumes:
       - ./runtime/registry-projects/local/mosd-programme/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - programme-workload-token:/run/secrets:ro
+      - programme-consultation-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
-      programme-workload-agent:
+      programme-consultation-workload-agent:
         condition: service_healthy
 
   child-benefit-federator:
@@ -783,7 +949,7 @@ services:
   sipf-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/notary.yaml"]
-    network_mode: service:sipf-pensions-relay
+    network_mode: service:sipf-pensions-relay-consultation
     environment: &sipf-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${SIPF_NOTARY_AUDIT_HASH_SECRET}
@@ -793,17 +959,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/sipf-pensions/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - sipf-workload-token:/run/secrets:ro
+      - sipf-consultation-workload-token:/run/secrets:ro
     depends_on:
-      sipf-pensions-relay:
+      sipf-pensions-relay-consultation:
         condition: service_healthy
-      sipf-workload-agent:
+      sipf-consultation-workload-agent:
         condition: service_healthy
       sipf-notary-state-install:
         condition: service_completed_successfully
 
   sipf-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sipf_owner", "--runtime-role", "solmara_notary_sipf_runtime"]
@@ -813,17 +979,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/sipf-pensions/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - sipf-workload-token:/run/secrets:ro
+      - sipf-consultation-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
-      sipf-workload-agent:
+      sipf-consultation-workload-agent:
         condition: service_healthy
 
   nagdi-notary:
     <<: *notary-common
     command: ["--config", "/etc/registry-notary/notary.yaml"]
-    network_mode: service:nagdi-agriculture-relay
+    network_mode: service:nagdi-agriculture-relay-consultation
     environment: &nagdi-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${NAGDI_NOTARY_AUDIT_HASH_SECRET}
@@ -833,17 +999,17 @@ services:
     volumes:
       - ./runtime/registry-projects/local/nagdi-agriculture/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - nagdi-workload-token:/run/secrets:ro
+      - nagdi-consultation-workload-token:/run/secrets:ro
     depends_on:
-      nagdi-agriculture-relay:
+      nagdi-agriculture-relay-consultation:
         condition: service_healthy
-      nagdi-workload-agent:
+      nagdi-consultation-workload-agent:
         condition: service_healthy
       nagdi-notary-state-install:
         condition: service_completed_successfully
 
   nagdi-notary-state-install:
-    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:6848ad62789bd6e5a1af4262f85e9a0110bea9ed8e3f9297adab19cb62f8f297}
+    image: ${REGISTRY_NOTARY_IMAGE:-ghcr.io/registrystack/registry-notary@sha256:1cce41247a18f70cb7ff4276bdeb5a16c1e641a9ed7951be8f612daaf35ab87b}
     platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
     restart: "no"
     command: ["--config", "/etc/registry-notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_nagdi_owner", "--runtime-role", "solmara_notary_nagdi_runtime"]
@@ -853,11 +1019,11 @@ services:
     volumes:
       - ./runtime/registry-projects/local/nagdi-agriculture/notary/notary.yaml:/etc/registry-notary/notary.yaml:ro
       - ./config/postgres/ssl/server.crt:/etc/solmara/postgres/root.crt:ro
-      - nagdi-workload-token:/run/secrets:ro
+      - nagdi-consultation-workload-token:/run/secrets:ro
     depends_on:
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
-      nagdi-workload-agent:
+      nagdi-consultation-workload-agent:
         condition: service_healthy
 
   portal:
@@ -905,15 +1071,27 @@ services:
 volumes:
   postgres-data:
   cra-relay-cache:
+  cra-relay-consultation-cache:
   nia-relay-cache:
+  nia-relay-consultation-cache:
   sro-relay-cache:
+  sro-relay-consultation-cache:
   programme-relay-cache:
+  programme-relay-consultation-cache:
   sipf-relay-cache:
+  sipf-relay-consultation-cache:
   nagdi-relay-cache:
+  nagdi-relay-consultation-cache:
   cra-workload-token:
+  cra-consultation-workload-token:
   nia-workload-token:
+  nia-consultation-workload-token:
   nia-esignet-workload-token:
   sro-workload-token:
+  sro-consultation-workload-token:
   programme-workload-token:
+  programme-consultation-workload-token:
   sipf-workload-token:
+  sipf-consultation-workload-token:
   nagdi-workload-token:
+  nagdi-consultation-workload-token:

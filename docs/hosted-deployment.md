@@ -9,18 +9,20 @@ operations store for the target environment.
 ## Deployment model
 
 The hosted lab has one edge application and four authority applications. Each
-authority runs one Relay and one Notary for each authority represented in that
-application. The Relay and Notary share a network namespace, while their
-PostgreSQL correctness-state databases and roles remain distinct. Each Relay
-also owns a persistent snapshot-cache volume.
+authority runs one public Relay, one private consultation Relay, and one
+Notary. Only the consultation Relay and Notary share a network namespace. The
+public Relay remains independently routable, while the consultation Relay
+binds only to loopback and is not published. Their PostgreSQL
+correctness-state databases and roles remain distinct, and each Relay process
+owns a persistent snapshot-cache volume.
 
 | Coolify app | Compose file | Authority services |
 |---|---|---|
 | `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, static metadata, child-benefit evidence composer |
-| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA Relay + Notary, NIA Relay + Notary, PostgreSQL |
-| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO Relay + Notary, Programme Relay + Notary, PostgreSQL |
-| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF Relay + Notary, PostgreSQL |
-| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI Relay + Notary, PostgreSQL |
+| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA and NIA public Relay + private consultation Relay + Notary, PostgreSQL |
+| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO and Programme public Relay + private consultation Relay + Notary, PostgreSQL |
+| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF public Relay + private consultation Relay + Notary, PostgreSQL |
+| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI public Relay + private consultation Relay + Notary, PostgreSQL |
 | `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, eSignet UI and edge, eSignet PostgreSQL and Redis, seed jobs |
 | `solmara-lab-wallet` | `compose.coolify.walt.yaml` | Walt holder wallet demonstrator and its backing services |
 
@@ -40,8 +42,8 @@ Hosted Compose files follow these rules:
 - Hosted services run digest-pinned images and do not use `build:` blocks.
 - Every authority Notary owns one PostgreSQL database, owner, migrator, and
   runtime role.
-- Every authority Relay mounts its own named volume at
-  `/var/lib/registry-relay/cache`. The durable materialization publication
+- Every public and consultation Relay mounts its own named volume at
+  `/var/lib/registry-relay/cache`. A durable materialization publication
   pointer and its immutable Parquet snapshot must survive the same restart.
 - Registry Notary has no Redis service or Redis volume. `esignet-redis` belongs
   only to eSignet.
@@ -75,12 +77,12 @@ Registry Stack Relay and Notary image refs are inputs to the Solmara wrapper
 builds. The `release-candidate` workflow requires a Registry Stack candidate
 or release tag and accepts only Relay and Notary input digests that match the
 committed `versions.env` pins. It also checks out the exact Registry Stack
-source commit declared there for release and contract verification. The
-separately published Relay runtime enables the `attribute-release` feature
-required by the NIA eSignet profile and is pinned by digest in `versions.env`.
-The workflow uses that reviewed runtime directly as the base of the deployable
-Solmara Relay wrapper instead of recompiling it for every candidate. It reports
-the runtime pin and immutable digest refs for these Coolify variables:
+source commit declared there for release and contract verification. Governed
+attribute release is part of the canonical Registry Stack v0.15.2 Relay
+image, which the workflow uses directly as the base of the deployable Solmara
+Relay wrapper. Solmara does not compile or publish a feature-specific Relay
+runtime. The workflow reports immutable digest refs for these Coolify
+variables:
 
 - `SOLMARA_RELAY_IMAGE`
 - `SOLMARA_NOTARY_IMAGE`
@@ -114,23 +116,33 @@ just registry-projects-runtime-check
 ```
 
 Hosted Relay does not boot those compiler outputs as unsigned non-local
-configuration. Each Relay wrapper carries an instance-bound signed Config
-Bundle, its public trust anchor, and no private signing key. Verify that every
-signed closure still projects exactly to the compiler output:
+configuration. Each public and consultation Relay carries its own
+instance-bound signed Config Bundle, public trust anchor, and anti-rollback
+state, with no private signing key. The public bundle excludes private
+consultation artifacts; the consultation bundle contains the complete
+consultation closure. Verify that every signed closure still projects exactly
+to the compiler output:
 
 ```bash
 just hosted-relay-bundles-check
 ```
 
-When a hosted Relay config or artifact changes, use an offline private JWK and
-its public-only JWK with
-`scripts/generate-hosted-relay-bundles.py`. Increment the bundle sequence and
-generate into a new staging directory, review the config and manifest diffs,
-then replace the committed bundle set. Never commit the private JWK. A first
-deployment seeds sequence zero only into an empty Relay cache volume; successful
-Relay startup audits and persists the signed sequence. Later image rollback
-cannot lower that durable sequence. Publish a higher signed sequence for a
-normal rollback, or use Registry Relay's reviewed break-glass procedure.
+When a hosted Relay config or artifact changes, keep the private JWK in
+1Password and pass its `op://` secret reference, together with the public-only
+JWK file, to `scripts/generate-hosted-relay-bundles.py`. Registryctl reads the
+private member directly through 1Password CLI without writing it into the
+repository or a working-tree file. When multiple 1Password accounts are signed
+in, select the account with `OP_ACCOUNT` and use vault and item IDs in the
+secret reference so the lookup is unambiguous. Increment
+`SOLMARA_RELAY_BUNDLE_SEQUENCE` in `versions.env`, generate into a new staging
+directory, review the config and manifest diffs, then replace the committed
+bundle set. The generator creates separate public and consultation streams for
+each authority, and the verification gates require all twelve bundles to use
+that exact sequence. Never commit the private JWK. A first deployment seeds
+sequence zero only into an empty matching Relay cache volume; successful Relay
+startup audits and persists the signed sequence. Later image rollback cannot
+lower that durable sequence. Publish a higher signed sequence for a normal
+rollback, or use Registry Relay's reviewed break-glass procedure.
 
 Each authority application needs only the variables referenced by its Compose
 file. At minimum, provide:
@@ -229,12 +241,12 @@ The bootstrap container creates only the authority keys listed in
 Notary receive runtime credentials only. Schema installation uses dedicated
 jobs and never gives migration credentials to a serving process.
 
-Registry Stack v0.13.0 uses the `v013` Relay state epoch from `versions.env`.
-On an existing cluster, the idempotent bootstrap creates a separate
-per-authority Relay database and role set before the v0.13.0 Relay starts.
-Quiesce the old Relay writers first and do not reuse their unsuffixed
-consultation databases. Follow the complete stopped-writer and rollback
-procedure in [`notary-postgresql-state.md`](notary-postgresql-state.md).
+Registry Stack v0.15.2 continues using the `v013` Relay state epoch from
+`versions.env`; the retained consultation-result schema does not change in
+this release. Existing v0.13.0 authority databases remain the active state
+plane. Quiesce old Relay writers before cutover and follow the complete
+stopped-writer and rollback procedure in
+[`notary-postgresql-state.md`](notary-postgresql-state.md).
 
 Back up, restore, and upgrade each Notary database independently. See
 [`notary-postgresql-state.md`](notary-postgresql-state.md) for the database map
@@ -264,6 +276,7 @@ applications.
 
 ### Coolify routes the wrong container port
 
-The Relay and Notary share a network namespace. Route the Relay hostname to
-port `8080` and the Notary hostname to port `8081` on the authority Relay
-service.
+Route the Relay hostname to port `8080` on the public Relay service. Route the
+Notary hostname to port `8081` in the private consultation Relay namespace.
+Never route consultation Relay port `8080`; it is explicitly bound to
+`127.0.0.1` for Notary-only access.

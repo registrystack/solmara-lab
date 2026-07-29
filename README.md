@@ -36,12 +36,15 @@ release binary and verifies it against the release SHA-256 file.
 `registry-projects-runtime-check` can run the compiler comparison without
 starting services. The project wrapper consumes Registryctl's versioned JSON
 build report and validates its project-owned output root rather than depending
-on Registryctl's private build-directory layout. `contract-generation-proof`
-is a separate release gate for one bounded SRO authority pair. It compiles a
-harmless successor, proves the blue pair works, rejects a mixed Relay/Notary
-generation before Relay execution or source dispatch, activates the complete
-successor, and proves it works. Its temporary Compose project and volumes are
-removed when the check finishes.
+on Registryctl's private build-directory layout. Its fixture gate also
+consumes the versioned test report and requires independently authored
+request-to-consultation evidence for every reachable target. Integration-only
+fixtures are not accepted as caller compatibility proof.
+`contract-generation-proof` is a separate release gate for one bounded SRO
+authority pair. It compiles a harmless successor, proves the blue pair works,
+rejects a mixed Relay/Notary generation before Relay execution or source
+dispatch, activates the complete successor, and proves it works. Its temporary
+Compose project and volumes are removed when the check finishes.
 
 The first wave covers three journeys:
 
@@ -89,51 +92,65 @@ just up-generated # clean-checkout generation, compiler comparison, and start
 just registry-projects-runtime-check # regenerate and compare all authority runtime closures
 just hosted-relay-bundles-check # verify hosted Relay signatures and config closure
 just registry-projects-review # complete redacted acquisition and disclosure reports
+just registry-projects-capabilities # value-free installed/used/missing capability inventory
+just registry-projects-editor # version-matched VS Code and Zed schemas for all projects
 just contract-generation-proof # release-only live SRO blue/mixed/successor proof
 just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
 just review     # normal security and release-readiness checks
 just review-release <registry-stack-tag> # candidate review with published pin validation
 ```
 
-Normal startup pulls the immutable feature-enabled Relay runtime pinned in
-`versions.env`; it does not clone or compile Registry Stack. The `*-dev`
-recipes are the explicit source-build path. They verify the pinned source
-commit and build a separate local image, leaving the standalone path unchanged.
+Normal startup pulls the immutable canonical Relay image pinned in
+`versions.env`; it does not clone or compile Registry Stack. Governed attribute
+release is part of the canonical Registry Stack v0.15.2 Relay build. The
+`*-dev` recipes are the explicit source-build path. They verify the pinned
+source commit and build the same default feature set into a separate local
+image, leaving the standalone path unchanged.
 
 `just generate` rewrites generated fixtures. Review those diffs like any other
 committed generated artifact.
 
+Each authority project commits Registryctl-generated schemas plus VS Code and
+Zed mappings under its own project directory. Open that authority directory as
+the editor workspace to get validation and completion for its project,
+environment, integration, fixture, and entity YAML. Refresh all six with
+`just registry-projects-editor` only after updating the pinned Registryctl
+release. CI reruns the generator and fails on drift, so the editor contract
+cannot silently move to a different Registry Stack version.
+
 ## Image Pins
 
-`versions.env` is the root source for published image digests and the exact
-Registry Stack source commit used by Solmara's Relay runtime. The current pins
-are the Registry Stack `v0.13.0` release assets. The published Relay image is
-the immutable release base. The separately published Solmara Relay runtime is
-built from that pinned source with the explicitly declared
-`attribute-release` feature and pinned by digest in the same file. That opt-in
-is required by the NIA eSignet profile because the release Relay intentionally
-excludes beta API features. Normal startup pulls that runtime; the explicit
-`*-dev` recipes rebuild it and refuse a dirty or mismatched source checkout.
+`versions.env` is the root source for the published Registry Stack image
+digests and the exact source ref and commit used for release binding and the
+explicit Relay development build. The Registry Stack `v0.15.2` Relay and
+Notary images are both consumed directly by digest. Solmara does not publish
+or select a feature-specific Relay runtime.
 
 Use `just up` rather than invoking `docker compose up` directly so the
-source-pinned Relay runtime is prepared and selected. Because the release
-publishes amd64 images, Compose defaults `REGISTRY_STACK_PLATFORM` to
-`linux/amd64`; override it only when every selected base image is available
-for another platform.
+checkout-specific Compose project name and complete env-file set are applied.
+Because the release publishes amd64 images, Compose defaults
+`REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when every
+selected base image is available for another platform.
 
-Every authority runs one Relay and one Notary. Relay consultation state and all
-Notary correctness state are PostgreSQL-backed. `just gen-secrets` creates
-local PostgreSQL TLS material and distinct runtime and migrator passwords for
-each authority. See
+Every authority exposes one public Relay and one Notary. A separate private
+consultation Relay shares only the Notary network namespace and is never
+published on the Relay endpoint. Relay consultation state and all Notary
+correctness state are PostgreSQL-backed. `just gen-secrets` creates local
+PostgreSQL TLS material and distinct runtime and migrator passwords for each
+authority. See
 [`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md) for the
 database map, diagnosis, backup, recovery, and upgrade workflow.
 
-Registry Stack v0.13.0 changes the exact retained Relay result shape. The
-release-owned `REGISTRY_RELAY_STATE_EPOCH=v013` pin gives every authority a
-fresh consultation database and role set, so v0.10.0 and v0.13.0 Relay
-binaries cannot share one state plane. Do not override it to the old,
-unsuffixed database names. The PostgreSQL runbook describes the stopped-writer
-cutover and rollback boundary.
+Local public and consultation Relay namespaces each have their own
+loopback-only workload issuer. The consultation issuer writes the Notary token
+to a private, authority-specific volume; duplicating the issuer process avoids
+opening either Relay's loopback JWKS listener onto the shared Compose network.
+
+The `REGISTRY_RELAY_STATE_EPOCH=v013` pin introduced for Registry Stack
+v0.13.0 remains in use because v0.15.2 does not change the retained
+consultation-result schema. Do not override it to the old, unsuffixed database
+names. The PostgreSQL runbook describes the stopped-writer and rollback
+boundary.
 
 ## Hosted Deployment
 
@@ -158,15 +175,17 @@ The hosted compose files remove host port bindings and avoid repo bind mounts
 because Coolify does not seed bind-mount sources from the Git checkout. They do
 not define custom Docker networks; cross-authority calls use the public
 `*.solmara.registrystack.org` TLS endpoints. Authority compose files preserve
-authority-owned PostgreSQL state, persistent Relay snapshot caches, and
-workload credentials. Notary containers do not use Redis or a writable state
-directory.
+authority-owned PostgreSQL state, separate public and consultation Relay
+caches, and workload credentials. Notary containers do not use Redis or a
+writable state directory.
 
-Hosted Relay starts from instance-bound signed Config Bundles. The wrapper
-contains only the public trust anchors and signed closures; the offline signing
-key is not committed. A sequence-zero baseline is copied only when a Relay
-state volume is empty, allowing first boot while keeping later bundle sequence
-rollback protection durable in that volume.
+Each hosted public Relay and private consultation Relay starts from its own
+instance-bound signed Config Bundle and anti-rollback state. Only the
+consultation bundle contains the private consultation artifacts. The wrapper
+contains public trust anchors and signed closures only; the offline signing key
+is not committed. A sequence-zero baseline is copied only when the matching
+Relay state volume is empty, allowing first boot while keeping later bundle
+sequence rollback protection durable in that volume.
 
 Hosted workload agents keep Relay bearer credentials short-lived and confined
 to per-consumer volumes. The separately served workload JWKS contains public
@@ -184,11 +203,10 @@ refusals, the Visitor Center scenario proxy, and the portal live BFF. Add
 for the Visitor Center and portal.
 
 The `release-candidate` workflow verifies the pinned Registry Stack source and
-uses the published feature-enabled Relay runtime digest as the base for the
-hosted Relay wrapper. The runtime is reviewed and published separately, so a
-Solmara candidate does not recompile it. The workflow builds the Solmara-owned
-images and writes their digest refs, together with the runtime pin, to the
-workflow summary for Coolify env vars:
+uses the canonical published Relay digest as the base for the hosted Relay
+wrapper. A Solmara candidate does not recompile Registry Stack. The workflow
+builds the Solmara-owned images and writes their digest refs to the workflow
+summary for Coolify env vars:
 `SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
 `SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
 `SOLMARA_PORTAL_IMAGE`, `SOLMARA_SCENARIO_RUNNER_IMAGE`,

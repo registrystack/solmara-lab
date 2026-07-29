@@ -32,13 +32,14 @@ CLAIM_ID = "household-below-poverty-threshold"
 BLUE_SUBJECT = "2300027390"
 GREEN_SUBJECT = "2300018263"
 RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
+MIXED_GENERATION_PROBLEM_CODE = "notary.relay.profile_mismatch"
 SENSITIVE_ENV_MARKERS = ("TOKEN", "PASSWORD", "SECRET", "JWK")
 MAX_DIAGNOSTIC_LINES = 12
 MAX_DIAGNOSTIC_LINE_BYTES = 256
 MAX_DIAGNOSTIC_BYTES = 4096
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-SOLMARA_RELAY_RUNTIME = re.compile(
-    r"ghcr\.io/registrystack/solmara-lab-relay-runtime@sha256:[0-9a-f]{64}"
+REGISTRY_RELAY_IMAGE = re.compile(
+    r"ghcr\.io/registrystack/registry-relay@sha256:[0-9a-f]{64}"
 )
 
 
@@ -60,11 +61,11 @@ def read_env(path: Path) -> dict[str, str]:
     return values
 
 
-def relay_runtime_image(environment: Mapping[str, str]) -> str:
-    image = environment.get("SOLMARA_RELAY_RUNTIME_IMAGE", "")
-    if SOLMARA_RELAY_RUNTIME.fullmatch(image) is None:
+def relay_image(environment: Mapping[str, str]) -> str:
+    image = environment.get("REGISTRY_RELAY_IMAGE", "")
+    if REGISTRY_RELAY_IMAGE.fullmatch(image) is None:
         raise ProofFailure(
-            "SOLMARA_RELAY_RUNTIME_IMAGE must pin the published feature runtime by digest"
+            "REGISTRY_RELAY_IMAGE must pin the canonical Relay release by digest"
         )
     return image
 
@@ -251,7 +252,7 @@ def write_override(path: Path, generation: Path, *, relay: bool, notary: bool) -
     ]
     if relay:
         services["sro-relay-state-bootstrap"] = {"volumes": relay_mounts}
-        services["sro-social-relay"] = {"volumes": relay_mounts}
+        services["sro-social-relay-consultation"] = {"volumes": relay_mounts}
     if notary:
         services["sro-notary-state-install"] = {"volumes": notary_mounts}
         services["sro-notary"] = {"volumes": notary_mounts}
@@ -303,6 +304,7 @@ def start_generation(
             "postgres",
             "registry-postgresql-bootstrap",
             "sro-relay-state-bootstrap",
+            "sro-social-relay-consultation",
         ],
         environment=environment,
         timeout=30,
@@ -330,11 +332,16 @@ def wait_for_ready(url: str, timeout: int = 120) -> None:
 
 
 def shared_notary_url(compose: Sequence[str], environment: Mapping[str, str]) -> str:
-    result = run([*compose, "port", "sro-social-relay", "8081"], environment=environment)
+    result = run(
+        [*compose, "port", "sro-social-relay-consultation", "8081"],
+        environment=environment,
+    )
     address = result.stdout.strip().splitlines()[-1]
     match = re.search(r":([0-9]+)$", address)
     if match is None:
-        raise ProofFailure("could not resolve the SRO Notary port shared by its Relay container")
+        raise ProofFailure(
+            "could not resolve the SRO Notary port shared by its consultation Relay"
+        )
     return f"http://127.0.0.1:{match.group(1)}"
 
 
@@ -452,7 +459,7 @@ def main() -> int:
     environment.update(os.environ)
     environment.update(
         {
-            "REGISTRY_RELAY_IMAGE": relay_runtime_image(environment),
+            "REGISTRY_RELAY_IMAGE": relay_image(environment),
             "SOLMARA_POSTGRES_PORT": "0",
             "SOLMARA_SRO_RELAY_PORT": "0",
             "SOLMARA_SRO_NOTARY_PORT": "0",
@@ -544,9 +551,13 @@ def main() -> int:
             (evidence / "mixed-notary.log").write_text(mixed.stdout, encoding="utf-8")
             if mixed.returncode == 0:
                 raise ProofFailure("mixed-generation Notary unexpectedly activated")
-            expected_failure = "ERROR Relay consultation profile does not match its configured pin"
+            expected_failure = f"ERROR {MIXED_GENERATION_PROBLEM_CODE}:"
             if expected_failure not in mixed.stdout:
-                raise ProofFailure("mixed-generation Notary failed for an unexpected reason")
+                diagnostic = bounded_redacted_output(mixed.stdout, environment)
+                raise ProofFailure(
+                    "mixed-generation Notary failed for an unexpected reason\n"
+                    f"command output (redacted and bounded):\n{diagnostic}"
+                )
             after_mixed = relay_activity_counts(blue_compose, environment)
             if after_mixed != before_mixed:
                 raise ProofFailure("mixed-generation activation reached Relay execute or source dispatch")

@@ -54,11 +54,7 @@ class ReleasePinTests(unittest.TestCase):
             f"REGISTRY_NOTARY_IMAGE={NOTARY}\n"
             "REGISTRYCTL_VERSION=1.0.0\n"
             "REGISTRY_STACK_SOURCE_REF=v1.0.0\n"
-            f"REGISTRY_STACK_SOURCE_COMMIT={'a' * 40}\n"
-            "REGISTRY_RELAY_FEATURES=attribute-release\n"
-            f"SOLMARA_RELAY_RUNTIME_IMAGE="
-            f"{self.module.SOLMARA_RELAY_RUNTIME_REPOSITORY}"
-            f"@sha256:{'3' * 64}\n",
+            f"REGISTRY_STACK_SOURCE_COMMIT={'a' * 40}\n",
             encoding="utf-8",
         )
 
@@ -214,15 +210,12 @@ class ReleasePinTests(unittest.TestCase):
                 direct,
             )
 
-    def test_relay_source_ref_and_feature_must_match_the_release(self) -> None:
+    def test_source_ref_must_match_the_release(self) -> None:
         versions = (self.root / "versions.env").read_text(encoding="utf-8")
         (self.root / "versions.env").write_text(
             versions.replace(
                 "REGISTRY_STACK_SOURCE_REF=v1.0.0",
                 "REGISTRY_STACK_SOURCE_REF=v0.13.0",
-            ).replace(
-                "REGISTRY_RELAY_FEATURES=attribute-release",
-                "REGISTRY_RELAY_FEATURES=ogcapi-features",
             ),
             encoding="utf-8",
         )
@@ -236,37 +229,6 @@ class ReleasePinTests(unittest.TestCase):
         inspect.assert_not_called()
         self.assertIn(
             "REGISTRY_STACK_SOURCE_REF from versions.env is v0.13.0, expected v1.0.0",
-            stderr.getvalue(),
-        )
-        self.assertIn(
-            "REGISTRY_RELAY_FEATURES must include attribute-release",
-            stderr.getvalue(),
-        )
-
-    def test_relay_runtime_must_be_published_and_digest_pinned(self) -> None:
-        versions = (self.root / "versions.env").read_text(encoding="utf-8")
-        (self.root / "versions.env").write_text(
-            versions.replace(
-                (
-                    f"{self.module.SOLMARA_RELAY_RUNTIME_REPOSITORY}"
-                    f"@sha256:{'3' * 64}"
-                ),
-                "solmara-lab-registry-relay:local",
-            ),
-            encoding="utf-8",
-        )
-        stderr = io.StringIO()
-        with (
-            mock.patch.object(self.module, "inspect_tag_digest") as inspect,
-            contextlib.redirect_stderr(stderr),
-        ):
-            self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 1)
-
-        inspect.assert_not_called()
-        self.module.resolve_tag_commit.assert_not_called()
-        self.assertIn(
-            "SOLMARA_RELAY_RUNTIME_IMAGE must pin "
-            f"{self.module.SOLMARA_RELAY_RUNTIME_REPOSITORY}@sha256:<digest>",
             stderr.getvalue(),
         )
 

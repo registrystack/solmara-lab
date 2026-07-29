@@ -3,6 +3,38 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-07-29 Registry Stack v0.15.2 adoption
+
+The lab now consumes the canonical Registry Stack Relay image directly. The
+separate Solmara feature-runtime image, feature selection, publication, and
+normal-startup override are removed because governed attribute release is part
+of the canonical v0.15.2 Relay build. Explicit `*-dev` recipes still build the
+default Relay feature set from the exact pinned source commit without changing
+the standalone production path.
+
+The NIA eSignet profile uses the stable attribute-release contract, removing
+the retired subject-input and response-cache fields. Hosted Relay bundle
+sequence is now a single reviewed value in `versions.env`, enforced by local
+bundle verification, offline generation, and the release-candidate workflow.
+Every authority also commits version-matched Registryctl schemas and VS Code
+and Zed mappings, with CI drift detection, and release review now includes the
+value-free capability inventory for both deployment environments. Independently
+authored synthetic request witnesses now cover every reachable
+Notary-to-Relay consultation binding instead of treating integration-input
+fixtures as caller compatibility proof. Every public Relay is now separated
+from a loopback-only consultation Relay that shares only the matching Notary
+network namespace. Hosted deployment uses separate instance-bound public and
+consultation bundle streams and anti-rollback volumes, preventing private
+consultation authority and artifacts from appearing on public Relay
+endpoints. All six compiler-generated local and hosted runtime closures are
+regenerated with the released v0.15.2 Registryctl. All twelve sequence-2 hosted
+bundles are signed with a rotated Ed25519 key held in 1Password and verified
+against their new public trust anchors. Registryctl reads the private JWK
+through an `op://` reference, so bundle generation does not materialize it in
+the repository or working tree. Local public and consultation Relay namespaces
+use distinct loopback workload issuer processes so neither JWKS listener is
+opened onto the shared Compose network.
+
 ## 2026-07-25 Registry Stack v0.13.0 adoption
 
 The lab now pins the Registry Stack `v0.13.0` Relay and Notary image digests

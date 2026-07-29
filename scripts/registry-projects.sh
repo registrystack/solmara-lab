@@ -20,13 +20,18 @@ if [ "$actual_version" != "registryctl $required_version" ]; then
   echo "set REGISTRYCTL_BIN to the matching release binary when it is not on PATH" >&2
   exit 1
 fi
-for command in check test build; do
+for command in check test build capabilities; do
   if ! "$REGISTRYCTL" "$command" --help >/dev/null 2>&1; then
-    echo "registryctl $required_version with project-authoring check/test/build is required" >&2
+    echo "registryctl $required_version with project-authoring check/test/build/capabilities is required" >&2
     echo "set REGISTRYCTL_BIN to a compatible Registry Stack build" >&2
     exit 1
   fi
 done
+if ! "$REGISTRYCTL" authoring editor --help >/dev/null 2>&1; then
+  echo "registryctl $required_version with project-authoring editor setup is required" >&2
+  echo "set REGISTRYCTL_BIN to a compatible Registry Stack build" >&2
+  exit 1
+fi
 
 projects="
 cra-civil
@@ -80,6 +85,25 @@ check_projects() {
   done
 }
 
+inspect_capabilities() {
+  for project in $projects; do
+    for environment in local hosted; do
+      echo "registryctl capabilities: $project ($environment)"
+      "$REGISTRYCTL" capabilities \
+        --project-dir "$ROOT/projects/$project" \
+        --environment "$environment"
+    done
+  done
+}
+
+sync_editor_support() {
+  for project in $projects; do
+    echo "registryctl authoring editor: $project"
+    "$REGISTRYCTL" authoring editor \
+      --project-dir "$ROOT/projects/$project"
+  done
+}
+
 stage_runtime() {
   destination=$1
   for environment in local hosted; do
@@ -100,7 +124,10 @@ case "$action" in
   test)
     for project in $projects; do
       echo "registryctl test: $project"
-      "$REGISTRYCTL" test --project-dir "$ROOT/projects/$project"
+      "$REGISTRYCTL" test \
+        --project-dir "$ROOT/projects/$project" \
+        --format json |
+        python3 "$ROOT/scripts/registryctl-test-output.py"
     done
     ;;
   check)
@@ -108,6 +135,12 @@ case "$action" in
     ;;
   review)
     check_projects explain
+    ;;
+  capabilities)
+    inspect_capabilities
+    ;;
+  editor)
+    sync_editor_support
     ;;
   build)
     environment=${2:-}
@@ -136,7 +169,7 @@ case "$action" in
     diff -ruN "$ROOT/runtime/registry-projects" "$temporary/registry-projects"
     ;;
   *)
-    echo "usage: $0 <test|check|review|build <local|hosted>|sync-runtime|check-runtime>" >&2
+    echo "usage: $0 <test|check|review|capabilities|editor|build <local|hosted>|sync-runtime|check-runtime>" >&2
     exit 2
     ;;
 esac

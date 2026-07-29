@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Probe Relay readiness and the private consultation boundary.
+"""Probe public Relay readiness and its unauthenticated request boundary.
 
 Authority Notaries reach their paired Relays with short-lived workload
-identity tokens. This smoke deliberately has no such token: it proves that all
-six Relays are ready while direct access to a private consultation profile is
-refused with the stable invalid-credentials problem.
+identity tokens through the separate private consultation Relay processes.
+This public-endpoint smoke deliberately has no token: it proves that all six
+public Relays are ready and refuse unauthenticated requests with the stable
+missing-credential problem. Notary live smokes separately exercise the private
+consultation path.
 """
 
 from __future__ import annotations
@@ -100,7 +102,7 @@ def main() -> int:
         return 1
 
     print(
-        f"smoke-relay-sources: {len(RELAYS)} Relay readiness and private-consultation denial checks passed; "
+        f"smoke-relay-sources: {len(RELAYS)} public Relay readiness and authentication-boundary checks passed; "
         f"wrote {OUTPUT.relative_to(ROOT)}"
     )
     return 0
@@ -162,7 +164,7 @@ def run_probe(
         "liveness_status": health[0],
         "readiness_status": ready[0],
         "unauthenticated_consultation_status": denial[0],
-        "unauthenticated_consultation_code": "auth.invalid_credentials",
+        "unauthenticated_consultation_code": "auth.missing_credential",
     }
 
 
@@ -199,8 +201,8 @@ def validate_unauthenticated_denial(
     if content_type != "application/problem+json":
         return f"expected application/problem+json, got {content_type or 'no content type'}"
     code = body.get("code") if isinstance(body, dict) else None
-    if code != "auth.invalid_credentials":
-        return f"expected auth.invalid_credentials, got {code!r}"
+    if code != "auth.missing_credential":
+        return f"expected auth.missing_credential, got {code!r}"
     if isinstance(body, dict) and any(
         key in body for key in ("data", "outputs", "results", "source_record")
     ):

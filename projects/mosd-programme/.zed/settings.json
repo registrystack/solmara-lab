@@ -1,0 +1,17 @@
+{
+  "lsp": {
+    "yaml-language-server": {
+      "settings": {
+        "yaml": {
+          "schemas": {
+            "./.registry-stack-editor/schemas/entity.schema.json": "entities/*.yaml",
+            "./.registry-stack-editor/schemas/environment.schema.json": "environments/*.yaml",
+            "./.registry-stack-editor/schemas/fixture.schema.json": "integrations/*/fixtures/*.yaml",
+            "./.registry-stack-editor/schemas/integration.schema.json": "integrations/*/integration.yaml",
+            "./.registry-stack-editor/schemas/project.schema.json": "registry-stack.yaml"
+          }
+        }
+      }
+    }
+  }
+}

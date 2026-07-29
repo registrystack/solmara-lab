@@ -37,13 +37,13 @@ jobs:
       STATIC_METADATA_IMAGE: python:3.12-alpine
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout Registry Stack Relay source
+      - name: Checkout Registry Stack source
         uses: actions/checkout@v4
         with:
           repository: registrystack/registry-stack
           ref: ${{ env.REGISTRY_STACK_TAG }}
           path: vendor/registry-stack
-      - name: Verify Registry Stack Relay source
+      - name: Verify Registry Stack source
         run: |
           set -euo pipefail
           set -a
@@ -52,11 +52,8 @@ jobs:
           test "$REGISTRY_STACK_SOURCE_REF" = "$REGISTRY_STACK_TAG"
           test "$(git -C vendor/registry-stack rev-parse HEAD)" = "$REGISTRY_STACK_SOURCE_COMMIT"
           {
-            printf 'REGISTRY_STACK_SOURCE_COMMIT=%s\n' "$REGISTRY_STACK_SOURCE_COMMIT"
-            printf 'REGISTRY_RELAY_FEATURES=%s\n' "$REGISTRY_RELAY_FEATURES"
-            printf 'SOLMARA_RELAY_RUNTIME_IMAGE=%s\n' "$SOLMARA_RELAY_RUNTIME_IMAGE"
+            printf 'SOLMARA_RELAY_BUNDLE_SEQUENCE=%s\n' "$SOLMARA_RELAY_BUNDLE_SEQUENCE"
             printf 'VOLUME_INIT_IMAGE=%s\n' "$VOLUME_INIT_IMAGE"
-            printf 'REGISTRY_STACK_SOURCE_DIR=%s/vendor/registry-stack\n' "$GITHUB_WORKSPACE"
           } >> "$GITHUB_ENV"
       - name: Checkout eSignet relay authenticator
         uses: actions/checkout@v4
@@ -89,6 +86,14 @@ jobs:
         run: |
           just lint
           just test
+          just registry-projects-editor
+          if [ -n "$(git status --short -- projects)" ]; then
+            git status --short -- projects
+            exit 1
+          fi
+          just registry-projects-check
+          just registry-projects-test
+          just registry-projects-capabilities
           just registry-projects-runtime-check
           just compose
           just review-release "$REGISTRY_STACK_TAG"
@@ -117,7 +122,7 @@ jobs:
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
           build-args: |
-            REGISTRY_RELAY_IMAGE=${{ env.SOLMARA_RELAY_RUNTIME_IMAGE }}
+            REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}
             VOLUME_INIT_IMAGE=${{ env.VOLUME_INIT_IMAGE }}
       - name: Verify hosted Relay signed bundles
         env:
@@ -125,18 +130,21 @@ jobs:
         run: |
           set -euo pipefail
           for project in cra-civil nia-population sro-social mosd-programme sipf-pensions nagdi-agriculture; do
-            docker run --rm --platform linux/amd64 \
-              -e REGISTRY_RELAY_AUDIT_HASH_SECRET=0123456789abcdef0123456789abcdef \
-              -e REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1=abcdef0123456789abcdef0123456789 \
-              -e REGISTRY_RELAY_CONSULTATION_DATABASE_URL=postgresql://runtime:placeholder@postgres:5432/consultation?sslmode=require \
-              -e SOLMARA_NIA_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
-              -e SOLMARA_SIPF_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
-              "$SOLMARA_HOSTED_RELAY_IMAGE" \
-              config verify-bundle \
-              --bundle-dir "/etc/solmara/hosted-relay-bundles/$project/bundle" \
-              --anchor-path "/etc/solmara/hosted-relay-bundles/$project/trust-anchor.json" \
-              --state-path "/etc/solmara/hosted-relay-bundles/$project/antirollback-seed.json" \
-              | jq -e '.result == "verified" and .bundle_sequence == 1' >/dev/null
+            for bundle in "$project" "$project/consultation"; do
+              docker run --rm --platform linux/amd64 \
+                -e REGISTRY_RELAY_AUDIT_HASH_SECRET=0123456789abcdef0123456789abcdef \
+                -e REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1=abcdef0123456789abcdef0123456789 \
+                -e REGISTRY_RELAY_CONSULTATION_DATABASE_URL=postgresql://runtime:placeholder@postgres:5432/consultation?sslmode=require \
+                -e SOLMARA_NIA_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
+                -e SOLMARA_SIPF_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
+                "$SOLMARA_HOSTED_RELAY_IMAGE" \
+                config verify-bundle \
+                --bundle-dir "/etc/solmara/hosted-relay-bundles/$bundle/bundle" \
+                --anchor-path "/etc/solmara/hosted-relay-bundles/$bundle/trust-anchor.json" \
+                --state-path "/etc/solmara/hosted-relay-bundles/$bundle/antirollback-seed.json" \
+                | jq -e --argjson expected "$SOLMARA_RELAY_BUNDLE_SEQUENCE" \
+                    '.result == "verified" and .bundle_sequence == $expected' >/dev/null
+            done
           done
       - name: Build and push hosted Notary image
         uses: docker/build-push-action@v6
@@ -238,7 +246,6 @@ jobs:
           {
             echo "### Solmara image digests"
             echo
-            echo "- ${SOLMARA_RELAY_RUNTIME_IMAGE}"
             for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal solmara-lab-esignet-relay solmara-lab-esignet-postgres solmara-lab-esignet-ui solmara-lab-esignet-seed; do
               ref="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
               digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"

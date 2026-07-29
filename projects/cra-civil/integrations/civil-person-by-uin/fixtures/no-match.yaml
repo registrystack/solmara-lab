@@ -1,5 +1,13 @@
 name: cra-civil-person-no-match
 classification: synthetic
+request:
+  target:
+    type: Person
+    identifiers: [{ scheme: solmara_uin, value: "9999999999" }]
+  claims: [person-is-deceased]
+  disclosure: predicate
+  format: application/vnd.registry-notary.claim-result+json
+  purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
 input: { uin: "9999999999" }
 variables: { as_of_date: 2026-07-14 }
 interactions:

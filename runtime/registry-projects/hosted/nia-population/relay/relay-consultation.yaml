@@ -1,0 +1,251 @@
+audit:
+  hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
+  sink: stdout
+auth:
+  mode: oidc
+  oidc:
+    allow_dev_insecure_fetch_urls: false
+    allowed_clients:
+    - nia-notary
+    audiences:
+    - registry-relay
+    issuer: https://workload-issuer.solmara.registrystack.org
+    jwks_url: https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json
+catalog:
+  base_url: https://nia-relay.solmara.registrystack.org
+  publisher: solmara-nia-population
+  title: solmara-nia-population governed Registry Relay
+consultation:
+  artifacts:
+    evidence:
+    - class: minimization
+      path: artifacts/evidence/population-person-by-uin/minimization.json
+      sha256: sha256:af6daeecb8d517d40d9b631abf938dceac510f1a6fb9da8eebbb29034c2a2407
+    - class: conformance
+      path: artifacts/evidence/population-person-by-uin/conformance.json
+      sha256: sha256:bae5ef90128eb60a3ef4a3eeea3bea815e73bf6ccfdd521a48a3043446bd5fbd
+    - class: negative_security
+      path: artifacts/evidence/population-person-by-uin/negative-security.json
+      sha256: sha256:bc4aecd3a77aa8f7f92699b4a39b5bd43e760fae1d4243856a6f1457781806ab
+    integration_packs:
+    - hash: sha256:72b42442af5dffa0ad96ef2bb6266fd422ae1f16299b3fc82dbd3bf3fd9b58e9
+      path: artifacts/integration-packs/population-person-by-uin.json
+      sha256: sha256:83e0e332c81c331e2329535fdf1983be1427359a0e1bdf16986b8bc4a2f24b3e
+    private_bindings:
+    - hash: sha256:fa33b620ee699baa8efb7f233dc46884826b4e4b64940a0fa27cca5b1871bb40
+      path: artifacts/private-bindings/nia-child-benefit-population.json
+      sha256: sha256:41dd7eba725d043adbdfbfcc7a95178364970c5b8f76525fa75db87c31d228b6
+    - hash: sha256:286382e48365cf203f3b0b5712bb6c8f94d18d33657078dc2522e42afb76aa8f
+      path: artifacts/private-bindings/nia-citizen-status-population.json
+      sha256: sha256:89e52d120d4c5ab0fc451e74e2fe0bb11966e7e1e4ab59505713d78f567ae8b7
+    public_contracts:
+    - hash: sha256:2b34d7466e4f45126055cdb3ec18026a6f0cf3051a863ad951eedfe6ed729958
+      path: artifacts/consultation-contracts/nia-child-benefit-population.json
+      sha256: sha256:43e56a4eaff600b7fbb8ca382f6d00bee299dcd9e528f50de89143ad9f3502f3
+    - hash: sha256:9433a86942bdfbb1add5e45e2c3462eb224a2e8097be0267a52eeaaecfde0c69
+      path: artifacts/consultation-contracts/nia-citizen-status-population.json
+      sha256: sha256:3ecdd494bdec2c8b591c24385a3c808d49a9b9562f9809e1a7dd24dcc66693a1
+    rhai_scripts: []
+  audit_pseudonym_materials:
+  - key_id: epoch-1
+    source:
+      name: REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1
+      provider: environment
+  authorized_workload:
+    audience: registry-relay
+    client_claim_selector: azp
+    client_value: nia-notary
+    principal_id: nia-notary
+  source_credentials: []
+  state_plane:
+    audit_pseudonym_keyring_lock_key: 1016450306001272100
+    chain_key_epoch_id: project-consultation-chain-1
+    database_url_env: REGISTRY_RELAY_CONSULTATION_DATABASE_URL
+    root_certificate_path: /etc/solmara/postgres/root.crt
+    serving_fence_lock_key: 6539803953464966811
+datasets:
+- access_rights: restricted
+  aggregates: []
+  conforms_to: []
+  defaults:
+    materialization: snapshot
+    refresh:
+      interval: 1m
+      mode: interval
+  description: Governed population attributes used by NIA-owned services.
+  entities:
+  - access:
+      aggregate_scope: population:aggregate
+      evidence_verification_scope: population:evidence_verification
+      metadata_scope: population:metadata
+      read_scope: population:rows
+    aggregates: []
+    api:
+      allowed_expansions: []
+      allowed_filters:
+      - field: legacy_nid
+        ops:
+        - eq
+      - field: uin
+        ops:
+        - eq
+      default_limit: 25
+      governed_policy:
+        allowed_assurance: []
+        permitted_jurisdictions: []
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/esignet-identity-verification
+        redaction_fields: []
+        require_consent: false
+        require_legal_basis: false
+        trusted_context: {}
+      max_limit: 100
+      require_purpose_header: true
+      required_filter_bindings: []
+      required_filters: []
+    attribute_release_profiles:
+    - claims:
+      - expression: null
+        name: birthdate
+        required: true
+        sensitivity: personal
+        source_field: birth_date
+      - expression: null
+        name: family_name
+        required: true
+        sensitivity: direct_identifier
+        source_field: family_name
+      - expression: null
+        name: gender
+        required: false
+        sensitivity: personal
+        source_field: sex
+      - expression: null
+        name: given_name
+        required: true
+        sensitivity: direct_identifier
+        source_field: given_name
+      - expression: null
+        name: individual_id
+        required: true
+        sensitivity: direct_identifier
+        source_field: uin
+      - expression:
+          cel: source.given_name + ' ' + source.family_name
+        name: name
+        required: true
+        sensitivity: direct_identifier
+        source_field: null
+      description: Minimal identity attributes for the Solmara eSignet authenticator.
+      id: solmara-nia-userinfo
+      purpose: https://id.registrystack.org/solmara/purpose/esignet-identity-verification
+      release_conditions:
+        expression:
+          cel: source.identity_status == 'active' && source.alive == true
+      release_scope: population:identity_release
+      subject:
+        id_type: national_id
+        source_field: uin
+      title: SolmaraID UserInfo
+      version: v1
+    description: Governed population attributes used by NIA-owned services.
+    fields:
+    - from: alive
+      name: alive
+      sensitive: true
+    - from: birth_date
+      name: birth_date
+      sensitive: true
+    - from: family_name
+      name: family_name
+      sensitive: true
+    - from: given_name
+      name: given_name
+      sensitive: true
+    - from: identity_status
+      name: identity_status
+      sensitive: true
+    - from: legacy_nid
+      name: legacy_nid
+      sensitive: true
+    - from: sex
+      name: sex
+      sensitive: true
+    - from: uin
+      name: uin
+      sensitive: true
+    name: population
+    relationships: []
+    spatial: null
+    table: materialization_aae79577068250722b57ed81fc12d038a35dc36e179ee2d7efb168fd9942f05d
+    title: NIA population records
+  id: population
+  owner: National Identity Agency
+  sensitivity: personal
+  tables:
+  - access:
+      aggregate_scope: population:aggregate
+      metadata_scope: population:metadata
+    aggregates: []
+    api:
+      allowed_filters: []
+      default_limit: 25
+      max_limit: 100
+      require_purpose_header: true
+    id: materialization_aae79577068250722b57ed81fc12d038a35dc36e179ee2d7efb168fd9942f05d
+    materialization: snapshot
+    primary_key: uin
+    refresh:
+      interval: 1m
+      mode: interval
+    schema:
+      fields:
+      - name: alive
+        nullable: false
+        sensitive: true
+        type: boolean
+      - name: birth_date
+        nullable: false
+        sensitive: true
+        type: date
+      - name: family_name
+        nullable: false
+        sensitive: true
+        type: string
+      - name: given_name
+        nullable: false
+        sensitive: true
+        type: string
+      - name: identity_status
+        nullable: false
+        sensitive: true
+        type: string
+      - name: legacy_nid
+        nullable: true
+        sensitive: true
+        type: string
+      - name: sex
+        nullable: false
+        sensitive: true
+        type: string
+      - name: uin
+        nullable: false
+        sensitive: true
+        type: string
+      strict: true
+    source:
+      connection_env: SOLMARA_NIA_DATABASE_URL
+      table:
+        name: population_person
+        schema: public
+      type: postgres
+  title: NIA population records
+  update_frequency: continuous
+deployment:
+  profile: hosted_lab
+instance:
+  environment: hosted
+  id: nia-population-relay-consultation
+server:
+  bind: 127.0.0.1:8080
+standards: {}

@@ -9,7 +9,8 @@ schema:
   properties:
     uin:
       type: string
-      maxLength: 16
+      minLength: 10
+      maxLength: 10
       pattern: "^[0-9]{10}$"
     birth_date:
       type: string

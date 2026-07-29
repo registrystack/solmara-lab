@@ -69,33 +69,21 @@ class ContractGenerationProofTests(unittest.TestCase):
             self.assertEqual(config.stat().st_mode & 0o777, 0o644)
             self.assertEqual(artifact.stat().st_mode & 0o777, 0o644)
 
-    def test_proof_uses_the_digest_pinned_feature_runtime(self) -> None:
-        runtime = (
-            "ghcr.io/registrystack/solmara-lab-relay-runtime@sha256:"
-            + "a" * 64
-        )
+    def test_proof_uses_the_digest_pinned_canonical_relay(self) -> None:
+        relay = "ghcr.io/registrystack/registry-relay@sha256:" + "a" * 64
         self.assertEqual(
-            self.proof.relay_runtime_image(
-                {
-                    "REGISTRY_RELAY_IMAGE": (
-                        "ghcr.io/registrystack/registry-relay@sha256:" + "b" * 64
-                    ),
-                    "SOLMARA_RELAY_RUNTIME_IMAGE": runtime,
-                }
-            ),
-            runtime,
+            self.proof.relay_image({"REGISTRY_RELAY_IMAGE": relay}),
+            relay,
         )
 
-    def test_proof_rejects_a_mutable_feature_runtime_reference(self) -> None:
+    def test_proof_rejects_a_mutable_canonical_relay_reference(self) -> None:
         with self.assertRaisesRegex(
             self.proof.ProofFailure,
-            "must pin the published feature runtime by digest",
+            "must pin the canonical Relay release by digest",
         ):
-            self.proof.relay_runtime_image(
+            self.proof.relay_image(
                 {
-                    "SOLMARA_RELAY_RUNTIME_IMAGE": (
-                        "ghcr.io/registrystack/solmara-lab-relay-runtime:v0.13.0"
-                    )
+                    "REGISTRY_RELAY_IMAGE": "ghcr.io/registrystack/registry-relay:v0.15.2"
                 }
             )
 
@@ -109,11 +97,37 @@ class ContractGenerationProofTests(unittest.TestCase):
             self.proof.write_override(override, generation, relay=False, notary=True)
             services = yaml.safe_load(override.read_text(encoding="utf-8"))["services"]
             self.assertEqual(set(services), {"sro-notary", "sro-notary-state-install"})
-            self.assertNotIn("sro-social-relay", services)
+            self.assertNotIn("sro-social-relay-consultation", services)
             self.assertIn(
                 f"{generation / 'notary' / 'notary.yaml'}:/etc/registry-notary/notary.yaml:ro",
                 services["sro-notary"]["volumes"],
             )
+
+    def test_mixed_generation_asserts_the_stable_notary_problem_code(self) -> None:
+        self.assertEqual(
+            self.proof.MIXED_GENERATION_PROBLEM_CODE,
+            "notary.relay.profile_mismatch",
+        )
+
+    def test_complete_override_replaces_private_consultation_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generation = root / "green"
+            (generation / "relay").mkdir(parents=True)
+            (generation / "notary").mkdir()
+            override = root / "green.yaml"
+            self.proof.write_override(
+                override,
+                generation,
+                relay=True,
+                notary=True,
+            )
+            services = yaml.safe_load(override.read_text(encoding="utf-8"))[
+                "services"
+            ]
+            self.assertIn("sro-relay-state-bootstrap", services)
+            self.assertIn("sro-social-relay-consultation", services)
+            self.assertNotIn("sro-social-relay", services)
 
     def test_success_response_must_be_minimized_and_subject_free(self) -> None:
         response = {
@@ -194,11 +208,12 @@ class ContractGenerationProofTests(unittest.TestCase):
         self.assertNotIn(secret, message)
         self.assertEqual(mocked_run.call_count, 2)
         self.assertEqual(
-            mocked_run.call_args_list[1].args[0][-3:],
+            mocked_run.call_args_list[1].args[0][-4:],
             [
                 "postgres",
                 "registry-postgresql-bootstrap",
                 "sro-relay-state-bootstrap",
+                "sro-social-relay-consultation",
             ],
         )
 

@@ -10,8 +10,7 @@ set +a
 
 source_ref=${REGISTRY_STACK_SOURCE_REF:?missing REGISTRY_STACK_SOURCE_REF}
 source_commit=${REGISTRY_STACK_SOURCE_COMMIT:?missing REGISTRY_STACK_SOURCE_COMMIT}
-relay_features=${REGISTRY_RELAY_FEATURES:?missing REGISTRY_RELAY_FEATURES}
-runtime_image=${SOLMARA_RELAY_RUNTIME_DEV_IMAGE:?missing SOLMARA_RELAY_RUNTIME_DEV_IMAGE}
+runtime_image=${SOLMARA_RELAY_DEV_IMAGE:?missing SOLMARA_RELAY_DEV_IMAGE}
 release_image=${REGISTRY_RELAY_IMAGE:?missing REGISTRY_RELAY_IMAGE}
 platform=${REGISTRY_STACK_PLATFORM:-linux/amd64}
 
@@ -32,21 +31,10 @@ if [ "${#source_commit}" -ne 40 ]; then
   echo "REGISTRY_STACK_SOURCE_COMMIT must be exactly 40 lowercase hex characters" >&2
   exit 1
 fi
-case "$relay_features" in
-  "" | *[!a-z0-9,-]*)
-    echo "REGISTRY_RELAY_FEATURES must be a comma-separated lowercase feature list" >&2
-    exit 1
-    ;;
-esac
 
 image_revision=$(
   docker image inspect \
     --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
-    "$runtime_image" 2>/dev/null || true
-)
-image_features=$(
-  docker image inspect \
-    --format '{{ index .Config.Labels "org.registrystack.solmara.relay-features" }}' \
     "$runtime_image" 2>/dev/null || true
 )
 image_base=$(
@@ -55,9 +43,8 @@ image_base=$(
     "$runtime_image" 2>/dev/null || true
 )
 if [ "$image_revision" = "$source_commit" ] \
-  && [ "$image_features" = "$relay_features" ] \
   && [ "$image_base" = "$release_image" ]; then
-  echo "Solmara Relay runtime already matches $source_ref ($relay_features)"
+  echo "Solmara Relay development image already matches $source_ref"
   exit 0
 fi
 
@@ -87,7 +74,6 @@ docker buildx build \
   --platform "$platform" \
   --build-arg "REGISTRY_RELAY_IMAGE=$release_image" \
   --build-arg "REGISTRY_STACK_SOURCE_COMMIT=$source_commit" \
-  --build-arg "REGISTRY_RELAY_FEATURES=$relay_features" \
   --tag "$runtime_image" \
   --file "$root/docker/relay-runtime/Dockerfile" \
   "$source_dir"
