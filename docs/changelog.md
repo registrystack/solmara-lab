@@ -19,7 +19,9 @@ remain outside the repository, and live origins are limited to an ignored
 runtime closure. Credential verification requires all five requested predicate
 disclosures with their expected `true` values, uses the canonical Solmara CRA
 identifier with a disposable local signing key, and cleanup no longer depends
-on complete operator or generated runtime credential files.
+on complete operator or generated runtime credential files. Live negative
+controls require their exact status and stable problem code, and the no-match
+control requires every dependent predicate to remain `null`.
 
 OpenCRVS omits `expires_in` from its otherwise strict bearer-token response.
 The demo therefore selects Registry Stack's explicit

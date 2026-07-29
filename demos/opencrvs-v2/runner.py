@@ -72,6 +72,9 @@ CLAIMS = [
     "mother-recorded-on-birth",
     "informant-is-mother",
 ]
+NO_MATCH_RESULTS = {
+    claim: False if claim == "birth-record-exists" else None for claim in CLAIMS
+}
 EXPECTED_OUTPUTS = {
     "child_national_id_matches": "boolean",
     "event_type_birth": "boolean",
@@ -1034,6 +1037,9 @@ def live_negative(
     headers: Mapping[str, str],
     body: Mapping[str, Any],
     environment: Mapping[str, str],
+    *,
+    expected_status: int,
+    expected_code: str,
 ) -> dict[str, Any]:
     before = relay_activity(environment)
     result = http_json("POST", f"{url}/v1/evaluations", headers, body)
@@ -1046,7 +1052,8 @@ def live_negative(
         after.data_dispatches - before.data_dispatches
     )
     if (
-        not summary["rejected"]
+        summary["status"] != expected_status
+        or summary["code"] != expected_code
         or summary["credential_dispatch_delta"] != 0
         or summary["source_data_dispatch_delta"] != 0
     ):
@@ -1077,6 +1084,11 @@ def evaluation_summary(result: HttpResult) -> dict[str, Any]:
         "claim_ids": CLAIMS,
         "results": values,
     }
+
+
+def require_no_match_contract(summary: Mapping[str, Any]) -> None:
+    if summary.get("results") != NO_MATCH_RESULTS:
+        raise DemoFailure("the nonexistent registration did not return exact no match")
 
 
 def first_evaluation_id(body: Any) -> str:
@@ -1371,12 +1383,16 @@ def proof() -> None:
         api_headers(secrets.token_urlsafe(32), PURPOSE),
         request_body,
         environment,
+        expected_status=401,
+        expected_code="auth.missing_credential",
     )
     wrong_purpose = live_negative(
         url,
         api_headers(caller_token, WRONG_PURPOSE),
         request_body,
         environment,
+        expected_status=403,
+        expected_code="purpose.not_allowed",
     )
     invalid_body = evaluation_body(selectors)
     invalid_body["target"]["identifiers"][0]["value"] = "INVALID"
@@ -1385,6 +1401,8 @@ def proof() -> None:
         api_headers(caller_token, PURPOSE),
         invalid_body,
         environment,
+        expected_status=409,
+        expected_code="evidence.not_available",
     )
 
     before_positive = relay_activity(environment)
@@ -1419,8 +1437,7 @@ def proof() -> None:
     )
     after_missing = relay_activity(environment)
     missing_summary = evaluation_summary(missing)
-    if missing_summary["results"]["birth-record-exists"] is not False:
-        raise DemoFailure("the nonexistent registration did not return no match")
+    require_no_match_contract(missing_summary)
     missing_dispatch = exact_consultation_dispatch(
         before_missing, after_missing, "no-match"
     )

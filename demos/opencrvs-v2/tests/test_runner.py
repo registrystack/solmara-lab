@@ -492,7 +492,48 @@ class RelayActivityTests(unittest.TestCase):
                 {},
                 {},
                 {},
+                expected_status=403,
+                expected_code="purpose.not_allowed",
             )
+
+    def test_negative_requires_expected_status_and_code(self) -> None:
+        for unexpected in (
+            runner.HttpResult(500, {"code": "internal.error"}, {}),
+            runner.HttpResult(429, {"code": "rate_limited"}, {}),
+            runner.HttpResult(403, {"code": "purpose.denied"}, {}),
+        ):
+            with (
+                self.subTest(unexpected=unexpected),
+                mock.patch.object(
+                    runner,
+                    "relay_activity",
+                    side_effect=[
+                        runner.RelayActivity(0, 0, 0),
+                        runner.RelayActivity(0, 0, 0),
+                    ],
+                ),
+                mock.patch.object(runner, "http_json", return_value=unexpected),
+                self.assertRaises(runner.DemoFailure),
+            ):
+                runner.live_negative(
+                    "http://127.0.0.1:4391",
+                    {},
+                    {},
+                    {},
+                    expected_status=403,
+                    expected_code="purpose.not_allowed",
+                )
+
+    def test_no_match_requires_every_dependent_predicate_to_be_null(self) -> None:
+        runner.require_no_match_contract({"results": dict(runner.NO_MATCH_RESULTS)})
+        for unexpected in (True, False):
+            results = dict(runner.NO_MATCH_RESULTS)
+            results[runner.CLAIMS[1]] = unexpected
+            with (
+                self.subTest(unexpected=unexpected),
+                self.assertRaises(runner.DemoFailure),
+            ):
+                runner.require_no_match_contract({"results": results})
 
 
 class CredentialVerificationTests(unittest.TestCase):

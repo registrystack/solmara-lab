@@ -200,6 +200,10 @@ be running. It performs three pre-dispatch negative controls, one exact
 known-record search, one exact syntactically valid no-match search, and direct
 credential issuance.
 
+Each negative control must return its expected HTTP status and stable problem
+code with zero dispatches. The no-match control requires `birth-record-exists`
+to be `false` and all four dependent predicates to be `null`.
+
 The subshell trap runs `opencrvs-demo-down` after success or failure. That
 command removes the demo containers, volumes, and ignored runtime closure
 without reading operator or generated runtime credentials, and is safe to
