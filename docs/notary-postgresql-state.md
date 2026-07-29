@@ -7,12 +7,12 @@ owners, migrators, and runtime roles are never shared between Notaries.
 
 | Authority | Public Relay / private consultation Relay | Notary service | Relay state database | Notary database | Local Relay / Notary |
 |---|---|---|---|---|---|
-| Civil Registration Authority (CRA) | `cra-civil-relay` / `cra-civil-relay-consultation` | `cra-notary` | `solmara_relay_cra_consultation_v013` | `solmara_notary_cra` | `4311` / `4325` |
-| National Identity Agency (NIA) | `nia-population-relay` / `nia-population-relay-consultation` | `nia-notary` | `solmara_relay_nia_consultation_v013` | `solmara_notary_nia` | `4312` / `4326` |
-| Social Registry Office (SRO) | `sro-social-relay` / `sro-social-relay-consultation` | `sro-notary` | `solmara_relay_sro_consultation_v013` | `solmara_notary_sro` | `4313` / `4327` |
-| Programme MIS | `programme-mis-relay` / `programme-mis-relay-consultation` | `programme-notary` | `solmara_relay_programme_consultation_v013` | `solmara_notary_programme` | `4314` / `4328` |
-| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` / `sipf-pensions-relay-consultation` | `sipf-notary` | `solmara_relay_sipf_consultation_v013` | `solmara_notary_sipf` | `4315` / `4322` |
-| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` / `nagdi-agriculture-relay-consultation` | `nagdi-notary` | `solmara_relay_nagdi_consultation_v013` | `solmara_notary_nagdi` | `4316` / `4323` |
+| Civil Registration Authority (CRA) | `cra-civil-relay` / `cra-civil-relay-consultation` | `cra-notary` | `solmara_relay_cra_consultation_v015` | `solmara_notary_cra` | `4311` / `4325` |
+| National Identity Agency (NIA) | `nia-population-relay` / `nia-population-relay-consultation` | `nia-notary` | `solmara_relay_nia_consultation_v015` | `solmara_notary_nia` | `4312` / `4326` |
+| Social Registry Office (SRO) | `sro-social-relay` / `sro-social-relay-consultation` | `sro-notary` | `solmara_relay_sro_consultation_v015` | `solmara_notary_sro` | `4313` / `4327` |
+| Programme MIS | `programme-mis-relay` / `programme-mis-relay-consultation` | `programme-notary` | `solmara_relay_programme_consultation_v015` | `solmara_notary_programme` | `4314` / `4328` |
+| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` / `sipf-pensions-relay-consultation` | `sipf-notary` | `solmara_relay_sipf_consultation_v015` | `solmara_notary_sipf` | `4315` / `4322` |
+| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` / `nagdi-agriculture-relay-consultation` | `nagdi-notary` | `solmara_relay_nagdi_consultation_v015` | `solmara_notary_nagdi` | `4316` / `4323` |
 
 The local topology shares one PostgreSQL server for developer convenience.
 Hosted authority applications keep the same database boundaries within their
@@ -113,6 +113,34 @@ Do not run an older Notary binary against a forward-migrated schema. If an
 upgrade cannot be completed, restore the pre-upgrade database and the matching
 image and configuration together. The normative product procedure is the
 [Registry Notary PostgreSQL state operations guide](https://github.com/registrystack/registry-stack/blob/main/products/notary/docs/postgresql-state-operations.md).
+
+### Registry Stack v0.15.2 cache-persistence cutover
+
+The v0.15.2 deployment introduces distinct persistent cache volumes for every
+public and consultation Relay. The earlier hosted topology persisted
+PostgreSQL materialization publication pointers while keeping their immutable
+Parquet snapshots in ephemeral container storage. After container
+replacement, a surviving pointer can therefore name a snapshot that no
+longer exists.
+
+Solmara establishes a recoverable boundary with
+`REGISTRY_RELAY_STATE_EPOCH=v015` in `versions.env`. The bootstrap creates new
+Relay databases and roles without deleting or rewriting the `v013` state.
+For the cutover:
+
+1. Stop new authority traffic and stop every `v013` Relay writer.
+2. Back up the `v013` databases and retain the matching images and
+   configuration.
+3. Deploy the v0.15.2 Compose closure. Bootstrap creates the `v015` Relay
+   databases, then each Relay publishes fresh materializations into its
+   persistent cache.
+4. Require every Relay and Notary `/ready` check, the complete smoke suite,
+   and the restart-persistence proof before reopening traffic.
+
+Keep the `v013` databases quiesced during the rollback window. Rollback means
+restoring the matching pre-cutover deployment as one unit. Never point the
+new cache-backed deployment at a `v013` database whose referenced snapshot
+files were not preserved.
 
 ### Registry Stack v0.13.0 cutover
 

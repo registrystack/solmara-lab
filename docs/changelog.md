@@ -35,6 +35,12 @@ the repository or working tree. Local public and consultation Relay namespaces
 use distinct loopback workload issuer processes so neither JWKS listener is
 opened onto the shared Compose network.
 
+The hosted cutover also moves Relay state to the `v015` database epoch. The
+previous topology persisted PostgreSQL materialization pointers but not their
+immutable cache files, so the new persistent Relay cache volumes cannot safely
+reuse every `v013` pointer after container replacement. The old databases stay
+intact for rollback while the new state plane publishes fresh snapshots.
+
 ## 2026-07-25 Registry Stack v0.13.0 adoption
 
 The lab now pins the Registry Stack `v0.13.0` Relay and Notary image digests

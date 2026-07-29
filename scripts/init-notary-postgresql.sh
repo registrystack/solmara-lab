@@ -7,7 +7,7 @@ set -eu
 # databases. Passwords arrive through the deployment secret store and are
 # never printed.
 
-relay_state_epoch=${REGISTRY_RELAY_STATE_EPOCH:-v013}
+relay_state_epoch=${REGISTRY_RELAY_STATE_EPOCH:-v015}
 case "$relay_state_epoch" in
   "" | *[!a-z0-9_]*)
     echo "REGISTRY_RELAY_STATE_EPOCH must contain only lowercase letters, digits, and underscores" >&2

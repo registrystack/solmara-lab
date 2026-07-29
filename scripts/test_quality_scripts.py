@@ -921,13 +921,13 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
         self.assertEqual(consumed - produced, set())
         self.assertEqual(consumed - declared, set())
 
-    def test_relay_consultation_state_uses_the_v013_epoch(self) -> None:
+    def test_relay_consultation_state_uses_the_v015_epoch(self) -> None:
         versions = dict(
             line.split("=", 1)
             for line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines()
             if line and not line.startswith("#") and "=" in line
         )
-        self.assertEqual(versions["REGISTRY_RELAY_STATE_EPOCH"], "v013")
+        self.assertEqual(versions["REGISTRY_RELAY_STATE_EPOCH"], "v015")
 
         compose_names = (
             "compose.yaml",
@@ -936,7 +936,7 @@ printf '%s\\n' "$*" >> "$REGISTRYCTL_LOG"
             "compose.coolify.labour-pensions.yaml",
             "compose.coolify.agriculture.yaml",
         )
-        epoch_reference = "${REGISTRY_RELAY_STATE_EPOCH:-v013}"
+        epoch_reference = "${REGISTRY_RELAY_STATE_EPOCH:-v015}"
         for compose_name in compose_names:
             with self.subTest(compose=compose_name):
                 compose_path = ROOT / compose_name

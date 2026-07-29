@@ -241,11 +241,14 @@ The bootstrap container creates only the authority keys listed in
 Notary receive runtime credentials only. Schema installation uses dedicated
 jobs and never gives migration credentials to a serving process.
 
-Registry Stack v0.15.2 continues using the `v013` Relay state epoch from
-`versions.env`; the retained consultation-result schema does not change in
-this release. Existing v0.13.0 authority databases remain the active state
-plane. Quiesce old Relay writers before cutover and follow the complete
-stopped-writer and rollback procedure in
+Registry Stack v0.15.2 uses the `v015` Relay state epoch from `versions.env`.
+The retained consultation-result schema does not change, but the hosted
+deployment now persists every Relay cache that backs a PostgreSQL
+materialization publication pointer. Earlier `v013` deployments did not
+persist those immutable snapshot files, so reusing their pointers after
+container replacement can leave consultation profiles permanently
+unavailable. Quiesce old Relay writers, keep the `v013` databases for
+rollback, and follow the complete stopped-writer procedure in
 [`notary-postgresql-state.md`](notary-postgresql-state.md).
 
 Back up, restore, and upgrade each Notary database independently. See
