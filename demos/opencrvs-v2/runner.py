@@ -60,6 +60,11 @@ RESULT_FORMAT = "application/vnd.registry-notary.claim-result+json"
 CREDENTIAL_FORMAT = "application/dc+sd-jwt"
 PROFILE = "opencrvs-birth-evidence.birth-predicates"
 NOTARY_SERVICE_ID = "opencrvs-v2-demo-notary"
+CREDENTIAL_ISSUER = "did:web:id.registrystack.org:solmara:authority:cra"
+ISSUER_KID = f"{CREDENTIAL_ISSUER}#opencrvs-demo-issuer-key-1"
+CREDENTIAL_VCT = (
+    "https://id.registrystack.org/solmara/credential/opencrvs-v2-birth-proof/v1"
+)
 CLAIMS = [
     "birth-record-exists",
     "registration-number-matches",
@@ -676,7 +681,7 @@ def fresh_runtime_values() -> dict[str, str]:
         "OPENCRVS_RELAY_WORKLOAD_JWK": generate_private_jwk(
             "opencrvs-v2-demo-relay-workload-key-1"
         ),
-        "OPENCRVS_DEMO_ISSUER_JWK": generate_private_jwk("opencrvs-demo-issuer-key-1"),
+        "OPENCRVS_DEMO_ISSUER_JWK": generate_private_jwk(ISSUER_KID),
     }
 
 
@@ -1135,6 +1140,8 @@ def verify_sd_jwt(
         issuer_jwk = json.loads(issuer_private_jwk)
         if (
             header.get("alg") != "EdDSA"
+            or header.get("kid") != ISSUER_KID
+            or issuer_jwk.get("kid") != ISSUER_KID
             or header.get("kid") != issuer_jwk.get("kid")
             or payload.get("_sd_alg") != "sha-256"
         ):
@@ -1157,6 +1164,32 @@ def verify_sd_jwt(
     ]
     if sorted(computed) != sorted(digests):
         raise DemoFailure("the returned disclosures do not match the SD-JWT digests")
+    try:
+        disclosed_claims: dict[str, Any] = {}
+        for encoded in disclosures:
+            disclosure = json.loads(b64url_decode(encoded))
+            if (
+                not isinstance(disclosure, list)
+                or len(disclosure) != 3
+                or not isinstance(disclosure[0], str)
+                or not disclosure[0]
+                or not isinstance(disclosure[1], str)
+                or not isinstance(disclosure[2], dict)
+                or disclosure[2].get("claim_id") != disclosure[1]
+                or disclosure[2].get("value") is not True
+                or disclosure[2].get("satisfied") is not True
+                or disclosure[1] in disclosed_claims
+            ):
+                raise DemoFailure("the SD-JWT disclosure set is invalid")
+            disclosed_claims[disclosure[1]] = True
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, TypeError) as error:
+        raise DemoFailure("the SD-JWT disclosure set is invalid") from error
+    if disclosed_claims != {claim: True for claim in CLAIMS}:
+        raise DemoFailure(
+            "the SD-JWT does not disclose the expected evaluated predicates"
+        )
+    if payload.get("iss") != CREDENTIAL_ISSUER or payload.get("vct") != CREDENTIAL_VCT:
+        raise DemoFailure("the SD-JWT credential identity is invalid")
     confirmation = payload.get("cnf")
     if not isinstance(confirmation, dict):
         raise DemoFailure("the SD-JWT has no holder confirmation")
@@ -1181,6 +1214,7 @@ def verify_sd_jwt(
         "disclosure_count": len(disclosures),
         "issuer_signature_valid": True,
         "disclosures_match_digests": True,
+        "disclosed_claims_verified": True,
         "holder_binding": "did:jwk",
         "cnf_matches_ephemeral_holder": True,
         "sha256": hashlib.sha256(credential.encode("utf-8")).hexdigest(),
@@ -1517,15 +1551,9 @@ def compose_config() -> None:
 
 
 def down() -> None:
-    external: dict[str, str] | None = None
-    runtime: dict[str, str] | None = None
-    if EXTERNAL_ENV.is_file():
-        external = read_dotenv(EXTERNAL_ENV)
-    if RUNTIME_ENV.is_file():
-        runtime = read_dotenv(RUNTIME_ENV)
     run(
         compose_command("down", "-v", "--remove-orphans"),
-        env=compose_environment(external, runtime),
+        env=compose_environment(),
     )
     if RUNTIME.exists():
         resolved = RUNTIME.resolve()

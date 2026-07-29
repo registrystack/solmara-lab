@@ -89,6 +89,24 @@ class OriginTests(unittest.TestCase):
                     runner.opencrvs_host(invalid)
 
 
+class AuthoredProjectTests(unittest.TestCase):
+    def test_credential_issuer_is_the_canonical_solmara_cra(self) -> None:
+        environment = runner.yaml.safe_load(
+            (runner.AUTHORED_PROJECT / "environments" / "local.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            environment["issuance"],
+            {
+                "issuer": runner.CREDENTIAL_ISSUER,
+                "signing_kid": runner.ISSUER_KID,
+                "signing_key": {"secret": "OPENCRVS_DEMO_ISSUER_JWK"},
+                "generation": 1,
+            },
+        )
+
+
 class RegistryctlIdentityTests(unittest.TestCase):
     def test_requires_exact_commit_for_development_override(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -480,28 +498,54 @@ class RelayActivityTests(unittest.TestCase):
 class CredentialVerificationTests(unittest.TestCase):
     def make_credential(
         self,
+        disclosed_claims: list[tuple[str, object]] | None = None,
+        *,
+        issuer: str = runner.CREDENTIAL_ISSUER,
+        vct: str = runner.CREDENTIAL_VCT,
+        kid: str = runner.ISSUER_KID,
+        embedded_claim_ids: dict[str, str] | None = None,
     ) -> tuple[str, str, str, dict[str, str], str]:
-        issuer_jwk = json.loads(runner.generate_private_jwk("issuer-key-1"))
+        issuer_jwk = json.loads(runner.generate_private_jwk(kid))
         issuer_private = Ed25519PrivateKey.from_private_bytes(
             runner.b64url_decode(issuer_jwk["d"])
         )
         holder_id, _, holder_public = runner.holder_material()
-        disclosure = runner.b64url(
-            json.dumps(
-                ["salt", "birth-record-exists", True],
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
+        requested = disclosed_claims
+        if requested is None:
+            requested = [(claim, True) for claim in runner.CLAIMS]
+        disclosures = [
+            runner.b64url(
+                json.dumps(
+                    [
+                        f"salt-{index}",
+                        claim,
+                        {
+                            "claim_id": (embedded_claim_ids or {}).get(claim, claim),
+                            "version": "1",
+                            "value": value,
+                            "satisfied": value,
+                            "subject_type": "Person",
+                            "issued_at": "2026-01-01T00:00:00Z",
+                        },
+                    ],
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            )
+            for index, (claim, value) in enumerate(requested)
+        ]
         payload = {
-            "_sd": [runner.b64url(hashlib.sha256(disclosure.encode("ascii")).digest())],
+            "_sd": [
+                runner.b64url(hashlib.sha256(disclosure.encode("ascii")).digest())
+                for disclosure in disclosures
+            ],
             "_sd_alg": "sha-256",
             "cnf": {"kid": holder_id, "jwk": holder_public},
             "exp": 1_030,
             "iat": 1_000,
-            "iss": "did:web:issuer.example",
-            "vct": "https://id.example/credential/v1",
+            "iss": issuer,
+            "vct": vct,
         }
-        header = {"alg": "EdDSA", "kid": "issuer-key-1"}
+        header = {"alg": "EdDSA", "kid": kid}
         header_segment = runner.b64url(
             json.dumps(header, separators=(",", ":")).encode("utf-8")
         )
@@ -514,11 +558,11 @@ class CredentialVerificationTests(unittest.TestCase):
             f"{runner.b64url(issuer_private.sign(signing_input))}"
         )
         return (
-            f"{compact}~{disclosure}~",
+            f"{compact}~{'~'.join(disclosures)}~",
             json.dumps(issuer_jwk),
             holder_id,
             holder_public,
-            disclosure,
+            disclosures[0] if disclosures else "",
         )
 
     def test_verifies_signature_disclosures_and_holder_binding(self) -> None:
@@ -531,8 +575,10 @@ class CredentialVerificationTests(unittest.TestCase):
         )
         self.assertTrue(summary["issuer_signature_valid"])
         self.assertTrue(summary["disclosures_match_digests"])
+        self.assertTrue(summary["disclosed_claims_verified"])
         self.assertTrue(summary["cnf_matches_ephemeral_holder"])
-        self.assertEqual(summary["disclosure_count"], 1)
+        self.assertEqual(summary["disclosure_count"], len(runner.CLAIMS))
+        self.assertEqual(summary["issuer"], runner.CREDENTIAL_ISSUER)
         self.assertNotIn(credential, json.dumps(summary))
 
     def test_rejects_a_disclosure_not_bound_by_the_sd_jwt(self) -> None:
@@ -547,6 +593,92 @@ class CredentialVerificationTests(unittest.TestCase):
                 holder_id,
                 holder_public,
             )
+
+    def test_rejects_missing_unrelated_false_or_duplicate_predicates(self) -> None:
+        invalid_sets = [
+            [],
+            [("unrelated-claim", True)],
+            [
+                (runner.CLAIMS[0], False),
+                *[(claim, True) for claim in runner.CLAIMS[1:]],
+            ],
+            [
+                (runner.CLAIMS[0], True),
+                (runner.CLAIMS[0], True),
+                *[(claim, True) for claim in runner.CLAIMS[1:]],
+            ],
+        ]
+        for disclosed_claims in invalid_sets:
+            with self.subTest(disclosed_claims=disclosed_claims):
+                credential, issuer_jwk, holder_id, holder_public, _ = (
+                    self.make_credential(disclosed_claims)
+                )
+                with self.assertRaises(runner.DemoFailure):
+                    runner.verify_sd_jwt(
+                        credential,
+                        issuer_jwk,
+                        holder_id,
+                        holder_public,
+                    )
+
+    def test_rejects_noncanonical_credential_identity(self) -> None:
+        for identity in (
+            {"issuer": "did:web:opencrvs-demo.invalid"},
+            {"vct": "https://id.registrystack.org/solmara/credential/unrelated/v1"},
+            {"kid": "did:web:id.registrystack.org:solmara:authority:cra#unrelated"},
+        ):
+            with self.subTest(identity=identity):
+                credential, issuer_jwk, holder_id, holder_public, _ = (
+                    self.make_credential(**identity)
+                )
+                with self.assertRaises(runner.DemoFailure):
+                    runner.verify_sd_jwt(
+                        credential,
+                        issuer_jwk,
+                        holder_id,
+                        holder_public,
+                    )
+
+    def test_rejects_mismatched_embedded_claim_id(self) -> None:
+        credential, issuer_jwk, holder_id, holder_public, _ = self.make_credential(
+            embedded_claim_ids={runner.CLAIMS[0]: "unrelated-claim"}
+        )
+        with self.assertRaises(runner.DemoFailure):
+            runner.verify_sd_jwt(
+                credential,
+                issuer_jwk,
+                holder_id,
+                holder_public,
+            )
+
+
+class CleanupTests(unittest.TestCase):
+    def test_down_ignores_incomplete_operator_and_runtime_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            demo = Path(temporary) / "opencrvs-v2"
+            runtime = demo / ".runtime"
+            runtime.mkdir(parents=True)
+            external = Path(temporary) / "operator.env"
+            external.write_text(
+                "OPENCRVS_CLIENT_ID=rotated-client-only\n",
+                encoding="utf-8",
+            )
+            runtime_env = runtime / "local.env"
+            runtime_env.write_text("incomplete runtime file\n", encoding="utf-8")
+            with (
+                mock.patch.object(runner, "DEMO", demo),
+                mock.patch.object(runner, "RUNTIME", runtime),
+                mock.patch.object(runner, "RUNTIME_PROJECT", runtime / "project"),
+                mock.patch.object(runner, "RUNTIME_ENV", runtime_env),
+                mock.patch.object(runner, "EXTERNAL_ENV", external),
+                mock.patch.object(runner, "run") as run_mock,
+            ):
+                runner.down()
+
+            self.assertFalse(runtime.exists())
+            command = run_mock.call_args.args[0]
+            self.assertIn("down", command)
+            self.assertIn("--remove-orphans", command)
 
 
 class SanitizationTests(unittest.TestCase):

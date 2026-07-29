@@ -24,8 +24,9 @@ The intended live path is:
 3. Relay emits six booleans and no identifying source values.
 4. Notary evaluates five predicate claims.
 5. Notary issues a holder-bound `dc+sd-jwt` through `POST /v1/credentials`.
-6. The runner verifies the issuer signature, disclosures, and ephemeral
-   `did:jwk` holder binding in memory.
+6. The runner verifies the issuer signature, the exact five disclosed
+   predicate names and `true` values, and the ephemeral `did:jwk` holder
+   binding in memory.
 
 ## Release boundary
 
@@ -200,8 +201,9 @@ known-record search, one exact syntactically valid no-match search, and direct
 credential issuance.
 
 The subshell trap runs `opencrvs-demo-down` after success or failure. That
-command removes the demo containers, volumes, and ignored runtime closure, and
-is safe to rerun.
+command removes the demo containers, volumes, and ignored runtime closure
+without reading operator or generated runtime credentials, and is safe to
+rerun after credentials are missing, incomplete, or rotated.
 
 ## Evidence and privacy
 
@@ -230,6 +232,12 @@ The raw OpenCRVS response, holder private key, OAuth token, and issued credentia
 remain memory-only. The evidence reports issuer, audience, scope, and lifetime
 from unsigned token claims and labels that parsing explicitly. It does not
 claim those metadata fields were cryptographically verified.
+
+Credential issuance uses the canonical Solmara Civil Registration Authority
+identifier, `did:web:id.registrystack.org:solmara:authority:cra`, with a
+disposable local demo signing key. The runner verifies that local signature and
+the credential identity, but this demo does not perform public DID resolution
+or prove possession of a production CRA signing key.
 
 ## Capability boundary
 

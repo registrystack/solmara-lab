@@ -16,7 +16,10 @@ blocked and must not be reported as a released result. Holder binding proves
 possession of the demo's ephemeral key, not a parent or informant relationship,
 and this is not an OID4VCI wallet flow. Operator credentials and source values
 remain outside the repository, and live origins are limited to an ignored
-runtime closure.
+runtime closure. Credential verification requires all five requested predicate
+disclosures with their expected `true` values, uses the canonical Solmara CRA
+identifier with a disposable local signing key, and cleanup no longer depends
+on complete operator or generated runtime credential files.
 
 OpenCRVS omits `expires_in` from its otherwise strict bearer-token response.
 The demo therefore selects Registry Stack's explicit

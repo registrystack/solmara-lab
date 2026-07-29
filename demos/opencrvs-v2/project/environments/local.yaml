@@ -21,8 +21,8 @@ integrations:
       timeout: 15s
 
 issuance:
-  issuer: did:web:opencrvs-demo.invalid
-  signing_kid: opencrvs-demo-issuer-key-1
+  issuer: did:web:id.registrystack.org:solmara:authority:cra
+  signing_kid: did:web:id.registrystack.org:solmara:authority:cra#opencrvs-demo-issuer-key-1
   signing_key: { secret: OPENCRVS_DEMO_ISSUER_JWK }
   generation: 1
 
