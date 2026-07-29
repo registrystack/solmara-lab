@@ -1,0 +1,179 @@
+services:
+  opencrvs-db:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/opencrvs-postgres-entrypoint.sh"]
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
+    environment:
+      POSTGRES_USER: opencrvs_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-compose-validation-only}
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opencrvs_admin -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - opencrvs-db-data:/var/lib/postgresql/data
+      - ../../scripts/postgres-entrypoint.sh:/usr/local/bin/opencrvs-postgres-entrypoint.sh:ro
+      - ${OPENCRVS_RUNTIME_PROJECT_DIR:-./.runtime/project}/../postgres:/run/solmara-postgres-ssl:ro
+
+  opencrvs-db-init:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: "no"
+    environment:
+      POSTGRES_ADMIN_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-compose-validation-only}
+      OPENCRVS_RELAY_POSTGRES_RUNTIME_PASSWORD: ${OPENCRVS_RELAY_POSTGRES_RUNTIME_PASSWORD:-compose-validation-only}
+      OPENCRVS_RELAY_POSTGRES_MAINTENANCE_PASSWORD: ${OPENCRVS_RELAY_POSTGRES_MAINTENANCE_PASSWORD:-compose-validation-only}
+      OPENCRVS_RELAY_POSTGRES_READER_PASSWORD: ${OPENCRVS_RELAY_POSTGRES_READER_PASSWORD:-compose-validation-only}
+    command: ["/opt/opencrvs-demo/postgres-init.sh"]
+    volumes:
+      - ./postgres-init.sh:/opt/opencrvs-demo/postgres-init.sh:ro
+    depends_on:
+      opencrvs-db:
+        condition: service_healthy
+
+  opencrvs-relay-bootstrap:
+    image: ${REGISTRY_RELAY_IMAGE}
+    platform: ${OPENCRVS_DEMO_RELAY_PLATFORM:-linux/amd64}
+    restart: "no"
+    command:
+      - consultation
+      - bootstrap-state
+      - --config
+      - /etc/registry-relay/relay-consultation.yaml
+      - --migration-database-url-env
+      - REGISTRY_RELAY_STATE_MIGRATION_URL
+      - --owner-role
+      - opencrvs_demo_owner
+      - --keyring-maintenance-database-url-env
+      - REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL
+      - --keyring-reader-database-url-env
+      - REGISTRY_RELAY_STATE_KEYRING_READER_URL
+      - --active-key-id
+      - epoch-1
+      - --active-write-deadline-unix-ms
+      - "4102444800000"
+      - --audit-event-retention-ms
+      - "2592000000"
+    environment:
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${OPENCRVS_RELAY_AUDIT_HASH_SECRET:-compose-validation-only}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${OPENCRVS_RELAY_AUDIT_PSEUDONYM_EPOCH_1:-compose-validation-only}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: postgresql://opencrvs_demo_runtime:${OPENCRVS_RELAY_POSTGRES_RUNTIME_PASSWORD:-compose-validation-only}@opencrvs-db:5432/opencrvs_demo?sslmode=require
+      REGISTRY_RELAY_STATE_MIGRATION_URL: postgresql://opencrvs_admin:${POSTGRES_ADMIN_PASSWORD:-compose-validation-only}@opencrvs-db:5432/opencrvs_demo?sslmode=require
+      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: postgresql://opencrvs_demo_keyring_maintenance:${OPENCRVS_RELAY_POSTGRES_MAINTENANCE_PASSWORD:-compose-validation-only}@opencrvs-db:5432/opencrvs_demo?sslmode=require
+      REGISTRY_RELAY_STATE_KEYRING_READER_URL: postgresql://opencrvs_demo_keyring_reader:${OPENCRVS_RELAY_POSTGRES_READER_PASSWORD:-compose-validation-only}@opencrvs-db:5432/opencrvs_demo?sslmode=require
+      OPENCRVS_CLIENT_ID: ${OPENCRVS_CLIENT_ID:-compose-validation-only}
+      OPENCRVS_SECRET: ${OPENCRVS_SECRET:-compose-validation-only}
+    volumes:
+      - ${OPENCRVS_RUNTIME_PROJECT_DIR:-./.runtime/project}/.registry-stack/build/local/private/relay/config:/etc/registry-relay:ro
+      - ${OPENCRVS_RUNTIME_PROJECT_DIR:-./.runtime/project}/../postgres/server.crt:/etc/opencrvs-demo/postgres/root.crt:ro
+    depends_on:
+      opencrvs-db-init:
+        condition: service_completed_successfully
+
+  opencrvs-relay:
+    image: ${REGISTRY_RELAY_IMAGE}
+    platform: ${OPENCRVS_DEMO_RELAY_PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    command:
+      - --config
+      - /etc/registry-relay/relay-consultation.yaml
+      - --bind
+      - 127.0.0.1:8080
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${OPENCRVS_RELAY_AUDIT_HASH_SECRET:-compose-validation-only}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${OPENCRVS_RELAY_AUDIT_PSEUDONYM_EPOCH_1:-compose-validation-only}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: postgresql://opencrvs_demo_runtime:${OPENCRVS_RELAY_POSTGRES_RUNTIME_PASSWORD:-compose-validation-only}@opencrvs-db:5432/opencrvs_demo?sslmode=require
+      OPENCRVS_CLIENT_ID: ${OPENCRVS_CLIENT_ID:-compose-validation-only}
+      OPENCRVS_SECRET: ${OPENCRVS_SECRET:-compose-validation-only}
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "${OPENCRVS_DEMO_NOTARY_PORT:-4391}:8081"
+    volumes:
+      - ${OPENCRVS_RUNTIME_PROJECT_DIR:-./.runtime/project}/.registry-stack/build/local/private/relay/config:/etc/registry-relay:ro
+      - ${OPENCRVS_RUNTIME_PROJECT_DIR:-./.runtime/project}/../postgres/server.crt:/etc/opencrvs-demo/postgres/root.crt:ro
+      - opencrvs-relay-cache:/var/lib/registry-relay/cache
+    depends_on:
+      opencrvs-relay-bootstrap:
+        condition: service_completed_successfully
+
+  opencrvs-workload-agent:
+    build:
+      context: ../..
+      dockerfile: scenario-runner/Dockerfile
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:-solmara-lab-scenario-runner:local}
+    command: ["python", "scripts/relay_workload_identity_agent.py"]
+    restart: unless-stopped
+    network_mode: service:opencrvs-relay
+    environment:
+      WORKLOAD_ISSUER: http://127.0.0.1:8090
+      WORKLOAD_IDENTITIES_JSON: >-
+        [{"audience":"registry-relay","azp":"opencrvs-v2-demo-notary","subject":"opencrvs-v2-demo-notary","scopes":["registry:consult:opencrvs-birth-evidence"],"token_file":"/run/secrets/opencrvs-demo-notary-relay-token","private_jwk_env":"OPENCRVS_RELAY_WORKLOAD_JWK"}]
+      OPENCRVS_RELAY_WORKLOAD_JWK: ${OPENCRVS_RELAY_WORKLOAD_JWK:-compose-validation-only}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)"
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - opencrvs-workload-token:/run/secrets
+    depends_on:
+      opencrvs-relay:
+        condition: service_healthy
+
+  opencrvs-notary:
+    image: ${REGISTRY_NOTARY_IMAGE}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    user: "65534:65534"
+    restart: unless-stopped
+    command:
+      - --config
+      - /etc/registry-notary/notary.yaml
+      - --bind
+      - 0.0.0.0:8081
+    network_mode: service:opencrvs-relay
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      REGISTRY_NOTARY_BIND: 0.0.0.0:8081
+      REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${OPENCRVS_NOTARY_AUDIT_HASH_SECRET:-compose-validation-only}
+      OPENCRVS_DEMO_CALLER_TOKEN_HASH: ${OPENCRVS_DEMO_CALLER_TOKEN_HASH:-sha256:compose-validation-only}
+      OPENCRVS_DEMO_ISSUER_JWK: ${OPENCRVS_DEMO_ISSUER_JWK:-compose-validation-only}
+    healthcheck:
+      test:
+        - CMD
+        - /usr/local/bin/registry-notary
+        - healthcheck
+        - --url
+        - http://127.0.0.1:8081/ready
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - ${OPENCRVS_RUNTIME_PROJECT_DIR:-./.runtime/project}/.registry-stack/build/local/private/notary/config/notary.yaml:/etc/registry-notary/notary.yaml:ro
+      - opencrvs-workload-token:/run/secrets:ro
+    depends_on:
+      opencrvs-relay:
+        condition: service_healthy
+      opencrvs-workload-agent:
+        condition: service_healthy
+
+volumes:
+  opencrvs-db-data:
+  opencrvs-relay-cache:
+  opencrvs-workload-token:

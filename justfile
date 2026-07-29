@@ -99,6 +99,32 @@ test:
     @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
     @if [ -f home/package.json ]; then cd home && pnpm test; fi
     uv run python3 -m unittest discover -s scripts -p 'test_*.py'
+    uv run --locked python -m unittest discover -s demos/opencrvs-v2/tests -p 'test_*.py'
+
+# Run the optional OpenCRVS demo unit and offline Registry project checks.
+opencrvs-demo-test:
+    uv run --locked python -m unittest discover -s demos/opencrvs-v2/tests -p 'test_*.py'
+    uv run --locked demos/opencrvs-v2/runner.py offline
+
+# Build exact-commit Registryctl and host-native Relay candidates for pre-release proof.
+opencrvs-demo-candidate-build registry_stack_dir:
+    demos/opencrvs-v2/build-candidate.sh "{{registry_stack_dir}}"
+
+# Validate the optional OpenCRVS demo Compose topology without starting it.
+opencrvs-demo-compose:
+    uv run --locked demos/opencrvs-v2/runner.py compose-config
+
+# Build the ignored OpenCRVS runtime closure and start the isolated demo.
+opencrvs-demo-up:
+    OPENCRVS_DEMO_ALLOW_IGNORED_RUNTIME_ORIGINS=yes uv run --locked demos/opencrvs-v2/runner.py up
+
+# Run the live OpenCRVS, Relay, Notary, and holder-bound credential proof.
+opencrvs-demo-proof:
+    uv run --locked demos/opencrvs-v2/runner.py proof
+
+# Remove the OpenCRVS demo containers, volumes, and ignored runtime closure.
+opencrvs-demo-down:
+    uv run --locked demos/opencrvs-v2/runner.py down
 
 # Validate Compose files without starting services.
 compose:
@@ -107,6 +133,7 @@ compose:
     @if [ -f compose.hosted.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
     @if [ -f compose.esignet.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml config >/dev/null; fi
     scripts/check-coolify-compose.sh
+    just opencrvs-demo-compose
 
 # Start the local topology.
 up:

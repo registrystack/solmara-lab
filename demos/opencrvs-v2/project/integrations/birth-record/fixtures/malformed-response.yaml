@@ -1,0 +1,34 @@
+name: opencrvs-v2-malformed-response
+classification: synthetic
+input:
+  registration_number: SYNTHREG0004
+  child_national_id: "9999000005"
+  tracking_id: SYN005
+interactions:
+  - expect:
+      method: POST
+      path: /token
+      headers:
+        Accept: application/json
+        Content-Type: application/x-www-form-urlencoded
+      body: { grant_type: client_credentials }
+    respond:
+      status: 200
+      body:
+        access_token: SYNTHETIC_FIXTURE_TOKEN
+        token_type: Bearer
+  - expect:
+      method: POST
+      path: /events/events/search
+      body:
+        query:
+          type: and
+          clauses:
+            - eventType: birth
+              legalStatuses.REGISTERED.registrationNumber:
+                type: exact
+                term: SYNTHREG0004
+        limit: 2
+        offset: 0
+    respond: { status: 200, body: { total: 1, results: malformed } }
+expect: { error: source.status_rejected, outputs: {}, claims: {} }

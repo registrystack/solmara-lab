@@ -1,0 +1,67 @@
+name: opencrvs-v2-unknown-oversized-fields
+classification: synthetic
+input:
+  registration_number: SYNTHREG0006
+  child_national_id: "9999000007"
+  tracking_id: SYN007
+interactions:
+  - expect:
+      method: POST
+      path: /token
+      headers:
+        Accept: application/json
+        Content-Type: application/x-www-form-urlencoded
+      body: { grant_type: client_credentials }
+    respond:
+      status: 200
+      body:
+        access_token: SYNTHETIC_FIXTURE_TOKEN
+        token_type: Bearer
+  - expect:
+      method: POST
+      path: /events/events/search
+      body:
+        query:
+          type: and
+          clauses:
+            - eventType: birth
+              legalStatuses.REGISTERED.registrationNumber:
+                type: exact
+                term: SYNTHREG0006
+        limit: 2
+        offset: 0
+    respond:
+      status: 200
+      body:
+        total: 1
+        results:
+          - type: birth
+            trackingId: SYN007
+            legalStatuses:
+              REGISTERED: { registrationNumber: SYNTHREG0006 }
+            declaration:
+              child.nid: "9999000007"
+              mother.name: { firstname: Synthetic, surname: Parent }
+              informant.relation: OTHER
+            ignoredLongField: >-
+              This synthetic source-only value is intentionally much longer
+              than any declared string output. The adapter must ignore it and
+              emit only the bounded booleans in its contract.
+            ignoredObjects:
+              - { arbitrary: true }
+              - { arbitrary: false }
+expect:
+  outcome: match
+  outputs:
+    event_type_birth: true
+    tracking_id_matches: true
+    registration_number_matches: true
+    child_national_id_matches: true
+    mother_recorded_on_birth: true
+    informant_is_mother: false
+  claims:
+    birth-record-exists: true
+    registration-number-matches: true
+    child-national-id-matches: true
+    mother-recorded-on-birth: true
+    informant-is-mother: false

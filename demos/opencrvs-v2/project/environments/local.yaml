@@ -1,0 +1,58 @@
+version: 1
+
+integrations:
+  birth-record:
+    source:
+      # The live runner replaces only these two .invalid origins in its ignored
+      # runtime copy. Credentials remain environment references throughout.
+      origin: https://gateway.opencrvs.invalid
+      credential:
+        client_id: { secret: OPENCRVS_CLIENT_ID }
+        client_secret: { secret: OPENCRVS_SECRET }
+        generation: 1
+      oauth:
+        origin: https://auth.opencrvs.invalid
+        path: /token
+        generation: 1
+      # The proof makes one known-record consultation and one no-match
+      # consultation back to back. Keep the effective burst at exactly two.
+      rate: { per_minute: 4, burst: 2 }
+      concurrency: 1
+      timeout: 15s
+
+issuance:
+  issuer: did:web:opencrvs-demo.invalid
+  signing_kid: opencrvs-demo-issuer-key-1
+  signing_key: { secret: OPENCRVS_DEMO_ISSUER_JWK }
+  generation: 1
+
+callers:
+  opencrvs-demo-runner:
+    api_key_fingerprint: { secret: OPENCRVS_DEMO_CALLER_TOKEN_HASH }
+    scopes: ["evidence:opencrvs-v2:read"]
+
+relay:
+  origin: http://127.0.0.1:8080
+  issuer: http://127.0.0.1:8090
+  jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
+  audience: registry-relay
+  allowed_clients: [opencrvs-v2-demo-notary]
+
+notary_relay:
+  base_url: http://127.0.0.1:8080
+  workload_client_id: opencrvs-v2-demo-notary
+  token_file: /run/secrets/opencrvs-demo-notary-relay-token
+
+relay_state:
+  postgresql:
+    root_certificate_path: /etc/opencrvs-demo/postgres/root.crt
+
+# The published amd64 CEL worker needs the same bounded ceiling under local
+# Apple Silicon emulation as the existing Solmara authority projects.
+notary_cel:
+  worker_memory_bytes: 1073741824
+
+deployment:
+  profile: local
+  relay: { service: opencrvs-v2-demo-relay }
+  notary: { service: opencrvs-v2-demo-notary }

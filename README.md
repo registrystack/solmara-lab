@@ -68,6 +68,9 @@ The first wave covers three journeys:
 - `portal/` contains the citizen portal and BFF.
 - `scenarios/`, `requests/`, and `perf/` carry guided scenarios, API examples,
   and k6 smoke coverage.
+- `demos/opencrvs-v2/` contains an optional, isolated OpenCRVS interoperability
+  demo. Its released live path is blocked; paired candidate use is
+  development-only. It is not part of the six-authority topology.
 - `scripts/` contains root quality gates and orchestration helpers.
 
 ## Development Commands
@@ -95,10 +98,30 @@ just registry-projects-review # complete redacted acquisition and disclosure rep
 just registry-projects-capabilities # value-free installed/used/missing capability inventory
 just registry-projects-editor # version-matched VS Code and Zed schemas for all projects
 just contract-generation-proof # release-only live SRO blue/mixed/successor proof
+just opencrvs-demo-test # optional OpenCRVS fixture and compiler proof
+just opencrvs-demo-candidate-build <worktree> # build matched pre-release compiler and Relay
+just opencrvs-demo-compose # validate the isolated demo topology
+just opencrvs-demo-up # start with compatible release or paired dev artifacts
+just opencrvs-demo-proof # live proof with compatible release or paired dev artifacts
+just opencrvs-demo-down # remove its containers, volumes, and runtime closure
 just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
 just review     # normal security and release-readiness checks
 just review-release <registry-stack-tag> # candidate review with published pin validation
 ```
+
+The OpenCRVS demo's offline compiler, fixture, Compose, and paired pre-release
+live checks pass. Its released live path remains blocked. Relay v0.15.2 has the
+strict no-expiry OAuth decoder, yet its durable state plane rejects this
+no-cache script plan before source dispatch. Registryctl v0.15.2 also cannot
+author the profile. One exact pending Registry Stack commit enables offline
+compiler development only. Pre-release live development requires Registryctl
+and a labeled Relay image built from one later exact candidate commit
+containing the authoring, state-plane, and active script-budget fixes. Do not
+deploy the demo until a Registry Stack release contains those fixes and all
+coordinated pins in `versions.env` have passed release review. The safe paired
+override, exact native endpoints, cleanup sequence, privacy boundary, and
+direct machine issuance limits are documented in
+[`demos/opencrvs-v2/README.md`](demos/opencrvs-v2/README.md).
 
 Normal startup pulls the immutable canonical Relay image pinned in
 `versions.env`; it does not clone or compile Registry Stack. Governed attribute

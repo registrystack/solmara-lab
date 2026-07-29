@@ -12,6 +12,8 @@ SCAN_DIRS = [
     "ministries",
     "metadata",
     "projects",
+    "demos/opencrvs-v2/project",
+    "demos/opencrvs-v2/compose.yaml",
     "runtime/registry-projects",
     "config/hosted-relay-bundles",
     "compose.yaml",
@@ -51,7 +53,13 @@ def iter_files() -> list[Path]:
         if path.is_file():
             files.append(path)
         elif path.exists():
-            files.extend(p for p in path.rglob("*") if p.is_file())
+            files.extend(
+                p
+                for p in path.rglob("*")
+                if p.is_file()
+                and ".registry-stack" not in p.parts
+                and ".runtime" not in p.parts
+            )
     files.extend(sorted(ROOT.glob("compose.coolify*.yaml")))
     return files
 
