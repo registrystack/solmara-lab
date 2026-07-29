@@ -22,8 +22,9 @@ identifier with a disposable local signing key, and cleanup no longer depends
 on complete operator or generated runtime credential files. Live negative
 controls require their exact status and stable problem code, and the no-match
 control requires every dependent predicate to remain `null`. Evidence identity
-is bound to the running Relay container, and credential verification enforces
-current validity plus the authored 10-minute lifetime.
+is bound to the running Relay and Notary containers, predicate results require
+actual booleans or `null`, and credential verification enforces current
+validity plus the authored 10-minute lifetime.
 
 OpenCRVS omits `expires_in` from its otherwise strict bearer-token response.
 The demo therefore selects Registry Stack's explicit

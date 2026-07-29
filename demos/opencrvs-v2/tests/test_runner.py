@@ -302,11 +302,13 @@ class RelayRuntimeIdentityTests(unittest.TestCase):
     def test_binds_evidence_to_the_running_relay_container(self) -> None:
         commit = "b" * 40
         image_id = f"sha256:{'1' * 64}"
+        notary_image_id = f"sha256:{'2' * 64}"
         expected = {
             "version": "registry-relay 0.15.2",
             "source_commit": commit,
             "relay_image": "registry-relay:candidate",
             "relay_image_id": image_id,
+            "notary_image": "notary@sha256:released",
             "development_override": True,
         }
         results = [
@@ -325,6 +327,18 @@ class RelayRuntimeIdentityTests(unittest.TestCase):
                 ),
                 stderr="",
             ),
+            subprocess.CompletedProcess(
+                ["docker", "compose", "ps"],
+                0,
+                stdout=f"{'d' * 64}\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["docker", "container", "inspect"],
+                0,
+                stdout=f"{notary_image_id}|notary@sha256:released\n",
+                stderr="",
+            ),
         ]
         with mock.patch.object(runner, "run", side_effect=results):
             self.assertEqual(
@@ -332,6 +346,8 @@ class RelayRuntimeIdentityTests(unittest.TestCase):
                 {
                     **expected,
                     "running_container_verified": True,
+                    "notary_image_id": notary_image_id,
+                    "running_notary_container_verified": True,
                 },
             )
 
@@ -355,6 +371,50 @@ class RelayRuntimeIdentityTests(unittest.TestCase):
                     f"sha256:{'1' * 64}|registry-relay:candidate|{'b' * 40}|"
                     "attribute-release,crosswalk-runtime\n"
                 ),
+                stderr="",
+            ),
+        ]
+        with (
+            mock.patch.object(runner, "run", side_effect=results),
+            self.assertRaises(runner.DemoFailure),
+        ):
+            runner.running_relay_runtime_identity(expected, {})
+
+    def test_rejects_running_notary_that_differs_from_declared_identity(self) -> None:
+        commit = "a" * 40
+        expected = {
+            "source_commit": commit,
+            "relay_image": "registry-relay:candidate",
+            "relay_image_id": f"sha256:{'1' * 64}",
+            "notary_image": "notary@sha256:declared",
+            "development_override": True,
+        }
+        results = [
+            subprocess.CompletedProcess(
+                ["docker", "compose", "ps"],
+                0,
+                stdout=f"{'c' * 64}\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["docker", "container", "inspect"],
+                0,
+                stdout=(
+                    f"sha256:{'1' * 64}|registry-relay:candidate|{commit}|"
+                    "attribute-release,crosswalk-runtime\n"
+                ),
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["docker", "compose", "ps"],
+                0,
+                stdout=f"{'d' * 64}\n",
+                stderr="",
+            ),
+            subprocess.CompletedProcess(
+                ["docker", "container", "inspect"],
+                0,
+                stdout=f"sha256:{'2' * 64}|notary@sha256:running\n",
                 stderr="",
             ),
         ]
@@ -599,6 +659,23 @@ class RelayActivityTests(unittest.TestCase):
                 self.assertRaises(runner.DemoFailure),
             ):
                 runner.require_no_match_contract({"results": results})
+
+    def test_evaluation_rejects_numeric_predicate_values(self) -> None:
+        for numeric in (0, 1):
+            results = [
+                {
+                    "claim_id": claim,
+                    "satisfied": numeric if index == 0 else None,
+                }
+                for index, claim in enumerate(runner.CLAIMS)
+            ]
+            with (
+                self.subTest(numeric=numeric),
+                self.assertRaises(runner.DemoFailure),
+            ):
+                runner.evaluation_summary(
+                    runner.HttpResult(200, {"results": results}, {})
+                )
 
 
 class CredentialVerificationTests(unittest.TestCase):

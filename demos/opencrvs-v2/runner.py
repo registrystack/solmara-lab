@@ -529,6 +529,37 @@ def running_relay_runtime_identity(
     identity = dict(expected)
     identity["relay_image_id"] = parts[0]
     identity["running_container_verified"] = True
+    notary_container = run(
+        compose_command("ps", "-q", "opencrvs-notary"),
+        env=environment,
+    ).stdout.strip()
+    if re.fullmatch(r"[0-9a-f]{64}", notary_container) is None:
+        raise DemoFailure("the running OpenCRVS Notary container is unavailable")
+    notary_inspected = (
+        run(
+            [
+                "docker",
+                "container",
+                "inspect",
+                "--format",
+                "{{.Image}}|{{.Config.Image}}",
+                notary_container,
+            ],
+            env=environment,
+        )
+        .stdout.strip()
+        .split("|")
+    )
+    if (
+        len(notary_inspected) != 2
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", notary_inspected[0]) is None
+        or notary_inspected[1] != expected.get("notary_image")
+    ):
+        raise DemoFailure(
+            "the running Notary does not match the declared image identity"
+        )
+    identity["notary_image_id"] = notary_inspected[0]
+    identity["running_notary_container_verified"] = True
     return identity
 
 
@@ -1122,7 +1153,7 @@ def evaluation_summary(result: HttpResult) -> dict[str, Any]:
         if not isinstance(item, dict) or item.get("claim_id") not in CLAIMS:
             raise DemoFailure("Notary evaluation returned an unknown claim")
         raw_value = item.get("satisfied", item.get("value"))
-        if raw_value not in (True, False, None):
+        if raw_value is not None and not isinstance(raw_value, bool):
             raise DemoFailure("Notary evaluation returned a non-predicate result")
         values[item["claim_id"]] = raw_value
     if set(values) != set(CLAIMS):
