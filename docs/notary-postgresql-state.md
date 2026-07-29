@@ -5,14 +5,14 @@ Notary owns an independent PostgreSQL database and role set. PostgreSQL servers
 may be shared within a local or hosted Compose application, but databases,
 owners, migrators, and runtime roles are never shared between Notaries.
 
-| Authority | Relay service | Notary service | Relay state database | Notary database | Local Relay / Notary |
+| Authority | Public Relay / private consultation Relay | Notary service | Relay state database | Notary database | Local Relay / Notary |
 |---|---|---|---|---|---|
-| Civil Registration Authority (CRA) | `cra-civil-relay` | `cra-notary` | `solmara_relay_cra_consultation_v013` | `solmara_notary_cra` | `4311` / `4325` |
-| National Identity Agency (NIA) | `nia-population-relay` | `nia-notary` | `solmara_relay_nia_consultation_v013` | `solmara_notary_nia` | `4312` / `4326` |
-| Social Registry Office (SRO) | `sro-social-relay` | `sro-notary` | `solmara_relay_sro_consultation_v013` | `solmara_notary_sro` | `4313` / `4327` |
-| Programme MIS | `programme-mis-relay` | `programme-notary` | `solmara_relay_programme_consultation_v013` | `solmara_notary_programme` | `4314` / `4328` |
-| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` | `sipf-notary` | `solmara_relay_sipf_consultation_v013` | `solmara_notary_sipf` | `4315` / `4322` |
-| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` | `nagdi-notary` | `solmara_relay_nagdi_consultation_v013` | `solmara_notary_nagdi` | `4316` / `4323` |
+| Civil Registration Authority (CRA) | `cra-civil-relay` / `cra-civil-relay-consultation` | `cra-notary` | `solmara_relay_cra_consultation_v013` | `solmara_notary_cra` | `4311` / `4325` |
+| National Identity Agency (NIA) | `nia-population-relay` / `nia-population-relay-consultation` | `nia-notary` | `solmara_relay_nia_consultation_v013` | `solmara_notary_nia` | `4312` / `4326` |
+| Social Registry Office (SRO) | `sro-social-relay` / `sro-social-relay-consultation` | `sro-notary` | `solmara_relay_sro_consultation_v013` | `solmara_notary_sro` | `4313` / `4327` |
+| Programme MIS | `programme-mis-relay` / `programme-mis-relay-consultation` | `programme-notary` | `solmara_relay_programme_consultation_v013` | `solmara_notary_programme` | `4314` / `4328` |
+| Social Insurance and Pensions Fund (SIPF) | `sipf-pensions-relay` / `sipf-pensions-relay-consultation` | `sipf-notary` | `solmara_relay_sipf_consultation_v013` | `solmara_notary_sipf` | `4315` / `4322` |
+| National Agricultural Data Institute (NAgDI) | `nagdi-agriculture-relay` / `nagdi-agriculture-relay-consultation` | `nagdi-notary` | `solmara_relay_nagdi_consultation_v013` | `solmara_notary_nagdi` | `4316` / `4323` |
 
 The local topology shares one PostgreSQL server for developer convenience.
 Hosted authority applications keep the same database boundaries within their
@@ -40,22 +40,30 @@ The startup order is intentional:
 
 1. `registry-postgresql-bootstrap` creates or attests only the databases and
    roles listed by that Compose application.
-2. Each `<authority>-notary-state-install` job applies or attests the released
-   Notary schema with the migrator role.
-3. The authority Relay becomes healthy and its workload issuer supplies a
-   short-lived Relay token to the authority's workload volume.
-4. The matching Notary starts with only its runtime database role and a
-   read-only workload-token mount.
+2. Each private consultation Relay bootstraps its PostgreSQL state before its
+   serving process starts.
+3. The authority workload issuer publishes the verification keys and writes a
+   short-lived Notary token. Local public and consultation Relay namespaces
+   have separate loopback-only issuer processes; hosted Relays validate against
+   the separately served HTTPS JWKS.
+4. Each `<authority>-notary-state-install` job applies or attests the released
+   Notary schema with the migrator role once its database and token file are
+   ready.
+5. The matching Notary starts with only its runtime database role and a
+   read-only workload-token mount. The public Relay starts independently from
+   the consultation state plane.
 
-Each Notary shares its Relay's network namespace. Relay binds port `8080` and
-Notary binds port `8081`, so the pair has a direct loopback trust boundary.
-Readiness remains unavailable until PostgreSQL state and required Relay source
-profiles are usable.
+Each Notary shares only its private consultation Relay's network namespace.
+The consultation Relay binds `127.0.0.1:8080` and Notary binds port `8081`, so
+the consultation path has a direct loopback trust boundary. The separately
+routable public Relay never receives Notary consultation traffic. Readiness
+remains unavailable until PostgreSQL state and required Relay source profiles
+are usable.
 
 Relay snapshot caches are not Notary correctness state, but they are durable
-Relay restart data. Each authority Relay mounts a separate
-`/var/lib/registry-relay/cache` volume so its PostgreSQL materialization pointer
-never outlives the referenced immutable snapshot.
+Relay restart data. Each public and consultation Relay mounts a distinct
+`/var/lib/registry-relay/cache` volume so one process's materialization pointer
+never outlives its referenced immutable snapshot.
 
 Inspect one local pair without exposing credentials:
 

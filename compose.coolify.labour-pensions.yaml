@@ -125,9 +125,23 @@ services:
     volumes:
       - sipf-relay-cache:/var/lib/registry-relay/cache
 
+  sipf-relay-consultation-config-state-init:
+    <<: *relay-config-state-init
+    command:
+      - |
+        /bin/busybox mkdir -p /var/lib/registry-relay/cache
+        /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache
+        if ! /bin/busybox test -e /var/lib/registry-relay/cache/config-bundle-antirollback.json; then
+          /bin/busybox cp /etc/solmara/hosted-relay-bundles/sipf-pensions/consultation/antirollback-seed.json /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chmod 0600 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+        fi
+    volumes:
+      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
+
   sipf-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/sipf-pensions/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/sipf-pensions/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
@@ -138,9 +152,9 @@ services:
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_reader:${SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
     volumes:
-      - sipf-relay-cache:/var/lib/registry-relay/cache
+      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
-      sipf-relay-config-state-init:
+      sipf-relay-consultation-config-state-init:
         condition: service_completed_successfully
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
@@ -151,23 +165,41 @@ services:
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
-      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
       DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
-    expose: ["8080", "8081"]
+    expose: ["8080"]
     volumes:
       - sipf-relay-cache:/var/lib/registry-relay/cache
     depends_on:
-      sipf-relay-state-bootstrap:
+      sipf-relay-config-state-init:
         condition: service_completed_successfully
     labels:
       solmara.lab.host: sipf-relay.solmara.registrystack.org
 
+  sipf-pensions-relay-consultation:
+    <<: *relay-common
+    command: ["--config", "/etc/solmara/hosted-relay-bundles/sipf-pensions/consultation/bootstrap.yaml", "--bind", "127.0.0.1:8080"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
+      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
+    expose: ["8081"]
+    volumes:
+      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
+    depends_on:
+      sipf-relay-state-bootstrap:
+        condition: service_completed_successfully
+      sipf-workload-agent:
+        condition: service_healthy
+
   sipf-notary:
     <<: *notary-common
     command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml"]
-    network_mode: service:sipf-pensions-relay
+    network_mode: service:sipf-pensions-relay-consultation
     environment: &sipf-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${SIPF_NOTARY_AUDIT_HASH_SECRET}
@@ -177,7 +209,7 @@ services:
     volumes:
       - sipf-workload-token:/run/secrets:ro
     depends_on:
-      sipf-pensions-relay:
+      sipf-pensions-relay-consultation:
         condition: service_healthy
       sipf-notary-state-install:
         condition: service_completed_successfully
@@ -205,4 +237,5 @@ services:
 volumes:
   postgres-data:
   sipf-relay-cache:
+  sipf-relay-consultation-cache:
   sipf-workload-token:

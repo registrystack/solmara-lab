@@ -1,0 +1,65 @@
+{
+  "schema": "registry.platform.config_bundle.v1",
+  "product": "registry-relay",
+  "environment": "hosted",
+  "stream_id": "solmara-hosted-nagdi-agriculture-consultation",
+  "instance_id": "nagdi-agriculture-relay-consultation",
+  "bundle_id": "solmara-hosted-nagdi-agriculture-consultation-sequence-2",
+  "sequence": 2,
+  "config_hash": "sha256:a50a3d90d19e12ec9f8304c207f3a81829d28c4f7765b13f1a68a883c4dd5207",
+  "files": [
+    {
+      "path": "config/artifacts/consultation-contracts/livestock-herd.json",
+      "sha256": "sha256:a1f4045c36462881aec560fcf103c1f78252bf0e2acf81ddd6b75ce21ccfd84c"
+    },
+    {
+      "path": "config/artifacts/consultation-contracts/voucher-farmer.json",
+      "sha256": "sha256:8ea73ba2779ef33a85cc5f34988fe0d14f13f1892baa185d0d5c67e76dcbe1ad"
+    },
+    {
+      "path": "config/artifacts/evidence/farmer-voucher-by-farmer/conformance.json",
+      "sha256": "sha256:6d1e0b039f6ed71b79f382260701582ef255c1b377e7d01ee942b1b9c2c53e52"
+    },
+    {
+      "path": "config/artifacts/evidence/farmer-voucher-by-farmer/minimization.json",
+      "sha256": "sha256:ff7da0d595c08d92a85ca406da498fb54b49046332466b28e8fd960912e9a32b"
+    },
+    {
+      "path": "config/artifacts/evidence/farmer-voucher-by-farmer/negative-security.json",
+      "sha256": "sha256:aee98b658e32ced730958f390ab158801d7c0023420f476067aaf5a7e8d58e0d"
+    },
+    {
+      "path": "config/artifacts/evidence/livestock-movement-by-farmer/conformance.json",
+      "sha256": "sha256:10bdc960cb62d9030cee7895a45ce77a6df1ebe133f7beac2d6feb05aaf18910"
+    },
+    {
+      "path": "config/artifacts/evidence/livestock-movement-by-farmer/minimization.json",
+      "sha256": "sha256:260f25e125f7e98d53c4daff92af0b92a6a3a3992f17914782cef9b2441356c5"
+    },
+    {
+      "path": "config/artifacts/evidence/livestock-movement-by-farmer/negative-security.json",
+      "sha256": "sha256:db2275b39b446020d10e7b729bf9d5c1c3e73651b5019f60809ef2af55d789ce"
+    },
+    {
+      "path": "config/artifacts/integration-packs/farmer-voucher-by-farmer.json",
+      "sha256": "sha256:ed6f77b36df0d70ad9ffea72fdfedc21cc0a3621db3cdf4ea70d18f8960db12c"
+    },
+    {
+      "path": "config/artifacts/integration-packs/livestock-movement-by-farmer.json",
+      "sha256": "sha256:7af1198e4ba477344621f4361613c5ba1d0d30bf1a2bc94e94b7a7c5d8e8ca16"
+    },
+    {
+      "path": "config/artifacts/private-bindings/livestock-herd.json",
+      "sha256": "sha256:33efab2ec578e7baf3dc70c7a6c139eb76a5cd80f4a2c753fc474b795477d306"
+    },
+    {
+      "path": "config/artifacts/private-bindings/voucher-farmer.json",
+      "sha256": "sha256:75a3c0379a33f5c7029cf91ebb87a42c661a5e8ddd93c5fb7edf37f0f5f51d9b"
+    },
+    {
+      "path": "config/relay.yaml",
+      "sha256": "sha256:a50a3d90d19e12ec9f8304c207f3a81829d28c4f7765b13f1a68a883c4dd5207"
+    }
+  ],
+  "created_at": "2026-07-29T03:29:51.897077Z"
+}

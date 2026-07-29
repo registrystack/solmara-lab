@@ -49,7 +49,6 @@ services:
           purpose: https://id.registrystack.org/solmara/purpose/esignet-identity-verification
           release_scope: population:identity_release
           subject:
-            input: individual_id
             source_field: uin
             id_type: national_id
           release_conditions:
@@ -81,8 +80,6 @@ services:
               source_field: sex
               required: false
               sensitivity: personal
-          response:
-            max_age_seconds: 300
       standards: { ogc_features: false, sp_dci: false }
 
   nia-child-benefit:

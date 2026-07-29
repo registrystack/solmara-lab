@@ -1,5 +1,16 @@
 name: livestock-movement-match
 classification: synthetic
+request:
+  target:
+    type: Person
+    identifiers: [{ scheme: farmer_id, value: FR-1001 }]
+  claims:
+    - registered-herd
+    - origin-district-not-quarantined-for-species
+    - eligible-for-livestock-movement-permit
+  disclosure: predicate
+  format: application/vnd.registry-notary.claim-result+json
+  purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
 input: { farmer_id: FR-1001 }
 interactions:
   - expect: { method: GET, path: /snapshot }

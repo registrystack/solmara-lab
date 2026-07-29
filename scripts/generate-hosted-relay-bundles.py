@@ -22,6 +22,10 @@ PROJECTS = (
     "sipf-pensions",
     "nagdi-agriculture",
 )
+BUNDLE_VARIANTS = (
+    ("public", "relay.yaml", "", False),
+    ("consultation", "relay-consultation.yaml", "consultation", True),
+)
 CONTAINER_ROOT = Path("/etc/solmara/hosted-relay-bundles")
 ANTIROLLBACK_PATH = (
     "/var/lib/registry-relay/cache/config-bundle-antirollback.json"
@@ -42,13 +46,56 @@ def registryctl_path() -> str:
     return result.stdout.strip()
 
 
+def configured_bundle_sequence() -> int:
+    for raw_line in (ROOT / "versions.env").read_text(encoding="utf-8").splitlines():
+        if raw_line.startswith("SOLMARA_RELAY_BUNDLE_SEQUENCE="):
+            raw_sequence = raw_line.split("=", 1)[1]
+            break
+    else:
+        raise SystemExit("versions.env must set SOLMARA_RELAY_BUNDLE_SEQUENCE")
+    try:
+        sequence = int(raw_sequence)
+    except ValueError:
+        raise SystemExit(
+            "SOLMARA_RELAY_BUNDLE_SEQUENCE must be a positive integer"
+        ) from None
+    if sequence < 1:
+        raise SystemExit("SOLMARA_RELAY_BUNDLE_SEQUENCE must be a positive integer")
+    return sequence
+
+
+def validate_private_jwk_reference(value: str) -> str:
+    if value.startswith("op://"):
+        if not value.removeprefix("op://").strip() or any(
+            character in value for character in ("\r", "\n", "\0")
+        ):
+            raise SystemExit("invalid 1Password private JWK reference")
+        return value
+
+    key_path = Path(value)
+    if not key_path.is_file():
+        raise SystemExit(f"missing signing key: {key_path}")
+    private_jwk = json.loads(key_path.read_text(encoding="utf-8"))
+    if "d" not in private_jwk:
+        raise SystemExit("expected a private JWK or op:// secret reference")
+    return value
+
+
+def validate_public_jwk(path: Path) -> Path:
+    if not path.is_file():
+        raise SystemExit(f"missing signing key: {path}")
+    public_jwk = json.loads(path.read_text(encoding="utf-8"))
+    if "d" in public_jwk:
+        raise SystemExit("expected a public-only JWK")
+    return path
+
+
 def write_governed_config(
     source: Path,
     destination: Path,
-    project: str,
+    container_dir: Path,
 ) -> dict[str, object]:
     config = yaml.safe_load(source.read_text(encoding="utf-8"))
-    container_dir = CONTAINER_ROOT / project
     config["config_trust"] = {
         "trust_anchor_path": str(container_dir / "trust-anchor.json"),
         "bundle_path": str(container_dir / "bundle"),
@@ -61,33 +108,49 @@ def write_governed_config(
     return config
 
 
-def generate_project(
+def generate_bundle(
     registryctl: str,
     project: str,
-    private_jwk: Path,
+    variant: str,
+    source_name: str,
+    output_subdirectory: str,
+    include_artifacts: bool,
+    private_jwk: str,
     public_jwk: Path,
     sequence: int,
     output_root: Path,
 ) -> None:
     runtime_dir = ROOT / "runtime" / "registry-projects" / "hosted" / project / "relay"
-    source_config = runtime_dir / "relay.yaml"
+    source_config = runtime_dir / source_name
     if not source_config.is_file():
-        raise SystemExit(f"missing hosted Relay config: {source_config}")
+        raise SystemExit(f"missing hosted {variant} Relay config: {source_config}")
 
-    instance_id = yaml.safe_load(source_config.read_text(encoding="utf-8"))[
-        "instance"
-    ]["id"]
-    stream_id = f"solmara-hosted-{project}"
+    source_document = yaml.safe_load(source_config.read_text(encoding="utf-8"))
+    if variant == "public" and "consultation" in source_document:
+        raise SystemExit(f"{project} public Relay config contains consultation authority")
+    if variant == "consultation" and "consultation" not in source_document:
+        raise SystemExit(f"{project} consultation Relay config omits consultation authority")
+    instance_id = source_document["instance"]["id"]
+    stream_suffix = "" if variant == "public" else "-consultation"
+    stream_id = f"solmara-hosted-{project}{stream_suffix}"
     project_output = output_root / project
+    container_dir = CONTAINER_ROOT / project
+    if output_subdirectory:
+        project_output /= output_subdirectory
+        container_dir /= output_subdirectory
 
-    with tempfile.TemporaryDirectory(prefix=f"solmara-{project}-bundle-") as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix=f"solmara-{project}-{variant}-bundle-"
+    ) as temporary:
         staging = Path(temporary)
         input_config = staging / "input" / "config"
         input_config.mkdir(parents=True)
         governed_config = input_config / "relay.yaml"
-        write_governed_config(source_config, governed_config, project)
+        write_governed_config(source_config, governed_config, container_dir)
         artifacts = runtime_dir / "artifacts"
-        if artifacts.exists():
+        if include_artifacts:
+            if not artifacts.is_dir():
+                raise SystemExit(f"missing hosted consultation artifacts: {artifacts}")
             shutil.copytree(artifacts, input_config / "artifacts")
 
         bundle_dir = staging / "bundle"
@@ -98,7 +161,7 @@ def generate_project(
             "--input",
             str(staging / "input"),
             "--key",
-            str(private_jwk),
+            private_jwk,
             "--product",
             "registry-relay",
             "--environment",
@@ -110,7 +173,7 @@ def generate_project(
             "--sequence",
             str(sequence),
             "--bundle-id",
-            f"solmara-hosted-{project}-sequence-{sequence}",
+            f"{stream_id}-sequence-{sequence}",
             "--out",
             str(bundle_dir),
         )
@@ -171,35 +234,42 @@ def generate_project(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--private-jwk", type=Path, required=True)
+    parser.add_argument(
+        "--private-jwk",
+        required=True,
+        help="Private JWK path or op:// secret reference",
+    )
     parser.add_argument("--public-jwk", type=Path, required=True)
-    parser.add_argument("--sequence", type=int, default=1)
+    parser.add_argument("--sequence", type=int)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
-    if args.sequence < 1:
+    configured_sequence = configured_bundle_sequence()
+    sequence = args.sequence if args.sequence is not None else configured_sequence
+    if sequence < 1:
         raise SystemExit("--sequence must be positive")
-    for key_path in (args.private_jwk, args.public_jwk):
-        if not key_path.is_file():
-            raise SystemExit(f"missing signing key: {key_path}")
-    private_jwk = json.loads(args.private_jwk.read_text(encoding="utf-8"))
-    public_jwk = json.loads(args.public_jwk.read_text(encoding="utf-8"))
-    if "d" not in private_jwk or "d" in public_jwk:
-        raise SystemExit("expected a private JWK and a public-only JWK")
+    if sequence != configured_sequence:
+        raise SystemExit(
+            "--sequence must match SOLMARA_RELAY_BUNDLE_SEQUENCE in versions.env"
+        )
+    private_jwk = validate_private_jwk_reference(args.private_jwk)
+    public_jwk = validate_public_jwk(args.public_jwk)
     if args.out.exists():
         raise SystemExit(f"output path must not exist: {args.out}")
 
     registryctl = registryctl_path()
     args.out.mkdir(parents=True)
     for project in PROJECTS:
-        generate_project(
-            registryctl,
-            project,
-            args.private_jwk,
-            args.public_jwk,
-            args.sequence,
-            args.out,
-        )
+        for variant in BUNDLE_VARIANTS:
+            generate_bundle(
+                registryctl,
+                project,
+                *variant,
+                private_jwk,
+                public_jwk,
+                sequence,
+                args.out,
+            )
     for path in args.out.rglob("*"):
         path.chmod(0o755 if path.is_dir() else 0o644)
     print(f"Wrote {args.out}")

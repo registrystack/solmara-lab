@@ -154,9 +154,37 @@ services:
     volumes:
       - nia-relay-cache:/var/lib/registry-relay/cache
 
+  cra-relay-consultation-config-state-init:
+    <<: *relay-config-state-init
+    command:
+      - |
+        /bin/busybox mkdir -p /var/lib/registry-relay/cache
+        /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache
+        if ! /bin/busybox test -e /var/lib/registry-relay/cache/config-bundle-antirollback.json; then
+          /bin/busybox cp /etc/solmara/hosted-relay-bundles/cra-civil/consultation/antirollback-seed.json /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chmod 0600 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+        fi
+    volumes:
+      - cra-relay-consultation-cache:/var/lib/registry-relay/cache
+
+  nia-relay-consultation-config-state-init:
+    <<: *relay-config-state-init
+    command:
+      - |
+        /bin/busybox mkdir -p /var/lib/registry-relay/cache
+        /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache
+        if ! /bin/busybox test -e /var/lib/registry-relay/cache/config-bundle-antirollback.json; then
+          /bin/busybox cp /etc/solmara/hosted-relay-bundles/nia-population/consultation/antirollback-seed.json /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+          /bin/busybox chmod 0600 /var/lib/registry-relay/cache/config-bundle-antirollback.json
+        fi
+    volumes:
+      - nia-relay-consultation-cache:/var/lib/registry-relay/cache
+
   cra-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/cra-civil/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/cra-civil/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
@@ -166,16 +194,16 @@ services:
       REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_maintenance:${CRA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_reader:${CRA_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
     volumes:
-      - cra-relay-cache:/var/lib/registry-relay/cache
+      - cra-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
-      cra-relay-config-state-init:
+      cra-relay-consultation-config-state-init:
         condition: service_completed_successfully
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
 
   nia-relay-state-bootstrap:
     <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/nia-population/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
+    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/nia-population/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
@@ -186,9 +214,9 @@ services:
       REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_keyring_reader:${NIA_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
     volumes:
-      - nia-relay-cache:/var/lib/registry-relay/cache
+      - nia-relay-consultation-cache:/var/lib/registry-relay/cache
     depends_on:
-      nia-relay-config-state-init:
+      nia-relay-consultation-config-state-init:
         condition: service_completed_successfully
       registry-postgresql-bootstrap:
         condition: service_completed_successfully
@@ -199,13 +227,11 @@ services:
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
-      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${CRA_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${CRA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
-    expose: ["8080", "8081"]
+    expose: ["8080"]
     volumes:
       - cra-relay-cache:/var/lib/registry-relay/cache
     depends_on:
-      cra-relay-state-bootstrap:
+      cra-relay-config-state-init:
         condition: service_completed_successfully
     labels:
       solmara.lab.host: cra-relay.solmara.registrystack.org
@@ -216,23 +242,59 @@ services:
     environment:
       <<: *relay-environment
       REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
-      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${NIA_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${NIA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
       SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
       DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
-    expose: ["8080", "8081"]
+    expose: ["8080"]
     volumes:
       - nia-relay-cache:/var/lib/registry-relay/cache
     depends_on:
-      nia-relay-state-bootstrap:
+      nia-relay-config-state-init:
         condition: service_completed_successfully
     labels:
       solmara.lab.host: nia-relay.solmara.registrystack.org
 
+  cra-civil-relay-consultation:
+    <<: *relay-common
+    command: ["--config", "/etc/solmara/hosted-relay-bundles/cra-civil/consultation/bootstrap.yaml", "--bind", "127.0.0.1:8080"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${CRA_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${CRA_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${CRA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_cra_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+    expose: ["8081"]
+    volumes:
+      - cra-relay-consultation-cache:/var/lib/registry-relay/cache
+    depends_on:
+      cra-relay-state-bootstrap:
+        condition: service_completed_successfully
+      cra-workload-agent:
+        condition: service_healthy
+
+  nia-population-relay-consultation:
+    <<: *relay-common
+    command: ["--config", "/etc/solmara/hosted-relay-bundles/nia-population/consultation/bootstrap.yaml", "--bind", "127.0.0.1:8080"]
+    environment:
+      <<: *relay-environment
+      REGISTRY_RELAY_BIND: 127.0.0.1:8080
+      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${NIA_RELAY_AUDIT_HASH_SECRET}
+      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${NIA_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
+      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}_runtime:${NIA_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_nia_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v013}?sslmode=require"
+      SOLMARA_NIA_DATABASE_URL: ${SOLMARA_NIA_DATABASE_URL}
+      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
+    expose: ["8081"]
+    volumes:
+      - nia-relay-consultation-cache:/var/lib/registry-relay/cache
+    depends_on:
+      nia-relay-state-bootstrap:
+        condition: service_completed_successfully
+      nia-workload-agent:
+        condition: service_healthy
+
   cra-notary:
     <<: *notary-common
     command: ["--config", "/etc/solmara/registry-projects/hosted/cra-civil/notary/notary.yaml"]
-    network_mode: service:cra-civil-relay
+    network_mode: service:cra-civil-relay-consultation
     environment: &cra-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${CRA_NOTARY_AUDIT_HASH_SECRET}
@@ -243,7 +305,7 @@ services:
     volumes:
       - cra-workload-token:/run/secrets:ro
     depends_on:
-      cra-civil-relay:
+      cra-civil-relay-consultation:
         condition: service_healthy
       cra-notary-state-install:
         condition: service_completed_successfully
@@ -271,7 +333,7 @@ services:
   nia-notary:
     <<: *notary-common
     command: ["--config", "/etc/solmara/registry-projects/hosted/nia-population/notary/notary.yaml"]
-    network_mode: service:nia-population-relay
+    network_mode: service:nia-population-relay-consultation
     environment: &nia-notary-environment
       <<: *notary-environment
       REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${NIA_NOTARY_AUDIT_HASH_SECRET}
@@ -282,7 +344,7 @@ services:
     volumes:
       - nia-workload-token:/run/secrets:ro
     depends_on:
-      nia-population-relay:
+      nia-population-relay-consultation:
         condition: service_healthy
       nia-notary-state-install:
         condition: service_completed_successfully
@@ -310,6 +372,8 @@ services:
 volumes:
   postgres-data:
   cra-relay-cache:
+  cra-relay-consultation-cache:
   nia-relay-cache:
+  nia-relay-consultation-cache:
   cra-workload-token:
   nia-workload-token:

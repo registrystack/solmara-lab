@@ -14,9 +14,6 @@ IMAGE_KEYS = {
     "REGISTRY_RELAY_IMAGE": "ghcr.io/registrystack/registry-relay",
     "REGISTRY_NOTARY_IMAGE": "ghcr.io/registrystack/registry-notary",
 }
-SOLMARA_RELAY_RUNTIME_REPOSITORY = (
-    "ghcr.io/registrystack/solmara-lab-relay-runtime"
-)
 REGISTRY_STACK_REMOTE = "https://github.com/registrystack/registry-stack.git"
 PIN_RE = re.compile(r"^(?P<image>[^@\s]+)@(?P<digest>sha256:[0-9a-f]{64})$")
 DIGEST_RE = re.compile(r"^Digest:\s+(sha256:[0-9a-f]{64})$", re.MULTILINE)
@@ -62,25 +59,6 @@ def main(argv: list[str]) -> int:
     if not source_commit or not COMMIT_RE.fullmatch(source_commit):
         failures.append(
             "REGISTRY_STACK_SOURCE_COMMIT must be exactly 40 lowercase hex characters"
-        )
-    relay_features = set(
-        filter(None, versions.get("REGISTRY_RELAY_FEATURES", "").split(","))
-    )
-    if "attribute-release" not in relay_features:
-        failures.append(
-            "REGISTRY_RELAY_FEATURES must include attribute-release "
-            "for the Solmara eSignet profile"
-        )
-    relay_runtime = versions.get("SOLMARA_RELAY_RUNTIME_IMAGE")
-    relay_runtime_match = PIN_RE.match(relay_runtime or "")
-    if (
-        not relay_runtime_match
-        or relay_runtime_match.group("image")
-        != SOLMARA_RELAY_RUNTIME_REPOSITORY
-    ):
-        failures.append(
-            "SOLMARA_RELAY_RUNTIME_IMAGE must pin "
-            f"{SOLMARA_RELAY_RUNTIME_REPOSITORY}@sha256:<digest>"
         )
 
     for key in IMAGE_KEYS:

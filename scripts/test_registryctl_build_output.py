@@ -44,7 +44,7 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
             "fixtures": [],
             "semantic_changes": [],
             "baseline": "initial_without_baseline",
-            "output": str(self.output),
+            "output": ".registry-stack/build/local",
         }
         report.update(overrides)
         return json.dumps(report).encode("utf-8")
@@ -53,6 +53,16 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
         self.assertEqual(
             MODULE.parse_build_output(
                 self.report(),
+                project_directory=self.project,
+                environment="local",
+            ),
+            self.output.resolve(),
+        )
+
+    def test_accepts_the_legacy_absolute_project_owned_build_root(self) -> None:
+        self.assertEqual(
+            MODULE.parse_build_output(
+                self.report(output=str(self.output)),
                 project_directory=self.project,
                 environment="local",
             ),
@@ -80,6 +90,19 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
         ):
             MODULE.parse_build_output(
                 self.report(output=str(outside)),
+                project_directory=self.project,
+                environment="local",
+            )
+
+    def test_rejects_a_relative_output_root_that_escapes_the_project(self) -> None:
+        outside = Path(self.temporary.name) / "outside"
+        outside.mkdir()
+        with self.assertRaisesRegex(
+            MODULE.BuildReportError,
+            "not a real project-owned directory",
+        ):
+            MODULE.parse_build_output(
+                self.report(output="../outside"),
                 project_directory=self.project,
                 environment="local",
             )

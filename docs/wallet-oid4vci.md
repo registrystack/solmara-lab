@@ -8,10 +8,12 @@ purpose-specific model is not part of the clean Solmara topology. Do not deploy
 `citizen-notary`, `citizen-issuer-notary`, or the removed
 `compose.coolify.citizen-services.yaml` application.
 
-Solmara now runs exactly six authority-owned Relay and Notary pairs: CRA, NIA,
-SRO, Programme, SIPF, and NAgDI. Citizen portal journeys use evidence exposed
-by those authority Notaries. Adding a credential issuance journey must extend
-the owning authority project rather than create a purpose-specific Notary.
+Solmara now runs exactly six authority-owned public Relay and Notary pairs:
+CRA, NIA, SRO, Programme, SIPF, and NAgDI. Each pair has a private consultation
+Relay beside its Notary; that internal process is not another authority or
+public endpoint. Citizen portal journeys use evidence exposed by those
+authority Notaries. Adding a credential issuance journey must extend the
+owning authority project rather than create a purpose-specific Notary.
 
 The Walt holder wallet application remains available as an isolated UI
 demonstrator through `compose.coolify.walt.yaml`, but the current six-authority

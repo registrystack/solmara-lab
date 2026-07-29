@@ -1,5 +1,13 @@
 name: cra-civil-person-match
 classification: synthetic
+request:
+  target:
+    type: Person
+    identifiers: [{ scheme: solmara_uin, value: "2300010248" }]
+  claims: [civil-record-linked]
+  disclosure: predicate
+  format: application/vnd.registry-notary.claim-result+json
+  purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service
 input: { uin: "2300010248" }
 variables: { as_of_date: 2026-07-14 }
 interactions:

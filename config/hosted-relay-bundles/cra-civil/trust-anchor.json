@@ -6,13 +6,13 @@
   "instance_id": "cra-civil-relay",
   "signers": [
     {
-      "kid": "0TiuAJUJc2oYr8DhDdqgsAnl_RSej7-731DWTOhdSu4",
+      "kid": "ef54I2IpdsgOpT6a7ASs8rBiMc6iK6ThBlTGSKDAnT8",
       "jwk": {
         "kty": "OKP",
-        "kid": "solmara-hosted-relay-config-2026-07-25",
+        "kid": "solmara-hosted-relay-config-2026-07-29",
         "alg": "EdDSA",
         "crv": "Ed25519",
-        "x": "bmfusAem-Zz6IvSGa479gGdBMAovTEUPelPgGxwm7jg"
+        "x": "0s7jygHjfzfMWJikV4FYv9Ov7XFEy_C-7Kb_EXvTjOw"
       },
       "enabled": true
     }

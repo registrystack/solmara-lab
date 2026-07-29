@@ -2,9 +2,9 @@
   "schema": "registry.platform.config_bundle_signatures.v1",
   "signatures": [
     {
-      "kid": "0TiuAJUJc2oYr8DhDdqgsAnl_RSej7-731DWTOhdSu4",
+      "kid": "ef54I2IpdsgOpT6a7ASs8rBiMc6iK6ThBlTGSKDAnT8",
       "alg": "EdDSA",
-      "sig": "FE4yXIufpVeQ4fZRjdU9OMRfnCSU7DmUg1v1Il78wpKzqtohpbOAvUTQiAEYRJo2pzYZ2LNun_7wavICXuarBw"
+      "sig": "EHImKMJHy-4Xcy4OK32_SlQhf0DPmjAqwyvxUoKL7oPcdwBF1mnbBo3Fud1GPpfzQEwFpOgQO8FkFQAHEhkcDw"
     }
   ]
 }
