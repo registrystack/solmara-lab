@@ -24,6 +24,8 @@ __pycache__/
 dist/
 .cache/
 projects/*/.registry-stack/
+demos/opencrvs-v2/project/.registry-stack/
+demos/opencrvs-v2/.runtime/
 *.log
 config/postgres/ssl/*
 !config/postgres/ssl/.gitkeep

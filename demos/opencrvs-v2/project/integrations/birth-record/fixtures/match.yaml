@@ -1,0 +1,82 @@
+name: opencrvs-v2-single-match
+classification: synthetic
+request:
+  target:
+    type: Person
+    identifiers:
+      - { scheme: opencrvs_registration_number, value: SYNTHREG0001 }
+      - { scheme: opencrvs_child_national_id, value: "9999000001" }
+    attributes: { opencrvs_tracking_id: SYN001 }
+  claims:
+    - birth-record-exists
+    - registration-number-matches
+    - child-national-id-matches
+    - mother-recorded-on-birth
+    - informant-is-mother
+  disclosure: predicate
+  format: application/vnd.registry-notary.claim-result+json
+  purpose: https://id.registrystack.org/solmara/purpose/opencrvs-v2-birth-proof
+input:
+  registration_number: SYNTHREG0001
+  child_national_id: "9999000001"
+  tracking_id: SYN001
+interactions:
+  - expect:
+      method: POST
+      path: /token
+      headers:
+        Accept: application/json
+        Content-Type: application/x-www-form-urlencoded
+      body: { grant_type: client_credentials }
+    respond:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body:
+        access_token: SYNTHETIC_FIXTURE_TOKEN
+        token_type: Bearer
+  - expect:
+      method: POST
+      path: /events/events/search
+      body:
+        query:
+          type: and
+          clauses:
+            - eventType: birth
+              legalStatuses.REGISTERED.registrationNumber:
+                type: exact
+                term: SYNTHREG0001
+        limit: 2
+        offset: 0
+    respond:
+      status: 200
+      body:
+        total: 1
+        results:
+          - type: birth
+            trackingId: SYN001
+            legalStatuses:
+              REGISTERED: { registrationNumber: SYNTHREG0001 }
+            declaration:
+              child.nid: "9999000001"
+              child.name: { firstname: Synthetic, surname: Child }
+              mother.nid: "9999000002"
+              mother.name: { firstname: Synthetic, surname: Parent }
+              informant.relation: MOTHER
+            upstreamOnly:
+              nested: [one, two, three]
+expect:
+  outcome: match
+  outputs:
+    event_type_birth: true
+    tracking_id_matches: true
+    registration_number_matches: true
+    child_national_id_matches: true
+    mother_recorded_on_birth: true
+    informant_is_mother: true
+  claims:
+    birth-record-exists: true
+    registration-number-matches: true
+    child-national-id-matches: true
+    mother-recorded-on-birth: true
+    informant-is-mother: true

@@ -3,6 +3,47 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-07-30 Optional OpenCRVS v2 interoperability proof
+
+An isolated, opt-in local demo now authors the native OpenCRVS token and
+`POST /events/events/search` path through Relay, minimized predicate evaluation
+through Notary, and holder-bound `dc+sd-jwt` issuance through the direct machine
+API. Offline fixture, compiler, and Compose checks pass. A paired pre-release
+compiler and host-native Relay candidate completed the live OpenCRVS search,
+Notary evaluation, direct issuance, cryptographic verification, negative
+controls, and sanitized evidence scan. The released v0.15.2 path remains
+blocked and must not be reported as a released result. Holder binding proves
+possession of the demo's ephemeral key, not a parent or informant relationship,
+and this is not an OID4VCI wallet flow. Operator credentials and source values
+remain outside the repository, and live origins are limited to an ignored
+runtime closure. Credential verification requires all five requested predicate
+disclosures with their expected `true` values, uses the canonical Solmara CRA
+identifier with a disposable local signing key, and cleanup no longer depends
+on complete operator or generated runtime credential files. Live negative
+controls require their exact status and stable problem code, and the no-match
+control requires every dependent predicate to remain `null`. Evidence identity
+is bound to the running Relay and Notary containers, predicate results require
+actual booleans or `null`, and credential verification enforces current
+validity plus the authored 10-minute lifetime.
+
+OpenCRVS omits `expires_in` from its otherwise strict bearer-token response.
+The demo therefore selects Registry Stack's explicit
+`oauth2_bearer_no_expiry` authoring profile, which disables cross-consultation
+token caching, rejects extra response members, and does not infer freshness
+from unverified JWT claims. Development uses exact Registry Stack commit
+[`d6f3ed71680e45af4eeac37b0ee1c7bab69bb23e`](https://github.com/registrystack/registry-stack/commit/d6f3ed71680e45af4eeac37b0ee1c7bab69bb23e)
+in a clean worktree for offline authoring. That commit adds Registryctl support
+only. Relay v0.15.2 has the strict decoder, but its durable completion-seed path
+rejects the no-cache script plan before OpenCRVS dispatch. The next Registry
+Stack release must include both the authoring profile and explicit Relay
+state-plane cache-mode handling, plus active script-budget accounting that does
+not charge bounded Relay-owned OAuth and source waits. Only then can the live
+proof write sanitized evidence using released artifacts. The successful
+pre-release local proof records the compiler commit and executable hash plus
+the same-commit Relay image ID.
+Deployment remains blocked until `versions.env` pins the release and the
+coordinated release review passes.
+
 ## 2026-07-29 Registry Stack v0.15.2 adoption
 
 The lab now consumes the canonical Registry Stack Relay image directly. The

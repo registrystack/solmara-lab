@@ -1,0 +1,52 @@
+version: 1
+id: opencrvs-v2-birth-record
+revision: 1
+
+source:
+  product: opencrvs
+  versions: { unverified: [deployed-build-unattested] }
+  auth:
+    type: oauth2_client_credentials
+    request: form
+    response_profile: oauth2_bearer_no_expiry
+  allow:
+    - method: POST
+      path: /events/events/search
+      semantics: read_only
+  response: { format: json, max_bytes: 256KiB }
+
+input:
+  registration_number:
+    role: selector
+    type: string
+    minLength: 12
+    maxLength: 12
+    pattern: "^[A-Z0-9]{12}$"
+  child_national_id:
+    role: selector
+    type: string
+    minLength: 10
+    maxLength: 10
+    pattern: "^[0-9]{10}$"
+  tracking_id:
+    role: parameter
+    type: string
+    minLength: 6
+    maxLength: 6
+    pattern: "^[A-Z0-9]{6}$"
+
+capability:
+  script:
+    file: adapter.rhai
+
+outputs:
+  event_type_birth: { type: boolean }
+  tracking_id_matches: { type: boolean }
+  registration_number_matches: { type: boolean }
+  child_national_id_matches: { type: boolean }
+  mother_recorded_on_birth: { type: boolean }
+  informant_is_mother: { type: boolean }
+
+limits:
+  calls: 1
+  source_bytes: 320KiB

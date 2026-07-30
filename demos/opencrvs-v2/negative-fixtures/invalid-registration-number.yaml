@@ -1,0 +1,11 @@
+name: opencrvs-v2-invalid-registration-number
+classification: synthetic
+input:
+  registration_number: INVALID
+  child_national_id: "9999000011"
+  tracking_id: SYN011
+interactions: []
+expect:
+  error: input.pattern_mismatch
+  outputs: {}
+  claims: {}

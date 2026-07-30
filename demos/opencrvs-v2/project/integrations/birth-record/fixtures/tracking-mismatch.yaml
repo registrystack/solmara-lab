@@ -1,0 +1,44 @@
+name: opencrvs-v2-tracking-mismatch
+classification: synthetic
+input:
+  registration_number: SYNTHREG0008
+  child_national_id: "9999000010"
+  tracking_id: SYN010
+interactions:
+  - expect:
+      method: POST
+      path: /token
+      headers:
+        Accept: application/json
+        Content-Type: application/x-www-form-urlencoded
+      body: { grant_type: client_credentials }
+    respond:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body:
+        access_token: SYNTHETIC_FIXTURE_TOKEN
+        token_type: Bearer
+  - expect:
+      method: POST
+      path: /events/events/search
+      body:
+        query:
+          type: and
+          clauses:
+            - eventType: birth
+              legalStatuses.REGISTERED.registrationNumber:
+                type: exact
+                term: SYNTHREG0008
+        limit: 2
+        offset: 0
+    respond:
+      status: 200
+      body:
+        total: 1
+        results:
+          - { type: birth, trackingId: WRONG1 }
+expect:
+  error: failure.subject_mismatch
+  outputs: {}
+  claims: {}

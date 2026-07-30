@@ -22,6 +22,8 @@ for term in "${forbidden[@]}"; do
     --exclude-dir=node_modules \
     --exclude-dir=.venv \
     --exclude-dir=.cache \
+    --exclude-dir=.registry-stack \
+    --exclude-dir=.runtime \
     --exclude-dir=.svelte-kit \
     --exclude-dir=build \
     --exclude-dir=output \

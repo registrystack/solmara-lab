@@ -1,0 +1,52 @@
+version: 1
+
+registry:
+  id: opencrvs-v2-demo
+
+integrations:
+  birth-record:
+    file: integrations/birth-record/integration.yaml
+
+services:
+  opencrvs-birth-evidence:
+    kind: evidence
+    version: 1
+    purpose: https://id.registrystack.org/solmara/purpose/opencrvs-v2-birth-proof
+    legal_basis: interoperability-demonstration
+    consent: not_required
+    access:
+      scopes: ["evidence:opencrvs-v2:read"]
+    consultations:
+      birth:
+        integration: birth-record
+        input:
+          registration_number: request.target.identifiers.opencrvs_registration_number
+          child_national_id: request.target.identifiers.opencrvs_child_national_id
+          tracking_id: request.target.attributes.opencrvs_tracking_id
+    claims:
+      birth-record-exists:
+        cel: "birth.matched"
+        disclosure: predicate
+      registration-number-matches:
+        output: birth.registration_number_matches
+        disclosure: predicate
+      child-national-id-matches:
+        output: birth.child_national_id_matches
+        disclosure: predicate
+      mother-recorded-on-birth:
+        output: birth.mother_recorded_on_birth
+        disclosure: predicate
+      informant-is-mother:
+        output: birth.informant_is_mother
+        disclosure: predicate
+    credential_profiles:
+      birth-predicates:
+        format: dc+sd-jwt
+        type: https://id.registrystack.org/solmara/credential/opencrvs-v2-birth-proof/v1
+        validity: 10m
+        claims:
+          - birth-record-exists
+          - registration-number-matches
+          - child-national-id-matches
+          - mother-recorded-on-birth
+          - informant-is-mother
