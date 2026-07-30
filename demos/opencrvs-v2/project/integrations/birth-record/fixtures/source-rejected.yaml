@@ -14,6 +14,8 @@ interactions:
       body: { grant_type: client_credentials }
     respond:
       status: 200
+      headers:
+        Content-Type: application/json
       body:
         access_token: SYNTHETIC_FIXTURE_TOKEN
         token_type: Bearer
