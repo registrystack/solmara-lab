@@ -24,49 +24,24 @@ if [ -n "${REGISTRYCTL_BIN:-}" ]; then
 elif command -v registryctl >/dev/null 2>&1 && verify_version "$(command -v registryctl)"; then
   registryctl=$(command -v registryctl)
 else
-  case "$(uname -s):$(uname -m)" in
-    Linux:x86_64) platform=linux-amd64 ;;
-    Linux:aarch64 | Linux:arm64) platform=linux-arm64 ;;
-    Darwin:arm64) platform=macos-arm64 ;;
-    *)
-      echo "registryctl $version has no published binary for $(uname -s) $(uname -m)" >&2
-      echo "set REGISTRYCTL_BIN to a verified compatible binary" >&2
-      exit 1
-      ;;
-  esac
-
-  asset="registryctl-v${version}-${platform}"
-  tools="$ROOT/output/tools"
-  registryctl="$tools/$asset"
+  source_commit=$(sed -n 's/^REGISTRY_STACK_SOURCE_COMMIT=//p' "$VERSION_FILE")
+  source_dir=${REGISTRY_STACK_SOURCE_DIR:-"$ROOT/../registry-stack"}
+  if [ ! -d "$source_dir/.git" ]; then
+    echo "REGISTRY_STACK_SOURCE_DIR must name a Registry Stack checkout" >&2
+    exit 1
+  fi
+  actual_commit=$(git -C "$source_dir" rev-parse HEAD)
+  if [ "$actual_commit" != "$source_commit" ]; then
+    echo "Registry Stack source mismatch: expected $source_commit, found $actual_commit" >&2
+    exit 1
+  fi
+  registryctl="$source_dir/target/release/registryctl"
   if ! verify_version "$registryctl"; then
-    mkdir -p "$tools"
-    temporary=$(mktemp -d "${TMPDIR:-/tmp}/solmara-registryctl.XXXXXX")
-    trap 'rm -rf "$temporary"' EXIT HUP INT TERM
-    base="https://github.com/registrystack/registry-stack/releases/download/v${version}"
-    curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error \
-      "$base/SHA256SUMS" -o "$temporary/SHA256SUMS"
-    curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error \
-      "$base/$asset" -o "$temporary/$asset"
-    expected=$(awk -v asset="$asset" '$2 == asset { print $1 }' "$temporary/SHA256SUMS")
-    if [ -z "$expected" ]; then
-      echo "SHA256SUMS does not cover $asset" >&2
-      exit 1
-    fi
-    if command -v sha256sum >/dev/null 2>&1; then
-      actual=$(sha256sum "$temporary/$asset" | awk '{print $1}')
-    else
-      actual=$(shasum -a 256 "$temporary/$asset" | awk '{print $1}')
-    fi
-    if [ "$actual" != "$expected" ]; then
-      echo "downloaded $asset failed its published SHA-256 check" >&2
-      exit 1
-    fi
-    chmod 0755 "$temporary/$asset"
-    mv "$temporary/$asset" "$registryctl"
-    if ! verify_version "$registryctl"; then
-      echo "downloaded $asset did not report registryctl $version" >&2
-      exit 1
-    fi
+    cargo build --locked --release --manifest-path "$source_dir/Cargo.toml" -p registryctl
+  fi
+  if ! verify_version "$registryctl"; then
+    echo "the source-built registryctl did not report registryctl $version" >&2
+    exit 1
   fi
 fi
 

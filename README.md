@@ -1,17 +1,19 @@
 # Solmara Lab
 
-Solmara Lab is a standalone Registry Stack adopter demo for the fictional
-Republic of Solmara. It replaces the old monorepo lab with one coherent country
-story, generated synthetic data, purpose-limited Relay APIs, Notary evidence
-services, and a citizen portal wired to the real local stack.
+Solmara Lab is a Registry Stack adopter demo for the fictional Republic of
+Solmara. Its local runtime uses the current Records API Relay, Registry
+Evidence, and Registry Mint architecture. Notary is no longer part of the
+local topology.
 
-The lab uses published Registry Stack images pinned by digest. A local
-`registry-stack` checkout is useful for development, but it is not required for
-normal generation, live smoke tests, portal e2e, or hosted deployment.
+Relay, Evidence, and Mint are not yet released. This branch builds all three
+images from the exact Registry Stack `main` commit recorded in `versions.env`.
+The build refuses a sibling checkout whose local `main` or `origin/main` does
+not match that commit.
 
-## Quick Start
+## Quick start
 
-From this repository:
+Prerequisites are Docker with Compose, Rust, `just`, `uv`, `pnpm`, and a
+Registry Stack checkout at `../registry-stack`.
 
 ```bash
 just setup
@@ -21,216 +23,130 @@ just portal-live-e2e
 just down
 ```
 
-`just up`, `just down`, and `just reset` use a checkout-specific Docker Compose
-project name by default so two local clones do not share containers or volumes.
-Use `just down` to stop services while keeping local data. Use `just reset` only
-when you intend to delete this checkout's Compose volumes.
+`just up-generated` performs the clean-checkout journey:
 
-`up-generated` is the single clean-checkout generate/start journey. It creates
-the synthetic fixtures and local secrets, regenerates every authority's Relay
-and Notary closure with the real `registryctl` version pinned in `versions.env`,
-compares those closures with the committed runtime, and starts the topology.
-If the exact tool version is not installed, the helper downloads the matching
-release binary and verifies it against the release SHA-256 file.
+1. Generate deterministic Solmara fixtures and ignored local secrets.
+2. Compile and compare all six Registry projects with the pinned Registryctl.
+3. Build Relay, Evidence, and Mint from the exact Registry Stack source commit.
+4. Build the Solmara services and start the local Compose topology.
 
-`registry-projects-runtime-check` can run the compiler comparison without
-starting services. The project wrapper consumes Registryctl's versioned JSON
-build report and validates its project-owned output root rather than depending
-on Registryctl's private build-directory layout. Its fixture gate also
-consumes the versioned test report and requires independently authored
-request-to-consultation evidence for every reachable target. Integration-only
-fixtures are not accepted as caller compatibility proof.
-`contract-generation-proof` is a separate release gate for one bounded SRO
-authority pair. It compiles a harmless successor, proves the blue pair works,
-rejects a mixed Relay/Notary generation before Relay execution or source
-dispatch, activates the complete successor, and proves it works. Its temporary
-Compose project and volumes are removed when the check finishes.
+The first source build can take several minutes. Subsequent builds reuse
+Docker layers. `just down` keeps local volumes; `just reset` removes this
+checkout's volumes.
 
-The first wave covers three journeys:
+Local entry points:
 
-- Birth to child benefit.
-- Death to pension stop plus survivor benefit.
-- Farmer climate-smart voucher and livestock movement control.
+- Visitor Center: `http://127.0.0.1:4301`
+- Citizen portal: `http://127.0.0.1:4300`
+- Evidence and Mint TLS gateway: `https://localhost:4341`
+- Relay Records APIs: ports `4311` through `4316`
+- Child-benefit application collector: `https://localhost:4341/child-benefit/`
 
-## Repository Map
+The generated local CA is
+`config/evidence/local/tls/ca.crt`. Host-side scripts use it through the
+generated `SOLMARA_EVIDENCE_CA_BUNDLE` setting.
+Evidence, Mint, client, and CA keys are preserved across later
+`just gen-secrets` runs so retained audit volumes remain verifiable. If that
+material becomes partial, reset the local volumes before regenerating it.
 
-- `docs/` contains the Solmara world bible, purpose catalogue, naming record,
-  and story docs.
-- `generator/` owns deterministic truth tables, per-registry projections, and
-  generated fixture checks.
-- `geo/` contains the hand-authored Solmara geometry source used by the
-  generator.
-- `ministries/` contains authority-owned source fixtures, manifest fragments,
-  and crosswalks.
-- `projects/` contains the six authority-owned Registry project sources. Each
-  project generates one Relay config and one Notary config under `runtime/`.
-- `metadata/` assembles the multi-authority metadata publication.
-- `portal/` contains the citizen portal and BFF.
-- `scenarios/`, `requests/`, and `perf/` carry guided scenarios, API examples,
-  and k6 smoke coverage.
-- `scripts/` contains root quality gates and orchestration helpers.
+## Local architecture
 
-## Development Commands
+The six authority projects compile current Records API Relay configurations.
+Each running Relay exposes only its public Records API. A workload identity
+agent writes a short-lived, `solmara-evidence`-scoped bearer token into the
+private Evidence secret volume.
+
+Registry Mint authenticates the Solmara application client with
+`private_key_jwt`. It issues short-lived access tokens for the
+`solmara-evidence` audience. Registry Evidence validates those tokens, applies
+one of eleven reviewed requirements, calls the necessary Relay Records API,
+and returns a flattened signed JWS assertion containing only the approved
+concept values.
+
+Application code can combine multiple independently signed Evidence responses
+for a workflow decision. Evidence itself does not own child-benefit, pension,
+farmer, or citizen application decisions.
+
+The current Registryctl compiler still emits both public and consultation
+Relay lanes for authored projects. Both generated lanes are committed under
+`runtime/registry-projects/` for deterministic compiler review. Only the public
+Records API lane runs in the local Compose topology.
+
+## Source binding
+
+`versions.env` records:
+
+- `REGISTRY_STACK_SOURCE_REF=main`
+- the exact 40-character `REGISTRY_STACK_SOURCE_COMMIT`
+- the matching Registryctl version
+- the three local source-image names
+- digest-pinned third-party runtime images
+
+`scripts/build-registry-stack-runtime.sh` validates local and remote-tracking
+`main`, creates a temporary detached worktree at the pinned commit, and builds:
+
+- `solmara-lab-registry-relay:source`
+- `solmara-lab-registry-evidence:source`
+- `solmara-lab-registry-mint:source`
+
+The images receive the exact source revision as an OCI label. `just up` and
+`just up-esignet` always run this source validation and build step.
+
+## Verification
 
 ```bash
-just lint       # static repo checks, including fiction lint
-just test       # generator, portal, and script tests when their projects exist
-just compose    # docker compose config validation
-just smoke      # story previews plus live Relay, Notary, and Compose portal checks
-just smoke-live # live Notary checks only
-just portal-compose-smoke # HTTP smoke against the Compose portal and live BFF
-just portal-live-e2e # browser e2e against the running local stack
-just hosted-smoke # public hosted health, endpoint, scenario, and portal checks
-just up # local stack with mock portal login
-just up-esignet # local stack with eSignet-backed portal login
-just up-dev # explicit source-built Relay development stack
-just up-esignet-dev # source-built Relay development stack with eSignet
-just smoke-esignet # eSignet public discovery smoke
-just down       # stop the local Compose topology without deleting volumes
-just reset      # stop the local Compose topology and delete its volumes
-just up-generated # clean-checkout generation, compiler comparison, and start
-just registry-projects-runtime-check # regenerate and compare all authority runtime closures
-just hosted-relay-bundles-check # verify hosted Relay signatures and config closure
-just registry-projects-review # complete redacted acquisition and disclosure reports
-just registry-projects-capabilities # value-free installed/used/missing capability inventory
-just registry-projects-editor # version-matched VS Code and Zed schemas for all projects
-just contract-generation-proof # release-only live SRO blue/mixed/successor proof
-just release-pins <registry-stack-tag> # compare committed versions.env pins against a candidate or release tag
-just review     # normal security and release-readiness checks
-just review-release <registry-stack-tag> # candidate review with published pin validation
+just registry-projects-check          # validate six projects in local and hosted authoring profiles
+just registry-projects-test           # run every Registry project fixture
+just registry-projects-runtime-check  # prove committed generated runtime has no drift
+just evidence-check                   # Mint check plus 11 Evidence fixture files and 89 cases
+just lint                             # repository, metadata, TypeScript, and image-reference checks
+just test                             # active Python, portal, and Visitor Center tests
+just compose                          # validate local and eSignet Compose profiles
+just smoke                            # exercise a running Relay, Mint, Evidence, scenario, and portal stack
 ```
 
-Normal startup pulls the immutable canonical Relay image pinned in
-`versions.env`; it does not clone or compile Registry Stack. Governed attribute
-release is part of the canonical Registry Stack v0.15.2 Relay build. The
-`*-dev` recipes are the explicit source-build path. They verify the pinned
-source commit and build the same default feature set into a separate local
-image, leaving the standalone path unchanged.
+`just evidence-check` requires the exact `evidencectl` and `mint` versions
+shown in `versions.env`, plus local material generated by `just gen-secrets`.
+It stages an immutable temporary deployment, uses fixture-only Relay tokens,
+and does not modify committed Evidence inputs.
 
-`just generate` rewrites generated fixtures. Review those diffs like any other
-committed generated artifact.
+For eSignet-backed portal login:
 
-Each authority project commits Registryctl-generated schemas plus VS Code and
-Zed mappings under its own project directory. Open that authority directory as
-the editor workspace to get validation and completion for its project,
-environment, integration, fixture, and entity YAML. Refresh all six with
-`just registry-projects-editor` only after updating the pinned Registryctl
-release. CI reruns the generator and fails on drift, so the editor contract
-cannot silently move to a different Registry Stack version.
+```bash
+just up-esignet
+just smoke-esignet
+```
 
-## Image Pins
+Use Elena's synthetic UIN `2300018263` and static OTP `111111`.
 
-`versions.env` is the root source for the published Registry Stack image
-digests and the exact source ref and commit used for release binding and the
-explicit Relay development build. The Registry Stack `v0.15.2` Relay and
-Notary images are both consumed directly by digest. Solmara does not publish
-or select a feature-specific Relay runtime.
+## Repository map
 
-Use `just up` rather than invoking `docker compose up` directly so the
-checkout-specific Compose project name and complete env-file set are applied.
-Because the release publishes amd64 images, Compose defaults
-`REGISTRY_STACK_PLATFORM` to `linux/amd64`; override it only when every
-selected base image is available for another platform.
+- `projects/` contains six authority-owned Registry project sources.
+- `runtime/registry-projects/` contains deterministic Registryctl output.
+- `evidence/` contains the Evidence bundle, Mint config, TLS gateway config,
+  requirements, derivations, schemas, and fixtures.
+- `ministries/` contains authority-owned synthetic source fixtures.
+- `generator/` creates deterministic country data and projections.
+- `scenarios/` and `scenario-runner/` implement the guided Evidence journeys.
+- `portal/` contains the citizen portal and live scenario-runner adapter.
+- `home/` contains the Visitor Center.
+- `scripts/` contains source-build, generation, verification, and smoke helpers.
 
-Every authority exposes one public Relay and one Notary. A separate private
-consultation Relay shares only the Notary network namespace and is never
-published on the Relay endpoint. Relay consultation state and all Notary
-correctness state are PostgreSQL-backed. `just gen-secrets` creates local
-PostgreSQL TLS material and distinct runtime and migrator passwords for each
-authority. See
-[`docs/notary-postgresql-state.md`](docs/notary-postgresql-state.md) for the
-database map, diagnosis, backup, recovery, and upgrade workflow.
+## Hosted deployment status
 
-Local public and consultation Relay namespaces each have their own
-loopback-only workload issuer. The consultation issuer writes the Notary token
-to a private, authority-specific volume; duplicating the issuer process avoids
-opening either Relay's loopback JWKS listener onto the shared Compose network.
+Hosted and Coolify Compose files still describe the previous released Notary
+topology. They are intentionally outside this local migration and are not
+supported by this branch. Do not deploy them with the generated runtime in
+`runtime/registry-projects/`.
 
-The `REGISTRY_RELAY_STATE_EPOCH=v015` pin starts a fresh Relay state plane for
-the v0.15.2 cache-persistence cutover. Earlier hosted deployments persisted
-PostgreSQL publication pointers but not the immutable snapshot files they
-referenced, so they cannot safely reuse the `v013` databases after adopting
-durable Relay cache volumes. Keep the old `v013` databases quiesced for
-rollback. The PostgreSQL runbook describes the stopped-writer and rollback
-boundary.
+A hosted migration should follow once Relay, Evidence, and Mint have published
+artifacts and an explicit deployment design is agreed. Until then, the active
+commands and verification targets in this README cover only the locally built
+source topology.
 
-## Hosted Deployment
+## Privacy
 
-See [`docs/hosted-deployment.md`](docs/hosted-deployment.md) for the full
-runbook. Coolify uses one hosted Compose file for the lab edge plus four
-ministry-grouped authority applications:
-
-- `compose.coolify.yaml` for the Visitor Center, portal, scenario runner,
-  child-benefit evidence composition, and static metadata.
-- `compose.coolify.interior.yaml` for the CRA and NIA Relay and Notary pairs
-  and their PostgreSQL databases.
-- `compose.coolify.esignet.yaml` for eSignet, eSignet UI, and its backing
-  Postgres/Redis/seed services.
-- `compose.coolify.social-development.yaml` for the SRO and Programme Relay
-  and Notary pairs and their PostgreSQL databases.
-- `compose.coolify.labour-pensions.yaml` for the SIPF Relay and Notary pair and
-  its PostgreSQL databases.
-- `compose.coolify.agriculture.yaml` for the NAgDI Relay and Notary pair and
-  its PostgreSQL databases.
-
-The hosted compose files remove host port bindings and avoid repo bind mounts
-because Coolify does not seed bind-mount sources from the Git checkout. They do
-not define custom Docker networks; cross-authority calls use the public
-`*.solmara.registrystack.org` TLS endpoints. Authority compose files preserve
-authority-owned PostgreSQL state, separate public and consultation Relay
-caches, and workload credentials. Notary containers do not use Redis or a
-writable state directory.
-
-Each hosted public Relay and private consultation Relay starts from its own
-instance-bound signed Config Bundle and anti-rollback state. Only the
-consultation bundle contains the private consultation artifacts. The wrapper
-contains public trust anchors and signed closures only; the offline signing key
-is not committed. A sequence-zero baseline is copied only when the matching
-Relay state volume is empty, allowing first boot while keeping later bundle
-sequence rollback protection durable in that volume.
-
-Hosted workload agents keep Relay bearer credentials short-lived and confined
-to per-consumer volumes. The separately served workload JWKS contains public
-keys only; private workload JWKs remain Coolify secrets.
-
-Run `just registry-projects-sync` after editing an authority project, then
-`just registry-projects-runtime-check` to verify the local and hosted Relay and
-Notary closures are deterministic.
-
-Run `just hosted-smoke` after each hosted deploy from a trusted shell with the
-demo tokens available in `.env` or the process environment. It checks public
-routes, Relay source endpoints, Notary scenario evaluations, published-token
-refusals, the Visitor Center scenario proxy, and the portal live BFF. Add
-`SOLMARA_HOSTED_SMOKE_BROWSER=1` when you also want hosted Playwright coverage
-for the Visitor Center and portal.
-
-The `release-candidate` workflow verifies the pinned Registry Stack source and
-uses the canonical published Relay digest as the base for the hosted Relay
-wrapper. A Solmara candidate does not recompile Registry Stack. The workflow
-builds the Solmara-owned images and writes their digest refs to the workflow
-summary for Coolify env vars:
-`SOLMARA_RELAY_IMAGE`, `SOLMARA_NOTARY_IMAGE`, `SOLMARA_POSTGRES_IMAGE`,
-`SOLMARA_STATIC_METADATA_IMAGE`, `SOLMARA_HOME_IMAGE`,
-`SOLMARA_PORTAL_IMAGE`, `SOLMARA_SCENARIO_RUNNER_IMAGE`,
-`SOLMARA_ESIGNET_RELAY_IMAGE`, `SOLMARA_ESIGNET_POSTGRES_IMAGE`,
-`SOLMARA_ESIGNET_UI_IMAGE`, and `SOLMARA_ESIGNET_SEED_IMAGE`.
-
-Its manually supplied Registry Stack tag is required and must resolve to the
-same Relay and Notary digests committed in `versions.env`. Run the same
-candidate-only gate locally with `just review-release <registry-stack-tag>`;
-the normal contributor and CI gate remains `just review`.
-
-For local eSignet testing, run `just up-esignet` instead of `just up`, then
-sign in through the portal with Elena's fixture UIN `2300018263` and static
-OTP `111111`. This sign-in is the end-to-end check of the NIA
-`solmara-nia-userinfo` attribute-release profile and its rotating eSignet
-workload identity. Run `just smoke-esignet` for the public discovery checks.
-
-Set `UMAMI_WEBSITE_ID` in the hosted environment to enable analytics for the
-Visitor Center through the Registry Stack Umami instance.
-
-## Privacy Rules
-
-Solmara data is synthetic. Do not use real people, real email domains, real
-addresses, or real administrative geography. Use `@mail.solmara.example` for
-emails and keep all story domains under `gov.solmara.example`.
+All Solmara data is synthetic. Do not use real people, real email domains,
+real addresses, or real administrative geography. Use
+`@mail.solmara.example` for email addresses and keep story domains under
+`gov.solmara.example`.

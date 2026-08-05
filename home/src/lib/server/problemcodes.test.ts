@@ -4,12 +4,12 @@ import type { Purpose, Scenario } from '$lib/types';
 
 const purposes: Purpose[] = [
   {
-    iri: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
+    iri: 'child-benefit-review',
     slug: 'child-benefit-review',
     advertisedBy: 'CRA',
     enforcedBy: 'child-benefit-federator',
     story: 'Birth to child benefit',
-    denialCodes: ['pdp.purpose_not_permitted'],
+    denialCodes: ['not_authorized'],
     plainLanguage: 'permits child benefit evidence'
   }
 ];
@@ -36,27 +36,26 @@ const scenarios: Scenario[] = [
 describe('problem-code assembly', () => {
   const codes = assembleProblemCodes(purposes, scenarios);
 
-  it('includes every denial code from the catalogue plus the observed request.invalid', () => {
+  it('includes current Evidence authorization and malformed-request codes', () => {
     const ids = codes.map((code) => code.code);
-    expect(ids).toContain('pdp.purpose_not_permitted');
-    expect(ids).toContain('request.invalid');
+    expect(ids).toContain('not_authorized');
+    expect(ids).toContain('malformed_request');
   });
 
-  it('uses the problem type URI observed in real notary responses', () => {
-    const pdp = codes.find((code) => code.code === 'pdp.purpose_not_permitted');
-    expect(pdp?.typeUri).toBe('https://id.registrystack.org/problems/registry-notary/pdp/purpose_not_permitted');
+  it('uses the current Registry Evidence problem type URI', () => {
+    const pdp = codes.find((code) => code.code === 'not_authorized');
+    expect(pdp?.typeUri).toBe('https://registrystack.org/problems/evidence/not_authorized');
     expect(pdp?.problemJson.status).toBe(403);
-    expect(pdp?.problemJson.code).toBe('pdp.purpose_not_permitted');
+    expect(pdp?.problemJson.code).toBe('not_authorized');
   });
 
-  it('links purpose_not_permitted to the story step that demonstrates it', () => {
-    const pdp = codes.find((code) => code.code === 'pdp.purpose_not_permitted');
+  it('links not_authorized to the story step that demonstrates it', () => {
+    const pdp = codes.find((code) => code.code === 'not_authorized');
     expect(pdp?.demonstratedBy.map((link) => link.stepId)).toContain('purpose-denial');
     expect(pdp?.purposeSlugs).toContain('child-benefit-review');
   });
 
   it('anchors each code by its stable code string', () => {
-    // Phase A deep-links to /problem-codes#pdp.purpose_not_permitted.
-    expect(codes.some((code) => code.code === 'pdp.purpose_not_permitted')).toBe(true);
+    expect(codes.some((code) => code.code === 'not_authorized')).toBe(true);
   });
 });

@@ -1,0 +1,5 @@
+type: object
+additionalProperties: false
+required: [uin]
+properties:
+  uin: { type: string, minLength: 10, maxLength: 10 }

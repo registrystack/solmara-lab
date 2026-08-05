@@ -1,0 +1,39 @@
+fixture: registry.evidence.reference.solmara.sro-child-benefit/v1
+synthetic_only: true
+common:
+  observed_at: "2026-07-14T00:00:00Z"
+  selectors: { subject: { profile: solmara-uin-v1, values: { uin: "1000000006" } } }
+  derivationSelectorInputs: { subject: { profile: solmara-uin-v1, values: { uin: "1000000006" } } }
+  expectedRequestParts: { query: [{ name: uin, value: "1000000006" }, { name: fields, value: "uin,poverty_band" }, { name: limit, value: "2" }], body: null }
+  expectedTransport:
+    path: /v1/datasets/sro_child/entities/sro_child/records
+    fixedHeaders: [{ name: Accept, value: application/json }, { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/child-benefit-review }]
+cases:
+  - id: positive
+    response: { data: [{ uin: "1000000006", poverty_band: priority }], pagination: { has_more: false } }
+    expected: { lookup: match, derivationRuns: true, signed: true, value: true }
+  - id: negative-subject-mismatch
+    response: { data: [{ uin: "9999999999", poverty_band: priority }], pagination: { has_more: false } }
+    expected: { lookup: match, error: derivation_input_error, publicProblem: evidence_not_available, derivationRuns: true, signed: false }
+  - id: boundary-non-priority
+    response: { data: [{ uin: "1000000006", poverty_band: standard }], pagination: { has_more: false } }
+    expected: { lookup: match, derivationRuns: true, signed: true, value: false }
+  - id: missing-fact
+    response: { data: [{ uin: "1000000006" }], pagination: { has_more: false } }
+    expected: { publicProblem: evidence_not_available, derivationRuns: false, signed: false }
+  - id: no-match
+    response: { data: [], pagination: { has_more: false } }
+    expected: { lookup: no_match, publicProblem: evidence_not_available, derivationRuns: false, signed: false }
+  - id: ambiguous
+    response: { data: [{ uin: "1000000006", poverty_band: priority }, { uin: "1000000006", poverty_band: standard }], pagination: { has_more: true } }
+    expected: { lookup: ambiguous, publicProblem: evidence_not_available, derivationRuns: false, signed: false }
+  - id: source-failure
+    sourceFailure: timeout
+    expected: { publicProblem: dependency_unavailable, signed: false }
+  - id: anti-reconstruction
+    bundleMutation: duplicate-disclosure-family
+    expected: { bundle: rejected }
+privacyExpectation:
+  evidenceContains: [https://id.registrystack.org/solmara/concept/household-below-poverty-threshold]
+  evidenceExcludes: [uin, poverty_band, "1000000006"]
+  diagnosticsExclude: ["1000000006"]

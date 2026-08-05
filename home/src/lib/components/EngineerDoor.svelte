@@ -32,9 +32,10 @@
           <a href="https://docs.registrystack.org">Product docs and OpenAPI</a>
         </div>
 
-        <h3>Pinned images</h3>
-        <p class="pin"><span>Relay</span> <code>{versions.REGISTRY_RELAY_IMAGE ?? 'missing'}</code></p>
-        <p class="pin"><span>Notary</span> <code>{versions.REGISTRY_NOTARY_IMAGE ?? 'missing'}</code></p>
+        <h3>Pinned source builds</h3>
+        <p class="pin"><span>Registry Stack main</span> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT ?? 'missing'}</code></p>
+        <p class="pin"><span>Evidence</span> <code>{versions.SOLMARA_EVIDENCE_IMAGE ?? 'missing'}</code></p>
+        <p class="pin"><span>Mint</span> <code>{versions.SOLMARA_MINT_IMAGE ?? 'missing'}</code></p>
       </div>
 
       <div class="engineer-col">

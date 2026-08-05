@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import hashlib
 import json
 import secrets
 import shlex
@@ -16,21 +15,7 @@ from compose_project_name import compose_project_name
 
 ROOT = Path(__file__).resolve().parents[1]
 POSTGRES_SSL_DIR = ROOT / "config" / "postgres" / "ssl"
-
-RAW_HASH_PAIRS = [
-    ("CRA_CHILD_BENEFIT_CLIENT_TOKEN", "CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
-    ("CRA_PENSION_CLIENT_TOKEN", "CRA_PENSION_CLIENT_TOKEN_HASH"),
-    ("CRA_CITIZEN_CLIENT_TOKEN", "CRA_CITIZEN_CLIENT_TOKEN_HASH"),
-    ("NIA_CHILD_BENEFIT_CLIENT_TOKEN", "NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
-    ("NIA_CITIZEN_CLIENT_TOKEN", "NIA_CITIZEN_CLIENT_TOKEN_HASH"),
-    ("SRO_CHILD_BENEFIT_CLIENT_TOKEN", "SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
-    (
-        "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
-        "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
-    ),
-    ("SIPF_PENSION_CLIENT_TOKEN", "SIPF_PENSION_CLIENT_TOKEN_HASH"),
-    ("NAGDI_NOTARY_TOKEN", "NAGDI_CLIENT_TOKEN_HASH"),
-]
+EVIDENCE_LOCAL_DIR = ROOT / "config" / "evidence" / "local"
 
 JWK_KIDS = {
     "CRA_RELAY_WORKLOAD_JWK": "solmara-cra-relay-workload-key-1",
@@ -40,23 +25,10 @@ JWK_KIDS = {
     "PROGRAMME_RELAY_WORKLOAD_JWK": "solmara-programme-relay-workload-key-1",
     "SIPF_RELAY_WORKLOAD_JWK": "solmara-sipf-relay-workload-key-1",
     "NAGDI_RELAY_WORKLOAD_JWK": "solmara-nagdi-relay-workload-key-1",
-    "NIA_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:nia#issuer-key-1",
-    "SIPF_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:sipf#issuer-key-1",
-    "NAGDI_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:nagdi#issuer-key-1",
 }
-
-DIRECT_PROJECT_SECRET_NAMES = {
-    "SOLMARA_NIA_DATABASE_URL",
-    "SOLMARA_SIPF_DATABASE_URL",
-}
-
 
 def raw_key() -> str:
     return secrets.token_urlsafe(32)
-
-
-def fingerprint(value: str) -> str:
-    return "sha256:" + hashlib.sha256(value.encode("ascii")).hexdigest()
 
 
 def b64url(raw: bytes) -> str:
@@ -88,6 +60,192 @@ def local_ed25519_jwk(kid: str) -> str:
         "d": b64url(private_seed),
     }
     return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
+
+
+def public_jwk(private_jwk: str) -> dict[str, str]:
+    jwk = json.loads(private_jwk)
+    return {key: jwk[key] for key in ("kty", "crv", "kid", "alg", "x")}
+
+
+def write_private(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value.rstrip("\n") + "\n")
+    path.chmod(0o600)
+
+
+def ensure_evidence_material() -> None:
+    evidence_dir = EVIDENCE_LOCAL_DIR / "evidence"
+    mint_dir = EVIDENCE_LOCAL_DIR / "mint"
+    tls_dir = EVIDENCE_LOCAL_DIR / "tls"
+    for directory in (evidence_dir, mint_dir / "clients", tls_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    private_paths = (
+        evidence_dir / "audit-hmac-key",
+        evidence_dir / "subject-binding-hmac-key",
+        evidence_dir / "signing-ed25519-private-jwk",
+        mint_dir / "signing.jwk",
+        mint_dir / "audit-hmac-key",
+        mint_dir / "client-private.jwk",
+        tls_dir / "ca.key",
+        tls_dir / "gateway.key",
+    )
+    public_paths = (
+        mint_dir / "clients" / "solmara-demo.yaml",
+        tls_dir / "ca.crt",
+        tls_dir / "gateway.crt",
+    )
+    material_paths = (*private_paths, *public_paths)
+    present = tuple(path for path in material_paths if path.is_file())
+    if len(present) == len(material_paths):
+        for path in private_paths:
+            path.chmod(0o600)
+        for path in public_paths:
+            path.chmod(0o644)
+        return
+    if present:
+        missing = ", ".join(
+            str(path.relative_to(EVIDENCE_LOCAL_DIR))
+            for path in material_paths
+            if not path.is_file()
+        )
+        raise SystemExit(
+            "incomplete local Evidence material: "
+            f"{missing}; run `just reset`, remove config/evidence/local/evidence, "
+            "config/evidence/local/mint, and config/evidence/local/tls, then rerun "
+            "`just gen-secrets`"
+        )
+
+    write_private(evidence_dir / "audit-hmac-key", raw_key())
+    write_private(evidence_dir / "subject-binding-hmac-key", raw_key())
+    write_private(
+        evidence_dir / "signing-ed25519-private-jwk",
+        local_ed25519_jwk("solmara-evidence-signing-key-1"),
+    )
+
+    mint_signing_jwk = local_ed25519_jwk("solmara-mint-signing-key-1")
+    client_jwk = local_ed25519_jwk("solmara-demo-client-key-1")
+    write_private(mint_dir / "signing.jwk", mint_signing_jwk)
+    write_private(mint_dir / "audit-hmac-key", raw_key())
+    write_private(mint_dir / "client-private.jwk", client_jwk)
+    client = {
+        "clientId": "solmara-demo",
+        "principal": "https://id.registrystack.org/solmara/principal/demo-client",
+        "evidenceAudience": "https://id.registrystack.org/solmara/audience/demo-client",
+        "requesterTags": ["solmara-demo"],
+        "keys": [public_jwk(client_jwk)],
+    }
+    client_path = mint_dir / "clients" / "solmara-demo.yaml"
+    client_path.write_text(json.dumps(client, indent=2, sort_keys=True) + "\n")
+    client_path.chmod(0o644)
+
+    ca_certificate = tls_dir / "ca.crt"
+    ca_private_key = tls_dir / "ca.key"
+    certificate = tls_dir / "gateway.crt"
+    private_key = tls_dir / "gateway.key"
+    certificate_request = tls_dir / "gateway.csr"
+    ca_serial = tls_dir / "ca.srl"
+    for path in (
+        ca_certificate,
+        ca_private_key,
+        certificate,
+        private_key,
+        certificate_request,
+        ca_serial,
+    ):
+        path.unlink(missing_ok=True)
+    san_names = [
+        "localhost",
+        "mint.evidence.solmara.invalid",
+        "evidence.solmara.invalid",
+        "cra-relay.evidence.solmara.invalid",
+        "nia-relay.evidence.solmara.invalid",
+        "sro-relay.evidence.solmara.invalid",
+        "programme-relay.evidence.solmara.invalid",
+        "sipf-relay.evidence.solmara.invalid",
+        "nagdi-relay.evidence.solmara.invalid",
+    ]
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-days",
+            "3650",
+            "-subj",
+            "/CN=Solmara Lab Evidence Development CA",
+            "-addext",
+            "basicConstraints=critical,CA:TRUE",
+            "-addext",
+            "keyUsage=critical,keyCertSign,cRLSign",
+            "-keyout",
+            str(ca_private_key),
+            "-out",
+            str(ca_certificate),
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-new",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-subj",
+            "/CN=evidence.solmara.invalid",
+            "-addext",
+            "subjectAltName=" + ",".join(f"DNS:{name}" for name in san_names),
+            "-addext",
+            "basicConstraints=critical,CA:FALSE",
+            "-addext",
+            "keyUsage=critical,digitalSignature,keyEncipherment",
+            "-addext",
+            "extendedKeyUsage=serverAuth",
+            "-keyout",
+            str(private_key),
+            "-out",
+            str(certificate_request),
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "x509",
+            "-req",
+            "-in",
+            str(certificate_request),
+            "-CA",
+            str(ca_certificate),
+            "-CAkey",
+            str(ca_private_key),
+            "-CAcreateserial",
+            "-days",
+            "3650",
+            "-copy_extensions",
+            "copy",
+            "-out",
+            str(certificate),
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    certificate_request.unlink()
+    ca_serial.unlink(missing_ok=True)
+    ca_private_key.chmod(0o600)
+    private_key.chmod(0o600)
+    ca_certificate.chmod(0o644)
+    certificate.chmod(0o644)
 
 
 def local_rsa_private_key_b64() -> str:
@@ -148,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.parse_args(argv)
 
     ensure_postgres_tls()
+    ensure_evidence_material()
     postgres_user = "solmara_registry"
     postgres_password = raw_key()
     postgres_db = "solmara_lab"
@@ -156,55 +315,11 @@ def main(argv: list[str] | None = None) -> int:
     values: dict[str, str] = {
         "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
         "CRA_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "CRA_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "CRA_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "CRA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "CRA_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "CRA_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "CRA_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "CRA_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
         "NIA_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "NIA_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "NIA_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "NIA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "NIA_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "NIA_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "NIA_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "NIA_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
         "SRO_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "SRO_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "SRO_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "SRO_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "SRO_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
         "PROGRAMME_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "PROGRAMME_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "PROGRAMME_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "PROGRAMME_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
         "SIPF_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "SIPF_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
         "NAGDI_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "NAGDI_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "NAGDI_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "NAGDI_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "NAGDI_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS": "4102444800000",
-        "SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS": "2592000000",
         "REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD": raw_key(),
         "REGISTRY_ESIGNET_KYC_TOKEN_SECRET": raw_key(),
         "REGISTRY_ESIGNET_PSUT_SECRET": raw_key(),
@@ -232,19 +347,20 @@ def main(argv: list[str] | None = None) -> int:
         "SOLMARA_SIPF_DATABASE_URL": f"postgres://solmara_source_sipf_reader:{sipf_source_password}@postgres:5432/{postgres_db}?sslmode=require",
         "SOLMARA_ESIGNET_POSTGRES_PASSWORD": raw_key(),
         "CHILD_BENEFIT_FEDERATOR_TOKEN": raw_key(),
-        "CHILD_BENEFIT_FEDERATOR_URL": "http://127.0.0.1:4321",
-        "CRA_NOTARY_URL": "http://127.0.0.1:4325",
-        "NIA_NOTARY_URL": "http://127.0.0.1:4326",
-        "SRO_NOTARY_URL": "http://127.0.0.1:4327",
-        "PROGRAMME_NOTARY_URL": "http://127.0.0.1:4328",
-        "SIPF_NOTARY_URL": "http://127.0.0.1:4322",
-        "NAGDI_NOTARY_URL": "http://127.0.0.1:4323",
+        "CHILD_BENEFIT_FEDERATOR_URL": "https://localhost:4341/child-benefit/",
+        # Host-side scenario smokes use the gateway's localhost certificate SAN.
+        # Compose services override these with the internal gateway hostnames.
+        "SOLMARA_EVIDENCE_URL": "https://localhost:4341",
+        "SOLMARA_MINT_URL": "https://localhost:4341",
+        "SOLMARA_MINT_ASSERTION_AUDIENCE": "https://mint.evidence.solmara.invalid/token",
+        "SOLMARA_EVIDENCE_CLIENT_ID": "solmara-demo",
+        "SOLMARA_EVIDENCE_CLIENT_KEY": str(
+            ROOT / "config/evidence/local/mint/client-private.jwk"
+        ),
+        "SOLMARA_EVIDENCE_CA_BUNDLE": str(
+            ROOT / "config/evidence/local/tls/ca.crt"
+        ),
     }
-
-    for raw_name, hash_name in RAW_HASH_PAIRS:
-        raw = raw_key()
-        values[raw_name] = raw
-        values[hash_name] = fingerprint(raw)
 
     for name, kid in JWK_KIDS.items():
         values[name] = local_ed25519_jwk(kid)

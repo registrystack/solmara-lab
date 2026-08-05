@@ -5,32 +5,32 @@ import { runnableRequestSources, toCurl } from './curl';
 describe('runnableRequestSources', () => {
   const multiPreview: RequestSource = {
     method: 'MULTI',
-    url: 'solmara://authority-notaries',
-    headers: { 'Data-Purpose': 'citizen-self-service' }
+    url: 'solmara://registry-evidence',
+    purpose: 'citizen-self-service'
   };
 
-  it('selects each executable authority call instead of the synthetic MULTI preview', () => {
+  it('selects each executable Evidence call instead of the synthetic MULTI preview', () => {
     const sources: RequestSource[] = [
       {
         method: 'POST',
-        url: 'http://localhost:4325/v1/evaluations',
-        headers: { 'x-api-key': 'tok-cra-citizen' },
-        body: { claims: ['civil-record-linked'] }
+        url: 'https://localhost:4341/v1/evidence',
+        headers: { Authorization: 'Bearer [runtime token hidden]' },
+        body: { requirement: 'cra-citizen-record', purpose: 'citizen-self-service' }
       },
       {
         method: 'POST',
-        url: 'http://localhost:4326/v1/evaluations',
-        headers: { 'x-api-key': 'tok-nia-citizen' },
-        body: { claims: ['citizen-population-record-active'] }
+        url: 'https://localhost:4341/v1/evidence',
+        headers: { Authorization: 'Bearer [runtime token hidden]' },
+        body: { requirement: 'nia-citizen-status', purpose: 'citizen-self-service' }
       }
     ];
 
     const commands = runnableRequestSources(multiPreview, sources).map((source) => toCurl(source));
 
     expect(commands).toHaveLength(2);
-    expect(commands[0]).toContain("curl -sS -X POST 'http://localhost:4325/v1/evaluations'");
-    expect(commands[1]).toContain("curl -sS -X POST 'http://localhost:4326/v1/evaluations'");
-    expect(commands.join('\n')).not.toContain('solmara://authority-notaries');
+    expect(commands[0]).toContain("curl -sS -X POST 'https://localhost:4341/v1/evidence'");
+    expect(commands[1]).toContain("curl -sS -X POST 'https://localhost:4341/v1/evidence'");
+    expect(commands.join('\n')).not.toContain('solmara://registry-evidence');
   });
 
   it('uses the primary request when no underlying calls are present', () => {

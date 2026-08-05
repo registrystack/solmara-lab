@@ -20,14 +20,14 @@ if [ "$actual_version" != "registryctl $required_version" ]; then
   echo "set REGISTRYCTL_BIN to the matching release binary when it is not on PATH" >&2
   exit 1
 fi
-for command in check test build capabilities; do
+for command in check test build; do
   if ! "$REGISTRYCTL" "$command" --help >/dev/null 2>&1; then
     echo "registryctl $required_version with project-authoring check/test/build/capabilities is required" >&2
     echo "set REGISTRYCTL_BIN to a compatible Registry Stack build" >&2
     exit 1
   fi
 done
-if ! "$REGISTRYCTL" authoring editor --help >/dev/null 2>&1; then
+if ! "$REGISTRYCTL" tooling editor --help >/dev/null 2>&1; then
   echo "registryctl $required_version with project-authoring editor setup is required" >&2
   echo "set REGISTRYCTL_BIN to a compatible Registry Stack build" >&2
   exit 1
@@ -89,9 +89,10 @@ inspect_capabilities() {
   for project in $projects; do
     for environment in local hosted; do
       echo "registryctl capabilities: $project ($environment)"
-      "$REGISTRYCTL" capabilities \
+      "$REGISTRYCTL" check \
         --project-dir "$ROOT/projects/$project" \
-        --environment "$environment"
+        --environment "$environment" \
+        --explain
     done
   done
 }
@@ -99,7 +100,7 @@ inspect_capabilities() {
 sync_editor_support() {
   for project in $projects; do
     echo "registryctl authoring editor: $project"
-    "$REGISTRYCTL" authoring editor \
+    "$REGISTRYCTL" tooling editor \
       --project-dir "$ROOT/projects/$project"
   done
 }
@@ -111,9 +112,9 @@ stage_runtime() {
       build_root=$(build_project_output "$project" "$environment")
       source="$build_root/private"
       target="$destination/$environment/$project"
-      mkdir -p "$target/relay" "$target/notary"
-      cp -R "$source/relay/config/." "$target/relay/"
-      cp "$source/notary/config/notary.yaml" "$target/notary/notary.yaml"
+      mkdir -p "$target/relay" "$target/relay-consultation"
+      cp -R "$source/relay-public/config/." "$target/relay/"
+      cp -R "$source/relay-consultation/config/." "$target/relay-consultation/"
     done
   done
   chmod -R u=rwX,go=rX "$destination"
@@ -123,11 +124,14 @@ action=${1:-}
 case "$action" in
   test)
     for project in $projects; do
-      echo "registryctl test: $project"
-      "$REGISTRYCTL" test \
-        --project-dir "$ROOT/projects/$project" \
-        --format json |
-        python3 "$ROOT/scripts/registryctl-test-output.py"
+      for environment in local hosted; do
+        echo "registryctl test: $project ($environment)"
+        "$REGISTRYCTL" test \
+          --project-dir "$ROOT/projects/$project" \
+          --environment "$environment" \
+          --format json |
+          python3 "$ROOT/scripts/registryctl-test-output.py"
+      done
     done
     ;;
   check)

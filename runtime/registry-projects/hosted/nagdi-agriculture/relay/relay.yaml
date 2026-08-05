@@ -1,12 +1,13 @@
 audit:
   hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
-  sink: stdout
+  path: /var/lib/registry/audit/audit.jsonl
+  sink: file
 auth:
   mode: oidc
   oidc:
     allow_dev_insecure_fetch_urls: false
     allowed_clients:
-    - nagdi-notary
+    - solmara-evidence
     audiences:
     - registry-relay
     issuer: https://workload-issuer.solmara.registrystack.org
@@ -24,21 +25,82 @@ datasets:
     refresh:
       interval: 1m
       mode: interval
-  description: Materialized nagdi_farmer entity
-  entities: []
+  description: Purpose-limited farmer facts used by the Solmara Evidence service.
+  entities:
+  - access:
+      aggregate_scope: nagdi_farmer:aggregate
+      evidence_verification_scope: nagdi_farmer:evidence_verification
+      metadata_scope: nagdi_farmer:metadata
+      read_scope: nagdi_farmer:rows
+    aggregates: []
+    api:
+      allowed_expansions: []
+      allowed_filters:
+      - field: farmer_id
+        ops:
+        - eq
+      default_limit: 2
+      governed_policy:
+        allowed_assurance: []
+        permitted_jurisdictions: []
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+        redaction_fields: []
+        require_consent: false
+        require_legal_basis: false
+        trusted_context: {}
+      max_limit: 2
+      require_purpose_header: true
+      required_filter_bindings: []
+      required_filters: []
+    attribute_release_profiles: []
+    description: Purpose-limited farmer facts used by the Solmara Evidence service.
+    fields:
+    - from: active_farm_parcel
+      name: active_farm_parcel
+      sensitive: true
+    - from: active_smallholder_farmer
+      name: active_smallholder_farmer
+      sensitive: true
+    - from: crop_declared_for_season
+      name: crop_declared_for_season
+      sensitive: true
+    - from: data_use_authorized
+      name: data_use_authorized
+      sensitive: true
+    - from: district_climate_risk_active
+      name: district_climate_risk_active
+      sensitive: true
+    - from: farmer_id
+      name: farmer_id
+      sensitive: true
+    - from: farmer_registered
+      name: farmer_registered
+      sensitive: true
+    - from: voucher_entitlement_current
+      name: voucher_entitlement_current
+      sensitive: true
+    - from: voucher_not_redeemed
+      name: voucher_not_redeemed
+      sensitive: true
+    name: nagdi_farmer
+    relationships: []
+    spatial: null
+    table: materialization_a5df746e609cc2000dcc08b086dce4fbd407a4908364552aa2ea32be9d99c6f7
+    title: NAgDI farmer records
   id: nagdi_farmer
-  owner: solmara-nagdi-agriculture
+  owner: National Agriculture Data and Digital Innovation Agency
   sensitivity: personal
   tables:
   - access:
       aggregate_scope: nagdi_farmer:aggregate
-      metadata_scope: registry-internal:materialization
+      metadata_scope: nagdi_farmer:metadata
     aggregates: []
     api:
       allowed_filters: []
-      default_limit: 1
-      max_limit: 1
-      require_purpose_header: false
+      default_limit: 2
+      max_limit: 2
+      require_purpose_header: true
     id: materialization_a5df746e609cc2000dcc08b086dce4fbd407a4908364552aa2ea32be9d99c6f7
     materialization: snapshot
     primary_key: farmer_id
@@ -92,8 +154,8 @@ datasets:
           quote: null
       path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/farmer_voucher.csv
       type: file
-  title: nagdi_farmer
-  update_frequency: as_needed
+  title: NAgDI farmer records
+  update_frequency: continuous
 - access_rights: restricted
   aggregates: []
   conforms_to: []
@@ -102,21 +164,76 @@ datasets:
     refresh:
       interval: 1m
       mode: interval
-  description: Materialized nagdi_herd entity
-  entities: []
+  description: Purpose-limited herd facts used by the Solmara Evidence service.
+  entities:
+  - access:
+      aggregate_scope: nagdi_herd:aggregate
+      evidence_verification_scope: nagdi_herd:evidence_verification
+      metadata_scope: nagdi_herd:metadata
+      read_scope: nagdi_herd:rows
+    aggregates: []
+    api:
+      allowed_expansions: []
+      allowed_filters:
+      - field: farmer_id
+        ops:
+        - eq
+      default_limit: 2
+      governed_policy:
+        allowed_assurance: []
+        permitted_jurisdictions: []
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+        redaction_fields: []
+        require_consent: false
+        require_legal_basis: false
+        trusted_context: {}
+      max_limit: 2
+      require_purpose_header: true
+      required_filter_bindings: []
+      required_filters: []
+    attribute_release_profiles: []
+    description: Purpose-limited herd facts used by the Solmara Evidence service.
+    fields:
+    - from: destination_district_open
+      name: destination_district_open
+      sensitive: true
+    - from: farmer_id
+      name: farmer_id
+      sensitive: true
+    - from: herd_id
+      name: herd_id
+      sensitive: true
+    - from: herd_vaccination_current
+      name: herd_vaccination_current
+      sensitive: true
+    - from: no_conflicting_open_movement_permit
+      name: no_conflicting_open_movement_permit
+      sensitive: true
+    - from: origin_district_not_quarantined_for_species
+      name: origin_district_not_quarantined_for_species
+      sensitive: true
+    - from: registered_herd
+      name: registered_herd
+      sensitive: true
+    name: nagdi_herd
+    relationships: []
+    spatial: null
+    table: materialization_c530010904da8a151e2b3437cbb64d2c54dcbc140b0fcf9d6331e97e73063e9b
+    title: NAgDI herd records
   id: nagdi_herd
-  owner: solmara-nagdi-agriculture
+  owner: National Agriculture Data and Digital Innovation Agency
   sensitivity: personal
   tables:
   - access:
       aggregate_scope: nagdi_herd:aggregate
-      metadata_scope: registry-internal:materialization
+      metadata_scope: nagdi_herd:metadata
     aggregates: []
     api:
       allowed_filters: []
-      default_limit: 1
-      max_limit: 1
-      require_purpose_header: false
+      default_limit: 2
+      max_limit: 2
+      require_purpose_header: true
     id: materialization_c530010904da8a151e2b3437cbb64d2c54dcbc140b0fcf9d6331e97e73063e9b
     materialization: snapshot
     primary_key: herd_id
@@ -162,13 +279,13 @@ datasets:
           quote: null
       path: /var/lib/solmara/ministries/agriculture-nagdi/fixtures/livestock_movement.csv
       type: file
-  title: nagdi_herd
-  update_frequency: as_needed
+  title: NAgDI herd records
+  update_frequency: continuous
 deployment:
   profile: hosted_lab
 instance:
   environment: hosted
   id: nagdi-agriculture-relay
 server:
-  bind: 127.0.0.1:8080
+  bind: 0.0.0.0:8080
 standards: {}

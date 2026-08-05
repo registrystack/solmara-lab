@@ -248,6 +248,7 @@ class WorkloadIdentityAgentTests(unittest.TestCase):
             self.assertEqual(
                 len(identity.token_file.read_text(encoding="ascii").split(".")), 3
             )
+            self.assertFalse(identity.token_file.read_bytes().endswith(b"\n"))
             self.assertTrue(state.ready())
 
     def test_readiness_requires_every_current_regular_output(self) -> None:

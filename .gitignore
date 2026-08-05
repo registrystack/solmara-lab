@@ -27,3 +27,5 @@ projects/*/.registry-stack/
 *.log
 config/postgres/ssl/*
 !config/postgres/ssl/.gitkeep
+config/evidence/local/*
+!config/evidence/local/.gitkeep

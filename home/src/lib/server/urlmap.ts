@@ -15,12 +15,10 @@ import { env } from '$env/dynamic/private';
  */
 const DEFAULT_LOCAL_MAP: Record<string, string> = {
   'child-benefit-federator:8080': 'http://localhost:4321',
-  'cra-notary:8081': 'http://localhost:4325',
-  'nia-notary:8081': 'http://localhost:4326',
-  'sro-notary:8081': 'http://localhost:4327',
-  'programme-notary:8081': 'http://localhost:4328',
-  'sipf-notary:8081': 'http://localhost:4322',
-  'nagdi-notary:8081': 'http://localhost:4323',
+  'evidence.solmara.invalid': 'https://localhost:4341',
+  'mint.evidence.solmara.invalid': 'https://localhost:4341',
+  'evidence:8080': 'https://localhost:4341',
+  'mint:8081': 'https://localhost:4341',
   'cra-civil-relay:8080': 'http://localhost:4311',
   'nia-population-relay:8080': 'http://localhost:4312',
   'sro-social-relay:8080': 'http://localhost:4313',

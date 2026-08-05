@@ -1,12 +1,13 @@
 audit:
   hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
-  sink: stdout
+  path: /var/lib/registry/audit/audit.jsonl
+  sink: file
 auth:
   mode: oidc
   oidc:
     allow_dev_insecure_fetch_urls: false
     allowed_clients:
-    - programme-notary
+    - solmara-evidence
     audiences:
     - registry-relay
     issuer: https://workload-issuer.solmara.registrystack.org
@@ -24,21 +25,61 @@ datasets:
     refresh:
       interval: 1m
       mode: interval
-  description: Materialized mosd_enroll entity
-  entities: []
+  description: Purpose-limited enrollment facts used by the Solmara Evidence service.
+  entities:
+  - access:
+      aggregate_scope: mosd_enroll:aggregate
+      evidence_verification_scope: mosd_enroll:evidence_verification
+      metadata_scope: mosd_enroll:metadata
+      read_scope: mosd_enroll:rows
+    aggregates: []
+    api:
+      allowed_expansions: []
+      allowed_filters:
+      - field: uin
+        ops:
+        - eq
+      default_limit: 2
+      governed_policy:
+        allowed_assurance: []
+        permitted_jurisdictions: []
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/child-benefit-review
+        redaction_fields: []
+        require_consent: false
+        require_legal_basis: false
+        trusted_context: {}
+      max_limit: 2
+      require_purpose_header: true
+      required_filter_bindings: []
+      required_filters: []
+    attribute_release_profiles: []
+    description: Purpose-limited enrollment facts used by the Solmara Evidence service.
+    fields:
+    - from: duplicate_flag
+      name: duplicate_flag
+      sensitive: true
+    - from: uin
+      name: uin
+      sensitive: true
+    name: mosd_enroll
+    relationships: []
+    spatial: null
+    table: materialization_5f676d9c112ce16b7ede827eab122868889c2a4c9a1d4b38a214beecadc245bf
+    title: MOSD programme enrollment records
   id: mosd_enroll
-  owner: solmara-mosd-programme
+  owner: Ministry of Social Development
   sensitivity: personal
   tables:
   - access:
       aggregate_scope: mosd_enroll:aggregate
-      metadata_scope: registry-internal:materialization
+      metadata_scope: mosd_enroll:metadata
     aggregates: []
     api:
       allowed_filters: []
-      default_limit: 1
-      max_limit: 1
-      require_purpose_header: false
+      default_limit: 2
+      max_limit: 2
+      require_purpose_header: true
     id: materialization_5f676d9c112ce16b7ede827eab122868889c2a4c9a1d4b38a214beecadc245bf
     materialization: snapshot
     primary_key: uin
@@ -64,13 +105,13 @@ datasets:
           quote: null
       path: /var/lib/solmara/ministries/social-development/fixtures/programme_mis_enrollment.csv
       type: file
-  title: mosd_enroll
-  update_frequency: as_needed
+  title: MOSD programme enrollment records
+  update_frequency: continuous
 deployment:
   profile: hosted_lab
 instance:
   environment: hosted
   id: programme-mis-relay
 server:
-  bind: 127.0.0.1:8080
+  bind: 0.0.0.0:8080
 standards: {}

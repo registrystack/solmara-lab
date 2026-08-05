@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Probe public Relay readiness and its unauthenticated request boundary.
+"""Probe Relay readiness and the unauthenticated Records API boundary.
 
-Authority Notaries reach their paired Relays with short-lived workload
-identity tokens through the separate private consultation Relay processes.
-This public-endpoint smoke deliberately has no token: it proves that all six
-public Relays are ready and refuse unauthenticated requests with the stable
-missing-credential problem. Notary live smokes separately exercise the private
-consultation path.
+Registry Evidence reaches these APIs with short-lived workload credentials.
+This host-side probe deliberately has no token: it proves that all six source
+Relays are ready and refuse unauthenticated record reads with the stable
+missing-credential problem.
 """
 
 from __future__ import annotations
@@ -33,7 +31,8 @@ class RelayBoundary:
     name: str
     base_url_env: str
     default_base_url: str
-    consultation_profile: str
+    dataset: str
+    entity: str
 
 
 RELAYS = (
@@ -41,37 +40,43 @@ RELAYS = (
         "CRA Relay",
         "SOLMARA_CRA_RELAY_URL",
         "http://127.0.0.1:4311",
-        "solmara-cra-civil.cra-child-benefit.civil",
+        "civil_people",
+        "civil_people",
     ),
     RelayBoundary(
         "NIA Relay",
         "SOLMARA_NIA_RELAY_URL",
         "http://127.0.0.1:4312",
-        "solmara-nia-population.nia-child-benefit.population",
+        "population",
+        "population",
     ),
     RelayBoundary(
         "SRO Relay",
         "SOLMARA_SRO_RELAY_URL",
         "http://127.0.0.1:4313",
-        "solmara-sro-social.child-benefit.household",
+        "sro_child",
+        "sro_child",
     ),
     RelayBoundary(
         "Programme Relay",
         "SOLMARA_PROGRAMME_RELAY_URL",
         "http://127.0.0.1:4314",
-        "solmara-mosd-programme.child-benefit.enrollment",
+        "mosd_enroll",
+        "mosd_enroll",
     ),
     RelayBoundary(
         "SIPF Relay",
         "SOLMARA_SIPF_RELAY_URL",
         "http://127.0.0.1:4315",
-        "solmara-sipf-pensions.sipf-pension-payment-review.pension",
+        "pension",
+        "pension",
     ),
     RelayBoundary(
         "NAgDI Relay",
         "SOLMARA_NAGDI_RELAY_URL",
         "http://127.0.0.1:4316",
-        "solmara-nagdi-agriculture.voucher.farmer",
+        "nagdi_farmer",
+        "nagdi_farmer",
     ),
 )
 
@@ -148,13 +153,16 @@ def run_probe(
             "detail": status_detail(ready),
         }
 
-    profile = urllib.parse.quote(relay.consultation_profile, safe=".-_")
-    denial = http_get(joined_url(base_url, f"/v1/consultations/{profile}"))
+    dataset = urllib.parse.quote(relay.dataset, safe=".-_")
+    entity = urllib.parse.quote(relay.entity, safe=".-_")
+    denial = http_get(
+        joined_url(base_url, f"/v1/datasets/{dataset}/entities/{entity}/records")
+    )
     denial_failure = validate_unauthenticated_denial(denial)
     if denial_failure:
         return {
             "name": relay.name,
-            "status": "consultation_boundary_failed",
+            "status": "records_boundary_failed",
             "detail": denial_failure,
         }
 
@@ -163,8 +171,8 @@ def run_probe(
         "status": "ok",
         "liveness_status": health[0],
         "readiness_status": ready[0],
-        "unauthenticated_consultation_status": denial[0],
-        "unauthenticated_consultation_code": "auth.missing_credential",
+        "unauthenticated_records_status": denial[0],
+        "unauthenticated_records_code": "auth.missing_credential",
     }
 
 

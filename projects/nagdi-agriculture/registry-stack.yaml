@@ -16,93 +16,88 @@ entities:
     file: entities/nagdi_herd.yaml
 
 services:
-  voucher:
-    kind: evidence
+  nagdi-farmer-records:
+    kind: records_api
+    entity: nagdi_farmer
+    title: NAgDI farmer records
+    description: Purpose-limited farmer facts used by the Solmara Evidence service.
+    owner: National Agriculture Data and Digital Innovation Agency
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: continuous
+    api:
+      scopes:
+        metadata: nagdi_farmer:metadata
+        rows: nagdi_farmer:rows
+        aggregate: nagdi_farmer:aggregate
+        evidence_verification: nagdi_farmer:evidence_verification
+      purposes:
+        - https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
+      projection:
+        - farmer_id
+        - farmer_registered
+        - data_use_authorized
+        - active_smallholder_farmer
+        - active_farm_parcel
+        - crop_declared_for_season
+        - district_climate_risk_active
+        - voucher_entitlement_current
+        - voucher_not_redeemed
+      pagination: { default_limit: 2, max_limit: 2 }
+      filters:
+        farmer_id: [eq]
+      standards: { ogc_features: false, sp_dci: false }
+
+  nagdi-farmer-consultation:
+    kind: consultation_api
     version: 1
     purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
     legal_basis: agricultural-data-act
     consent: not_required
-    access:
-      scopes: ["nagdi_agriculture:evidence_verification"]
     consultations:
       farmer:
         integration: farmer-voucher-by-farmer
         input:
           farmer_id: request.target.identifiers.farmer_id
-    claims:
-      farmer-registered:
-        cel: farmer.matched && farmer.farmer_registered
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]
-      data-use-authorized-for-purpose:
-        cel: farmer.matched && farmer.data_use_authorized
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]
-      eligible-for-climate-smart-input-voucher:
-        cel: >-
-          farmer.matched && farmer.farmer_registered
-            && farmer.data_use_authorized
-            && farmer.active_smallholder_farmer
-            && farmer.active_farm_parcel
-            && farmer.crop_declared_for_season
-            && farmer.district_climate_risk_active
-            && farmer.voucher_entitlement_current
-            && farmer.voucher_not_redeemed
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]
-    credential_profiles:
-      climate_smart_voucher_sd_jwt:
-        format: dc+sd-jwt
-        type: https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility
-        validity: 10m
-        claims:
-          - farmer-registered
-          - data-use-authorized-for-purpose
-          - eligible-for-climate-smart-input-voucher
 
-  livestock:
-    kind: evidence
+  nagdi-herd-consultation:
+    kind: consultation_api
     version: 1
     purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
     legal_basis: agricultural-data-act
     consent: not_required
-    access:
-      scopes: ["nagdi_agriculture:evidence_verification"]
     consultations:
       herd:
         integration: livestock-movement-by-farmer
         input:
           farmer_id: request.target.identifiers.farmer_id
-    claims:
-      registered-herd:
-        cel: herd.matched && herd.registered_herd
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]
-      origin-district-not-quarantined-for-species:
-        cel: herd.matched && herd.origin_district_not_quarantined_for_species
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]
-      eligible-for-livestock-movement-permit:
-        cel: >-
-          herd.matched && herd.registered_herd
-            && herd.origin_district_not_quarantined_for_species
-            && herd.herd_vaccination_current
-            && herd.destination_district_open
-            && herd.no_conflicting_open_movement_permit
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]
-    credential_profiles:
-      livestock_movement_sd_jwt:
-        format: dc+sd-jwt
-        type: https://id.registrystack.org/solmara/vct/livestock-movement-permit
-        validity: 10m
-        claims:
-          - registered-herd
-          - origin-district-not-quarantined-for-species
-          - eligible-for-livestock-movement-permit
+
+  nagdi-herd-records:
+    kind: records_api
+    entity: nagdi_herd
+    title: NAgDI herd records
+    description: Purpose-limited herd facts used by the Solmara Evidence service.
+    owner: National Agriculture Data and Digital Innovation Agency
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: continuous
+    api:
+      scopes:
+        metadata: nagdi_herd:metadata
+        rows: nagdi_herd:rows
+        aggregate: nagdi_herd:aggregate
+        evidence_verification: nagdi_herd:evidence_verification
+      purposes:
+        - https://id.registrystack.org/solmara/purpose/livestock-movement-control
+      projection:
+        - herd_id
+        - farmer_id
+        - registered_herd
+        - herd_vaccination_current
+        - origin_district_not_quarantined_for_species
+        - destination_district_open
+        - no_conflicting_open_movement_permit
+      pagination: { default_limit: 2, max_limit: 2 }
+      filters:
+        farmer_id: [eq]
+      standards: { ogc_features: false, sp_dci: false }

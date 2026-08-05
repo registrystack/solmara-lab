@@ -34,43 +34,15 @@ entities:
     source_revision: nagdi-livestock-movement-v1
     generation: "2026-07-14"
 
-issuance:
-  issuer: did:web:id.registrystack.org:solmara:authority:nagdi
-  signing_kid: did:web:id.registrystack.org:solmara:authority:nagdi#issuer-key-1
-  signing_key: { secret: NAGDI_NOTARY_ISSUER_JWK }
-  generation: 1
-
-callers:
-  nagdi-service:
-    api_key_fingerprint: { secret: NAGDI_CLIENT_TOKEN_HASH }
-    scopes: ["nagdi_agriculture:evidence_verification"]
-
 relay:
   origin: http://127.0.0.1:8080
   issuer: http://127.0.0.1:8090
   jwks_url: http://127.0.0.1:8090/.well-known/jwks.json
   audience: registry-relay
-  allowed_clients: [nagdi-notary]
-
-notary_relay:
-  base_url: http://127.0.0.1:8080
-  workload_client_id: nagdi-notary
-  token_file: /run/secrets/nagdi-notary-relay-token
-
-relay_state:
-  postgresql:
-    root_certificate_path: /etc/solmara/postgres/root.crt
-
-notary_state:
-  postgresql:
-    root_certificate_path: /etc/solmara/postgres/root.crt
-
-# Emulated local images require Registry Stack's bounded 1 GiB CEL worker ceiling.
-# Hosted deployments intentionally retain the 128 MiB default.
-notary_cel:
-  worker_memory_bytes: 1073741824
+  allowed_clients: [solmara-evidence]
+  consultation: { client_id: solmara-consultation, principal_id: solmara-consultation }
+relay_state: { postgresql: { root_certificate_path: /etc/solmara/postgres/root.crt } }
 
 deployment:
   profile: local
   relay: { service: nagdi-agriculture-relay }
-  notary: { service: nagdi-notary }

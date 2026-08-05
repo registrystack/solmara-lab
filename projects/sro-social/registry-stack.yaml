@@ -12,22 +12,37 @@ entities:
     file: entities/sro_child.yaml
 
 services:
-  child-benefit:
-    kind: evidence
+  sro-household-records:
+    kind: records_api
+    entity: sro_child
+    title: SRO household records
+    description: Purpose-limited household facts used by the Solmara Evidence service.
+    owner: Social Registry Office
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: continuous
+    api:
+      scopes:
+        metadata: sro_child:metadata
+        rows: sro_child:rows
+        aggregate: sro_child:aggregate
+        evidence_verification: sro_child:evidence_verification
+      purposes:
+        - https://id.registrystack.org/solmara/purpose/child-benefit-review
+      projection: [uin, poverty_band]
+      pagination: { default_limit: 2, max_limit: 2 }
+      filters:
+        uin: [eq]
+      standards: { ogc_features: false, sp_dci: false }
+
+  sro-household-consultation:
+    kind: consultation_api
     version: 1
     purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
     legal_basis: child-benefit-act
     consent: not_required
-    access:
-      scopes: ["sro_social:evidence_verification"]
     consultations:
       household:
         integration: child-benefit-household-by-uin
         input:
           uin: request.target.identifiers.solmara_uin
-    claims:
-      household-below-poverty-threshold:
-        cel: 'household.matched && household.poverty_band == "priority"'
-        disclosure:
-          default: predicate
-          allowed: [predicate, redacted]

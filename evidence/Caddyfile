@@ -1,0 +1,66 @@
+{
+	auto_https off
+}
+
+(solmara_tls) {
+	tls /etc/solmara-evidence/tls/gateway.crt /etc/solmara-evidence/tls/gateway.key
+}
+
+https://mint.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy mint:8081
+}
+
+https://evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy evidence:8080
+}
+
+https://localhost {
+	import solmara_tls
+	handle_path /child-benefit/* {
+		reverse_proxy child-benefit-federator:8080
+	}
+	handle /token* {
+		reverse_proxy mint:8081
+	}
+	handle /.well-known/oauth-authorization-server {
+		reverse_proxy mint:8081
+	}
+	handle /.well-known/jwks.json {
+		reverse_proxy mint:8081
+	}
+	handle {
+		reverse_proxy evidence:8080
+	}
+}
+
+https://cra-relay.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy cra-civil-relay:8080
+}
+
+https://nia-relay.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy nia-population-relay:8080
+}
+
+https://sro-relay.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy sro-social-relay:8080
+}
+
+https://programme-relay.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy programme-mis-relay:8080
+}
+
+https://sipf-relay.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy sipf-pensions-relay:8080
+}
+
+https://nagdi-relay.evidence.solmara.invalid {
+	import solmara_tls
+	reverse_proxy nagdi-agriculture-relay:8080
+}

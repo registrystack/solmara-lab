@@ -11,6 +11,9 @@ fi
 "$root/scripts/check-fiction.sh"
 "$root/scripts/check-image-pins.py"
 "$root/scripts/check-config-secrets.py"
+"$root/scripts/registry-projects.sh" check
+"$root/scripts/registry-projects.sh" check-runtime
+"$root/scripts/check-evidence-runtime.py"
 uv run --project "$root" "$root/scripts/publish-metadata.py" --check
 uv run --project "$root" "$root/scripts/metadata-lint.py"
 
@@ -24,11 +27,10 @@ fi
 cat <<'CHECKLIST'
 Security checklist for reviewer:
 1. Purpose-gated Relay entities require Data-Purpose where sensitive data is exposed.
-2. Raw tokens appear only in generated .env, never committed configs.
-3. Notary source connections use token_env and scoped Relay tokens.
-4. Redactable fields are not disclosed through predicate channels.
-5. Run `just smoke` against the live stack: its child-benefit application gate verifies authority-owned
-   predicate success, unsupported-purpose denial, non-composition, and rejection of raw-source results.
-6. Audit hash secrets are environment-backed.
-7. Fiction lint is green.
+2. Evidence source credentials are short-lived Relay workload tokens held in a private runtime volume.
+3. Mint authenticates the application with private_key_jwt and issues only the configured Evidence audience.
+4. Evidence requirements disclose reviewed concept values as flattened signed JWS, never source rows.
+5. Run `just smoke` against the live stack to exercise Mint, Evidence, Relay sources, scenarios, and the portal.
+6. Audit and subject-binding secrets are generated locally and remain uncommitted.
+7. The exact Registry Stack main commit in versions.env owns all three locally built runtime images.
 CHECKLIST

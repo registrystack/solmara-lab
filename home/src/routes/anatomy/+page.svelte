@@ -14,14 +14,14 @@
 
 <svelte:head>
   <title>Anatomy · Solmara Lab</title>
-  <meta name="description" content="What an institution actually runs: one Relay and one Notary per authority, application evidence collection, and the entire config for each ministry linked in the repo." />
+  <meta name="description" content="What an institution actually runs: source-owned Records APIs, Registry Evidence and Mint, application evidence collection, and the config linked in the repo." />
 </svelte:head>
 
 <main class="reference-surface reference-page">
   <ReferenceHero
     eyebrow="System anatomy"
     title="See where every trust boundary runs"
-    description="Trace the deployed topology from source-owned registries and Relays through Notaries to the programme services that collect bounded evidence. Every card links back to the configuration that creates it."
+    description="Trace the deployed topology from source-owned registries and Records APIs through Registry Evidence to the applications that collect bounded signed values. Every card links back to the configuration that creates it."
     active="anatomy"
     {facts}
   />

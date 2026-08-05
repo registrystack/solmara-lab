@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke the running Solmara Lab Notary topology."""
+"""Smoke the running local Registry Evidence and Mint topology."""
 
 from __future__ import annotations
 
@@ -16,17 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scenarios.common import PURPOSES, auth_headers, http_json, joined_url  # noqa: E402
-
-
-@dataclass(frozen=True)
-class NotaryService:
-    name: str
-    url_env: str
-    default_url: str
-    token_env: str
-    purpose: str
-    claim_ids: tuple[str, ...]
+from scenarios.common import http_json, joined_url  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -37,64 +27,6 @@ class ScenarioCase:
     expected_status: int | tuple[int, ...] | range
     expected_values: dict[str, bool]
 
-
-SERVICES = (
-    NotaryService(
-        "CRA Notary",
-        "CRA_NOTARY_URL",
-        "http://127.0.0.1:4325",
-        "CRA_CHILD_BENEFIT_CLIENT_TOKEN",
-        PURPOSES["child_benefit"],
-        ("birth-is-registered", "child-age-under-5"),
-    ),
-    NotaryService(
-        "NIA Notary",
-        "NIA_NOTARY_URL",
-        "http://127.0.0.1:4326",
-        "NIA_CHILD_BENEFIT_CLIENT_TOKEN",
-        PURPOSES["child_benefit"],
-        ("population-record-active",),
-    ),
-    NotaryService(
-        "SRO Notary",
-        "SRO_NOTARY_URL",
-        "http://127.0.0.1:4327",
-        "SRO_CHILD_BENEFIT_CLIENT_TOKEN",
-        PURPOSES["child_benefit"],
-        ("household-below-poverty-threshold",),
-    ),
-    NotaryService(
-        "Programme Notary",
-        "PROGRAMME_NOTARY_URL",
-        "http://127.0.0.1:4328",
-        "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
-        PURPOSES["child_benefit"],
-        ("not-already-enrolled",),
-    ),
-    NotaryService(
-        "SIPF Notary",
-        "SIPF_NOTARY_URL",
-        "http://127.0.0.1:4322",
-        "SIPF_PENSION_CLIENT_TOKEN",
-        PURPOSES["pension_payment"],
-        ("pension-payment-active", "survivor-is-eligible"),
-    ),
-    NotaryService(
-        "NAgDI Notary",
-        "NAGDI_NOTARY_URL",
-        "http://127.0.0.1:4323",
-        "NAGDI_NOTARY_TOKEN",
-        PURPOSES["voucher"],
-        (
-            "farmer-registered",
-            "data-use-authorized-for-purpose",
-            "eligible-for-climate-smart-input-voucher",
-            "registered-herd",
-            "origin-district-not-quarantined-for-species",
-            "eligible-for-livestock-movement-permit",
-        ),
-    ),
-)
 
 SCENARIO_CASES = (
     ScenarioCase(
@@ -110,29 +42,11 @@ SCENARIO_CASES = (
             "not-already-enrolled": True,
         },
     ),
-    ScenarioCase(
-        "child deceased control",
-        "child_benefit",
-        "deceased-control",
-        200,
-        {"child-age-under-5": False},
-    ),
-    ScenarioCase(
-        "child poverty control",
-        "child_benefit",
-        "poverty-control",
-        200,
-        {"household-below-poverty-threshold": False},
-    ),
+    ScenarioCase("child deceased control", "child_benefit", "deceased-control", 200, {"child-age-under-5": False}),
+    ScenarioCase("child poverty control", "child_benefit", "poverty-control", 200, {"household-below-poverty-threshold": False}),
     ScenarioCase("child unregistered control", "child_benefit", "unregistered-control", 200, {"birth-is-registered": False}),
-    ScenarioCase(
-        "child duplicate enrollment control",
-        "child_benefit",
-        "duplicate-control",
-        200,
-        {"not-already-enrolled": False},
-    ),
-    ScenarioCase("child unsupported purpose denial", "child_benefit", "purpose-denial", range(400, 500), {}),
+    ScenarioCase("child duplicate control", "child_benefit", "duplicate-control", 200, {"not-already-enrolled": False}),
+    ScenarioCase("child purpose denial", "child_benefit", "purpose-denial", range(400, 500), {}),
     ScenarioCase(
         "pension stop payment",
         "pension_survivor",
@@ -140,78 +54,29 @@ SCENARIO_CASES = (
         200,
         {"person-is-deceased": True, "pension-payment-active": True},
     ),
-    ScenarioCase(
-        "pension stale death control",
-        "pension_survivor",
-        "stale-control",
-        200,
-        {"person-is-deceased": False},
-    ),
-    ScenarioCase(
-        "pension survivor benefit",
-        "pension_survivor",
-        "survivor-benefit",
-        200,
-        {"survivor-is-eligible": True},
-    ),
-    ScenarioCase(
-        "pension dissolved marriage control",
-        "pension_survivor",
-        "dissolved-control",
-        200,
-        {"survivor-is-eligible": False},
-    ),
+    ScenarioCase("pension stale death control", "pension_survivor", "stale-control", 200, {"person-is-deceased": False}),
+    ScenarioCase("pension survivor benefit", "pension_survivor", "survivor-benefit", 200, {"survivor-is-eligible": True}),
+    ScenarioCase("pension dissolved marriage control", "pension_survivor", "dissolved-control", 200, {"survivor-is-eligible": False}),
     ScenarioCase("pension over-disclosure denial", "pension_survivor", "cause-of-death-denial", range(400, 500), {}),
-    ScenarioCase(
-        "farmer voucher eligible",
-        "farmer_voucher",
-        "positive",
-        200,
-        {"eligible-for-climate-smart-input-voucher": True},
-    ),
-    ScenarioCase(
-        "farmer missing authorization control",
-        "farmer_voucher",
-        "authorization-control",
-        200,
-        {"eligible-for-climate-smart-input-voucher": False},
-    ),
-    ScenarioCase(
-        "farmer redeemed control",
-        "farmer_voucher",
-        "redeemed-control",
-        200,
-        {"eligible-for-climate-smart-input-voucher": False},
-    ),
-    ScenarioCase(
-        "livestock movement permit eligible",
-        "farmer_voucher",
-        "movement-permit",
-        200,
-        {"eligible-for-livestock-movement-permit": True},
-    ),
+    ScenarioCase("farmer voucher eligible", "farmer_voucher", "positive", 200, {"eligible-for-climate-smart-input-voucher": True}),
+    ScenarioCase("farmer authorization control", "farmer_voucher", "authorization-control", 200, {"eligible-for-climate-smart-input-voucher": False}),
+    ScenarioCase("farmer redeemed control", "farmer_voucher", "redeemed-control", 200, {"eligible-for-climate-smart-input-voucher": False}),
+    ScenarioCase("livestock movement eligible", "farmer_voucher", "movement-permit", 200, {"eligible-for-livestock-movement-permit": True}),
     ScenarioCase("livestock purpose denial", "farmer_voucher", "purpose-denial", range(400, 500), {}),
     ScenarioCase(
-        "citizen self-service summary",
+        "citizen self-service",
         "citizen",
         "positive",
         200,
-        {
-            "citizen-population-record-active": True,
-            "civil-record-linked": True,
-        },
+        {"citizen-population-record-active": True, "civil-record-linked": True},
     ),
-    ScenarioCase("citizen unsupported purpose denial", "citizen", "purpose-denial", range(400, 500), {}),
+    ScenarioCase("citizen purpose denial", "citizen", "purpose-denial", range(400, 500), {}),
 )
 
 
 def main() -> int:
     load_dotenv(ROOT / ".env")
-    failures: list[str] = []
-
-    for service in SERVICES:
-        failures.extend(check_service(service))
-
+    failures = check_runtime()
     for case in SCENARIO_CASES:
         failures.extend(check_case(case))
 
@@ -220,7 +85,7 @@ def main() -> int:
             print(f"smoke-live: {failure}", file=sys.stderr)
         return 1
 
-    print(f"smoke-live: {len(SERVICES)} services and {len(SCENARIO_CASES)} scenario checks passed")
+    print(f"smoke-live: Mint, Evidence, and {len(SCENARIO_CASES)} scenario checks passed")
     return 0
 
 
@@ -235,38 +100,32 @@ def load_dotenv(path: Path) -> None:
         key = key.strip()
         if not key or key in os.environ:
             continue
-        if raw_value == "":
-            os.environ[key] = ""
-            continue
         parts = shlex.split(raw_value, posix=True)
         os.environ[key] = parts[0] if parts else ""
 
 
-def check_service(service: NotaryService) -> list[str]:
+def check_runtime() -> list[str]:
+    evidence_url = os.environ.get("SOLMARA_EVIDENCE_URL", "https://localhost:4341")
     failures: list[str] = []
-    base_url = os.environ.get(service.url_env, service.default_url)
-    if not os.environ.get(service.token_env):
-        return [f"{service.name}: missing {service.token_env}; run `just generate` before live smoke"]
-
-    readiness = wait_for_readiness(base_url, service.name)
+    readiness = wait_for_readiness(evidence_url)
     if readiness is not None:
         failures.append(readiness)
 
-    headers = auth_headers(os.environ[service.token_env], service.purpose, "application/json")
-    result = http_json("GET", joined_url(base_url, "/v1/claims"), headers, timeout=5.0)
-    if result.status != 200:
-        failures.append(f"{service.name}: GET /v1/claims returned {result.status}; body={compact_body(result.body)}")
-        return failures
-
-    ids = catalog_claim_ids(result.body)
-    missing = sorted(set(service.claim_ids) - ids)
-    if missing:
-        failures.append(f"{service.name}: missing claims from catalogue: {', '.join(missing)}")
+    metadata = http_json(
+        "GET",
+        joined_url(evidence_url, "/.well-known/oauth-authorization-server"),
+        {"Accept": "application/json"},
+        timeout=5.0,
+    )
+    if metadata.status != 200:
+        failures.append(f"Mint metadata returned {metadata.status or metadata.error}; body={compact_body(metadata.body)}")
+    elif not isinstance(metadata.body, dict) or metadata.body.get("issuer") != "https://mint.evidence.solmara.invalid":
+        failures.append(f"Mint metadata exposed an unexpected issuer; body={compact_body(metadata.body)}")
     return failures
 
 
-def wait_for_readiness(base_url: str, name: str) -> str | None:
-    url = joined_url(base_url, "/ready")
+def wait_for_readiness(evidence_url: str) -> str | None:
+    url = joined_url(evidence_url, "/ready")
     deadline = time.monotonic() + float(os.environ.get("SOLMARA_SMOKE_READY_TIMEOUT_SECONDS", "90"))
     last_status: int | None = None
     last_error = ""
@@ -278,7 +137,7 @@ def wait_for_readiness(base_url: str, name: str) -> str | None:
             return None
         time.sleep(1)
     detail = f"status {last_status}" if last_status is not None else last_error or "no response"
-    return f"{name}: /ready did not become ready at {url} ({detail})"
+    return f"Evidence /ready did not become ready at {url} ({detail})"
 
 
 def check_case(case: ScenarioCase) -> list[str]:
@@ -287,26 +146,26 @@ def check_case(case: ScenarioCase) -> list[str]:
     response = result.get("response_source", {})
     status = response.get("status")
     if not status_matches(status, case.expected_status):
-        return [f"{case.name}: expected HTTP {format_expected(case.expected_status)}, got {status}; body={compact_body(response.get('body'))}"]
-
+        return [
+            f"{case.name}: expected HTTP {format_expected(case.expected_status)}, got {status}; "
+            f"body={compact_body(response.get('body'))}"
+        ]
     if not case.expected_values:
         return []
 
     values = claim_values(response.get("body", {}))
-    failures = []
-    for claim_id, expected in case.expected_values.items():
-        actual = values.get(claim_id)
-        if actual is not expected:
-            failures.append(f"{case.name}: expected {claim_id}={expected}, got {actual}; body={compact_body(response.get('body'))}")
-    return failures
+    return [
+        f"{case.name}: expected {claim_id}={expected}, got {values.get(claim_id)}; "
+        f"body={compact_body(response.get('body'))}"
+        for claim_id, expected in case.expected_values.items()
+        if values.get(claim_id) is not expected
+    ]
 
 
 def status_matches(status: Any, expected: int | tuple[int, ...] | range) -> bool:
     if not isinstance(status, int):
         return False
-    if isinstance(expected, int):
-        return status == expected
-    return status in expected
+    return status == expected if isinstance(expected, int) else status in expected
 
 
 def format_expected(expected: int | tuple[int, ...] | range) -> str:
@@ -317,31 +176,17 @@ def format_expected(expected: int | tuple[int, ...] | range) -> str:
     return str(expected)
 
 
-def catalog_claim_ids(body: Any) -> set[str]:
-    if not isinstance(body, dict):
-        return set()
-    claims = body.get("data", [])
-    if not isinstance(claims, list):
-        return set()
-    return {claim.get("id") for claim in claims if isinstance(claim, dict) and isinstance(claim.get("id"), str)}
-
-
 def claim_values(body: Any) -> dict[str, bool | None]:
     if not isinstance(body, dict):
         return {}
     results = body.get("results", [])
     if not isinstance(results, list):
         return {}
-    values: dict[str, bool | None] = {}
-    for item in results:
-        if not isinstance(item, dict):
-            continue
-        claim_id = item.get("claim_id")
-        if not isinstance(claim_id, str):
-            continue
-        value = item.get("value")
-        values[claim_id] = value if isinstance(value, bool) else item.get("satisfied")
-    return values
+    return {
+        item["claim_id"]: item.get("value") if isinstance(item.get("value"), bool) else item.get("satisfied")
+        for item in results
+        if isinstance(item, dict) and isinstance(item.get("claim_id"), str)
+    }
 
 
 def compact_body(body: Any) -> str:

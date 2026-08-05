@@ -7,12 +7,12 @@ import type { ConfigLink, TopologyGroup, TopologyService } from '$lib/types';
  * port or hostname is scattered across components. Probe URLs default to the
  * published localhost ports and are overridden by the compose-internal URLs the
  * home container receives (see the `home` service env in `compose.yaml`), which
- * is why relays and notaries are reachable for probing from inside the network.
+ * is why Relay, Evidence, and Mint are reachable for probing from the network.
  *
  * The internal probe origins mirror the same conventions as `urlmap.ts` and
  * `scenarios/service_config.py`.
  */
-export type ServiceRole = 'shared' | 'relay' | 'notary';
+export type ServiceRole = 'shared' | 'relay' | 'evidence';
 
 type ServiceStatusSemantics = 'health' | 'auth-gated';
 
@@ -52,7 +52,7 @@ export const SERVICES: ServiceDef[] = [
     id: 'scenario-runner',
     label: 'Scenario runner',
     role: 'shared',
-    blurb: 'Runs the guided stories and the Purpose Lens against the live notaries.',
+    blurb: 'Runs the guided stories and the Purpose Lens against Registry Evidence.',
     probeEnv: 'SCENARIO_RUNNER_URL',
     probeDefault: 'http://127.0.0.1:4302',
     probePath: '/health',
@@ -193,82 +193,30 @@ export const SERVICES: ServiceDef[] = [
     configPaths: [{ label: 'Federator service', path: 'scenario-runner/child_benefit_federator.py' }]
   },
   {
-    id: 'cra-notary',
-    label: 'CRA notary',
-    role: 'notary',
-    authority: 'Civil Registration Authority',
-    purpose: 'child-benefit-review, pension-payment-review, citizen-self-service',
-    blurb: 'Answers civil-registration predicates for child benefit, pension review, and citizen services.',
-    probeEnv: 'CRA_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4325',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/cra-civil/notary/notary.yaml' }]
+    id: 'registry-evidence',
+    label: 'Registry Evidence',
+    role: 'evidence',
+    purpose: 'all six reviewed Solmara purposes',
+    blurb: 'Evaluates eleven minimized requirements against authority Records APIs and returns signed evidence assertions.',
+    probeEnv: 'EVIDENCE_URL',
+    probeDefault: 'https://localhost:4341',
+    probePath: '/health',
+    semantics: 'health',
+    configPaths: [
+      { label: 'Runtime config', path: 'evidence/runtime.yaml' },
+      { label: 'Evidence bundle', path: 'evidence/bundle' }
+    ]
   },
   {
-    id: 'nia-notary',
-    label: 'NIA notary',
-    role: 'notary',
-    authority: 'National Identity Agency',
-    purpose: 'child-benefit-review, citizen-self-service',
-    blurb: 'Answers active population-record predicates and owns the citizen population-status credential.',
-    probeEnv: 'NIA_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4326',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/nia-population/notary/notary.yaml' }]
-  },
-  {
-    id: 'sro-notary',
-    label: 'SRO notary',
-    role: 'notary',
-    authority: 'Social Registry Office',
-    purpose: 'child-benefit-review',
-    blurb: 'Answers the household poverty-threshold predicate from the social registry.',
-    probeEnv: 'SRO_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4327',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/sro-social/notary/notary.yaml' }]
-  },
-  {
-    id: 'programme-notary',
-    label: 'Programme MIS notary',
-    role: 'notary',
-    authority: 'Ministry of Social Development Programme MIS',
-    purpose: 'child-benefit-review',
-    blurb: 'Answers the duplicate-enrollment predicate from programme records.',
-    probeEnv: 'PROGRAMME_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4328',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/mosd-programme/notary/notary.yaml' }]
-  },
-  {
-    id: 'sipf-notary',
-    label: 'SIPF notary',
-    role: 'notary',
-    authority: 'Social Insurance and Pensions Fund',
-    purpose: 'pension-payment-review, survivor-benefit-determination',
-    blurb: 'Answers pension-payment and survivor-benefit predicates and owns the survivor credential.',
-    probeEnv: 'SIPF_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4322',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/sipf-pensions/notary/notary.yaml' }]
-  },
-  {
-    id: 'nagdi-notary',
-    label: 'NAgDI notary',
-    role: 'notary',
-    authority: 'National Agricultural Data Institute',
-    purpose: 'voucher-eligibility-review, livestock-movement-control',
-    blurb: 'Evaluates farmer voucher and livestock movement claims.',
-    probeEnv: 'NAGDI_NOTARY_URL',
-    probeDefault: 'http://127.0.0.1:4323',
-    probePath: '/v1/claims',
-    semantics: 'auth-gated',
-    configPaths: [{ label: 'Generated Notary config', path: 'runtime/registry-projects/local/nagdi-agriculture/notary/notary.yaml' }]
+    id: 'registry-mint',
+    label: 'Registry Mint',
+    role: 'evidence',
+    blurb: 'Issues short-lived requester-bound access tokens for the local Evidence service using private_key_jwt.',
+    probeEnv: 'MINT_URL',
+    probeDefault: 'https://localhost:4341',
+    probePath: '/health',
+    semantics: 'health',
+    configPaths: [{ label: 'Mint config', path: 'evidence/mint.yaml' }]
   }
 ];
 
@@ -301,15 +249,15 @@ export function statusProbes(portalUrl: string, readEnv: Record<string, string |
 }
 
 /**
- * Group the topology for the anatomy page: relays and Notaries under their
- * authority, and shared services such as the child-benefit evidence collector.
+ * Group the topology for the anatomy page: authority Relays, the Evidence and
+ * Mint trust boundary, and shared application services.
  * Config paths become repo links, with the
  * in-repo relative path preserved as visible text.
  */
 export function topologyGroups(repoUrl: string): TopologyGroup[] {
   const shared = SERVICES.filter((service) => service.role === 'shared');
   const relays = SERVICES.filter((service) => service.role === 'relay');
-  const notaries = SERVICES.filter((service) => service.role === 'notary');
+  const evidence = SERVICES.filter((service) => service.role === 'evidence');
   return [
     {
       key: 'relays',
@@ -319,11 +267,11 @@ export function topologyGroups(repoUrl: string): TopologyGroup[] {
       services: relays.map((service) => toTopologyService(service, repoUrl))
     },
     {
-      key: 'notaries',
-      title: 'Source-owned Notaries',
+      key: 'evidence',
+      title: 'Evidence and requester identity',
       blurb:
-        'Each authority runs one Notary beside its Relay. Applications collect minimized, source-attributed predicates without moving raw rows or asking a Notary to compose the final programme decision.',
-      services: notaries.map((service) => toTopologyService(service, repoUrl))
+        'Evidence evaluates reviewed requirements against protected Records APIs and signs the minimized values. Mint supplies short-lived requester identity and grant tags. Neither service owns an application decision.',
+      services: evidence.map((service) => toTopologyService(service, repoUrl))
     },
     {
       key: 'shared',

@@ -1,0 +1,542 @@
+version: 1
+assuranceProfile: production
+service: { providerId: https://id.registrystack.org/solmara/evidence/national, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
+issuer: { id: https://id.registrystack.org/solmara/issuer/national-evidence-service }
+authentication:
+  kind: oidc-access-token
+  issuer: https://mint.evidence.solmara.invalid
+  audiences: [solmara-evidence]
+  tokenTypes: [at+jwt]
+  algorithms: [EdDSA]
+  jwksUri: https://mint.evidence.solmara.invalid/.well-known/jwks.json
+  principalClaim: sub
+  requesterTagsClaim: evidence_tags
+  evidenceAudienceClaim: evidence_audience
+  grantIdClaim: evidence_grant_id
+  grantAuthorityClaim: evidence_authority
+audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
+subjectBinding: { secretRef: secret:file/subject-binding-hmac-key, keyVersion: 1 }
+# One demo principal drives every guided workflow, so its burst covers a full
+# end-to-end lab tour while retaining per-principal and selector-failure bounds.
+rateLimits: { requestsPerPrincipalPerMinute: 600, burstPerPrincipal: 100, failedSelectorAttemptsPerPrincipalAuthorityPerMinute: 50 }
+signing:
+  format: flattened-jws-json
+  algorithm: EdDSA
+  activeKeyId: solmara-evidence-signing-key-1
+  activeKeyRef: secret:file/signing-ed25519-private-jwk
+  retiredPublicJwkFiles: []
+  jwksPath: /.well-known/evidence/jwks.json
+  maximumAssertionValiditySeconds: 86400
+  verifierClockSkewSeconds: 30
+responseFormats: [signed-jws]
+
+selectorProfiles:
+  solmara-uin-v1:
+    maximumAggregateBytes: 16
+    fields:
+      uin: { type: string, minimumBytes: 10, maximumBytes: 10 }
+  farmer-reference-v1:
+    maximumAggregateBytes: 32
+    fields:
+      farmer_id: { type: string, minimumBytes: 7, maximumBytes: 16 }
+
+sources:
+  cra-child-benefit:
+    transport: http-json
+    baseUrl: https://cra-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/cra-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/civil_people/entities/civil_people/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/child-benefit-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin,birth_date,birth_brn,deceased", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /data/*/birth_date, /data/*/birth_brn, /data/*/deceased, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/cra-child-benefit-facts.schema.yaml
+  cra-pension:
+    transport: http-json
+    baseUrl: https://cra-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/cra-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/civil_people/entities/civil_people/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/pension-payment-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin,deceased", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /data/*/deceased, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/cra-pension-facts.schema.yaml
+  cra-citizen:
+    transport: http-json
+    baseUrl: https://cra-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/cra-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/civil_people/entities/civil_people/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/citizen-self-service }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/cra-citizen-facts.schema.yaml
+  nia-child-benefit:
+    transport: http-json
+    baseUrl: https://nia-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/nia-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/population/entities/population/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/child-benefit-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin,identity_status,alive", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /data/*/identity_status, /data/*/alive, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/nia-population-facts.schema.yaml
+  nia-citizen:
+    transport: http-json
+    baseUrl: https://nia-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/nia-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/population/entities/population/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/citizen-self-service }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin,identity_status,alive", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /data/*/identity_status, /data/*/alive, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/nia-population-facts.schema.yaml
+  sro-child-benefit:
+    transport: http-json
+    baseUrl: https://sro-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/sro-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/sro_child/entities/sro_child/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/child-benefit-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin,poverty_band", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /data/*/poverty_band, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/sro-child-benefit-facts.schema.yaml
+  mosd-child-benefit:
+    transport: http-json
+    baseUrl: https://programme-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/programme-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/mosd_enroll/entities/mosd_enroll/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/child-benefit-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: uin, providerFields: "uin,duplicate_flag", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/uin, /data/*/duplicate_flag, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/mosd-child-benefit-facts.schema.yaml
+  sipf-pension:
+    transport: http-json
+    baseUrl: https://sipf-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/sipf-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/pension/entities/pension/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/pension-payment-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: pensioner_uin, providerFields: "pensioner_uin,payment_status", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/pensioner_uin, /data/*/payment_status, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/sipf-pension-facts.schema.yaml
+  sipf-survivor:
+    transport: http-json
+    baseUrl: https://sipf-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/sipf-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/survivor/entities/survivor/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/survivor-benefit-determination }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: spouse_uin, providerFields: "spouse_uin,survivor_eligible", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/spouse_uin, /data/*/survivor_eligible, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/sipf-survivor-facts.schema.yaml
+  nagdi-voucher:
+    transport: http-json
+    baseUrl: https://nagdi-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/nagdi-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/nagdi_farmer/entities/nagdi_farmer/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: farmer-reference-v1, fields: [farmer_id] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: farmer_id, providerFields: "farmer_id,farmer_registered,data_use_authorized,active_smallholder_farmer,active_farm_parcel,crop_declared_for_season,district_climate_risk_active,voucher_entitlement_current,voucher_not_redeemed", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/farmer_id, /data/*/farmer_registered, /data/*/data_use_authorized, /data/*/active_smallholder_farmer, /data/*/active_farm_parcel, /data/*/crop_declared_for_season, /data/*/district_climate_risk_active, /data/*/voucher_entitlement_current, /data/*/voucher_not_redeemed, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/nagdi-voucher-facts.schema.yaml
+  nagdi-livestock:
+    transport: http-json
+    baseUrl: https://nagdi-relay.evidence.solmara.invalid
+    tlsTrustProfile: solmara-lab
+    posture: field-projected
+    authentication: { kind: static-bearer, tokenRef: secret:file/nagdi-relay-token }
+    request:
+      method: GET
+      path: /v1/datasets/nagdi_herd/entities/nagdi_herd/records
+      fixedHeaders:
+        - { name: Accept, value: application/json }
+        - { name: Data-Purpose, value: https://id.registrystack.org/solmara/purpose/livestock-movement-control }
+      selectorInputs: [{ role: subject, alternatives: [{ profile: farmer-reference-v1, fields: [farmer_id] }] }]
+      prepareScript: adapters/prepare.rhai
+      adapterParameters: { selectorField: farmer_id, providerFields: "farmer_id,registered_herd,herd_vaccination_current,origin_district_not_quarantined_for_species,destination_district_open,no_conflicting_open_movement_permit", resultLimit: "2" }
+      adapterParametersSchema: schemas/adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: forbidden, maximumQueryPairs: 8, maximumQueryNameBytes: 64, maximumQueryValueBytes: 1024, maximumNormalizedBytes: 4096 }
+      projection: [/data/*/farmer_id, /data/*/registered_herd, /data/*/herd_vaccination_current, /data/*/origin_district_not_quarantined_for_species, /data/*/destination_district_open, /data/*/no_conflicting_open_movement_permit, /pagination/has_more]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/extract.rhai
+    factSchema: schemas/nagdi-livestock-facts.schema.yaml
+
+authorityProfiles:
+  solmara-demo-v1:
+    kind: statutory
+    requesterTags: [solmara-demo]
+    grants:
+      - requirement: https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1
+        purpose: child-benefit-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/cra-pension-death/v1
+        purpose: pension-payment-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/cra-citizen-record/v1
+        purpose: citizen-self-service
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/nia-child-benefit/v1
+        purpose: child-benefit-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/nia-citizen-status/v1
+        purpose: citizen-self-service
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
+        purpose: child-benefit-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1
+        purpose: child-benefit-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1
+        purpose: pension-payment-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1
+        purpose: survivor-benefit-determination
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1
+        purpose: voucher-eligibility-review
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: farmer-reference-v1, valueOrigin: request }]
+      - requirement: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1
+        purpose: livestock-movement-control
+        audienceFrom: authenticated-requester
+        responseFormats: [signed-jws]
+        subjects: [{ role: subject, selectorProfile: farmer-reference-v1, valueOrigin: request }]
+
+requirements:
+  - id: https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1
+    kind: information-requirement
+    source: cra-child-benefit
+    purposes: [child-benefit-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/cra-child-benefit/v1
+    observationTimezone: Asia/Bangkok
+    validitySeconds: 86400
+    derivation:
+      script: derivations/cra-child-benefit.rhai
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      parameters: { as_of_date: "2026-07-14" }
+    concepts:
+      - { id: https://id.registrystack.org/solmara/concept/birth-is-registered, form: boolean, required: true, constraints: {} }
+      - { id: https://id.registrystack.org/solmara/concept/child-age-under-5, form: boolean, required: true, constraints: {} }
+    fixtures: fixtures/cra-child-benefit.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/cra-child-benefit] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/cra-pension-death/v1
+    kind: information-requirement
+    source: cra-pension
+    purposes: [pension-payment-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/social-insurance/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/cra-death-status/v1
+    validitySeconds: 86400
+    derivation: { script: derivations/cra-deceased.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }], parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/person-is-deceased, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/cra-pension.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/cra-pension] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/cra-citizen-record/v1
+    kind: information-requirement
+    source: cra-citizen
+    purposes: [citizen-self-service]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/citizen-self-service/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/civil-record-linked/v1
+    validitySeconds: 86400
+    derivation: { script: derivations/cra-linked.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }], parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/civil-record-linked, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/cra-citizen.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/cra-citizen] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/nia-child-benefit/v1
+    kind: information-requirement
+    source: nia-child-benefit
+    purposes: [child-benefit-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/population-active/v1
+    validitySeconds: 86400
+    derivation:
+      script: derivations/population-active.rhai
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      parameters: { concept_id: https://id.registrystack.org/solmara/concept/population-record-active }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/population-record-active, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/nia-child-benefit.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/nia-child-benefit] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/nia-citizen-status/v1
+    kind: information-requirement
+    source: nia-citizen
+    purposes: [citizen-self-service]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/citizen-self-service/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/citizen-population-active/v1
+    validitySeconds: 86400
+    derivation:
+      script: derivations/population-active.rhai
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      parameters: { concept_id: https://id.registrystack.org/solmara/concept/citizen-population-record-active }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/citizen-population-record-active, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/nia-citizen.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/nia-citizen] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
+    kind: information-requirement
+    source: sro-child-benefit
+    purposes: [child-benefit-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/poverty-priority/v1
+    validitySeconds: 86400
+    derivation: { script: derivations/poverty-priority.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }], parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/household-below-poverty-threshold, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/sro-child-benefit.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sro-child-benefit] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1
+    kind: information-requirement
+    source: mosd-child-benefit
+    purposes: [child-benefit-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/not-enrolled/v1
+    validitySeconds: 86400
+    derivation: { script: derivations/not-enrolled.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }], parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/not-already-enrolled, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/mosd-child-benefit.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/mosd-child-benefit] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1
+    kind: information-requirement
+    source: sipf-pension
+    purposes: [pension-payment-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/social-insurance/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/pension-payment-active/v1
+    validitySeconds: 86400
+    derivation: { script: derivations/pension-active.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }], parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/pension-payment-active, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/sipf-pension.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sipf-pension] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1
+    kind: information-requirement
+    source: sipf-survivor
+    purposes: [survivor-benefit-determination]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/social-insurance/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/survivor-benefit/v1
+    validitySeconds: 86400
+    derivation: { script: derivations/survivor-eligible.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }], parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/survivor-is-eligible, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/sipf-survivor.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sipf-survivor] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1
+    kind: information-requirement
+    source: nagdi-voucher
+    purposes: [voucher-eligibility-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [farmer-reference-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/agriculture/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/climate-smart-voucher/v1
+    validitySeconds: 600
+    derivation: { script: derivations/voucher.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: farmer-reference-v1, fields: [farmer_id] }] }], parameters: {} }
+    concepts:
+      - { id: https://id.registrystack.org/solmara/concept/farmer-registered, form: boolean, required: true, constraints: {} }
+      - { id: https://id.registrystack.org/solmara/concept/data-use-authorized-for-purpose, form: boolean, required: true, constraints: {} }
+      - { id: https://id.registrystack.org/solmara/concept/eligible-for-climate-smart-input-voucher, form: boolean, required: true, constraints: {} }
+    fixtures: fixtures/nagdi-voucher.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/nagdi-voucher] }
+    existenceDisclosure: collapse-unresolved
+  - id: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1
+    kind: information-requirement
+    source: nagdi-livestock
+    purposes: [livestock-movement-control]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [farmer-reference-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/agriculture/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/livestock-movement/v1
+    validitySeconds: 600
+    derivation: { script: derivations/livestock.rhai, selectorInputs: [{ role: subject, alternatives: [{ profile: farmer-reference-v1, fields: [farmer_id] }] }], parameters: {} }
+    concepts:
+      - { id: https://id.registrystack.org/solmara/concept/registered-herd, form: boolean, required: true, constraints: {} }
+      - { id: https://id.registrystack.org/solmara/concept/origin-district-not-quarantined-for-species, form: boolean, required: true, constraints: {} }
+      - { id: https://id.registrystack.org/solmara/concept/eligible-for-livestock-movement-permit, form: boolean, required: true, constraints: {} }
+    fixtures: fixtures/nagdi-livestock.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/nagdi-livestock] }
+    existenceDisclosure: collapse-unresolved

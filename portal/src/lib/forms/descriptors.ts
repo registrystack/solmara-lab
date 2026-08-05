@@ -1,6 +1,6 @@
 // The three wave 1 ServiceForm descriptors.
 //
-// Each Field maps a kind/claim/notary/purpose/disclose so the form page can drive
+// Each Field maps a kind/claim/authority/purpose/disclose so the form page can drive
 // the EvidenceField renderer and the BFF can resolve a canned scenario by field
 // id. The field ids ARE the scenario lookup keys the MockEvidenceProvider expects
 // (see resolveScenarioKey), so they must match the keys in providers/mock/scenarios.ts.
@@ -12,11 +12,11 @@
 import type { Field, NotaryId, ServiceForm } from '$lib/types';
 
 export const PURPOSES = {
-  childBenefitReview: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
-  pensionPaymentReview: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
-  survivorBenefitDetermination: 'https://id.registrystack.org/solmara/purpose/survivor-benefit-determination',
-  voucherEligibilityReview: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-  citizenSelfService: 'https://id.registrystack.org/solmara/purpose/citizen-self-service'
+  childBenefitReview: 'child-benefit-review',
+  pensionPaymentReview: 'pension-payment-review',
+  survivorBenefitDetermination: 'survivor-benefit-determination',
+  voucherEligibilityReview: 'voucher-eligibility-review',
+  citizenSelfService: 'citizen-self-service'
 } as const;
 
 // ---------------------------------------------------------------------------

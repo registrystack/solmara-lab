@@ -3,6 +3,23 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-06 Registry Stack main Evidence migration
+
+The local lab now builds Relay, Registry Evidence, and Registry Mint from the
+exact Registry Stack `main` commit pinned in `versions.env`. Six authority
+Relays expose current Records APIs to one Evidence service through scoped,
+short-lived workload credentials. Mint uses `private_key_jwt` client
+authentication, and the application journeys consume flattened signed JWS
+Evidence assertions instead of authority Notary evaluations.
+
+All six Registry projects and their committed runtime closures are regenerated
+with Registryctl 0.17.0. Eleven Evidence requirements cover child benefit,
+pension and survivor workflows, farmer and livestock controls, and citizen
+self-service. The active local quality gates validate the paired Mint config,
+the Evidence bundle, and 89 Evidence fixture cases. Hosted and Coolify files
+remain on the earlier released Notary topology and are explicitly unsupported
+on this source-only branch.
+
 ## 2026-07-29 Registry Stack v0.15.2 adoption
 
 The lab now consumes the canonical Registry Stack Relay image directly. The

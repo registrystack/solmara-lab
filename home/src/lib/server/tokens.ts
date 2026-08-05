@@ -2,37 +2,13 @@ import { env } from '$env/dynamic/private';
 import { buildPublicUrlMap, mapPublicUrl } from './urlmap';
 import type { CurlExample, PublishedToken } from '$lib/types';
 
-const CHILD_PURPOSE = 'https://id.registrystack.org/solmara/purpose/child-benefit-review';
-const PENSION_PURPOSE = 'https://id.registrystack.org/solmara/purpose/pension-payment-review';
-const SURVIVOR_PURPOSE = 'https://id.registrystack.org/solmara/purpose/survivor-benefit-determination';
-const VOUCHER_PURPOSE = 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review';
-const LIVESTOCK_PURPOSE = 'https://id.registrystack.org/solmara/purpose/livestock-movement-control';
-const CITIZEN_PURPOSE = 'https://id.registrystack.org/solmara/purpose/citizen-self-service';
+const CHILD_PURPOSE = 'child-benefit-review';
+const PENSION_PURPOSE = 'pension-payment-review';
 
 const TOKEN_BINDINGS: Record<string, { urlHints: string[]; purposes: string[] }> = {
   'child-benefit-federator': {
     urlHints: ['child-benefit-federator', 'localhost:4321', '127.0.0.1:4321'],
     purposes: [CHILD_PURPOSE]
-  },
-  'cra-pension-client': {
-    urlHints: ['cra-notary', 'localhost:4325', '127.0.0.1:4325'],
-    purposes: [PENSION_PURPOSE]
-  },
-  'cra-citizen-client': {
-    urlHints: ['cra-notary', 'localhost:4325', '127.0.0.1:4325'],
-    purposes: [CITIZEN_PURPOSE]
-  },
-  'nia-citizen-client': {
-    urlHints: ['nia-notary', 'localhost:4326', '127.0.0.1:4326'],
-    purposes: [CITIZEN_PURPOSE]
-  },
-  'sipf-pension-client': {
-    urlHints: ['sipf-notary', 'localhost:4322', '127.0.0.1:4322'],
-    purposes: [PENSION_PURPOSE, SURVIVOR_PURPOSE]
-  },
-  'nagdi-notary': {
-    urlHints: ['nagdi-notary', 'localhost:4323', '127.0.0.1:4323'],
-    purposes: [VOUCHER_PURPOSE, LIVESTOCK_PURPOSE]
   }
 };
 
@@ -44,26 +20,6 @@ const TOKEN_NOTES: Record<string, { purpose: string; note: string }> = {
   'child-benefit-federator': {
     purpose: CHILD_PURPOSE,
     note: 'Scoped to the child benefit federator. Use it to collect source-owned predicates under child-benefit-review.'
-  },
-  'cra-pension-client': {
-    purpose: PENSION_PURPOSE,
-    note: 'Scoped to CRA civil evidence used during pension payment review.'
-  },
-  'cra-citizen-client': {
-    purpose: CITIZEN_PURPOSE,
-    note: 'Scoped to CRA civil evidence used by citizen self-service.'
-  },
-  'nia-citizen-client': {
-    purpose: CITIZEN_PURPOSE,
-    note: 'Scoped to NIA population evidence and credential issuance used by citizen self-service.'
-  },
-  'sipf-pension-client': {
-    purpose: PENSION_PURPOSE,
-    note: 'Scoped to SIPF evidence for pension payment and survivor benefit review.'
-  },
-  'nagdi-notary': {
-    purpose: VOUCHER_PURPOSE,
-    note: 'Scoped to the NAgDI notary for farmer voucher and livestock movement review.'
   }
 };
 
@@ -91,7 +47,7 @@ export function parsePublishedTokens(json: string | undefined = env.HOME_PUBLISH
       name,
       token: value,
       purpose: meta?.purpose,
-      note: meta?.note ?? 'Synthetic lab token, safe to publish. Scoped to one notary.'
+      note: meta?.note ?? 'Synthetic lab token, safe to publish. Scoped to one local application.'
     });
   }
   return tokens;

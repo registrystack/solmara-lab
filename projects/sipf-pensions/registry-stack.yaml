@@ -16,44 +16,72 @@ entities:
     file: entities/survivor.yaml
 
 services:
-  sipf-pension-payment-review:
-    kind: evidence
+  sipf-pension-records:
+    kind: records_api
+    entity: pension
+    title: SIPF pension payment records
+    description: Purpose-limited pension facts used by the Solmara Evidence service.
+    owner: Social Insurance and Pension Fund
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: continuous
+    api:
+      scopes:
+        metadata: pension:metadata
+        rows: pension:rows
+        aggregate: pension:aggregate
+        evidence_verification: pension:evidence_verification
+      purposes:
+        - https://id.registrystack.org/solmara/purpose/pension-payment-review
+      projection: [pensioner_uin, payment_status]
+      pagination: { default_limit: 2, max_limit: 2 }
+      filters:
+        pensioner_uin: [eq]
+      standards: { ogc_features: false, sp_dci: false }
+
+  sipf-pension-consultation:
+    kind: consultation_api
     version: 1
     purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
     legal_basis: social-insurance-act
     consent: not_required
-    access:
-      scopes: ["evidence:sipf:pension-payment:read"]
     consultations:
       pension:
         integration: pension-case-by-pensioner
         input:
           uin: request.target.identifiers.solmara_uin
-    claims:
-      pension-payment-active:
-        cel: "pension.matched && pension.payment_status == 'active'"
-        disclosure: predicate
 
-  sipf-survivor-benefit:
-    kind: evidence
+  sipf-survivor-consultation:
+    kind: consultation_api
     version: 1
     purpose: https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
     legal_basis: social-insurance-act
     consent: not_required
-    access:
-      scopes: ["evidence:sipf:survivor-benefit:read"]
     consultations:
       survivor:
         integration: pension-case-by-survivor
         input:
           uin: request.target.identifiers.solmara_uin
-    claims:
-      survivor-is-eligible:
-        cel: "survivor.matched && survivor.survivor_eligible == true"
-        disclosure: predicate
-    credential_profiles:
-      survivor-benefit-status:
-        format: dc+sd-jwt
-        type: https://id.registrystack.org/solmara/vct/survivor-benefit-status
-        validity: 10m
-        claims: [survivor-is-eligible]
+
+  sipf-survivor-records:
+    kind: records_api
+    entity: survivor
+    title: SIPF survivor benefit records
+    description: Purpose-limited survivor facts used by the Solmara Evidence service.
+    owner: Social Insurance and Pension Fund
+    sensitivity: personal
+    access_rights: restricted
+    update_frequency: continuous
+    api:
+      scopes:
+        metadata: survivor:metadata
+        rows: survivor:rows
+        aggregate: survivor:aggregate
+        evidence_verification: survivor:evidence_verification
+      purposes:
+        - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+      projection: [spouse_uin, survivor_eligible]
+      pagination: { default_limit: 2, max_limit: 2 }
+      filters:
+        spouse_uin: [eq]
+      standards: { ogc_features: false, sp_dci: false }

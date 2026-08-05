@@ -1,96 +1,61 @@
 #!/usr/bin/env python3
-"""Runtime endpoint lookup for guided Solmara scenarios."""
+"""One Evidence endpoint with requirement-specific policy identifiers."""
 
 from __future__ import annotations
 
 import os
-from urllib.parse import urljoin
+
+from .common import evidence_access_token, joined_url
 
 
-SERVICE_ENDPOINTS = {
-    "child-benefit-federator": {
-        "url_env": "CHILD_BENEFIT_FEDERATOR_URL",
-        "token_env": "CHILD_BENEFIT_FEDERATOR_TOKEN",
-        "default_url": "http://127.0.0.1:4321",
-    },
-    "cra-child-benefit": {
-        "service_id": "cra-notary",
-        "url_env": "CRA_NOTARY_URL",
-        "token_env": "CRA_CHILD_BENEFIT_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4325",
-    },
-    "nia-child-benefit": {
-        "service_id": "nia-notary",
-        "url_env": "NIA_NOTARY_URL",
-        "token_env": "NIA_CHILD_BENEFIT_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4326",
-    },
-    "sro-child-benefit": {
-        "service_id": "sro-notary",
-        "url_env": "SRO_NOTARY_URL",
-        "token_env": "SRO_CHILD_BENEFIT_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4327",
-    },
-    "programme-child-benefit": {
-        "service_id": "programme-notary",
-        "url_env": "PROGRAMME_NOTARY_URL",
-        "token_env": "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4328",
-    },
-    "cra-pension": {
-        "service_id": "cra-notary",
-        "url_env": "CRA_NOTARY_URL",
-        "token_env": "CRA_PENSION_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4325",
-    },
-    "sipf-pension": {
-        "service_id": "sipf-notary",
-        "url_env": "SIPF_NOTARY_URL",
-        "token_env": "SIPF_PENSION_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4322",
-    },
-    "cra-citizen": {
-        "service_id": "cra-notary",
-        "url_env": "CRA_NOTARY_URL",
-        "token_env": "CRA_CITIZEN_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4325",
-    },
-    "nia-citizen": {
-        "service_id": "nia-notary",
-        "url_env": "NIA_NOTARY_URL",
-        "token_env": "NIA_CITIZEN_CLIENT_TOKEN",
-        "default_url": "http://127.0.0.1:4326",
-    },
-    "nagdi-notary": {
-        "service_id": "nagdi-notary",
-        "url_env": "NAGDI_NOTARY_URL",
-        "token_env": "NAGDI_NOTARY_TOKEN",
-        "default_url": "http://127.0.0.1:4323",
-    },
+BASE = "https://id.registrystack.org/solmara/requirement"
+REQUIREMENTS = {
+    "cra-child-benefit": f"{BASE}/cra-child-benefit/v1",
+    "nia-child-benefit": f"{BASE}/nia-child-benefit/v1",
+    "sro-child-benefit": f"{BASE}/sro-child-benefit/v1",
+    "programme-child-benefit": f"{BASE}/mosd-child-benefit/v1",
+    "cra-pension": f"{BASE}/cra-pension-death/v1",
+    "sipf-pension": f"{BASE}/sipf-pension-payment/v1",
+    "sipf-survivor": f"{BASE}/sipf-survivor-benefit/v1",
+    "cra-citizen": f"{BASE}/cra-citizen-record/v1",
+    "nia-citizen": f"{BASE}/nia-citizen-status/v1",
+    "nagdi-voucher": f"{BASE}/nagdi-voucher/v1",
+    "nagdi-livestock": f"{BASE}/nagdi-livestock/v1",
 }
 
 
-def service_url(service_id: str, path: str) -> str:
-    entry = service_entry(service_id)
-    base_url = os.environ.get(entry["url_env"], entry["default_url"])
-    return urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
+def service_url(service_id: str, path: str = "/v1/evidence") -> str:
+    if service_id == "child-benefit-federator":
+        return joined_url(
+            os.environ.get("CHILD_BENEFIT_FEDERATOR_URL", "http://127.0.0.1:4321"),
+            path,
+        )
+    return joined_url(
+        os.environ.get("SOLMARA_EVIDENCE_URL", "https://evidence.solmara.invalid"),
+        path,
+    )
 
 
 def service_token(service_id: str) -> str:
-    return os.environ.get(service_token_env(service_id), "")
+    if service_id == "child-benefit-federator":
+        return os.environ.get("CHILD_BENEFIT_FEDERATOR_TOKEN", "")
+    return evidence_access_token()
 
 
 def service_token_env(service_id: str) -> str:
-    return service_entry(service_id)["token_env"]
+    return (
+        "CHILD_BENEFIT_FEDERATOR_TOKEN"
+        if service_id == "child-benefit-federator"
+        else "SOLMARA_EVIDENCE_CLIENT_KEY"
+    )
+
+
+def requirement_id(service_id: str) -> str:
+    try:
+        return REQUIREMENTS[service_id]
+    except KeyError as error:
+        raise ValueError(f"unknown Evidence requirement: {service_id}") from error
 
 
 def authority_service_id(service_id: str) -> str:
-    entry = service_entry(service_id)
-    return entry.get("service_id", service_id)
-
-
-def service_entry(service_id: str) -> dict[str, str]:
-    try:
-        return SERVICE_ENDPOINTS[service_id]
-    except KeyError as error:
-        raise ValueError(f"unknown service endpoint: {service_id}") from error
+    return "registry-evidence"

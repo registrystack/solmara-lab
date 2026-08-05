@@ -13,6 +13,7 @@ SCAN_DIRS = [
     "metadata",
     "projects",
     "runtime/registry-projects",
+    "evidence",
     "config/hosted-relay-bundles",
     "compose.yaml",
     "compose.hosted.yaml",
@@ -25,8 +26,8 @@ ALLOWED = (
     "token_env:",
     "private_jwk_env:",
     "hash_secret_env:",
+    "secret:file/",
     "POSTGRES_PASSWORD:",
-    "REGISTRY_NOTARY_REPLAY_REDIS_URL:",
 )
 WORKLOAD_TOKEN_VOLUME = re.compile(
     r"^\s*-\s*[a-z0-9-]+-workload-token:/run/(?:esignet-)?secrets(?::ro)?\s*$"

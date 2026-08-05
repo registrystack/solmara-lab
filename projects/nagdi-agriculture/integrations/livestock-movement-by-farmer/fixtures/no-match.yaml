@@ -7,7 +7,3 @@ interactions:
 expect:
   outcome: no_match
   outputs: {}
-  claims:
-    registered-herd: false
-    origin-district-not-quarantined-for-species: false
-    eligible-for-livestock-movement-permit: false

@@ -10,13 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LINE_RE = re.compile(r"^([A-Z0-9_]+)=([^#\s]+)$")
 PIN_RE = re.compile(r"^[^#\s]+@sha256:[0-9a-f]{64}$")
-REGISTRY_STACK_IMAGE_KEYS = {"REGISTRY_RELAY_IMAGE", "REGISTRY_NOTARY_IMAGE"}
-PINNED_IMAGE_KEYS = REGISTRY_STACK_IMAGE_KEYS | {
-    "VOLUME_INIT_IMAGE",
+SOURCE_IMAGE_KEYS = {
+    "REGISTRY_RELAY_IMAGE",
+    "SOLMARA_EVIDENCE_IMAGE",
+    "SOLMARA_MINT_IMAGE",
 }
-COMPOSE_FALLBACK_RE = re.compile(
-    r"\$\{(?P<key>REGISTRY_(?:RELAY|NOTARY)_IMAGE):-(?P<value>[^}]+)\}"
-)
+PINNED_IMAGE_KEYS = {"VOLUME_INIT_IMAGE", "EVIDENCE_GATEWAY_IMAGE"}
 
 
 def main() -> int:
@@ -42,31 +41,24 @@ def main() -> int:
         if "@latest" in value or ":latest" in value:
             failures.append(f"versions.env:{line_no}: latest tags are not allowed")
 
-    for key in PINNED_IMAGE_KEYS:
+    for key in PINNED_IMAGE_KEYS | SOURCE_IMAGE_KEYS:
         if key not in values:
             failures.append(f"versions.env: {key} is required")
 
-    compose_files = [ROOT / "compose.yaml", ROOT / "compose.hosted.yaml"]
-    compose_files.extend(sorted(ROOT.glob("compose.coolify*.yaml")))
-    fallback_counts = {key: 0 for key in REGISTRY_STACK_IMAGE_KEYS}
+    compose_files = [ROOT / "compose.yaml", ROOT / "compose.esignet.yaml"]
+    required_counts = {key: 0 for key in SOURCE_IMAGE_KEYS}
     for compose in compose_files:
         if not compose.exists():
             continue
         text = compose.read_text()
         if "@latest" in text or ":latest" in text:
             failures.append(f"{compose.name}: latest tags are not allowed")
-        for fallback in COMPOSE_FALLBACK_RE.finditer(text):
-            key = fallback.group("key")
-            fallback_counts[key] += 1
-            expected = values.get(key)
-            if expected and fallback.group("value") != expected:
-                failures.append(
-                    f"{compose.name}: {key} fallback must match versions.env"
-                )
+        for key in SOURCE_IMAGE_KEYS:
+            required_counts[key] += text.count(f"${{{key}:?")
 
-    for key, count in fallback_counts.items():
+    for key, count in required_counts.items():
         if count == 0:
-            failures.append(f"compose files: expected a {key} fallback")
+            failures.append(f"compose files: expected a required {key} reference")
 
     if failures:
         for failure in failures:

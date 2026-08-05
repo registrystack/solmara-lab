@@ -16,4 +16,4 @@ interactions:
           origin_district_not_quarantined_for_species: false
           destination_district_open: false
           no_conflicting_open_movement_permit: false
-expect: { outcome: ambiguous, outputs: {}, claims: {} }
+expect: { outcome: ambiguous, outputs: {} }

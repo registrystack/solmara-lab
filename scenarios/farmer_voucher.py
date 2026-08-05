@@ -1,89 +1,30 @@
 #!/usr/bin/env python3
-"""Farmer climate-smart voucher guided scenario."""
+"""Farmer voucher and livestock Evidence scenario."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from .common import CLAIM_RESULT_FORMAT, PURPOSES, auth_headers, credential_attempt, evaluation_body, friendly_result, http_json, missing_runtime_token, request_source, source_response, standard_error_result
-from .service_config import service_token, service_token_env, service_url
+from .common import PURPOSES, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, source_response, standard_error_result
+from .service_config import requirement_id, service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "farmer-climate-smart-voucher"
-SERVICE_NAME = "NAgDI Notary"
-SERVICE_ID = "nagdi-notary"
+SERVICE_NAME = "Registry Evidence"
 POSITIVE_FARMER = "FR-1001"
 AUTHORIZATION_CONTROL = "FR-1002"
 REDEEMED_CONTROL = "FR-1003"
-CLAIMS = ["eligible-for-climate-smart-input-voucher"]
-MOVEMENT_CLAIMS = ["eligible-for-livestock-movement-permit"]
-VOUCHER_CREDENTIAL_PROFILE = "climate_smart_voucher_sd_jwt"
-MOVEMENT_CREDENTIAL_PROFILE = "livestock_movement_sd_jwt"
-CREDENTIAL_STEPS = {"positive", "movement-permit"}
 FRIENDLY = {
-    "discover": {
-        "met": ("The catalogue lists what may be asked.", "Claim definitions only. No workbook rows have moved."),
-    },
-    "positive": {
-        "met": (
-            "Yes. This farmer qualifies for the voucher.",
-            "The eligibility fact came back met. The workbook itself never left NAgDI.",
-        ),
-        "unmet": (
-            "Not eligible on the facts returned.",
-            "The voucher eligibility check came back not met for this farmer.",
-        ),
-    },
-    "authorization-control": {
-        "unmet": (
-            "Rejected: no data-use authorization on file.",
-            "The eligibility check came back not met because Diego has not authorized his data to be used for this review, so no voucher is issued.",
-        ),
-    },
-    "redeemed-control": {
-        "unmet": (
-            "Rejected: already redeemed this season.",
-            "The eligibility check came back not met, preventing a double redemption.",
-        ),
-    },
-    "movement-permit": {
-        "met": (
-            "Yes. The movement permit can be issued.",
-            "The livestock movement fact came back met under its own purpose.",
-        ),
-        "unmet": (
-            "No permit on the facts returned.",
-            "The movement-control check came back not met.",
-        ),
-    },
+    "positive": {"met": ("Yes. This farmer qualifies for the voucher.", "The signed assertion carries reviewed concept values, not a workbook row.")},
+    "authorization-control": {"unmet": ("Rejected: no data-use authorization on file.", "Evidence returned a signed false eligibility value.")},
+    "redeemed-control": {"unmet": ("Rejected: already redeemed this season.", "The signed false value prevents double redemption.")},
+    "movement-permit": {"met": ("Yes. The movement permit can be issued.", "The livestock requirement was evaluated under its own purpose.")},
+    "purpose-denial": {"refused": ("Refused, exactly as designed.", "The voucher purpose cannot authorize the livestock requirement.")},
 }
 
 
 def story() -> dict[str, Any]:
-    return {
-        "id": SCENARIO_ID,
-        "title": "Farmer climate-smart voucher",
-        "short_title": "Farmer voucher",
-        "proves": "NAgDI farmer and livestock workbooks can back governed voucher and movement-control APIs.",
-        "domain": "Agriculture",
-        "availability": "hosted",
-        "intro": "A supplier checks voucher eligibility without receiving farmer or livestock workbooks.",
-        "actor": "Voucher redemption desk",
-        "subject": {"name": "Amina Kone", "identifier": POSITIVE_FARMER},
-        "requester": {"name": "NAgDI voucher desk", "purpose": PURPOSES["voucher"]},
-        "steps": [
-            {"id": "discover", "label": "Discover NAgDI claims", "prompt": "Read the NAgDI claim catalogue.", "button": "Discover", "request_summary": "GET /v1/claims"},
-            {"id": "positive", "label": "Evaluate voucher eligibility", "prompt": "Run the positive farmer control.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1001."},
-            {"id": "authorization-control", "label": "Missing authorization control", "prompt": "Reject a farmer who has not authorized this data use.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1002."},
-            {"id": "redeemed-control", "label": "Already redeemed control", "prompt": "Reject an already-redeemed farmer.", "button": "Evaluate", "request_summary": "POST voucher claim for FR-1003."},
-            {"id": "movement-permit", "label": "Livestock movement permit", "prompt": "Evaluate the companion movement-control claim.", "button": "Evaluate", "request_summary": "POST livestock movement-control claim."},
-            {"id": "purpose-denial", "label": "Purpose denial", "prompt": "Use the wrong purpose for a movement-control request.", "button": "Try denial", "request_summary": "POST livestock claim with voucher purpose."},
-        ],
-        "receipt": [
-            {"label": "Credential", "value": "voucher eligibility VC preview"},
-            {"label": "Workbook exported", "value": "No"},
-        ],
-    }
+    return {"id": SCENARIO_ID, "title": "Farmer climate-smart voucher", "short_title": "Farmer voucher", "proves": "NAgDI workbooks can back governed Evidence requirements without workbook export.", "domain": "Agriculture", "availability": "local", "intro": "A supplier checks a minimized signed assertion.", "actor": "Voucher redemption desk", "subject": {"name": "Amina Kone", "identifier": POSITIVE_FARMER}, "requester": {"name": "NAgDI voucher desk", "purpose": PURPOSES["voucher"]}, "steps": [{"id": "discover", "label": "Discover NAgDI requirements", "prompt": "Read Evidence definitions.", "button": "Discover", "request_summary": "GET /v1/evidence-definitions"}, {"id": "positive", "label": "Evaluate voucher eligibility", "prompt": "Run the positive control.", "button": "Evaluate", "request_summary": "POST voucher Evidence requirement."}, {"id": "authorization-control", "label": "Missing authorization control", "prompt": "Reject missing data-use authorization.", "button": "Evaluate", "request_summary": "POST voucher Evidence requirement."}, {"id": "redeemed-control", "label": "Already redeemed control", "prompt": "Reject an already-redeemed farmer.", "button": "Evaluate", "request_summary": "POST voucher Evidence requirement."}, {"id": "movement-permit", "label": "Livestock movement permit", "prompt": "Evaluate movement control.", "button": "Evaluate", "request_summary": "POST livestock Evidence requirement."}, {"id": "purpose-denial", "label": "Purpose denial", "prompt": "Use the wrong purpose.", "button": "Try denial", "request_summary": "POST livestock requirement with voucher purpose."}], "receipt": [{"label": "Artifact", "value": "Signed Evidence JWS"}, {"label": "Workbook exported", "value": "No"}]}
 
 
 def preview_step(config: dict[str, Any], step_id: str) -> dict[str, Any]:
@@ -95,45 +36,23 @@ def run_step(config: dict[str, Any], step_id: str) -> dict[str, Any]:
 
 
 def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, Any]:
-    url = service_url(SERVICE_ID, "/v1/claims" if step_id == "discover" else "/v1/evaluations")
-    subject = {
-        "positive": POSITIVE_FARMER,
-        "authorization-control": AUTHORIZATION_CONTROL,
-        "redeemed-control": REDEEMED_CONTROL,
-        "movement-permit": POSITIVE_FARMER,
-        "purpose-denial": POSITIVE_FARMER,
-    }.get(step_id)
-    claims = MOVEMENT_CLAIMS if step_id in {"movement-permit", "purpose-denial"} else CLAIMS
-    purpose = request_purpose(config, step_id)
-    token = service_token(SERVICE_ID)
-    credential_profile = credential_profile_for_step(step_id)
-    headers = auth_headers(token, purpose, CLAIM_RESULT_FORMAT if step_id != "discover" else "application/json")
-    body = None if step_id == "discover" else evaluation_body(subject or "", claims, scheme="farmer_id")
-    if step_id != "discover" and not subject:
+    subjects = {"positive": POSITIVE_FARMER, "authorization-control": AUTHORIZATION_CONTROL, "redeemed-control": REDEEMED_CONTROL, "movement-permit": POSITIVE_FARMER, "purpose-denial": POSITIVE_FARMER}
+    if step_id != "discover" and step_id not in subjects:
         return standard_error_result(step_id)
+    client = "nagdi-livestock" if step_id in {"movement-permit", "purpose-denial"} else "nagdi-voucher"
+    token = service_token(client) if send else ""
+    purpose = request_purpose(config, step_id)
+    url = service_url(client, "/v1/evidence-definitions" if step_id == "discover" else "/v1/evidence")
+    headers = evidence_headers(token, discover=step_id == "discover")
+    body = None if step_id == "discover" else evidence_body(subjects[step_id], requirement_id(client), purpose, selector_profile="farmer-reference-v1", selector_field="farmer_id")
     request = request_source("GET" if step_id == "discover" else "POST", url, headers, body)
     if not send:
         return {"request_source": request}
     if not token:
-        return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(SERVICE_ID), request)
-    result = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
-    payload = {
-        "step_id": step_id,
-        "friendly": friendly_result(step_id, result, FRIENDLY),
-        "request_source": request,
-        "response_source": source_response(result),
-    }
-    if credential_profile and result.status and 200 <= result.status < 300:
-        payload.update(credential_attempt(service_url(SERVICE_ID, "/v1/credentials"), token, purpose, result, credential_profile, claims, SERVICE_ID))
-    return payload
-
-
-def credential_profile_for_step(step_id: str) -> str | None:
-    if step_id == "positive":
-        return VOUCHER_CREDENTIAL_PROFILE
-    if step_id == "movement-permit":
-        return MOVEMENT_CREDENTIAL_PROFILE
-    return None
+        return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(client), request)
+    raw = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
+    result = raw if step_id == "discover" else normalized_evidence_result(raw)
+    return {"step_id": step_id, "friendly": friendly_result(step_id, result, FRIENDLY), "request_source": request, "response_source": source_response(result)}
 
 
 def request_purpose(config: dict[str, Any], step_id: str) -> str:
@@ -141,6 +60,4 @@ def request_purpose(config: dict[str, Any], step_id: str) -> str:
         return PURPOSES["voucher"]
     if isinstance(config.get("purpose_override"), str):
         return config["purpose_override"]
-    if step_id == "movement-permit":
-        return PURPOSES["livestock"]
-    return PURPOSES["voucher"]
+    return PURPOSES["livestock"] if step_id == "movement-permit" else PURPOSES["voucher"]

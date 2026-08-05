@@ -18,16 +18,13 @@ describe('getProvider', () => {
   it('constructs live mode from environment config', () => {
     Object.assign(env, {
       PORTAL_PROVIDER: 'live',
-      CRA_NOTARY_URL: 'https://cra-notary.solmara.registrystack.org',
-      CRA_CITIZEN_CLIENT_TOKEN: 'cra-citizen-token',
-      NIA_NOTARY_URL: 'https://nia-notary.solmara.registrystack.org',
-      NIA_CITIZEN_CLIENT_TOKEN: 'nia-citizen-token'
+      SCENARIO_RUNNER_URL: 'http://scenario-runner:8080'
     });
 
     expect(getProvider()).not.toBeInstanceOf(MockEvidenceProvider);
   });
 
-  it('does not require obsolete Relay or generic Notary configuration', () => {
+  it('constructs lazily without requiring credentials in the portal process', () => {
     Object.assign(env, {
       PORTAL_PROVIDER: 'live'
     });

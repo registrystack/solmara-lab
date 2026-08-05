@@ -1,13 +1,5 @@
 name: enrollment-match
 classification: synthetic
-request:
-  target:
-    type: Person
-    identifiers: [{ scheme: solmara_uin, value: "2300010248" }]
-  claims: [not-already-enrolled]
-  disclosure: predicate
-  format: application/vnd.registry-notary.claim-result+json
-  purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
 input: { uin: "2300010248" }
 interactions:
   - expect: { method: GET, path: /snapshot }
@@ -15,4 +7,3 @@ interactions:
 expect:
   outcome: match
   outputs: { duplicate_flag: false }
-  claims: { not-already-enrolled: true }

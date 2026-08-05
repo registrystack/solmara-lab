@@ -64,7 +64,7 @@ export function explicitProblemCode(result: StepRunResult | null | undefined): s
 }
 
 /**
- * Extract the stable problem code from a denial response. Notary denials are
+ * Extract the stable problem code from an Evidence denial. Safe problems have
  * problem+json with a `code`; fall back to the trailing segment of a `type`
  * URI, then to a compatibility code for older error responses.
  */
@@ -73,7 +73,7 @@ export function problemCode(result: StepRunResult | null | undefined): string | 
   const explicit = explicitProblemCode(result);
   if (explicit) return explicit;
   // Only surface a synthesized code when the response actually denied.
-  if (status !== null && status >= 400) return 'pdp.purpose_not_permitted';
+  if (status !== null && status >= 400) return 'not_authorized';
   return null;
 }
 
@@ -90,10 +90,14 @@ export function isDenial(result: StepRunResult | null | undefined): boolean {
   return status !== null && status >= 400;
 }
 
-/** The purpose IRI actually sent, read from the redacted request headers. */
+/** The Evidence purpose code actually sent. */
 export function requestPurpose(result: StepRunResult | null | undefined): string | null {
   const headers = result?.request_source?.headers ?? {};
-  return headers['Data-Purpose'] ?? headers['data-purpose'] ?? null;
+  const body = result?.request_source?.body;
+  const bodyPurpose = body && typeof body === 'object' && !Array.isArray(body)
+    ? (body as Record<string, unknown>).purpose
+    : undefined;
+  return result?.request_source?.purpose ?? (typeof bodyPurpose === 'string' ? bodyPurpose : undefined) ?? headers['Data-Purpose'] ?? headers['data-purpose'] ?? null;
 }
 
 /**
@@ -128,7 +132,7 @@ export function hopsFromResult(result: StepRunResult | null | undefined): string
     try {
       hops.push(`Question sent to ${new URL(url).host}`);
     } catch {
-      hops.push('Question sent to the Notary');
+      hops.push('Question sent to Registry Evidence');
     }
   }
   const purpose = requestPurpose(result);

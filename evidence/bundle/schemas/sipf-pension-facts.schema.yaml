@@ -1,0 +1,6 @@
+type: object
+additionalProperties: false
+required: [pensioner_uin, payment_status]
+properties:
+  pensioner_uin: { type: string, minLength: 10, maxLength: 10 }
+  payment_status: { type: string, minLength: 1, maxLength: 32 }

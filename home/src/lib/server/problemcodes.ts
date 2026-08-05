@@ -2,7 +2,7 @@ import type { ProblemCode, Purpose, Scenario, StoryStepLink } from '$lib/types';
 
 /**
  * Static, maintained metadata for every stable problem code the lab can emit.
- * The `typeUri` values are the problem type URIs actually observed in Notary
+ * The `typeUri` values are the problem type URIs emitted by Registry Evidence
  * responses. The set of codes is assembled from the purpose catalogue (which
  * lists each purpose's denial codes) plus these entries, so the page never
  * hand-maintains prose that can drift from the catalogue. Meanings are plain
@@ -12,20 +12,20 @@ const CODE_META: Record<
   string,
   { title: string; status: number; typeUri: string; meaning: string; coverage?: string }
 > = {
-  'pdp.purpose_not_permitted': {
+  not_authorized: {
     title: 'Purpose not permitted',
     status: 403,
-    typeUri: 'https://id.registrystack.org/problems/registry-notary/pdp/purpose_not_permitted',
+    typeUri: 'https://registrystack.org/problems/evidence/not_authorized',
     meaning:
-      'The request named a purpose the authority does not allow for this evidence, or asked for a field outside that purpose. The Notary (the service that certifies evidence) refuses and discloses nothing. This is purpose limitation enforced at request time.'
+      'The requester grant does not authorize this requirement, purpose, response format, or selector shape. Registry Evidence refuses before source access and discloses nothing.'
   },
-  'request.invalid': {
+  malformed_request: {
     title: 'Invalid evidence request',
     status: 400,
-    typeUri: 'https://id.registrystack.org/problems/registry-notary/request/invalid',
+    typeUri: 'https://registrystack.org/problems/evidence/malformed_request',
     meaning:
-      'The request asked for something the Notary will not serve, such as a raw source row instead of a purpose-limited predicate. The Notary rejects the request rather than reach into the register. This is the clean refusal a skeptic gets when they try a raw row read.',
-    coverage: 'Asserted by the published-token smoke: a raw-row read attempt with a published demo token.'
+      'The request does not match the closed Evidence request contract. Registry Evidence rejects it before evaluating a requirement.',
+    coverage: 'Covered by the Evidence bundle fixtures and current-main contract tests.'
   }
 };
 
@@ -63,12 +63,12 @@ export function assembleProblemCodes(purposes: Purpose[], scenarios: Scenario[])
       const meta = CODE_META[code] ?? {
         title: code,
         status: 400,
-        typeUri: `https://id.registrystack.org/problems/registry-notary/${code.replace(/\./g, '/')}`,
+        typeUri: `https://registrystack.org/problems/evidence/${code.replace(/\./g, '_')}`,
         meaning: 'A stable problem code emitted by the stack. See the purpose catalogue for where it applies.'
       };
       const typeUri = meta.typeUri;
       const purposeSlugs = purposes.filter((purpose) => purpose.denialCodes.includes(code)).map((purpose) => purpose.slug);
-      const demonstratedBy = code === 'pdp.purpose_not_permitted' ? denials : [];
+      const demonstratedBy = code === 'not_authorized' ? denials : [];
       return {
         code,
         typeUri,

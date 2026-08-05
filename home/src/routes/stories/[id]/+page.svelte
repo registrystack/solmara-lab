@@ -325,7 +325,7 @@
   <section class="page-band accountability" id="accountability">
     <div class="content">
       <p class="eyebrow">Accountability</p>
-      <h2>{applicationEvidence ? 'What the source trace recorded about this access' : 'What the Notary recorded about this access'}</h2>
+      <h2>{applicationEvidence ? 'What the source trace recorded about this access' : 'What Registry Evidence recorded about this access'}</h2>
       {#if accountability}
         {@const first = claimResults(accountability)[0]?.raw ?? {}}
         <div class="provenance">

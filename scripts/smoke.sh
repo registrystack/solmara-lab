@@ -24,11 +24,8 @@ if [ "${SOLMARA_SMOKE_LIVE:-1}" != "0" ]; then
   NIA_ESIGNET_RELAY_TOKEN="$nia_esignet_relay_token" \
     "$root/scripts/smoke-nia-attribute-release.py"
   unset nia_esignet_relay_token
-  # The signing smokes need cryptography from the locked project environment.
+  # The Mint private_key_jwt smoke needs cryptography from the locked environment.
   uv run --locked --project "$root" "$root/scripts/smoke-live.py"
-  uv run --locked --project "$root" "$root/scripts/notary_state_restart.py"
-  uv run --locked --project "$root" "$root/scripts/smoke-child-benefit-application.py"
-  "$root/scripts/smoke-published-tokens.py"
   "$root/scripts/smoke-portal-compose.py"
 fi
 

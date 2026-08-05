@@ -1,13 +1,5 @@
 name: nia-population-person-no-match
 classification: synthetic
-request:
-  target:
-    type: Person
-    identifiers: [{ scheme: solmara_uin, value: "9999999999" }]
-  claims: [citizen-population-record-active]
-  disclosure: predicate
-  format: application/vnd.registry-notary.claim-result+json
-  purpose: https://id.registrystack.org/solmara/purpose/citizen-self-service
 input: { uin: "9999999999" }
 interactions:
   - expect: { method: GET, path: /snapshot }
@@ -15,6 +7,3 @@ interactions:
 expect:
   outcome: no_match
   outputs: {}
-  claims:
-    population-record-active: false
-    citizen-population-record-active: false

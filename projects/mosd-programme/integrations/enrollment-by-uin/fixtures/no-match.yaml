@@ -7,4 +7,3 @@ interactions:
 expect:
   outcome: no_match
   outputs: {}
-  claims: { not-already-enrolled: false }

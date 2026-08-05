@@ -1,0 +1,30 @@
+version: 1
+issuer: https://mint.evidence.solmara.invalid
+listener:
+  address: 0.0.0.0
+  port: 8081
+signing:
+  algorithm: EdDSA
+  activeKeyId: solmara-mint-signing-key-1
+  activeKeyFile: /run/secrets/registry-mint/signing.jwk
+  retiredPublicJwkFiles: []
+audit:
+  path: /var/lib/registry-mint/audit/mint.jsonl
+  maximumFileBytes: 1073741824
+  hashKeyFile: /run/secrets/registry-mint/audit-hmac-key
+  hashKeyVersion: 1
+accessTokens:
+  audiences: [solmara-evidence]
+  lifetimeSeconds: 300
+  claims:
+    principal: sub
+    requesterTags: evidence_tags
+    evidenceAudience: evidence_audience
+    grantId: evidence_grant_id
+    grantAuthority: evidence_authority
+clientAssertion:
+  audience: https://mint.evidence.solmara.invalid/token
+  maximumLifetimeSeconds: 300
+  algorithms: [EdDSA]
+clients:
+  directory: /etc/registry-mint/clients

@@ -44,9 +44,9 @@
 
     <div class="trust-facts">
       <div>
-        <p class="eyebrow">Pinned release</p>
-        <p><strong>Relay</strong> <code>{shortDigest(versions.REGISTRY_RELAY_IMAGE)}</code></p>
-        <p><strong>Notary</strong> <code>{shortDigest(versions.REGISTRY_NOTARY_IMAGE)}</code></p>
+        <p class="eyebrow">Pinned source</p>
+        <p><strong>Registry Stack main</strong> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT?.slice(0, 12) ?? 'missing'}</code></p>
+        <p><strong>Evidence</strong> <code>{shortDigest(versions.SOLMARA_EVIDENCE_IMAGE)}</code></p>
       </div>
       <div>
         <p class="eyebrow">Smoke evidence</p>

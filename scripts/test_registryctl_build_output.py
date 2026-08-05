@@ -28,16 +28,14 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
             encoding="utf-8",
         )
         self.output = self.project / ".registry-stack" / "build" / "local"
-        relay = self.output / "private" / "relay" / "config"
-        relay.mkdir(parents=True)
-        (relay / "relay.yaml").write_text("instance: {}\n", encoding="utf-8")
-        notary = self.output / "private" / "notary" / "config"
-        notary.mkdir(parents=True)
-        (notary / "notary.yaml").write_text("instance: {}\n", encoding="utf-8")
+        for lane in ("relay-public", "relay-consultation"):
+            relay = self.output / "private" / lane / "config"
+            relay.mkdir(parents=True)
+            (relay / "relay.yaml").write_text("instance: {}\n", encoding="utf-8")
 
     def report(self, **overrides: object) -> bytes:
-        report: dict[str, object] = {
-            "schema_version": MODULE.REPORT_SCHEMA,
+        build: dict[str, object] = {
+            "schema_version": MODULE.BUILD_SCHEMA,
             "status": "built",
             "project": "example",
             "environment": "local",
@@ -46,7 +44,12 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
             "baseline": "initial_without_baseline",
             "output": ".registry-stack/build/local",
         }
-        report.update(overrides)
+        build.update(overrides)
+        report: dict[str, object] = {
+            "schema_version": MODULE.REPORT_SCHEMA,
+            "affected_lanes": ["relay-public", "relay-consultation"],
+            "build": build,
+        }
         return json.dumps(report).encode("utf-8")
 
     def test_accepts_the_versioned_project_owned_build_root(self) -> None:
@@ -108,7 +111,13 @@ class RegistryctlBuildOutputTests(unittest.TestCase):
             )
 
     def test_rejects_an_incomplete_product_closure(self) -> None:
-        (self.output / "private" / "notary" / "config" / "notary.yaml").unlink()
+        (
+            self.output
+            / "private"
+            / "relay-consultation"
+            / "config"
+            / "relay.yaml"
+        ).unlink()
         with self.assertRaisesRegex(
             MODULE.BuildReportError,
             "configuration closure is incomplete",

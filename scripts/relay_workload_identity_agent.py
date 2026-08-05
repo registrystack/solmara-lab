@@ -540,7 +540,6 @@ def _atomic_write_token(path: Path, token: str, *, uid: int, gid: int) -> None:
         with os.fdopen(descriptor, "wb", closefd=True) as output:
             descriptor = -1
             output.write(token.encode("ascii"))
-            output.write(b"\n")
             output.flush()
             os.fsync(output.fileno())
         os.replace(temporary_path, path)
@@ -592,7 +591,7 @@ class IdentityState:
                 )
                 self._expires_at[index] = expires_at
                 self._published_hashes[index] = hashlib.sha256(
-                    token.encode("ascii") + b"\n"
+                    token.encode("ascii")
                 ).digest()
 
     def rotate_if_due(self) -> bool:
@@ -614,7 +613,7 @@ class IdentityState:
                 )
                 self._expires_at[index] = expires_at
                 self._published_hashes[index] = hashlib.sha256(
-                    token.encode("ascii") + b"\n"
+                    token.encode("ascii")
                 ).digest()
                 rotated = True
             return rotated

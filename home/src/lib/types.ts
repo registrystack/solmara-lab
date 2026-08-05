@@ -49,7 +49,7 @@ export type ConfigLink = {
 export type TopologyService = {
   id: string;
   label: string;
-  role: 'shared' | 'relay' | 'notary';
+  role: 'shared' | 'relay' | 'evidence';
   authority?: string;
   purpose?: string;
   blurb: string;
@@ -108,8 +108,15 @@ export type ScenarioStep = {
   request_preview?: {
     method: string;
     url: string;
-    headers: Record<string, string>;
+    headers?: Record<string, string>;
+    purpose?: string;
     body?: unknown;
+    requests?: Array<{
+      method: string;
+      url: string;
+      headers?: Record<string, string>;
+      body?: unknown;
+    }>;
   };
 };
 
@@ -130,8 +137,10 @@ export type Scenario = {
 export type RequestSource = {
   method: string;
   url: string;
-  headers: Record<string, string>;
+  headers?: Record<string, string>;
+  purpose?: string;
   body?: unknown;
+  requests?: RequestSource[];
 };
 
 export type ResponseSource = {

@@ -8,8 +8,8 @@ const SAMPLE = `# Solmara Purpose Catalogue
 
 | Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
 |---|---|---|---|---|
-| \`https://id.registrystack.org/solmara/purpose/child-benefit-review\` | CRA, NIA | CRA and NIA authority Notaries | Birth to child benefit | \`pdp.purpose_not_permitted\` |
-| \`https://id.registrystack.org/solmara/purpose/voucher-eligibility-review\` | NAgDI | \`nagdi-notary\` | Farmer climate-smart voucher | \`pdp.purpose_not_permitted\` |
+| \`child-benefit-review\` | CRA, NIA | Registry Evidence | Birth to child benefit | \`not_authorized\` |
+| \`voucher-eligibility-review\` | NAgDI | Registry Evidence | Farmer climate-smart voucher | \`not_authorized\` |
 
 ## Purpose Rules
 
@@ -52,12 +52,12 @@ describe('purposes parser', () => {
     const purposes = parsePurposes(SAMPLE);
     expect(purposes).toHaveLength(2);
     const child = purposes[0];
-    expect(child.iri).toBe('https://id.registrystack.org/solmara/purpose/child-benefit-review');
+    expect(child.iri).toBe('child-benefit-review');
     expect(child.slug).toBe('child-benefit-review');
     expect(child.advertisedBy).toBe('CRA, NIA');
-    expect(child.enforcedBy).toBe('CRA and NIA authority Notaries');
+    expect(child.enforcedBy).toBe('Registry Evidence');
     expect(child.story).toBe('Birth to child benefit');
-    expect(child.denialCodes).toEqual(['pdp.purpose_not_permitted']);
+    expect(child.denialCodes).toEqual(['not_authorized']);
     expect(child.plainLanguage).toContain('permits evidence needed to determine whether a child');
     expect(child.plainLanguage).toContain('does not permit raw poverty scores');
     // The rule paragraph must not leak markdown backticks.
@@ -81,11 +81,11 @@ describe('purposes parser', () => {
   it('links purposes to the story steps that send them', () => {
     const scenarios = [
       scenario('birth-to-child-benefit', 'Birth to child benefit', [
-        { id: 'positive', label: 'Evaluate eligible child', purpose: 'https://id.registrystack.org/solmara/purpose/child-benefit-review' },
-        { id: 'purpose-denial', label: 'Purpose denial', purpose: 'https://id.registrystack.org/solmara/purpose/pension-payment-review' }
+        { id: 'positive', label: 'Evaluate eligible child', purpose: 'child-benefit-review' },
+        { id: 'purpose-denial', label: 'Purpose denial', purpose: 'pension-payment-review' }
       ])
     ];
-    const links = storyLinksForPurpose('https://id.registrystack.org/solmara/purpose/child-benefit-review', scenarios);
+    const links = storyLinksForPurpose('child-benefit-review', scenarios);
     expect(links).toHaveLength(1);
     expect(links[0]).toMatchObject({ storyId: 'birth-to-child-benefit', stepId: 'positive' });
 

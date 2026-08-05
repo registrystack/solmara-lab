@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a registryctl test report and require governed request witnesses."""
+"""Validate a current-main registryctl fixture and coverage report."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from typing import Any
 
 
 REPORT_SCHEMA = "registryctl.project_command.v1"
-REQUEST_BINDING_REQUIREMENT = "request_to_consultation_binding"
 MAX_REPORT_BYTES = 16 * 1024 * 1024
 
 
@@ -61,32 +60,31 @@ def validate_test_report(raw: bytes) -> tuple[str, int, int]:
     if not isinstance(targets, list) or not targets:
         raise TestReportError("the JSON report has no fixture coverage targets")
     for target in targets:
-        requirements = target.get("requirements") if isinstance(target, dict) else None
-        if not isinstance(requirements, list):
-            raise TestReportError("a fixture coverage target has no requirements")
-        bindings = [
-            requirement
-            for requirement in requirements
-            if isinstance(requirement, dict)
-            and requirement.get("requirement") == REQUEST_BINDING_REQUIREMENT
-        ]
-        if len(bindings) != 1 or bindings[0].get("state") != "covered":
-            raise TestReportError(
-                "every fixture target must cover request-to-consultation binding"
-            )
-        evidence = bindings[0].get("evidence")
+        if not isinstance(target, dict):
+            raise TestReportError("a fixture coverage target is not an object")
+        identity = target.get("identity")
+        compiled = target.get("compiled_contract")
+        inventory = target.get("fixture_inventory")
         if (
-            not isinstance(evidence, list)
-            or not evidence
+            target.get("fixture_set_state") != "fixture_bearing"
+            or not isinstance(identity, dict)
+            or not isinstance(identity.get("integration"), str)
+            or not isinstance(identity.get("capability"), str)
+            or not isinstance(compiled, dict)
+            or compiled.get("kind") != "compiled_contract"
+            or not isinstance(compiled.get("digest"), str)
+            or not compiled["digest"].startswith("sha256:")
+            or not isinstance(inventory, list)
+            or not inventory
             or any(
                 not isinstance(item, dict)
-                or item.get("kind") != "authored_fixture"
-                for item in evidence
+                or item.get("pass_state") != "passed"
+                or not isinstance(item.get("fixture_digest"), str)
+                or not item["fixture_digest"].startswith("sha256:")
+                for item in inventory
             )
         ):
-            raise TestReportError(
-                "request-to-consultation binding requires authored fixture evidence"
-            )
+            raise TestReportError("every coverage target must bind passing fixtures to a compiled contract")
     return project, len(fixtures), len(targets)
 
 
@@ -99,7 +97,7 @@ def main() -> int:
         return 1
     print(
         f"PASS: {project}: {fixture_count}/{fixture_count} fixtures passed; "
-        f"request witnesses cover {target_count}/{target_count} targets"
+        f"compiled fixture coverage includes {target_count}/{target_count} targets"
     )
     return 0
 

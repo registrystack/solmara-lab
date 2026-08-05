@@ -52,7 +52,7 @@
   $: disclosed = claimResults(firstResult).filter((claim) => claim.satisfied !== false);
   $: firstRunSucceeded = hasExpectedSuccessfulClaims(firstResult, expectedEvidenceIds);
   $: flipCode = explicitProblemCode(flipResult);
-  $: flipDenied = isExpectedProblemDenial(flipResult, 'pdp.purpose_not_permitted');
+  $: flipDenied = isExpectedProblemDenial(flipResult, 'not_authorized');
   $: flipSucceeded = hasExpectedSuccessfulClaims(flipResult, expectedEvidenceIds);
   $: journeyStatus = running
     ? 'Checking the four government offices.'

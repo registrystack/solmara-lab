@@ -23,21 +23,21 @@ def validate_request(module_name: str, step_id: str, request: dict[str, Any]) ->
     url = request.get("url")
     headers = request.get("headers")
     if method == "MULTI":
-        if url != "solmara://authority-notaries":
+        if url != "solmara://registry-evidence":
             raise ValueError(
-                f"{module_name}:{step_id}: expected authority collection URL, got {url!r}"
+                f"{module_name}:{step_id}: expected Evidence collection URL, got {url!r}"
             )
-        if not isinstance(headers, dict) or "Data-Purpose" not in headers:
-            raise ValueError(f"{module_name}:{step_id}: missing Data-Purpose")
+        if not isinstance(request.get("purpose"), str):
+            raise ValueError(f"{module_name}:{step_id}: missing Evidence purpose")
         requests = request.get("requests")
         if not isinstance(requests, list) or not requests:
             raise ValueError(
-                f"{module_name}:{step_id}: authority collection has no requests"
+                f"{module_name}:{step_id}: Evidence collection has no requests"
             )
         for index, authority_request in enumerate(requests):
             if not isinstance(authority_request, dict):
                 raise ValueError(
-                    f"{module_name}:{step_id}: authority request {index} is invalid"
+                    f"{module_name}:{step_id}: Evidence request {index} is invalid"
                 )
             validate_request(
                 module_name,
@@ -47,10 +47,16 @@ def validate_request(module_name: str, step_id: str, request: dict[str, Any]) ->
         return
     if method not in {"GET", "POST"}:
         raise ValueError(f"{module_name}:{step_id}: invalid method {method!r}")
-    if not isinstance(url, str) or not url.startswith("http://127.0.0.1:"):
-        raise ValueError(f"{module_name}:{step_id}: expected local URL, got {url!r}")
-    if not isinstance(headers, dict) or "Data-Purpose" not in headers:
-        raise ValueError(f"{module_name}:{step_id}: missing Data-Purpose")
+    if not isinstance(url, str) or not (
+        url.startswith("http://127.0.0.1:")
+        or url.startswith("https://localhost:")
+        or url.startswith("https://evidence.solmara.invalid/")
+    ):
+        raise ValueError(f"{module_name}:{step_id}: expected local Evidence URL, got {url!r}")
+    if not isinstance(headers, dict):
+        raise ValueError(f"{module_name}:{step_id}: missing headers")
+    if "Data-Purpose" not in headers and "Authorization" not in headers:
+        raise ValueError(f"{module_name}:{step_id}: missing application or Evidence authorization")
     for header in ("Authorization", "x-api-key"):
         if header in headers and "runtime token hidden" not in headers[header] and "runtime token missing" not in headers[header]:
             raise ValueError(f"{module_name}:{step_id}: {header} header was not redacted")

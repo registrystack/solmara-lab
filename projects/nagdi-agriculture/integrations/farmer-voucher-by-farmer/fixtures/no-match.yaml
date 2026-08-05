@@ -7,7 +7,3 @@ interactions:
 expect:
   outcome: no_match
   outputs: {}
-  claims:
-    farmer-registered: false
-    data-use-authorized-for-purpose: false
-    eligible-for-climate-smart-input-voucher: false

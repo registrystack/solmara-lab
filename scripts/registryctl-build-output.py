@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 
-REPORT_SCHEMA = "registryctl.project_command.v1"
+REPORT_SCHEMA = "registryctl.reviewed_project_build_report.v1"
+BUILD_SCHEMA = "registryctl.project_command.v1"
 MAX_REPORT_BYTES = 8 * 1024 * 1024
 
 
@@ -45,14 +46,17 @@ def parse_build_output(
         raise BuildReportError("the JSON report is not an object")
     if report.get("schema_version") != REPORT_SCHEMA:
         raise BuildReportError("the JSON report has an unsupported schema")
-    if report.get("status") != "built":
+    build = report.get("build")
+    if not isinstance(build, dict) or build.get("schema_version") != BUILD_SCHEMA:
+        raise BuildReportError("the JSON report has no supported build result")
+    if build.get("status") != "built":
         raise BuildReportError("registryctl did not report a completed build")
-    if report.get("environment") != environment:
+    if build.get("environment") != environment:
         raise BuildReportError("the JSON report has the wrong environment binding")
-    if not isinstance(report.get("project"), str) or not report["project"]:
+    if not isinstance(build.get("project"), str) or not build["project"]:
         raise BuildReportError("the JSON report has no project identity")
 
-    output_value = report.get("output")
+    output_value = build.get("output")
     if not isinstance(output_value, str) or not output_value:
         raise BuildReportError("the JSON report has no output root")
     output = Path(output_value)
@@ -69,13 +73,15 @@ def parse_build_output(
     if not output_root.is_dir():
         raise BuildReportError("the JSON report output root is not a directory")
 
-    relay_config = output_root / "private" / "relay" / "config"
-    notary_config = output_root / "private" / "notary" / "config" / "notary.yaml"
-    if not relay_config.is_dir() or not notary_config.is_file():
+    relay_public = output_root / "private" / "relay-public" / "config" / "relay.yaml"
+    relay_consultation = (
+        output_root / "private" / "relay-consultation" / "config" / "relay.yaml"
+    )
+    if not relay_public.is_file() or not relay_consultation.is_file():
         raise BuildReportError(
-            "the generated Relay or Notary configuration closure is incomplete"
+            "the generated Relay configuration closure is incomplete"
         )
-    for required in (relay_config, notary_config):
+    for required in (relay_public, relay_consultation):
         try:
             required.resolve(strict=True).relative_to(output_root)
         except (FileNotFoundError, RuntimeError, ValueError) as error:

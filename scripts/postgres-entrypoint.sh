@@ -11,4 +11,30 @@ chown postgres:postgres "$ssl_dst/server.crt" "$ssl_dst/server.key"
 chmod 0644 "$ssl_dst/server.crt"
 chmod 0600 "$ssl_dst/server.key"
 
-exec /usr/local/bin/docker-entrypoint.sh "$@"
+ready_file=/tmp/solmara-postgres-provisioned
+rm -f "$ready_file"
+
+/usr/local/bin/docker-entrypoint.sh "$@" &
+postgres_pid=$!
+
+stop_postgres() {
+  kill -TERM "$postgres_pid" 2>/dev/null || true
+}
+trap stop_postgres INT TERM
+
+until pg_isready --quiet --host 127.0.0.1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"; do
+  if ! kill -0 "$postgres_pid" 2>/dev/null; then
+    wait "$postgres_pid"
+    exit $?
+  fi
+  sleep 1
+done
+
+if ! /usr/local/bin/solmara-provision-postgresql.sh; then
+  stop_postgres
+  wait "$postgres_pid" || true
+  exit 1
+fi
+
+touch "$ready_file"
+wait "$postgres_pid"

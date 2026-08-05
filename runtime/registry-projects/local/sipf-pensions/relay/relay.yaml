@@ -1,11 +1,13 @@
 audit:
   hash_secret_env: REGISTRY_RELAY_AUDIT_HASH_SECRET
-  sink: stdout
+  path: /var/lib/registry/audit/audit.jsonl
+  sink: file
 auth:
   mode: oidc
   oidc:
     allow_dev_insecure_fetch_urls: true
-    allowed_clients: []
+    allowed_clients:
+    - solmara-evidence
     audiences:
     - registry-relay
     issuer: http://127.0.0.1:8090
@@ -23,21 +25,61 @@ datasets:
     refresh:
       interval: 1m
       mode: interval
-  description: Materialized pension entity
-  entities: []
+  description: Purpose-limited pension facts used by the Solmara Evidence service.
+  entities:
+  - access:
+      aggregate_scope: pension:aggregate
+      evidence_verification_scope: pension:evidence_verification
+      metadata_scope: pension:metadata
+      read_scope: pension:rows
+    aggregates: []
+    api:
+      allowed_expansions: []
+      allowed_filters:
+      - field: pensioner_uin
+        ops:
+        - eq
+      default_limit: 2
+      governed_policy:
+        allowed_assurance: []
+        permitted_jurisdictions: []
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/pension-payment-review
+        redaction_fields: []
+        require_consent: false
+        require_legal_basis: false
+        trusted_context: {}
+      max_limit: 2
+      require_purpose_header: true
+      required_filter_bindings: []
+      required_filters: []
+    attribute_release_profiles: []
+    description: Purpose-limited pension facts used by the Solmara Evidence service.
+    fields:
+    - from: payment_status
+      name: payment_status
+      sensitive: true
+    - from: pensioner_uin
+      name: pensioner_uin
+      sensitive: true
+    name: pension
+    relationships: []
+    spatial: null
+    table: materialization_e378f482aa5f7ec6ca19d81f76802de996046719bcf2976f033a9ff5c8dedd21
+    title: SIPF pension payment records
   id: pension
-  owner: solmara-sipf-pensions
+  owner: Social Insurance and Pension Fund
   sensitivity: personal
   tables:
   - access:
       aggregate_scope: pension:aggregate
-      metadata_scope: registry-internal:materialization
+      metadata_scope: pension:metadata
     aggregates: []
     api:
       allowed_filters: []
-      default_limit: 1
-      max_limit: 1
-      require_purpose_header: false
+      default_limit: 2
+      max_limit: 2
+      require_purpose_header: true
     id: materialization_e378f482aa5f7ec6ca19d81f76802de996046719bcf2976f033a9ff5c8dedd21
     materialization: snapshot
     primary_key: pensioner_uin
@@ -61,8 +103,8 @@ datasets:
         name: sipf_pension_payment
         schema: public
       type: postgres
-  title: pension
-  update_frequency: as_needed
+  title: SIPF pension payment records
+  update_frequency: continuous
 - access_rights: restricted
   aggregates: []
   conforms_to: []
@@ -71,21 +113,61 @@ datasets:
     refresh:
       interval: 1m
       mode: interval
-  description: Materialized survivor entity
-  entities: []
+  description: Purpose-limited survivor facts used by the Solmara Evidence service.
+  entities:
+  - access:
+      aggregate_scope: survivor:aggregate
+      evidence_verification_scope: survivor:evidence_verification
+      metadata_scope: survivor:metadata
+      read_scope: survivor:rows
+    aggregates: []
+    api:
+      allowed_expansions: []
+      allowed_filters:
+      - field: spouse_uin
+        ops:
+        - eq
+      default_limit: 2
+      governed_policy:
+        allowed_assurance: []
+        permitted_jurisdictions: []
+        permitted_purposes:
+        - https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
+        redaction_fields: []
+        require_consent: false
+        require_legal_basis: false
+        trusted_context: {}
+      max_limit: 2
+      require_purpose_header: true
+      required_filter_bindings: []
+      required_filters: []
+    attribute_release_profiles: []
+    description: Purpose-limited survivor facts used by the Solmara Evidence service.
+    fields:
+    - from: spouse_uin
+      name: spouse_uin
+      sensitive: true
+    - from: survivor_eligible
+      name: survivor_eligible
+      sensitive: true
+    name: survivor
+    relationships: []
+    spatial: null
+    table: materialization_c346e9a9e571c9cff9cc50780a950c7e58e5cd048091b530157c5cb540d9d539
+    title: SIPF survivor benefit records
   id: survivor
-  owner: solmara-sipf-pensions
+  owner: Social Insurance and Pension Fund
   sensitivity: personal
   tables:
   - access:
       aggregate_scope: survivor:aggregate
-      metadata_scope: registry-internal:materialization
+      metadata_scope: survivor:metadata
     aggregates: []
     api:
       allowed_filters: []
-      default_limit: 1
-      max_limit: 1
-      require_purpose_header: false
+      default_limit: 2
+      max_limit: 2
+      require_purpose_header: true
     id: materialization_c346e9a9e571c9cff9cc50780a950c7e58e5cd048091b530157c5cb540d9d539
     materialization: snapshot
     primary_key: spouse_uin
@@ -109,13 +191,13 @@ datasets:
         name: sipf_survivor_benefit
         schema: public
       type: postgres
-  title: survivor
-  update_frequency: as_needed
+  title: SIPF survivor benefit records
+  update_frequency: continuous
 deployment:
   profile: local
 instance:
   environment: local
   id: sipf-pensions-relay
 server:
-  bind: 127.0.0.1:8080
+  bind: 0.0.0.0:8080
 standards: {}

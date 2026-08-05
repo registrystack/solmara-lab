@@ -26,18 +26,19 @@ class RegistryctlTestOutputTests(unittest.TestCase):
             "fixture_coverage": {
                 "targets": [
                     {
-                        "requirements": [
+                        "identity": {"integration": "example", "capability": "snapshot"},
+                        "fixture_set_state": "fixture_bearing",
+                        "compiled_contract": {
+                            "kind": "compiled_contract",
+                            "digest": "sha256:compiled",
+                        },
+                        "fixture_inventory": [
                             {
-                                "state": "covered",
-                                "requirement": MODULE.REQUEST_BINDING_REQUIREMENT,
-                                "evidence": [
-                                    {
-                                        "kind": "authored_fixture",
-                                        "id": "target/example/fixture/match",
-                                    }
-                                ],
+                                "fixture_id": "match",
+                                "fixture_digest": "sha256:fixture",
+                                "pass_state": "passed",
                             }
-                        ]
+                        ],
                     }
                 ]
             },
@@ -45,56 +46,28 @@ class RegistryctlTestOutputTests(unittest.TestCase):
         report.update(overrides)
         return json.dumps(report).encode("utf-8")
 
-    def test_accepts_passing_authored_request_witnesses(self) -> None:
+    def test_accepts_passing_compiled_fixture_coverage(self) -> None:
         self.assertEqual(
             MODULE.validate_test_report(self.report()),
             ("example", 1, 1),
         )
 
-    def test_rejects_mapping_derived_request_coverage(self) -> None:
-        coverage = {
-            "targets": [
-                {
-                    "requirements": [
-                        {
-                            "state": "missing",
-                            "requirement": MODULE.REQUEST_BINDING_REQUIREMENT,
-                            "reason": "required_evidence_missing",
-                            "evidence": [],
-                        }
-                    ]
-                }
-            ]
-        }
+    def test_rejects_a_target_without_a_compiled_contract(self) -> None:
+        coverage = {"targets": [{"identity": {"integration": "example", "capability": "snapshot"}, "fixture_set_state": "fixture_bearing", "fixture_inventory": []}]}
         with self.assertRaisesRegex(
             MODULE.TestReportError,
-            "every fixture target must cover",
+            "must bind passing fixtures",
         ):
-            MODULE.validate_test_report(
-                self.report(fixture_coverage=coverage)
-            )
+            MODULE.validate_test_report(self.report(fixture_coverage=coverage))
 
-    def test_rejects_non_authored_binding_evidence(self) -> None:
-        coverage = {
-            "targets": [
-                {
-                    "requirements": [
-                        {
-                            "state": "covered",
-                            "requirement": MODULE.REQUEST_BINDING_REQUIREMENT,
-                            "evidence": [{"kind": "compiled_contract"}],
-                        }
-                    ]
-                }
-            ]
-        }
+    def test_rejects_a_non_passing_coverage_fixture(self) -> None:
+        report = json.loads(self.report())
+        report["fixture_coverage"]["targets"][0]["fixture_inventory"][0]["pass_state"] = "failed"
         with self.assertRaisesRegex(
             MODULE.TestReportError,
-            "requires authored fixture evidence",
+            "must bind passing fixtures",
         ):
-            MODULE.validate_test_report(
-                self.report(fixture_coverage=coverage)
-            )
+            MODULE.validate_test_report(json.dumps(report).encode())
 
     def test_rejects_a_non_passing_fixture_without_echoing_values(self) -> None:
         with self.assertRaisesRegex(

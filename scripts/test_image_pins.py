@@ -10,9 +10,11 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELAY = "ghcr.io/registrystack/registry-relay@sha256:" + "1" * 64
-NOTARY = "ghcr.io/registrystack/registry-notary@sha256:" + "2" * 64
+RELAY = "solmara-lab-registry-relay:source"
+EVIDENCE = "solmara-lab-registry-evidence:source"
+MINT = "solmara-lab-registry-mint:source"
 VOLUME_INIT = "busybox@sha256:" + "4" * 64
+GATEWAY = "caddy@sha256:" + "5" * 64
 
 
 def load_check_image_pins():
@@ -35,19 +37,23 @@ class ImagePinTests(unittest.TestCase):
         self.module.ROOT = self.root
         (self.root / "versions.env").write_text(
             f"REGISTRY_RELAY_IMAGE={RELAY}\n"
-            f"REGISTRY_NOTARY_IMAGE={NOTARY}\n"
-            f"VOLUME_INIT_IMAGE={VOLUME_INIT}\n",
+            f"SOLMARA_EVIDENCE_IMAGE={EVIDENCE}\n"
+            f"SOLMARA_MINT_IMAGE={MINT}\n"
+            f"VOLUME_INIT_IMAGE={VOLUME_INIT}\n"
+            f"EVIDENCE_GATEWAY_IMAGE={GATEWAY}\n",
             encoding="utf-8",
         )
 
     def tearDown(self) -> None:
         self.directory.cleanup()
 
-    def run_check(self, relay: str = RELAY, notary: str = NOTARY) -> tuple[int, str]:
+    def run_check(self, *, required: bool = True) -> tuple[int, str]:
+        operator = ":?required" if required else ":-fallback"
         (self.root / "compose.yaml").write_text(
             "services:\n"
-            f"  relay:\n    image: ${{REGISTRY_RELAY_IMAGE:-{relay}}}\n"
-            f"  notary:\n    image: ${{REGISTRY_NOTARY_IMAGE:-{notary}}}\n",
+            f"  relay:\n    image: ${{REGISTRY_RELAY_IMAGE{operator}}}\n"
+            f"  evidence:\n    image: ${{SOLMARA_EVIDENCE_IMAGE{operator}}}\n"
+            f"  mint:\n    image: ${{SOLMARA_MINT_IMAGE{operator}}}\n",
             encoding="utf-8",
         )
         stderr = io.StringIO()
@@ -55,22 +61,24 @@ class ImagePinTests(unittest.TestCase):
             result = self.module.main()
         return result, stderr.getvalue()
 
-    def test_matching_compose_fallbacks_pass(self) -> None:
+    def test_matching_source_image_references_pass(self) -> None:
         result, stderr = self.run_check()
 
         self.assertEqual(result, 0, stderr)
 
-    def test_relay_fallback_must_match_versions_env(self) -> None:
-        result, stderr = self.run_check(relay=RELAY[:-1] + "3")
+    def test_source_images_must_be_required(self) -> None:
+        result, stderr = self.run_check(required=False)
 
         self.assertEqual(result, 1)
-        self.assertIn("REGISTRY_RELAY_IMAGE fallback must match versions.env", stderr)
+        self.assertIn("expected a required REGISTRY_RELAY_IMAGE reference", stderr)
 
-    def test_notary_fallback_must_match_versions_env(self) -> None:
-        result, stderr = self.run_check(notary=NOTARY[:-1] + "3")
+    def test_gateway_must_be_digest_pinned(self) -> None:
+        versions = (self.root / "versions.env").read_text().replace(GATEWAY, "caddy:latest")
+        (self.root / "versions.env").write_text(versions)
+        result, stderr = self.run_check()
 
         self.assertEqual(result, 1)
-        self.assertIn("REGISTRY_NOTARY_IMAGE fallback must match versions.env", stderr)
+        self.assertIn("EVIDENCE_GATEWAY_IMAGE must use image@sha256", stderr)
 
 
 if __name__ == "__main__":
