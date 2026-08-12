@@ -232,7 +232,9 @@ class HostedImageManifestTests(unittest.TestCase):
             == "Verify official Registry Stack runtime images and Relayctl"
         )["run"]
         self.assertIn("for component in relay evidence mint", runtime_verification)
-        self.assertIn("REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256", runtime_verification)
+        self.assertIn(
+            "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256", runtime_verification
+        )
         self.assertNotIn("REGISTRY_STACK_RELEASE_EVIDENCE_ASSET", runtime_verification)
         self.assertNotIn("REGISTRY_STACK_RELEASE_MINT_ASSET", runtime_verification)
         provisioner_index = names.index("Build and push authority provisioner")
@@ -288,6 +290,15 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertIn("steps.authority_provisioner.outputs.digest", label_verification)
         self.assertIn("steps.transit_signer.outputs.digest", label_verification)
         self.assertIn("org.opencontainers.image.revision", label_verification)
+
+        provisioner_smoke = next(
+            step
+            for step in steps
+            if step.get("name") == "Smoke hosted authority provisioner image"
+        )["run"]
+        self.assertEqual(provisioner_smoke.count("--platform linux/amd64"), 2)
+        self.assertEqual(provisioner_smoke.count("--user 0:0"), 2)
+        self.assertEqual(provisioner_smoke.count("--cap-add CHOWN"), 2)
         self.assertIn("org.registrystack.release.revision", label_verification)
 
         provisioner_smoke = next(

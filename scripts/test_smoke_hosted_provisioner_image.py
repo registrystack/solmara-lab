@@ -17,6 +17,22 @@ SPEC.loader.exec_module(MODULE)
 
 
 class HostedProvisionerImageSmokeTests(unittest.TestCase):
+    def test_container_uses_the_same_bounded_volume_initializer_identity_as_hosted(
+        self,
+    ) -> None:
+        with mock.patch.object(MODULE.subprocess, "run") as run:
+            MODULE._run(
+                "image@sha256:" + "a" * 64,
+                ["provision"],
+                [(Path("/state"), "/provisioned/runtime", False)],
+            )
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--user") + 1], "0:0")
+        self.assertEqual(command[command.index("--cap-drop") + 1], "ALL")
+        self.assertEqual(command[command.index("--cap-add") + 1], "CHOWN")
+        self.assertIn("none", command)
+        self.assertIn("--read-only", command)
+
     def test_success_is_sanitized(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output, error = StringIO(), StringIO()

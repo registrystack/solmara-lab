@@ -6,10 +6,15 @@ name: solmara-authority-cells
 x-provisioner: &provisioner
   image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
   restart: "no"
+  # Each one-shot service is confined to one target's volumes and needs root
+  # only to initialize Docker-owned volume roots and hand private runtime
+  # material to UID 65532. It has no network or writable container root.
+  user: "0:0"
   read_only: true
   tmpfs: [/tmp]
   network_mode: none
   cap_drop: [ALL]
+  cap_add: [CHOWN]
   security_opt: [no-new-privileges:true]
 
 x-transit-init: &transit-init

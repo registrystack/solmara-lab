@@ -38,13 +38,20 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     def test_provisioning_application_owns_exactly_34_active_volumes(self) -> None:
         volumes = self.provision["volumes"]
         self.assertEqual(len(volumes), 34)
-        self.assertTrue(all(not value.get("external", False) for value in volumes.values()))
-        self.assertTrue(all(value["name"].startswith("solmara-authority-cells-") for value in volumes.values()))
+        self.assertTrue(
+            all(not value.get("external", False) for value in volumes.values())
+        )
+        self.assertTrue(
+            all(
+                value["name"].startswith("solmara-authority-cells-")
+                for value in volumes.values()
+            )
+        )
 
-    def test_runtime_applications_attach_active_volumes_read_only_by_fixed_name(self) -> None:
-        provisioned = {
-            value["name"] for value in self.provision["volumes"].values()
-        }
+    def test_runtime_applications_attach_active_volumes_read_only_by_fixed_name(
+        self,
+    ) -> None:
+        provisioned = {value["name"] for value in self.provision["volumes"].values()}
         attached: set[str] = set()
         for compose in self.runtime.values():
             for key, value in compose.get("volumes", {}).items():
@@ -62,7 +69,11 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     def test_private_signing_keys_are_mounted_only_into_matching_signers(self) -> None:
         services = self.provision["services"]
         for provider in PROVIDERS:
-            secret = "mint-signing-jwk" if provider == "mint" else f"{provider}-evidence-signing-jwk"
+            secret = (
+                "mint-signing-jwk"
+                if provider == "mint"
+                else f"{provider}-evidence-signing-jwk"
+            )
             consumers = {
                 service_name
                 for service_name, service in services.items()
@@ -109,11 +120,11 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         )
         for client in clients:
             self.assertIn(f"solmara-provisioning/{client}-public.jwk", targets)
-        self.assertIn(
-            "solmara-provisioning/solmara-demo-client-public.jwk", targets
-        )
+        self.assertIn("solmara-provisioning/solmara-demo-client-public.jwk", targets)
 
-    def test_each_evidence_provisioner_receives_only_its_public_signing_key(self) -> None:
+    def test_each_evidence_provisioner_receives_only_its_public_signing_key(
+        self,
+    ) -> None:
         services = self.provision["services"]
         for provider in PROVIDERS[1:]:
             provisioner = services[f"{provider}-evidence-provisioner"]
@@ -132,6 +143,19 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         services = self.provision["services"]
         for authority in RELAYS:
             self.assertNotIn("secrets", services[f"{authority}-relay-provisioner"])
+
+    def test_provisioners_only_elevate_for_authority_volume_initialization(
+        self,
+    ) -> None:
+        for name, service in self.provision["services"].items():
+            if not name.endswith("-provisioner"):
+                continue
+            self.assertEqual(service["user"], "0:0")
+            self.assertEqual(service["network_mode"], "none")
+            self.assertTrue(service["read_only"])
+            self.assertEqual(service["cap_drop"], ["ALL"])
+            self.assertEqual(service["cap_add"], ["CHOWN"])
+            self.assertEqual(service["security_opt"], ["no-new-privileges:true"])
 
     def test_provisioners_receive_closed_permanent_dependency_origins(self) -> None:
         services = self.provision["services"]
@@ -152,14 +176,27 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             else:
                 self.assertNotIn("--relay-origin", command)
 
-    def test_each_signer_and_transit_initializer_mount_only_its_matching_volume(self) -> None:
+    def test_each_signer_and_transit_initializer_mount_only_its_matching_volume(
+        self,
+    ) -> None:
         services = self.provision["services"]
         for provider in PROVIDERS:
-            volume = "mint-transit" if provider == "mint" else f"{provider}-evidence-transit"
-            self.assertEqual(services[f"{provider}-transit-init"]["volumes"], [f"{volume}:/transit"])
+            volume = (
+                "mint-transit" if provider == "mint" else f"{provider}-evidence-transit"
+            )
+            self.assertEqual(
+                services[f"{provider}-transit-init"]["volumes"], [f"{volume}:/transit"]
+            )
             signer = services[f"{provider}-signer"]
             self.assertEqual(signer["volumes"], [f"{volume}:/transit"])
-            self.assertEqual(signer["depends_on"], {f"{provider}-transit-init": {"condition": "service_completed_successfully"}})
+            self.assertEqual(
+                signer["depends_on"],
+                {
+                    f"{provider}-transit-init": {
+                        "condition": "service_completed_successfully"
+                    }
+                },
+            )
 
     def test_relay_runtime_secrets_are_authority_scoped(self) -> None:
         services = {}
@@ -171,7 +208,9 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 "SOLMARA_RELAY_AUDIT_KEY": f"${{{authority.upper()}_RELAY_AUDIT_KEY:?required}}"
             }
             if authority in {"sipf", "nagdi"}:
-                expected["SOLMARA_RELAY_CURSOR_KEY"] = f"${{{authority.upper()}_RELAY_CURSOR_KEY:?required}}"
+                expected["SOLMARA_RELAY_CURSOR_KEY"] = (
+                    f"${{{authority.upper()}_RELAY_CURSOR_KEY:?required}}"
+                )
             self.assertEqual(environment, expected)
 
     def test_runtime_consumers_depend_on_app_local_audit_init(self) -> None:
@@ -181,7 +220,14 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             self.assertEqual(audit_init["network_mode"], "none")
             self.assertEqual(audit_init["cap_add"], ["CHOWN", "FOWNER"])
             for name, service in services.items():
-                if name in {"audit-permissions", "static-metadata", "scenario-runner", "child-benefit-federator", "home", "portal"}:
+                if name in {
+                    "audit-permissions",
+                    "static-metadata",
+                    "scenario-runner",
+                    "child-benefit-federator",
+                    "home",
+                    "portal",
+                }:
                     continue
                 self.assertEqual(
                     service["depends_on"]["audit-permissions"],

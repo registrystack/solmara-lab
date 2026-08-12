@@ -54,6 +54,12 @@ def _run(
         "--network",
         "none",
         "--read-only",
+        "--user",
+        "0:0",
+        "--cap-drop",
+        "ALL",
+        "--cap-add",
+        "CHOWN",
         "--tmpfs",
         "/tmp",
     ]
