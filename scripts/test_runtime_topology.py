@@ -344,6 +344,8 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(initializer["cap_drop"], ["ALL"])
         self.assertEqual(set(initializer["cap_add"]), {"CHOWN", "FOWNER"})
         self.assertIn("no-new-privileges:true", initializer["security_opt"])
+        self.assertTrue(initializer["read_only"])
+        self.assertEqual(initializer["restart"], "no")
         self.assertEqual(
             set(initializer["volumes"]),
             {
