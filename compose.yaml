@@ -21,13 +21,95 @@ x-evidence: &evidence
   user: "0:0"
   read_only: true
   cap_drop: [ALL]
-  # Generated local secrets remain mode 0400 and owned by the host user.
-  # Linux containers need this one capability to read their own RO bind.
-  cap_add: [DAC_OVERRIDE]
   security_opt: [no-new-privileges:true]
   tmpfs: [/tmp]
   environment: {SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt}
   networks: [runtime, issuer-validation]
+
+# Docker Desktop and Linux preserve different owners for host bind mounts. Copy
+# each authority's closed secret set into its own volume so the official
+# runtimes see the exact ownership and mode required by SecretResolver.
+x-authority-secret-stager: &authority-secret-stager
+  image: ${PYTHON_STATIC_IMAGE:?versions.env must pin the static server image}
+  entrypoint:
+    - python
+    - -c
+    - |-
+      import os
+      import stat
+      import sys
+
+      max_secret_bytes = 64 * 1024
+      expected = set(sys.argv[2:])
+      if sys.argv[1:2] != ['stage'] or not expected or len(expected) != len(sys.argv) - 2:
+          raise RuntimeError('invalid secret allowlist')
+      source_fd = os.open('/source', os.O_RDONLY | os.O_DIRECTORY)
+      destination_fd = os.open('/staged', os.O_RDONLY | os.O_DIRECTORY)
+      try:
+          os.fchown(destination_fd, 0, 0)
+          os.fchmod(destination_fd, 0o700)
+          with os.scandir(source_fd) as entries:
+              source_entries = {entry.name: entry.stat(follow_symlinks=False) for entry in entries}
+          if set(source_entries) != expected:
+              raise RuntimeError('secret source does not match allowlist')
+          for metadata in source_entries.values():
+              if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1 or metadata.st_size > max_secret_bytes or stat.S_IMODE(metadata.st_mode) not in {0o400, 0o600}:
+                  raise RuntimeError('secret source has unsafe metadata')
+
+          with os.scandir(destination_fd) as entries:
+              destination_entries = {entry.name: entry.stat(follow_symlinks=False) for entry in entries}
+          permitted_destination_names = expected | {f'.stage-{name}' for name in expected}
+          if not set(destination_entries) <= permitted_destination_names:
+              raise RuntimeError('secret destination contains unexpected entries')
+          for name, metadata in destination_entries.items():
+              if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                  raise RuntimeError('secret destination has unsafe metadata')
+              if name.startswith('.stage-'):
+                  os.unlink(name, dir_fd=destination_fd)
+
+          staged = []
+          for name in sorted(expected):
+              metadata = source_entries[name]
+              source = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=source_fd)
+              temporary = f'.stage-{name}'
+              destination = os.open(
+                  temporary,
+                  os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                  0o600,
+                  dir_fd=destination_fd,
+              )
+              try:
+                  opened = os.fstat(source)
+                  if (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino) or not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or opened.st_size > max_secret_bytes or stat.S_IMODE(opened.st_mode) not in {0o400, 0o600}:
+                      raise RuntimeError('secret source changed during staging')
+                  copied = 0
+                  while chunk := os.read(source, min(65536, max_secret_bytes + 1 - copied)):
+                      copied += len(chunk)
+                      if copied > max_secret_bytes:
+                          raise RuntimeError('secret source changed during staging')
+                      remaining = memoryview(chunk)
+                      while remaining:
+                          remaining = remaining[os.write(destination, remaining):]
+                  os.fchmod(destination, 0o600)
+                  os.fchown(destination, 0, 0)
+                  os.fsync(destination)
+              finally:
+                  os.close(destination)
+                  os.close(source)
+              staged.append((temporary, name))
+          for temporary, name in staged:
+              os.replace(temporary, name, src_dir_fd=destination_fd, dst_dir_fd=destination_fd)
+          os.fsync(destination_fd)
+      finally:
+          os.close(destination_fd)
+          os.close(source_fd)
+  user: "0:0"
+  read_only: true
+  cap_drop: [ALL]
+  cap_add: [CHOWN, DAC_OVERRIDE]
+  security_opt: [no-new-privileges:true]
+  network_mode: none
+  restart: "no"
 
 # Docker Desktop cannot carry a host Unix listener through a bind mount. Each
 # local authority therefore gets one isolated signer container and one private
@@ -79,6 +161,41 @@ x-evidence-client-environment: &evidence-client-environment
   SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt
 
 services:
+  mint-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key]
+    volumes: ["./runtime/evidence-cells/secrets/mint:/source:ro", "mint-runtime-secrets:/staged"]
+
+  cra-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key, subject-binding-hmac-key, cra-pension-evidence-client-id, cra-pension-evidence-client-key, cra-citizen-evidence-client-id, cra-citizen-evidence-client-key]
+    volumes: ["./runtime/evidence-cells/secrets/cra:/source:ro", "cra-evidence-runtime-secrets:/staged"]
+
+  nia-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key, subject-binding-hmac-key]
+    volumes: ["./runtime/evidence-cells/secrets/nia:/source:ro", "nia-evidence-runtime-secrets:/staged"]
+
+  sro-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key, subject-binding-hmac-key]
+    volumes: ["./runtime/evidence-cells/secrets/sro:/source:ro", "sro-evidence-runtime-secrets:/staged"]
+
+  mosd-programme-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key, subject-binding-hmac-key, mosd-child-benefit-evidence-client-id, mosd-child-benefit-evidence-client-key]
+    volumes: ["./runtime/evidence-cells/secrets/mosd-programme:/source:ro", "mosd-programme-evidence-runtime-secrets:/staged"]
+
+  sipf-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key, subject-binding-hmac-key, sipf-pension-evidence-client-id, sipf-pension-evidence-client-key, sipf-survivor-evidence-client-id, sipf-survivor-evidence-client-key]
+    volumes: ["./runtime/evidence-cells/secrets/sipf:/source:ro", "sipf-evidence-runtime-secrets:/staged"]
+
+  nagdi-secret-stager:
+    <<: *authority-secret-stager
+    command: [stage, audit-hmac-key, subject-binding-hmac-key, nagdi-voucher-evidence-client-id, nagdi-voucher-evidence-client-key, nagdi-livestock-evidence-client-id, nagdi-livestock-evidence-client-key]
+    volumes: ["./runtime/evidence-cells/secrets/nagdi:/source:ro", "nagdi-evidence-runtime-secrets:/staged"]
+
   cra-source-publisher:
     <<: *relay-source-publisher
     entrypoint: ["python", "/app/local-relay-source-publisher.py", "--authority", "cra", "--database", "/var/lib/relay/source/cra.sqlite", "--seed", "/seed/cra.sqlite"]
@@ -350,60 +467,58 @@ services:
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
-    # See x-evidence: this local runtime receives only Mint's RO secret tree.
-    cap_add: [DAC_OVERRIDE]
     security_opt: [no-new-privileges:true]
     tmpfs: [/tmp]
     volumes:
       - ./runtime/evidence-cells/mint:/etc/registry-mint:ro
-      - ./runtime/evidence-cells/secrets/mint:/run/secrets/registry-mint:ro
+      - mint-runtime-secrets:/run/secrets/registry-mint:ro
       - mint-transit:/run/registry-mint:ro
       - mint-v2-audit:/var/lib/registry-mint
     networks:
       runtime: {ipv4_address: 172.29.1.20}
-    depends_on: {mint-signer: {condition: service_healthy}, authority-audit-init: {condition: service_completed_successfully}}
+    depends_on: {mint-signer: {condition: service_healthy}, mint-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}}
 
   cra-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/cra/runtime.yaml", "serve"]
-    volumes: ["./runtime/evidence-cells/cells/cra:/etc/registry-evidence/cra:ro", "./runtime/evidence-cells/secrets/cra:/run/secrets/registry-evidence/cra:ro", "cra-transit:/run/registry-evidence/cra:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/cra/extracts:ro", "cra-evidence-audit:/var/lib/registry-evidence/cra/audit"]
+    volumes: ["./runtime/evidence-cells/cells/cra:/etc/registry-evidence/cra:ro", "cra-evidence-runtime-secrets:/run/secrets/registry-evidence/cra:ro", "cra-transit:/run/registry-evidence/cra:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/cra/extracts:ro", "cra-evidence-audit:/var/lib/registry-evidence/cra/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.21}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, cra-signer: {condition: service_healthy}, cra-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, cra-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, cra-signer: {condition: service_healthy}, cra-relay: {condition: service_healthy}}
 
   nia-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/nia/runtime.yaml", "serve"]
-    volumes: ["./runtime/evidence-cells/cells/nia:/etc/registry-evidence/nia:ro", "./runtime/evidence-cells/secrets/nia:/run/secrets/registry-evidence/nia:ro", "nia-transit:/run/registry-evidence/nia:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/nia/extracts:ro", "nia-evidence-audit:/var/lib/registry-evidence/nia/audit"]
+    volumes: ["./runtime/evidence-cells/cells/nia:/etc/registry-evidence/nia:ro", "nia-evidence-runtime-secrets:/run/secrets/registry-evidence/nia:ro", "nia-transit:/run/registry-evidence/nia:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/nia/extracts:ro", "nia-evidence-audit:/var/lib/registry-evidence/nia/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.22}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, nia-signer: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, nia-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, nia-signer: {condition: service_healthy}}
 
   sro-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/sro/runtime.yaml", "serve"]
-    volumes: ["./runtime/evidence-cells/cells/sro:/etc/registry-evidence/sro:ro", "./runtime/evidence-cells/secrets/sro:/run/secrets/registry-evidence/sro:ro", "sro-transit:/run/registry-evidence/sro:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/sro/extracts:ro", "sro-evidence-audit:/var/lib/registry-evidence/sro/audit"]
+    volumes: ["./runtime/evidence-cells/cells/sro:/etc/registry-evidence/sro:ro", "sro-evidence-runtime-secrets:/run/secrets/registry-evidence/sro:ro", "sro-transit:/run/registry-evidence/sro:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/sro/extracts:ro", "sro-evidence-audit:/var/lib/registry-evidence/sro/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.23}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, sro-signer: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, sro-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, sro-signer: {condition: service_healthy}}
 
   mosd-programme-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/mosd-programme/runtime.yaml", "serve"]
-    volumes: ["./runtime/evidence-cells/cells/mosd-programme:/etc/registry-evidence/mosd-programme:ro", "./runtime/evidence-cells/secrets/mosd-programme:/run/secrets/registry-evidence/mosd-programme:ro", "mosd-programme-transit:/run/registry-evidence/mosd-programme:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "mosd-evidence-audit:/var/lib/registry-evidence/mosd-programme/audit"]
+    volumes: ["./runtime/evidence-cells/cells/mosd-programme:/etc/registry-evidence/mosd-programme:ro", "mosd-programme-evidence-runtime-secrets:/run/secrets/registry-evidence/mosd-programme:ro", "mosd-programme-transit:/run/registry-evidence/mosd-programme:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "mosd-evidence-audit:/var/lib/registry-evidence/mosd-programme/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.24}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, mosd-programme-signer: {condition: service_healthy}, mosd-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, mosd-programme-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, mosd-programme-signer: {condition: service_healthy}, mosd-relay: {condition: service_healthy}}
 
   sipf-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/sipf/runtime.yaml", "serve"]
-    volumes: ["./runtime/evidence-cells/cells/sipf:/etc/registry-evidence/sipf:ro", "./runtime/evidence-cells/secrets/sipf:/run/secrets/registry-evidence/sipf:ro", "sipf-transit:/run/registry-evidence/sipf:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "sipf-evidence-audit:/var/lib/registry-evidence/sipf/audit"]
+    volumes: ["./runtime/evidence-cells/cells/sipf:/etc/registry-evidence/sipf:ro", "sipf-evidence-runtime-secrets:/run/secrets/registry-evidence/sipf:ro", "sipf-transit:/run/registry-evidence/sipf:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "sipf-evidence-audit:/var/lib/registry-evidence/sipf/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.25}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, sipf-signer: {condition: service_healthy}, sipf-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, sipf-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, sipf-signer: {condition: service_healthy}, sipf-relay: {condition: service_healthy}}
 
   nagdi-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/nagdi/runtime.yaml", "serve"]
-    volumes: ["./runtime/evidence-cells/cells/nagdi:/etc/registry-evidence/nagdi:ro", "./runtime/evidence-cells/secrets/nagdi:/run/secrets/registry-evidence/nagdi:ro", "nagdi-transit:/run/registry-evidence/nagdi:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nagdi-evidence-audit:/var/lib/registry-evidence/nagdi/audit"]
+    volumes: ["./runtime/evidence-cells/cells/nagdi:/etc/registry-evidence/nagdi:ro", "nagdi-evidence-runtime-secrets:/run/secrets/registry-evidence/nagdi:ro", "nagdi-transit:/run/registry-evidence/nagdi:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nagdi-evidence-audit:/var/lib/registry-evidence/nagdi/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.26}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, nagdi-signer: {condition: service_healthy}, nagdi-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, nagdi-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, nagdi-signer: {condition: service_healthy}, nagdi-relay: {condition: service_healthy}}
 
   evidence-gateway:
     image: ${EVIDENCE_GATEWAY_IMAGE:?versions.env must pin Caddy}
@@ -498,6 +613,13 @@ services:
     networks: [runtime]
 
 volumes:
+  mint-runtime-secrets:
+  cra-evidence-runtime-secrets:
+  nia-evidence-runtime-secrets:
+  sro-evidence-runtime-secrets:
+  mosd-programme-evidence-runtime-secrets:
+  sipf-evidence-runtime-secrets:
+  nagdi-evidence-runtime-secrets:
   cra-relay-source:
   nia-relay-source:
   mosd-relay-source:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,6 +36,11 @@ class RuntimeSecretProjectionTests(unittest.TestCase):
                 "cra-pension-evidence-client-id",
             )
             self.assertEqual((output / "mint/audit-hmac-key").read_text(), "audit")
+            for path in output.glob("*/*"):
+                metadata = path.stat(follow_symlinks=False)
+                self.assertTrue(stat.S_ISREG(metadata.st_mode), path)
+                self.assertEqual(metadata.st_nlink, 1, path)
+                self.assertEqual(stat.S_IMODE(metadata.st_mode), 0o600, path)
 
 
 if __name__ == "__main__":

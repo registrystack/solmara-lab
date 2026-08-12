@@ -87,10 +87,10 @@ signers-down:
     uv run scripts/local-transit-signers.py down
 
 up: prepare
-    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml up -d --build
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml up -d --build --force-recreate
 
 up-esignet: prepare
-    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml up -d --build
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml up -d --build --force-recreate
 
 down:
     COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml down

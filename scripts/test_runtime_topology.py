@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -19,6 +20,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RuntimeTopologyTests(unittest.TestCase):
+    def test_local_up_recreates_immutable_runtime_consumers(self) -> None:
+        justfile = (SCRIPT.parents[1] / "justfile").read_text()
+        for recipe in ("up: prepare", "up-esignet: prepare"):
+            start = justfile.index(recipe)
+            command = justfile[start:].splitlines()[1]
+            self.assertIn("docker compose", command)
+            self.assertIn("--force-recreate", command)
+
     def test_authority_runtime_uses_the_versioned_relayctl_image(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -306,22 +315,26 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertIn("--allow-root-bind-owner", signer["command"])
             self.assertTrue(any(volume.endswith("signing.jwk:ro") for volume in signer["volumes"]))
 
-    def test_local_authority_runtimes_can_read_only_their_bound_secret_trees(self) -> None:
+    def test_local_authority_runtimes_use_owned_read_only_secret_volumes(self) -> None:
         compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
 
-        for service_name in (
-            "mint",
-            "cra-evidence",
-            "nia-evidence",
-            "sro-evidence",
-            "mosd-programme-evidence",
-            "sipf-evidence",
-            "nagdi-evidence",
-        ):
+        services = {
+            "mint": ("mint", "mint-runtime-secrets"),
+            "cra-evidence": ("cra", "cra-evidence-runtime-secrets"),
+            "nia-evidence": ("nia", "nia-evidence-runtime-secrets"),
+            "sro-evidence": ("sro", "sro-evidence-runtime-secrets"),
+            "mosd-programme-evidence": (
+                "mosd-programme",
+                "mosd-programme-evidence-runtime-secrets",
+            ),
+            "sipf-evidence": ("sipf", "sipf-evidence-runtime-secrets"),
+            "nagdi-evidence": ("nagdi", "nagdi-evidence-runtime-secrets"),
+        }
+        for service_name, (provider, secret_volume) in services.items():
             service = compose["services"][service_name]
             self.assertEqual(service["user"], "0:0")
             self.assertEqual(service["cap_drop"], ["ALL"])
-            self.assertEqual(service["cap_add"], ["DAC_OVERRIDE"])
+            self.assertNotIn("cap_add", service)
             self.assertTrue(service["read_only"])
             secret_mounts = [
                 volume
@@ -329,11 +342,154 @@ class RuntimeTopologyTests(unittest.TestCase):
                 if "/run/secrets/" in volume
             ]
             self.assertEqual(len(secret_mounts), 1, service_name)
+            self.assertTrue(
+                secret_mounts[0].startswith(f"{secret_volume}:"), service_name
+            )
             self.assertTrue(secret_mounts[0].endswith(":ro"), service_name)
+            self.assertNotIn("./runtime/evidence-cells/secrets/", secret_mounts[0])
+            self.assertEqual(
+                service["depends_on"][f"{provider}-secret-stager"]["condition"],
+                "service_completed_successfully",
+            )
             self.assertEqual(
                 service["depends_on"]["authority-audit-init"]["condition"],
                 "service_completed_successfully",
             )
+
+    def test_local_secret_stagers_are_authority_scoped_and_fail_closed(self) -> None:
+        compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
+        expected = {
+            "mint": {"audit-hmac-key"},
+            "cra": {
+                "audit-hmac-key",
+                "subject-binding-hmac-key",
+                "cra-pension-evidence-client-id",
+                "cra-pension-evidence-client-key",
+                "cra-citizen-evidence-client-id",
+                "cra-citizen-evidence-client-key",
+            },
+            "nia": {"audit-hmac-key", "subject-binding-hmac-key"},
+            "sro": {"audit-hmac-key", "subject-binding-hmac-key"},
+            "mosd-programme": {
+                "audit-hmac-key",
+                "subject-binding-hmac-key",
+                "mosd-child-benefit-evidence-client-id",
+                "mosd-child-benefit-evidence-client-key",
+            },
+            "sipf": {
+                "audit-hmac-key",
+                "subject-binding-hmac-key",
+                "sipf-pension-evidence-client-id",
+                "sipf-pension-evidence-client-key",
+                "sipf-survivor-evidence-client-id",
+                "sipf-survivor-evidence-client-key",
+            },
+            "nagdi": {
+                "audit-hmac-key",
+                "subject-binding-hmac-key",
+                "nagdi-voucher-evidence-client-id",
+                "nagdi-voucher-evidence-client-key",
+                "nagdi-livestock-evidence-client-id",
+                "nagdi-livestock-evidence-client-key",
+            },
+        }
+        volumes = {
+            "mint": "mint-runtime-secrets",
+            "cra": "cra-evidence-runtime-secrets",
+            "nia": "nia-evidence-runtime-secrets",
+            "sro": "sro-evidence-runtime-secrets",
+            "mosd-programme": "mosd-programme-evidence-runtime-secrets",
+            "sipf": "sipf-evidence-runtime-secrets",
+            "nagdi": "nagdi-evidence-runtime-secrets",
+        }
+        for provider, names in expected.items():
+            stager = compose["services"][f"{provider}-secret-stager"]
+            self.assertEqual(stager["command"][0], "stage")
+            self.assertEqual(set(stager["command"][1:]), names)
+            self.assertEqual(stager["user"], "0:0")
+            self.assertTrue(stager["read_only"])
+            self.assertEqual(stager["cap_drop"], ["ALL"])
+            self.assertEqual(set(stager["cap_add"]), {"CHOWN", "DAC_OVERRIDE"})
+            self.assertIn("no-new-privileges:true", stager["security_opt"])
+            self.assertEqual(stager["network_mode"], "none")
+            self.assertEqual(stager["restart"], "no")
+            self.assertEqual(
+                set(stager["volumes"]),
+                {
+                    f"./runtime/evidence-cells/secrets/{provider}:/source:ro",
+                    f"{volumes[provider]}:/staged",
+                },
+            )
+
+        command = compose["services"]["mint-secret-stager"]["entrypoint"][2]
+        for required in (
+            "set(source_entries) != expected",
+            "stat.S_ISREG",
+            "metadata.st_nlink != 1",
+            "metadata.st_size > max_secret_bytes",
+            "opened.st_size > max_secret_bytes",
+            "max_secret_bytes = 64 * 1024",
+            "if copied > max_secret_bytes",
+            "{0o400, 0o600}",
+            "os.O_NOFOLLOW",
+            "os.fchown(destination_fd, 0, 0)",
+            "os.fchmod(destination_fd, 0o700)",
+            "os.fchown(destination, 0, 0)",
+            "os.fchmod(destination, 0o600)",
+            "os.replace",
+        ):
+            self.assertIn(required, command)
+        self.assertNotIn("print(", command)
+
+    def test_local_secret_stager_copies_without_rendering_secret_values(self) -> None:
+        compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
+        command = compose["services"]["mint-secret-stager"]["entrypoint"][2]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            destination = root / "staged"
+            source.mkdir()
+            destination.mkdir()
+            secret = source / "audit-hmac-key"
+            secret.write_bytes(b"secret-canary\n")
+            secret.chmod(0o600)
+            patched = command.replace("'/source'", repr(str(source))).replace(
+                "'/staged'", repr(str(destination))
+            )
+            with (
+                mock.patch("sys.argv", ["-c", "stage", "audit-hmac-key"]),
+                mock.patch("os.fchown"),
+            ):
+                exec(patched, {})
+
+            staged = destination / "audit-hmac-key"
+            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o700)
+            self.assertEqual(staged.read_bytes(), b"secret-canary\n")
+            self.assertEqual(stat.S_IMODE(staged.stat().st_mode), 0o600)
+            self.assertEqual(staged.stat().st_nlink, 1)
+
+            peer = root / "peer"
+            os.link(secret, peer)
+            with (
+                mock.patch("sys.argv", ["-c", "stage", "audit-hmac-key"]),
+                mock.patch("os.fchown"),
+                self.assertRaisesRegex(
+                    RuntimeError, "secret source has unsafe metadata"
+                ),
+            ):
+                exec(patched, {})
+
+            peer.unlink()
+            secret.write_bytes(b"x" * (64 * 1024 + 1))
+            with (
+                mock.patch("sys.argv", ["-c", "stage", "audit-hmac-key"]),
+                mock.patch("os.fchown"),
+                self.assertRaisesRegex(
+                    RuntimeError, "secret source has unsafe metadata"
+                ),
+            ):
+                exec(patched, {})
 
     def test_local_authority_audit_initializer_is_metadata_only_and_isolated(self) -> None:
         compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
@@ -369,6 +525,9 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertIn("entry.stat(follow_symlinks=False)", command)
         self.assertIn("metadata.st_nlink != 1", command)
         self.assertIn("re.escape(active_name) + r'\\.\\d{8}'", command)
+        self.assertIn("os.chown(entry.path, 0, 0", command)
+        self.assertNotIn("os.chown(mint_chain, 65532, 65532)", command)
+        self.assertNotIn("os.chown(path, 65532, 65532)", command)
 
     def test_local_authority_audit_initializer_rejects_unsafe_known_files(self) -> None:
         compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
