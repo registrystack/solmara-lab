@@ -3,8 +3,14 @@ name: ${COMPOSE_PROJECT_NAME:-solmara-lab}
 x-relay: &relay
   image: ${REGISTRY_RELAY_IMAGE:?versions.env must name the digest-pinned Relay V2 image}
   platform: linux/amd64
+  # Relay validates that its bind-mounted runtime is owned by root or its
+  # effective UID. Match the generated workspace owner for this local-only
+  # topology; hosted runtimes use authority-provisioned volumes and UID 65532.
+  user: "${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}:${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}"
   restart: unless-stopped
   read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
   tmpfs: [/tmp]
   networks: [runtime, issuer-validation]
   depends_on: {relay-audit-init: {condition: service_completed_successfully}}
@@ -236,6 +242,14 @@ services:
         import re
         import stat
 
+        uid_value = os.environ['SOLMARA_LOCAL_RUNTIME_UID']
+        gid_value = os.environ['SOLMARA_LOCAL_RUNTIME_GID']
+        if not uid_value.isascii() or not uid_value.isdecimal() or not gid_value.isascii() or not gid_value.isdecimal():
+            raise RuntimeError('runtime identity is invalid')
+        target_uid = int(uid_value)
+        target_gid = int(gid_value)
+        if target_uid == 0 or target_gid == 0 or target_uid > 4294967294 or target_gid > 4294967294:
+            raise RuntimeError('runtime identity is invalid')
         paths = ['/audit/cra', '/audit/nia', '/audit/mosd', '/audit/sipf', '/audit/nagdi']
         for path in paths:
             # Reclaim the directory long enough to validate existing metadata.
@@ -248,9 +262,12 @@ services:
                 metadata = entry.stat(follow_symlinks=False)
                 if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
                     raise RuntimeError('audit sink has unsafe metadata')
-                os.chown(entry.path, 65532, 65532, follow_symlinks=False)
+                os.chown(entry.path, target_uid, target_gid, follow_symlinks=False)
                 os.chmod(entry.path, 0o600, follow_symlinks=False)
-            os.chown(path, 65532, 65532)
+            os.chown(path, target_uid, target_gid)
+    environment:
+      SOLMARA_LOCAL_RUNTIME_UID: ${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}
+      SOLMARA_LOCAL_RUNTIME_GID: ${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}
     user: "0:0"
     read_only: true
     cap_drop: [ALL]

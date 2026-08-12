@@ -123,6 +123,12 @@ class RuntimeTopologyTests(unittest.TestCase):
         for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
             service = compose["services"][f"{authority}-relay"]
             self.assertEqual(
+                service["user"],
+                "${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}:${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}",
+            )
+            self.assertEqual(service["cap_drop"], ["ALL"])
+            self.assertIn("no-new-privileges:true", service["security_opt"])
+            self.assertEqual(
                 service["command"],
                 ["serve", "--runtime", f"/etc/relay/{authority}/runtime.yaml"],
             )
@@ -197,12 +203,38 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertIn("audit\\.jsonl\\.\\d{8}", audit_init)
         self.assertIn("follow_symlinks=False", audit_init)
         self.assertIn("os.chown(path, 0, 0)", audit_init)
-        self.assertIn("os.chown(path, 65532, 65532)", audit_init)
+        self.assertIn("os.chown(path, target_uid, target_gid)", audit_init)
+        self.assertIn("target_uid == 0 or target_gid == 0", audit_init)
+        self.assertIn(
+            "os.chown(entry.path, target_uid, target_gid, follow_symlinks=False)",
+            audit_init,
+        )
+        self.assertEqual(
+            initializer["environment"],
+            {
+                "SOLMARA_LOCAL_RUNTIME_UID": "${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}",
+                "SOLMARA_LOCAL_RUNTIME_GID": "${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}",
+            },
+        )
         for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
             self.assertIn(
                 f"{authority}-relay-audit:/audit/{authority}",
                 initializer["volumes"],
             )
+
+        for uid_value, gid_value in (("0", "65532"), ("65532", "0")):
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "SOLMARA_LOCAL_RUNTIME_UID": uid_value,
+                        "SOLMARA_LOCAL_RUNTIME_GID": gid_value,
+                    },
+                    clear=False,
+                ),
+                self.assertRaisesRegex(RuntimeError, "runtime identity is invalid"),
+            ):
+                exec(audit_init, {})
 
         issuer_readiness = compose["services"]["relay-issuer-readiness"]
         self.assertEqual(issuer_readiness["user"], "65532:65532")

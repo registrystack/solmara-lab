@@ -84,6 +84,29 @@ class SecretGenerationTests(unittest.TestCase):
         for key, value in existing.items():
             self.assertEqual(values[key], value)
         self.assertEqual(values["NIA_ESIGNET_CLIENT_PRIVATE_JWK"], "operator-jwk")
+        runtime_uid, runtime_gid = MODULE.local_runtime_identity()
+        self.assertEqual(values["SOLMARA_LOCAL_RUNTIME_UID"], str(runtime_uid))
+        self.assertEqual(values["SOLMARA_LOCAL_RUNTIME_GID"], str(runtime_gid))
+
+    def test_local_runtime_identity_preserves_the_relay_trust_boundary(self) -> None:
+        with mock.patch.object(MODULE.sys, "platform", "darwin"):
+            self.assertEqual(MODULE.local_runtime_identity(), (65532, 65532))
+
+        metadata = MODULE.ROOT.joinpath("relays/cra/runtime.yaml").stat()
+        with mock.patch.object(MODULE.sys, "platform", "linux"):
+            expected = (
+                (65532, 65532)
+                if metadata.st_uid == 0
+                else (metadata.st_uid, metadata.st_gid or 65532)
+            )
+            self.assertEqual(MODULE.local_runtime_identity(), expected)
+
+        root_group_metadata = mock.Mock(st_uid=1000, st_gid=0)
+        with (
+            mock.patch.object(MODULE.sys, "platform", "linux"),
+            mock.patch.object(Path, "stat", return_value=root_group_metadata),
+        ):
+            self.assertEqual(MODULE.local_runtime_identity(), (1000, 65532))
 
     def test_generated_environment_rejects_duplicate_or_empty_values(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
