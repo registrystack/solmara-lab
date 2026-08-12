@@ -253,7 +253,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertTrue(issuer_network["internal"])
         self.assertEqual(
             issuer_network["ipam"]["config"],
-            [{"subnet": "192.0.2.0/27", "ip_range": "192.0.2.0/28"}],
+            [{"subnet": "192.0.2.0/26", "ip_range": "192.0.2.0/27"}],
         )
 
         gateway_networks = compose["services"]["evidence-gateway"]["networks"]
@@ -264,7 +264,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(
             gateway_networks["issuer-validation"],
             {
-                "ipv4_address": "192.0.2.30",
+                "ipv4_address": "192.0.2.62",
                 "aliases": ["mint.solmara.registrystack.org"],
             },
         )

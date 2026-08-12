@@ -30,15 +30,15 @@ jobs:
           set +a
           printf 'source_ref=%s\n' "$REGISTRY_STACK_SOURCE_REF" >> "$GITHUB_OUTPUT"
           printf 'source_commit=%s\n' "$REGISTRY_STACK_SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
-          for key in ESIGNET_BASE_IMAGE ESIGNET_POSTGRES_IMAGE ESIGNET_UI_IMAGE \
+          for key in REGISTRY_STACK_REQUIRED_VERSION \
+            REGISTRY_RELAY_IMAGE SOLMARA_EVIDENCE_IMAGE SOLMARA_MINT_IMAGE \
+            ESIGNET_BASE_IMAGE ESIGNET_POSTGRES_IMAGE ESIGNET_UI_IMAGE \
             ESIGNET_AUTHENTICATOR_JAR_URL ESIGNET_AUTHENTICATOR_JAR_SHA256 \
-            REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256 \
-            REGISTRY_STACK_RELEASE_MINT_ASSET_URL REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256 \
             REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256; do
             value="$(printenv "$key")"
             printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
           done
-      - name: Require published v0.20.1 Registry Stack and authenticator pins
+      - name: Require published Registry Stack and authenticator pins
         run: scripts/check-registry-stack-release-pin.py --require-public
       - name: Checkout the exact Registry Stack source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -47,24 +47,33 @@ jobs:
           ref: ${{ steps.registry-stack.outputs.source_commit }}
           path: vendor/registry-stack
           persist-credentials: false
-      - name: Verify Registry Stack source and published runtime artifacts
+      - name: Verify official Registry Stack runtime images and Relayctl
         run: |
           set -euo pipefail
           set -a
           source versions.env
           set +a
           test "$(git -C vendor/registry-stack rev-parse HEAD)" = "$REGISTRY_STACK_SOURCE_COMMIT"
-          relay_image="ghcr.io/registrystack/relay@sha256:${REGISTRY_STACK_RELEASE_RELAY_DIGEST}"
-          docker pull "$relay_image"
-          revision="$(docker image inspect "$relay_image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
-          test "$revision" = "$REGISTRY_STACK_SOURCE_COMMIT"
-          for component in evidence mint relayctl; do
-            url_variable="REGISTRY_STACK_RELEASE_${component^^}_ASSET_URL"
-            sha_variable="REGISTRY_STACK_RELEASE_${component^^}_ASSET_SHA256"
-            curl --fail --location --silent --show-error "${!url_variable}" --output "$component-v0.20.1"
-            printf '%s  %s\n' "${!sha_variable}" "$component-v0.20.1" | sha256sum --check --status
-            rm -f "$component-v0.20.1"
+          for component in relay evidence mint; do
+            case "$component" in
+              relay) image="$REGISTRY_RELAY_IMAGE" ;;
+              evidence) image="$SOLMARA_EVIDENCE_IMAGE" ;;
+              mint) image="$SOLMARA_MINT_IMAGE" ;;
+            esac
+            expected_prefix="ghcr.io/registrystack/${component}@sha256:"
+            if ! printf '%s\n' "$image" | grep -Eq "^ghcr\\.io/registrystack/${component}@sha256:[0-9a-f]{64}$"; then
+              echo "$component must use ${expected_prefix}<64 lowercase hex>" >&2
+              exit 1
+            fi
+            docker pull "$image"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$REGISTRY_STACK_SOURCE_COMMIT"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')" = "$REGISTRY_STACK_REQUIRED_VERSION"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = https://github.com/registrystack/registry-stack
           done
+          relayctl="relayctl-v${REGISTRY_STACK_REQUIRED_VERSION}-linux-amd64"
+          curl --fail --location --silent --show-error "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL" --output "$relayctl"
+          printf '%s  %s\n' "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256" "$relayctl" | sha256sum --check --status
+          rm -f "$relayctl"
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0
         with:
@@ -120,8 +129,6 @@ jobs:
         run: |
           set -euo pipefail
           for package in \
-            solmara-lab-evidence \
-            solmara-lab-mint \
             solmara-lab-authority-provisioner \
             solmara-lab-transit-signer; do
             visibility="$(gh api "/orgs/registrystack/packages/container/${package}" --jq .visibility)"
@@ -129,54 +136,6 @@ jobs:
               echo "$package must be pre-provisioned as a public package with Actions write access" >&2
               exit 1
             fi
-          done
-      - name: Build and push verified Evidence release binary
-        id: evidence
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: docker/registry-stack-release-binary/Dockerfile
-          target: evidence
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-evidence:${{ env.SOLMARA_IMAGE_TAG }}
-          labels: |
-            org.opencontainers.image.revision=${{ steps.registry-stack.outputs.source_commit }}
-            org.opencontainers.image.version=0.20.1
-            org.opencontainers.image.source=https://github.com/registrystack/registry-stack
-          build-args: |
-            REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL=${{ env.REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL }}
-            REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256=${{ env.REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256 }}
-      - name: Build and push verified Mint release binary
-        id: mint
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: docker/registry-stack-release-binary/Dockerfile
-          target: mint
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-mint:${{ env.SOLMARA_IMAGE_TAG }}
-          labels: |
-            org.opencontainers.image.revision=${{ steps.registry-stack.outputs.source_commit }}
-            org.opencontainers.image.version=0.20.1
-            org.opencontainers.image.source=https://github.com/registrystack/registry-stack
-          build-args: |
-            REGISTRY_STACK_RELEASE_MINT_ASSET_URL=${{ env.REGISTRY_STACK_RELEASE_MINT_ASSET_URL }}
-            REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256=${{ env.REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256 }}
-      - name: Verify Solmara Evidence and Mint image source labels
-        run: |
-          set -euo pipefail
-          for component in evidence mint; do
-            case "$component" in
-              evidence) digest='${{ steps.evidence.outputs.digest }}' ;;
-              mint) digest='${{ steps.mint.outputs.digest }}' ;;
-            esac
-            image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-${component}@${digest}"
-            docker pull "$image"
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = '${{ steps.registry-stack.outputs.source_commit }}'
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')" = 0.20.1
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = https://github.com/registrystack/registry-stack
           done
       - name: Build and push authority provisioner
         id: authority_provisioner
@@ -191,7 +150,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.SOLMARA_IMAGE_TAG }}
             org.opencontainers.image.source=https://github.com/registrystack/solmara-lab
-            org.registrystack.release.version=0.20.1
+            org.registrystack.release.version=${{ env.REGISTRY_STACK_REQUIRED_VERSION }}
             org.registrystack.release.revision=${{ steps.registry-stack.outputs.source_commit }}
           build-args: |
             REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL=${{ env.REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL }}
@@ -209,7 +168,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.SOLMARA_IMAGE_TAG }}
             org.opencontainers.image.source=https://github.com/registrystack/solmara-lab
-            org.registrystack.release.version=0.20.1
+            org.registrystack.release.version=${{ env.REGISTRY_STACK_REQUIRED_VERSION }}
             org.registrystack.release.revision=${{ steps.registry-stack.outputs.source_commit }}
       - name: Verify hosted authority image source labels
         run: |
@@ -223,7 +182,7 @@ jobs:
             docker pull "$image"
             test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = '${{ github.sha }}'
             test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = https://github.com/registrystack/solmara-lab
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.registrystack.release.version" }}')" = 0.20.1
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.registrystack.release.version" }}')" = "$REGISTRY_STACK_REQUIRED_VERSION"
             test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.registrystack.release.revision" }}')" = '${{ steps.registry-stack.outputs.source_commit }}'
           done
       - name: Smoke hosted authority provisioner image
@@ -415,8 +374,9 @@ jobs:
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed:${{ env.SOLMARA_IMAGE_TAG }}
       - name: Generate Coolify image manifest
         env:
-          SOLMARA_EVIDENCE_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-evidence@${{ steps.evidence.outputs.digest }}
-          SOLMARA_MINT_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-mint@${{ steps.mint.outputs.digest }}
+          REGISTRY_RELAY_IMAGE: ${{ env.REGISTRY_RELAY_IMAGE }}
+          SOLMARA_EVIDENCE_IMAGE: ${{ env.SOLMARA_EVIDENCE_IMAGE }}
+          SOLMARA_MINT_IMAGE: ${{ env.SOLMARA_MINT_IMAGE }}
           SOLMARA_AUTHORITY_PROVISIONER_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-authority-provisioner@${{ steps.authority_provisioner.outputs.digest }}
           SOLMARA_TRANSIT_SIGNER_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-transit-signer@${{ steps.transit_signer.outputs.digest }}
           SOLMARA_STATIC_METADATA_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-static-metadata@${{ steps.static_metadata.outputs.digest }}

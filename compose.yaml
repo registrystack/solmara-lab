@@ -15,7 +15,7 @@ x-relay: &relay
     retries: 12
 
 x-evidence: &evidence
-  image: ${SOLMARA_EVIDENCE_IMAGE:?versions.env must name the checksum-verified Evidence image}
+  image: ${SOLMARA_EVIDENCE_IMAGE:?versions.env must name the digest-pinned official Registry Stack Evidence image}
   platform: linux/amd64
   restart: unless-stopped
   user: "0:0"
@@ -272,7 +272,7 @@ services:
     ports: ["${SOLMARA_NAGDI_RELAY_PORT:-4316}:8080"]
 
   mint:
-    image: ${SOLMARA_MINT_IMAGE:?versions.env must name the checksum-verified Mint image}
+    image: ${SOLMARA_MINT_IMAGE:?versions.env must name the digest-pinned official Registry Stack Mint image}
     platform: linux/amd64
     command: ["serve", "--config", "/etc/registry-mint/mint.yaml"]
     restart: unless-stopped
@@ -351,7 +351,7 @@ services:
       # metadata destinations. TEST-NET-1 gives the hermetic local gateway a
       # non-routable issuer address without weakening that runtime policy.
       issuer-validation:
-        ipv4_address: 192.0.2.30
+        ipv4_address: 192.0.2.62
         aliases: [mint.solmara.registrystack.org]
 
   child-benefit-federator:
@@ -457,4 +457,4 @@ networks:
     ipam: {config: [{subnet: 172.29.1.0/24}]}
   issuer-validation:
     internal: true
-    ipam: {config: [{subnet: 192.0.2.0/27, ip_range: 192.0.2.0/28}]}
+    ipam: {config: [{subnet: 192.0.2.0/26, ip_range: 192.0.2.0/27}]}

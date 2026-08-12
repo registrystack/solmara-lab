@@ -23,14 +23,14 @@ def authenticator_values() -> dict[str, str]:
 
 
 class ReleasePinTests(unittest.TestCase):
-    def test_v0200_is_rejected_in_favour_of_fix_forward_release(self) -> None:
-        values = {"REGISTRY_STACK_REQUIRED_VERSION": "0.20.0", **authenticator_values()}
-        self.assertIn("must be 0.20.1", MODULE.validate(values, require_public=False)[0])
+    def test_older_release_is_rejected_in_favour_of_coherent_release(self) -> None:
+        values = {"REGISTRY_STACK_REQUIRED_VERSION": "0.20.1", **authenticator_values()}
+        self.assertIn("must be 0.21.0", MODULE.validate(values, require_public=False)[0])
 
     def test_missing_public_digest_is_an_explicit_blocker(self) -> None:
         values = {
-            "REGISTRY_STACK_REQUIRED_VERSION": "0.20.1",
-            "REGISTRY_STACK_SOURCE_REF": "v0.20.1",
+            "REGISTRY_STACK_REQUIRED_VERSION": "0.21.0",
+            "REGISTRY_STACK_SOURCE_REF": "v0.21.0",
             **authenticator_values(),
         }
         self.assertEqual(MODULE.validate(values, require_public=False), [])
@@ -38,15 +38,11 @@ class ReleasePinTests(unittest.TestCase):
 
     def test_digest_must_be_exact(self) -> None:
         values = {
-            "REGISTRY_STACK_REQUIRED_VERSION": "0.20.1",
-            "REGISTRY_STACK_SOURCE_REF": "v0.20.1",
+            "REGISTRY_STACK_REQUIRED_VERSION": "0.21.0",
+            "REGISTRY_STACK_SOURCE_REF": "v0.21.0",
             "REGISTRY_STACK_SOURCE_COMMIT": "f" * 40,
             "REGISTRY_STACK_RELEASE_RELAY_DIGEST": "a" * 64,
-            "REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL": "https://github.com/registrystack/registry-stack/releases/download/v0.20.1/evidence-v0.20.1-linux-amd64",
-            "REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256": "b" * 64,
-            "REGISTRY_STACK_RELEASE_MINT_ASSET_URL": "https://github.com/registrystack/registry-stack/releases/download/v0.20.1/mint-v0.20.1-linux-amd64",
-            "REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256": "c" * 64,
-            "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL": "https://github.com/registrystack/registry-stack/releases/download/v0.20.1/relayctl-v0.20.1-linux-amd64",
+            "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL": "https://github.com/registrystack/registry-stack/releases/download/v0.21.0/relayctl-v0.21.0-linux-amd64",
             "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256": "d" * 64,
             **authenticator_values(),
         }
@@ -56,12 +52,12 @@ class ReleasePinTests(unittest.TestCase):
 
     def test_public_source_ref_must_bind_the_release_tag(self) -> None:
         values = {
-            "REGISTRY_STACK_REQUIRED_VERSION": "0.20.1",
+            "REGISTRY_STACK_REQUIRED_VERSION": "0.21.0",
             "REGISTRY_STACK_SOURCE_REF": "main",
             **authenticator_values(),
         }
         self.assertIn(
-            "REGISTRY_STACK_SOURCE_REF must be v0.20.1",
+            "REGISTRY_STACK_SOURCE_REF must be v0.21.0",
             MODULE.validate(values, require_public=False),
         )
 

@@ -3,6 +3,19 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-13 Official Registry Stack runtime images
+
+Solmara no longer assembles or publishes local Evidence and Mint runtime
+wrappers. Relay, Evidence, and Mint are now closed to their official Registry
+Stack v0.21.0 GHCR repositories and immutable digests from `versions.env`;
+only the Relayctl authoring helper is assembled locally from a
+checksum-verified release asset. The release-candidate handoff carries the
+upstream Evidence and Mint
+references unchanged and publishes only Solmara-owned deployment images. Relay
+now follows the same closed handoff: hosted Compose consumes the canonical
+`REGISTRY_RELAY_IMAGE` reference rather than rebuilding it from a separate
+digest input.
+
 ## 2026-08-12 Authority-owned Relay and Evidence reset
 
 Solmara now authors six independent Evidence cells and five Relay V2 projects.
@@ -17,9 +30,11 @@ header, and authority decision-service topology. Mutable Relay publications and
 versioned immutable extracts now have deliberately different lifecycle proof.
 Registry Stack v0.19.0 was found incapable of issuing Relay-compatible Mint
 claims and of representing Relay's concealed unresolved outcome in Evidence
-fixtures. The reset therefore fixes forward to Registry Stack v0.20.1, pinned
-by exact release source, binary checksums, and Relay OCI digest. The separately
-released `esignet-relay-authenticator` v0.2.0 JAR is pinned by SHA-256.
+fixtures. v0.20.1 added those capabilities but did not publish official
+Evidence and Mint images. The completed reset therefore pins Registry Stack
+v0.21.0 by exact release source, Relayctl checksum, and official Relay,
+Evidence, and Mint OCI digests. The separately released
+`esignet-relay-authenticator` v0.2.0 JAR is pinned by SHA-256.
 
 ## 2026-08-06 Registry Stack main Evidence migration
 

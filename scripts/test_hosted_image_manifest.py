@@ -14,18 +14,19 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "hosted-image-manifest.py"
 DIGESTS = {
-    "SOLMARA_EVIDENCE_IMAGE": "1" * 64,
-    "SOLMARA_MINT_IMAGE": "2" * 64,
-    "SOLMARA_AUTHORITY_PROVISIONER_IMAGE": "3" * 64,
-    "SOLMARA_TRANSIT_SIGNER_IMAGE": "4" * 64,
-    "SOLMARA_STATIC_METADATA_IMAGE": "5" * 64,
-    "SOLMARA_SCENARIO_RUNNER_IMAGE": "6" * 64,
-    "SOLMARA_HOME_IMAGE": "7" * 64,
-    "SOLMARA_PORTAL_IMAGE": "8" * 64,
-    "SOLMARA_ESIGNET_RELAY_IMAGE": "9" * 64,
-    "SOLMARA_ESIGNET_POSTGRES_IMAGE": "a" * 64,
-    "SOLMARA_ESIGNET_UI_IMAGE": "b" * 64,
-    "SOLMARA_ESIGNET_SEED_IMAGE": "c" * 64,
+    "REGISTRY_RELAY_IMAGE": "1" * 64,
+    "SOLMARA_EVIDENCE_IMAGE": "2" * 64,
+    "SOLMARA_MINT_IMAGE": "3" * 64,
+    "SOLMARA_AUTHORITY_PROVISIONER_IMAGE": "4" * 64,
+    "SOLMARA_TRANSIT_SIGNER_IMAGE": "5" * 64,
+    "SOLMARA_STATIC_METADATA_IMAGE": "6" * 64,
+    "SOLMARA_SCENARIO_RUNNER_IMAGE": "7" * 64,
+    "SOLMARA_HOME_IMAGE": "8" * 64,
+    "SOLMARA_PORTAL_IMAGE": "9" * 64,
+    "SOLMARA_ESIGNET_RELAY_IMAGE": "a" * 64,
+    "SOLMARA_ESIGNET_POSTGRES_IMAGE": "b" * 64,
+    "SOLMARA_ESIGNET_UI_IMAGE": "c" * 64,
+    "SOLMARA_ESIGNET_SEED_IMAGE": "d" * 64,
 }
 
 
@@ -111,11 +112,12 @@ class HostedImageManifestTests(unittest.TestCase):
 
     def test_every_image_must_use_its_exact_ghcr_repository_and_digest(self) -> None:
         invalid_values = (
-            "ghcr.io/registrystack/solmara-lab-evidence:candidate",
-            f"docker.io/registrystack/solmara-lab-evidence@sha256:{'b' * 64}",
-            f"ghcr.io/registrystack/solmara-lab-mint@sha256:{'b' * 64}",
-            f"ghcr.io/registrystack/solmara-lab-evidence@sha256:{'B' * 64}",
-            f"ghcr.io/registrystack/solmara-lab-evidence@sha256:{'b' * 63}",
+            "ghcr.io/registrystack/evidence:candidate",
+            f"docker.io/registrystack/evidence@sha256:{'b' * 64}",
+            f"ghcr.io/registrystack/mint@sha256:{'b' * 64}",
+            f"ghcr.io/registrystack/solmara-lab-evidence@sha256:{'b' * 64}",
+            f"ghcr.io/registrystack/evidence@sha256:{'B' * 64}",
+            f"ghcr.io/registrystack/evidence@sha256:{'b' * 63}",
         )
         for invalid in invalid_values:
             with self.subTest(invalid=invalid):
@@ -125,6 +127,21 @@ class HostedImageManifestTests(unittest.TestCase):
                 )
                 self.assertEqual(result, 1)
                 self.assertIn("SOLMARA_EVIDENCE_IMAGE must", stderr)
+
+    def test_relay_must_use_the_canonical_official_reference(self) -> None:
+        invalid = (
+            "ghcr.io/registrystack/relay:v0.21.0",
+            f"ghcr.io/registrystack/solmara-lab-relay@sha256:{'1' * 64}",
+            f"ghcr.io/registrystack/relay@sha256:{'A' * 64}",
+        )
+        for value in invalid:
+            with self.subTest(value=value):
+                environment = {**self.environment, "REGISTRY_RELAY_IMAGE": value}
+                result, stderr = self.invoke(
+                    "write", "--output", str(self.manifest), environment=environment
+                )
+                self.assertEqual(result, 1)
+                self.assertIn("REGISTRY_RELAY_IMAGE must", stderr)
 
     def test_missing_image_fails_without_writing_a_partial_manifest(self) -> None:
         environment = dict(self.environment)
@@ -199,6 +216,25 @@ class HostedImageManifestTests(unittest.TestCase):
         workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["verify-and-publish"]["steps"]
         names = [step.get("name") for step in steps]
+        self.assertNotIn("Build and push verified Evidence release binary", names)
+        self.assertNotIn("Build and push verified Mint release binary", names)
+        self.assertNotIn("Verify Solmara Evidence and Mint image source labels", names)
+        read_pins = next(
+            step
+            for step in steps
+            if step.get("name") == "Read immutable Registry Stack source identity"
+        )["run"]
+        self.assertIn("SOLMARA_EVIDENCE_IMAGE SOLMARA_MINT_IMAGE", read_pins)
+        runtime_verification = next(
+            step
+            for step in steps
+            if step.get("name")
+            == "Verify official Registry Stack runtime images and Relayctl"
+        )["run"]
+        self.assertIn("for component in relay evidence mint", runtime_verification)
+        self.assertIn("REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256", runtime_verification)
+        self.assertNotIn("REGISTRY_STACK_RELEASE_EVIDENCE_ASSET", runtime_verification)
+        self.assertNotIn("REGISTRY_STACK_RELEASE_MINT_ASSET", runtime_verification)
         provisioner_index = names.index("Build and push authority provisioner")
         signer_index = names.index("Build and push Transit signer")
         generate_index = names.index("Generate Coolify image manifest")
@@ -285,11 +321,25 @@ class HostedImageManifestTests(unittest.TestCase):
         )["run"]
         self.assertIn("solmara-lab-authority-provisioner", packages)
         self.assertIn("solmara-lab-transit-signer", packages)
+        self.assertNotIn("solmara-lab-evidence", packages)
+        self.assertNotIn("solmara-lab-mint", packages)
 
         generate = steps[generate_index]
         self.assertIn("hosted-image-manifest.py write", generate["run"])
         self.assertIn("hosted-image-manifest.py validate", generate["run"])
         self.assertEqual(set(generate["env"]), set(self.module.EXPECTED_KEYS))
+        self.assertEqual(
+            generate["env"]["REGISTRY_RELAY_IMAGE"],
+            "${{ env.REGISTRY_RELAY_IMAGE }}",
+        )
+        self.assertEqual(
+            generate["env"]["SOLMARA_EVIDENCE_IMAGE"],
+            "${{ env.SOLMARA_EVIDENCE_IMAGE }}",
+        )
+        self.assertEqual(
+            generate["env"]["SOLMARA_MINT_IMAGE"],
+            "${{ env.SOLMARA_MINT_IMAGE }}",
+        )
         self.assertEqual(
             generate["env"]["SOLMARA_AUTHORITY_PROVISIONER_IMAGE"],
             "${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-authority-provisioner@${{ steps.authority_provisioner.outputs.digest }}",

@@ -1,32 +1,41 @@
 # Hosted deployment
 
-Deploy the authority-cell reset only from the exact Registry Stack v0.20.1
-release and digest-pinned Solmara images. `versions.env` records the public
-Registry Stack digests and release-asset checksums. A missing, floating, or
-mismatched pin stops deployment.
+Deploy the authority-cell reset only from the exact Registry Stack release
+recorded in `versions.env`. Relay, Evidence, and Mint must use their official
+Registry Stack OCI images pinned by digest. Solmara-owned images are also
+digest-pinned, while the local Relayctl helper is assembled from its
+checksum-verified release asset. A missing, floating, or mismatched pin stops
+deployment.
 
-Registry Stack v0.20.0 remains immutable but does not contain the Evidence
-capability required by this lab. The reset therefore fixes forward to the
-published v0.20.1 artifacts. Do not move the v0.20.0 release or substitute a
-floating source reference.
+The sanitized hosted image manifest carries `REGISTRY_RELAY_IMAGE`,
+`SOLMARA_EVIDENCE_IMAGE`, and `SOLMARA_MINT_IMAGE` unchanged from
+`versions.env`. Compose consumes those exact full references. The separate
+Relay digest field remains release-verification evidence only and is not a
+deployment input.
+
+Registry Stack v0.20.0 remains immutable and does not contain the Evidence
+capability required by this lab. v0.20.1 contains the required runtime
+capabilities but does not publish official Evidence and Mint OCI images.
+Registry Stack v0.21.0 is the first coherent release with all three official
+runtime images. Do not move a release, substitute a floating source reference,
+or recreate those runtime images in Solmara.
 
 ## Release package precondition
 
 Before the first release-candidate build, an organization owner must provision
-these four public, anonymously pullable GitHub Container Registry packages and
+these two public, anonymously pullable GitHub Container Registry packages and
 grant the repository's GitHub Actions workflow write access:
 
-- `ghcr.io/registrystack/solmara-lab-evidence`
-- `ghcr.io/registrystack/solmara-lab-mint`
 - `ghcr.io/registrystack/solmara-lab-authority-provisioner`
 - `ghcr.io/registrystack/solmara-lab-transit-signer`
 
-Evidence and Mint are thin Solmara-owned images assembled from the exact
-checksum-verified Registry Stack v0.20.1 binaries. The authority provisioner
-contains the reviewed contracts and deterministic publications. The Transit
-signer contains only the signer runtime. Release handoff records the immutable
-digest of each image. Do not reuse an unrelated package or deploy a mutable
-tag.
+The Registry Stack release owns the public `relay`, `evidence`, and `mint`
+packages. Solmara only reads those upstream digest references from
+`versions.env`; its workflow neither rebuilds nor republishes them. The
+authority provisioner contains the reviewed contracts and deterministic
+publications. The Transit signer contains only the signer runtime. Release
+handoff records the immutable digest of every upstream and Solmara-owned image.
+Do not reuse an unrelated package or deploy a mutable tag.
 
 ## Authority topology
 

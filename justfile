@@ -41,6 +41,7 @@ lint:
     uvx ruff check --select E4,E7,E9,F .
     scripts/check-fiction.sh
     scripts/check-config-secrets.py
+    scripts/check-image-pins.py
     scripts/hosted-image-manifest.py inventory
     scripts/check-runtime-topology.py
     scripts/check-registry-stack-release-pin.py
@@ -53,7 +54,7 @@ lint:
 test:
     cd generator && uv run python -m unittest discover -s tests
     uv run python -m unittest discover -s scenario-runner -p 'test_*.py'
-    uv run python -m unittest relays/test_relay_projects.py evidence/tests/test_cells.py scripts/test_metadata_authority_contracts.py scripts/test_image_pins.py scripts/test_hosted_image_manifest.py scripts/test_hosted_provisioning_topology.py scripts/test_hosted_home_topology.py scripts/test_hosted_runtime_assets.py scripts/test_provision_hosted_runtime.py scripts/test_hosted_transit_signer.py scripts/test_smoke_hosted_provisioner_image.py scripts/test_runtime_topology.py scripts/test_registry_stack_release_pin.py scripts/test_hosted_authority_rollout.py scripts/test_local_transit_proxy.py scripts/test_local_transit_signers.py scripts/test_local_transit_providers.py scripts/test_signer_public_keys.py scripts/test_project_runtime_secrets.py scripts/test_gen_secrets.py scripts/test_publish_runtime_extracts.py scripts/test_lifecycle_proof.py scripts/test_live_lifecycle_proof.py scripts/test_local_relay_source_publisher.py scripts/test_smoke_programme_acceptance.py scripts/test_smoke_esignet.py
+    uv run python -m unittest relays/test_relay_projects.py evidence/tests/test_cells.py scripts/test_metadata_authority_contracts.py scripts/test_image_pins.py scripts/test_build_registry_stack_runtime.py scripts/test_hosted_image_manifest.py scripts/test_hosted_provisioning_topology.py scripts/test_hosted_home_topology.py scripts/test_hosted_runtime_assets.py scripts/test_provision_hosted_runtime.py scripts/test_hosted_transit_signer.py scripts/test_smoke_hosted_provisioner_image.py scripts/test_runtime_topology.py scripts/test_registry_stack_release_pin.py scripts/test_hosted_authority_rollout.py scripts/test_local_transit_proxy.py scripts/test_local_transit_signers.py scripts/test_local_transit_providers.py scripts/test_signer_public_keys.py scripts/test_project_runtime_secrets.py scripts/test_gen_secrets.py scripts/test_publish_runtime_extracts.py scripts/test_lifecycle_proof.py scripts/test_live_lifecycle_proof.py scripts/test_local_relay_source_publisher.py scripts/test_smoke_programme_acceptance.py scripts/test_smoke_esignet.py
     cd portal && pnpm test
     cd home && pnpm test
 
@@ -65,8 +66,9 @@ compose:
     @scripts/check-hosted-compose.sh
     @scripts/check-coolify-compose.sh
 
-# Verify that every Registry Stack v0.20.1 release reference is public and immutable.
-hosted-pin-check:
+# Verify that every Registry Stack v0.21.0 release reference is public and immutable.
+hosted-pin-check: build-runtime-images
+    scripts/check-image-pins.py
     scripts/check-registry-stack-release-pin.py --require-public
 
 # Run all four relayctl production gates against the five authored projects.

@@ -6,14 +6,14 @@ x-solmara-rollout:
   superseded-volume-policy: retain
 
 x-hosted-relay: &hosted-relay
-  image: ghcr.io/registrystack/relay@sha256:${REGISTRY_STACK_RELEASE_RELAY_DIGEST:?Registry Stack v0.20.1 Relay digest is not published; hosted promotion is blocked}
+  image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
   build: !reset null
   labels:
     solmara.rollout.slot: authority-cells
     solmara.rollout.phase: ${SOLMARA_AUTHORITY_CELLS_PHASE:-side-by-side}
 
 x-hosted-evidence: &hosted-evidence
-  image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned Solmara Evidence image built from the verified release binary}
+  image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
   build: !reset null
   labels:
     solmara.rollout.slot: authority-cells
@@ -34,7 +34,7 @@ services:
   nagdi-evidence: {<<: *hosted-evidence}
 
   mint:
-    image: ${SOLMARA_MINT_IMAGE:?set the digest-pinned Solmara Mint image built from the verified release binary}
+    image: ${SOLMARA_MINT_IMAGE:?set the digest-pinned official Registry Stack Mint image}
     build: !reset null
     labels:
       solmara.rollout.slot: authority-cells

@@ -5,7 +5,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_digest=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 test_image="ghcr.io/registrystack/solmara-compose-check@sha256:$test_digest"
 
-REGISTRY_STACK_RELEASE_RELAY_DIGEST="$test_digest" \
+REGISTRY_RELAY_IMAGE="ghcr.io/registrystack/relay@sha256:$test_digest" \
 SOLMARA_EVIDENCE_IMAGE="$test_image" \
 SOLMARA_MINT_IMAGE="$test_image" \
 SOLMARA_STATIC_METADATA_IMAGE="$test_image" \

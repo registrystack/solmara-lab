@@ -10,9 +10,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELAY = "solmara-lab-registry-relay:source"
-EVIDENCE = "solmara-lab-registry-evidence:source"
-MINT = "solmara-lab-registry-mint:source"
+RELAY = "ghcr.io/registrystack/relay@sha256:" + "1" * 64
+EVIDENCE = "ghcr.io/registrystack/evidence@sha256:" + "2" * 64
+MINT = "ghcr.io/registrystack/mint@sha256:" + "3" * 64
 VOLUME_INIT = "busybox@sha256:" + "4" * 64
 GATEWAY = "caddy@sha256:" + "5" * 64
 
@@ -87,17 +87,45 @@ class ImagePinTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("EVIDENCE_GATEWAY_IMAGE must use image@sha256", stderr)
 
-    def test_nonexistent_upstream_evidence_image_is_rejected(self) -> None:
-        self.run_check()
-        (self.root / "compose.hosted.yaml").write_text(
-            "services:\n  evidence:\n    image: ghcr.io/registrystack/evidence@sha256:" + "a" * 64 + "\n",
-            encoding="utf-8",
+    def test_runtime_images_must_use_their_exact_official_repository(self) -> None:
+        versions = (self.root / "versions.env").read_text().replace(
+            EVIDENCE,
+            "ghcr.io/registrystack/solmara-lab-evidence@sha256:" + "2" * 64,
         )
-        stderr = io.StringIO()
-        with contextlib.redirect_stderr(stderr):
-            result = self.module.main()
+        (self.root / "versions.env").write_text(versions)
+        result, stderr = self.run_check()
+
         self.assertEqual(result, 1)
-        self.assertIn("is not a published Registry Stack image", stderr.getvalue())
+        self.assertIn(
+            "SOLMARA_EVIDENCE_IMAGE must use "
+            "ghcr.io/registrystack/evidence@sha256:",
+            stderr,
+        )
+
+    def test_runtime_builder_only_builds_checksum_verified_relayctl(self) -> None:
+        builder = (ROOT / "scripts" / "build-registry-stack-runtime.sh").read_text(
+            encoding="utf-8"
+        )
+        dockerfile = (
+            ROOT / "docker" / "registry-stack-release-binary" / "Dockerfile"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('verify_official_runtime evidence "$evidence_image"', builder)
+        self.assertIn('verify_official_runtime mint "$mint_image"', builder)
+        self.assertIn('build_relayctl "$relayctl_image"', builder)
+        self.assertNotIn("REGISTRY_STACK_RELEASE_EVIDENCE_ASSET", builder)
+        self.assertNotIn("REGISTRY_STACK_RELEASE_MINT_ASSET", builder)
+        self.assertIn("REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256", builder)
+        self.assertIn("relayctl_sha256", builder)
+        self.assertNotIn("wget", dockerfile)
+        self.assertNotIn("curl", dockerfile)
+        self.assertNotIn(" AS evidence", dockerfile)
+        self.assertNotIn(" AS mint", dockerfile)
+
+    def test_hosted_pin_gate_verifies_official_runtime_tag_digests_and_labels(self) -> None:
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+
+        self.assertIn("hosted-pin-check: build-runtime-images", justfile)
 
 
 if __name__ == "__main__":

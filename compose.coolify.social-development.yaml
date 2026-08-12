@@ -27,7 +27,7 @@ services:
 
   mosd-relay:
     <<: *runtime
-    image: ghcr.io/registrystack/relay@sha256:${REGISTRY_STACK_RELEASE_RELAY_DIGEST:?Registry Stack v0.20.1 Relay digest is not published; hosted promotion is blocked}
+    image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/mosd/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${MOSD_RELAY_AUDIT_KEY:?required}"}
     volumes: [mosd-relay-runtime:/etc/relay/mosd:ro, mosd-relay-source:/var/lib/relay/source:ro, mosd-relay-audit:/var/lib/relay/audit]
@@ -35,7 +35,7 @@ services:
 
   sro-evidence:
     <<: *runtime
-    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned Solmara Evidence image built from the verified release binary}
+    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/sro/runtime.yaml, serve]
     volumes: [sro-evidence-runtime:/etc/registry-evidence/sro:ro, sro-evidence-secrets:/run/secrets/registry-evidence/sro:ro, sro-evidence-transit:/run/registry-evidence/sro:ro, sro-evidence-extracts:/var/lib/registry-evidence/sro/extracts:ro, sro-evidence-audit:/var/lib/registry-evidence/sro/audit]
     networks: {runtime: {ipv4_address: 172.29.1.23}}
@@ -43,7 +43,7 @@ services:
 
   mosd-programme-evidence:
     <<: *runtime
-    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned Solmara Evidence image built from the verified release binary}
+    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/mosd-programme/runtime.yaml, serve]
     volumes: [mosd-evidence-runtime:/etc/registry-evidence/mosd-programme:ro, mosd-evidence-secrets:/run/secrets/registry-evidence/mosd-programme:ro, mosd-evidence-transit:/run/registry-evidence/mosd-programme:ro, mosd-evidence-audit:/var/lib/registry-evidence/mosd-programme/audit]
     networks: {runtime: {ipv4_address: 172.29.1.24}}

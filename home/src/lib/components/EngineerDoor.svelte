@@ -32,7 +32,7 @@
         </div>
 
         <h3>Pinned release artifacts</h3>
-        <p class="pin"><span>Registry Stack v0.20.1</span> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT || 'missing'}</code></p>
+        <p class="pin"><span>Registry Stack {versions.REGISTRY_STACK_SOURCE_REF || 'missing'}</span> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT || 'missing'}</code></p>
         <p class="pin"><span>Evidence</span> <code>{versions.SOLMARA_EVIDENCE_IMAGE ?? 'missing'}</code></p>
         <p class="pin"><span>Mint</span> <code>{versions.SOLMARA_MINT_IMAGE ?? 'missing'}</code></p>
       </div>

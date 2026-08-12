@@ -13,8 +13,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_REPOSITORIES = (
-    ("SOLMARA_EVIDENCE_IMAGE", "solmara-lab-evidence"),
-    ("SOLMARA_MINT_IMAGE", "solmara-lab-mint"),
+    ("REGISTRY_RELAY_IMAGE", "relay"),
+    ("SOLMARA_EVIDENCE_IMAGE", "evidence"),
+    ("SOLMARA_MINT_IMAGE", "mint"),
     (
         "SOLMARA_AUTHORITY_PROVISIONER_IMAGE",
         "solmara-lab-authority-provisioner",
@@ -33,7 +34,7 @@ EXPECTED_KEYS = tuple(key for key, _repository in IMAGE_REPOSITORIES)
 EXPECTED_REPOSITORIES = dict(IMAGE_REPOSITORIES)
 MANIFEST_LINE_RE = re.compile(r"^([A-Z][A-Z0-9_]*)=([^\s#]+)$")
 HOSTED_IMAGE_LINE_RE = re.compile(
-    r"^\s*image:\s*\$\{(SOLMARA_[A-Z0-9_]+_IMAGE):\?[^}]+\}\s*(?:#.*)?$"
+    r"^\s*image:\s*\$\{(REGISTRY_RELAY_IMAGE|SOLMARA_[A-Z0-9_]+_IMAGE):\?[^}]+\}\s*(?:#.*)?$"
 )
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -119,7 +120,10 @@ def validate_hosted_compose_inventory(root: Path) -> None:
     malformed: list[str] = []
     for path in paths:
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if "image:" not in line or "${SOLMARA_" not in line:
+            if "image:" not in line or not any(
+                marker in line
+                for marker in ("${REGISTRY_RELAY_IMAGE", "${SOLMARA_")
+            ):
                 continue
             match = HOSTED_IMAGE_LINE_RE.fullmatch(line)
             if match is None:
@@ -129,7 +133,7 @@ def validate_hosted_compose_inventory(root: Path) -> None:
 
     if malformed:
         raise ManifestError(
-            "hosted SOLMARA image references must be required variables: "
+            "hosted image references must be required variables: "
             + ", ".join(malformed)
         )
 

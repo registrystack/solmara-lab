@@ -18,11 +18,12 @@ describe('home data adapters', () => {
 
   it('publishes the exact Registry Stack release identity', async () => {
     const versions = await readVersions();
-    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('v0.20.1');
+    expect(versions.REGISTRY_STACK_REQUIRED_VERSION).toBe('0.21.0');
+    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('v0.21.0');
     expect(versions.REGISTRY_STACK_SOURCE_COMMIT).toMatch(/^[0-9a-f]{40}$/);
     expect(versions.REGISTRY_RELAY_IMAGE).toMatch(/@sha256:[0-9a-f]{64}$/);
-    expect(versions.SOLMARA_EVIDENCE_IMAGE).toContain(':v0.20.1');
-    expect(versions.SOLMARA_MINT_IMAGE).toContain(':v0.20.1');
+    expect(versions.SOLMARA_EVIDENCE_IMAGE).toMatch(/^ghcr\.io\/registrystack\/evidence@sha256:[0-9a-f]{64}$/);
+    expect(versions.SOLMARA_MINT_IMAGE).toMatch(/^ghcr\.io\/registrystack\/mint@sha256:[0-9a-f]{64}$/);
   });
 
   it('keeps compose-internal health probes out of visitor links', async () => {

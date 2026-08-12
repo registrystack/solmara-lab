@@ -27,7 +27,7 @@ services:
 
   sipf-relay:
     <<: *runtime
-    image: ghcr.io/registrystack/relay@sha256:${REGISTRY_STACK_RELEASE_RELAY_DIGEST:?Registry Stack v0.20.1 Relay digest is not published; hosted promotion is blocked}
+    image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/sipf/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${SIPF_RELAY_AUDIT_KEY:?required}", SOLMARA_RELAY_CURSOR_KEY: "${SIPF_RELAY_CURSOR_KEY:?required}"}
     volumes: [sipf-relay-runtime:/etc/relay/sipf:ro, sipf-relay-source:/var/lib/relay/source:ro, sipf-relay-audit:/var/lib/relay/audit]
@@ -35,7 +35,7 @@ services:
 
   sipf-evidence:
     <<: *runtime
-    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned Solmara Evidence image built from the verified release binary}
+    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/sipf/runtime.yaml, serve]
     volumes: [sipf-evidence-runtime:/etc/registry-evidence/sipf:ro, sipf-evidence-secrets:/run/secrets/registry-evidence/sipf:ro, sipf-evidence-transit:/run/registry-evidence/sipf:ro, sipf-evidence-audit:/var/lib/registry-evidence/sipf/audit]
     networks: {runtime: {ipv4_address: 172.29.1.25}}

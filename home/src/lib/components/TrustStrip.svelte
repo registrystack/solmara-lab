@@ -45,7 +45,7 @@
     <div class="trust-facts">
       <div>
         <p class="eyebrow">Pinned release</p>
-        <p><strong>Registry Stack v0.20.1</strong> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT?.slice(0, 12) || 'missing'}</code></p>
+        <p><strong>Registry Stack {versions.REGISTRY_STACK_SOURCE_REF || 'missing'}</strong> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT?.slice(0, 12) || 'missing'}</code></p>
         <p><strong>Evidence</strong> <code>{shortDigest(versions.SOLMARA_EVIDENCE_IMAGE)}</code></p>
       </div>
       <div>

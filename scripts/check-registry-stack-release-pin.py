@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 HTTPS = re.compile(r"^https://[^\s]+$")
-REQUIRED_VERSION = "0.20.1"
+REQUIRED_VERSION = "0.21.0"
 
 
 def read_versions(path: Path) -> dict[str, str]:
@@ -39,8 +39,6 @@ def validate(values: dict[str, str], *, require_public: bool) -> list[str]:
         failures.append(f"REGISTRY_STACK_SOURCE_COMMIT is not final; v{REQUIRED_VERSION} promotion is blocked")
     for key in (
         "REGISTRY_STACK_RELEASE_RELAY_DIGEST",
-        "REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256",
-        "REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256",
         "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256",
     ):
         value = values.get(key, "")
@@ -49,8 +47,6 @@ def validate(values: dict[str, str], *, require_public: bool) -> list[str]:
         if require_public and not value:
             failures.append(f"{key} is not published; v{REQUIRED_VERSION} promotion is blocked")
     asset_names = {
-        "REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL": f"evidence-v{REQUIRED_VERSION}-linux-amd64",
-        "REGISTRY_STACK_RELEASE_MINT_ASSET_URL": f"mint-v{REQUIRED_VERSION}-linux-amd64",
         "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL": f"relayctl-v{REQUIRED_VERSION}-linux-amd64",
     }
     release_base = f"https://github.com/registrystack/registry-stack/releases/download/v{REQUIRED_VERSION}/"
