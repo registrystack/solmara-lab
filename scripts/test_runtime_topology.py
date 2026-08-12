@@ -122,10 +122,7 @@ class RuntimeTopologyTests(unittest.TestCase):
 
         for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
             service = compose["services"][f"{authority}-relay"]
-            self.assertEqual(
-                service["user"],
-                "${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}:${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}",
-            )
+            self.assertEqual(service["user"], "65532:65532")
             self.assertEqual(service["cap_drop"], ["ALL"])
             self.assertIn("no-new-privileges:true", service["security_opt"])
             self.assertEqual(
@@ -133,14 +130,7 @@ class RuntimeTopologyTests(unittest.TestCase):
                 ["serve", "--runtime", f"/etc/relay/{authority}/runtime.yaml"],
             )
             volumes = set(service["volumes"])
-            self.assertIn(
-                f"./relays/{authority}/runtime.yaml:/etc/relay/{authority}/runtime.yaml:ro",
-                volumes,
-            )
-            self.assertIn(
-                f"./relays/{authority}/package:/etc/relay/{authority}/package:ro",
-                volumes,
-            )
+            self.assertIn(f"{authority}-relay-runtime:/etc/relay/{authority}:ro", volumes)
             self.assertIn(
                 f"{authority}-relay-source:/var/lib/relay/source:ro",
                 volumes,
@@ -151,6 +141,10 @@ class RuntimeTopologyTests(unittest.TestCase):
             )
             self.assertEqual(
                 service["depends_on"]["relay-audit-init"]["condition"],
+                "service_completed_successfully",
+            )
+            self.assertEqual(
+                service["depends_on"][f"{authority}-relay-runtime-stager"]["condition"],
                 "service_completed_successfully",
             )
             self.assertEqual(
@@ -204,37 +198,17 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertIn("follow_symlinks=False", audit_init)
         self.assertIn("os.chown(path, 0, 0)", audit_init)
         self.assertIn("os.chown(path, target_uid, target_gid)", audit_init)
-        self.assertIn("target_uid == 0 or target_gid == 0", audit_init)
         self.assertIn(
             "os.chown(entry.path, target_uid, target_gid, follow_symlinks=False)",
             audit_init,
         )
-        self.assertEqual(
-            initializer["environment"],
-            {
-                "SOLMARA_LOCAL_RUNTIME_UID": "${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}",
-                "SOLMARA_LOCAL_RUNTIME_GID": "${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}",
-            },
-        )
+        self.assertIn("target_uid = 65532", audit_init)
+        self.assertIn("target_gid = 65532", audit_init)
         for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
             self.assertIn(
                 f"{authority}-relay-audit:/audit/{authority}",
                 initializer["volumes"],
             )
-
-        for uid_value, gid_value in (("0", "65532"), ("65532", "0")):
-            with (
-                mock.patch.dict(
-                    os.environ,
-                    {
-                        "SOLMARA_LOCAL_RUNTIME_UID": uid_value,
-                        "SOLMARA_LOCAL_RUNTIME_GID": gid_value,
-                    },
-                    clear=False,
-                ),
-                self.assertRaisesRegex(RuntimeError, "runtime identity is invalid"),
-            ):
-                exec(audit_init, {})
 
         issuer_readiness = compose["services"]["relay-issuer-readiness"]
         self.assertEqual(issuer_readiness["user"], "65532:65532")
@@ -739,11 +713,11 @@ class RuntimeTopologyTests(unittest.TestCase):
 
         self.assertEqual(
             services["scenario-runner"]["environment"]["CHILD_BENEFIT_FEDERATOR_URL"],
-            "https://child-benefit.solmara.registrystack.org",
+            "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}",
         )
         self.assertEqual(
             services["portal"]["environment"]["CHILD_BENEFIT_FEDERATOR_URL"],
-            "https://child-benefit.solmara.registrystack.org",
+            "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}",
         )
         self.assertEqual(
             services["child-benefit-federator"]["environment"][
@@ -765,36 +739,45 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertNotIn("SOLMARA_EVIDENCE_CLIENT_KEY", environment, service_name)
             self.assertNotIn("CHILD_BENEFIT_FEDERATOR_TOKEN", environment, service_name)
 
-    def test_hosted_esignet_overlay_wires_the_main_portal_with_a_separate_key(
+    def test_hosted_esignet_is_standalone_and_core_portal_owns_login_config(
         self,
     ) -> None:
-        overlay_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
-        overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8"))
-        services = overlay["services"]
-        portal = services["portal"]["environment"]
+        esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
+        esignet = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))
+        services = esignet["services"]
+        self.assertEqual(
+            set(services),
+            {"esignet-database", "esignet-redis", "esignet", "esignet-ui", "esignet-seed"},
+        )
+        self.assertNotIn("portal", services)
+
+        core = yaml.safe_load(
+            (SCRIPT.parents[1] / "compose.coolify.yaml").read_text(encoding="utf-8")
+        )
+        portal = core["services"]["portal"]["environment"]
         expected = {
-            "PORTAL_AUTH_PROVIDER": "esignet",
+            "PORTAL_AUTH_PROVIDER": "${PORTAL_AUTH_PROVIDER:-mock}",
             "PORTAL_SECURE_COOKIES": "true",
             "PORTAL_ESIGNET_CLIENT_ID": "${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}",
             "PORTAL_ESIGNET_CLIENT_KEY_ID": "${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}",
-            "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64": "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}",
-            "PORTAL_ESIGNET_ISSUER": "https://esignet.solmara.registrystack.org",
-            "PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT": "https://esignet-ui.solmara.registrystack.org/authorize",
-            "PORTAL_ESIGNET_TOKEN_ENDPOINT": "https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token",
-            "PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE": "https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token",
-            "PORTAL_ESIGNET_USERINFO_ENDPOINT": "https://esignet.solmara.registrystack.org/v1/esignet/oidc/userinfo",
-            "PORTAL_ESIGNET_REDIRECT_URI": "https://portal.solmara.registrystack.org/auth/callback",
+            "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64": "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}",
+            "PORTAL_ESIGNET_ISSUER": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}",
+            "PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT": "${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize",
+            "PORTAL_ESIGNET_TOKEN_ENDPOINT": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token",
+            "PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token",
+            "PORTAL_ESIGNET_USERINFO_ENDPOINT": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oidc/userinfo",
+            "PORTAL_ESIGNET_REDIRECT_URI": "${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback",
             "PORTAL_ESIGNET_SCOPE": "openid profile",
             "PORTAL_ESIGNET_SUBJECT_CLAIM": "sub",
         }
-        self.assertEqual(portal, expected)
-        self.assertNotIn("name", overlay)
+        for key, value in expected.items():
+            self.assertEqual(portal[key], value)
 
-        private_key_value = "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}"
+        private_key_value = "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}"
         self.assertEqual(
             {
                 service_name
-                for service_name, service in services.items()
+                for service_name, service in core["services"].items()
                 if service.get("environment", {}).get(
                     "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64"
                 )
@@ -804,9 +787,8 @@ class RuntimeTopologyTests(unittest.TestCase):
         )
         self.assertEqual(
             services["esignet-seed"]["environment"]["ESIGNET_CLIENT_PRIVATE_KEY_B64"],
-            private_key_value,
+            "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}",
         )
-        self.assertNotIn("SOLMARA_EVIDENCE_CLIENT_KEY", portal)
         self.assertNotIn("NIA_ESIGNET_CLIENT_PRIVATE_JWK", portal)
 
     def test_bruno_workspace_covers_only_the_eight_governed_v2_lookups(self) -> None:

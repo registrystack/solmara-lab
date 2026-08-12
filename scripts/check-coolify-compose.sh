@@ -52,12 +52,5 @@ check_compose() {
 }
 
 for compose in "$root"/compose.coolify*.yaml; do
-  if [ "$(basename "$compose")" = "compose.coolify.esignet.yaml" ]; then
-    continue
-  fi
   check_compose -f "$compose"
 done
-
-# eSignet is intentionally an overlay: validate that it augments the same
-# Portal service rather than accidentally declaring a second Portal deployment.
-check_compose -f "$root/compose.coolify.yaml" -f "$root/compose.coolify.esignet.yaml"

@@ -19,6 +19,8 @@ import tempfile
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
+
 import yaml
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
@@ -27,6 +29,15 @@ SUCCESS = "hosted target ready"
 MAX_SECRET_BYTES = 16 * 1024
 RELAYS = ("cra", "nia", "mosd", "sipf", "nagdi")
 CELLS = ("cra", "nia", "sro", "mosd-programme", "sipf", "nagdi")
+MINT_ORIGIN = "https://mint-authority-cells.solmara.registrystack.org"
+RELAY_ORIGINS = {
+    "cra": "https://cra-relay-authority-cells.solmara.registrystack.org",
+    "mosd-programme": (
+        "https://mosd-programme-relay-authority-cells.solmara.registrystack.org"
+    ),
+    "sipf": "https://sipf-relay-authority-cells.solmara.registrystack.org",
+    "nagdi": "https://nagdi-relay-authority-cells.solmara.registrystack.org",
+}
 DIRECT = {
     "cra": ("cra-birth-extract", "cra-birth"),
     "nia": ("nia-population-extract", "nia-population"),
@@ -404,6 +415,69 @@ def _write(path: Path, value: bytes, mode: int) -> None:
     path.chmod(mode)
 
 
+def _validated_origin(value: str | None, expected: str) -> str:
+    try:
+        if value is None or value != expected:
+            raise ProvisionError("invalid origin")
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "https"
+            or parsed.netloc != parsed.hostname
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.port is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+            or value != f"https://{parsed.hostname}"
+        ):
+            raise ProvisionError("invalid origin")
+        return value
+    except (TypeError, ValueError):
+        raise ProvisionError("invalid origin") from None
+
+
+def _patch_mint_origin(config: dict, mint_origin: str) -> None:
+    mint_origin = _validated_origin(mint_origin, MINT_ORIGIN)
+    config["issuer"] = mint_origin
+    config["clientAssertion"]["audience"] = f"{mint_origin}/token"
+
+
+def _patch_relay_origin(config: dict, mint_origin: str) -> None:
+    mint_origin = _validated_origin(mint_origin, MINT_ORIGIN)
+    config["authentication"]["issuer"]["discoveryUrl"] = (
+        f"{mint_origin}/.well-known/openid-configuration"
+    )
+
+
+def _patch_evidence_origins(
+    config: dict, cell: str, mint_origin: str, relay_origin: str | None
+) -> None:
+    mint_origin = _validated_origin(mint_origin, MINT_ORIGIN)
+    expected_relay_origin = RELAY_ORIGINS.get(cell)
+    if (expected_relay_origin is None) != (relay_origin is None):
+        raise ProvisionError("invalid source origin")
+    if expected_relay_origin is not None:
+        relay_origin = _validated_origin(relay_origin, expected_relay_origin)
+    config["authentication"]["issuer"] = mint_origin
+    config["authentication"]["jwksUri"] = f"{mint_origin}/.well-known/jwks.json"
+    relay_sources = [
+        source_config
+        for source_config in config["sources"].values()
+        if source_config["transport"] == "http-json"
+    ]
+    if (cell in RELAY_ORIGINS) != bool(relay_sources) or (relay_origin is None) != (
+        cell not in RELAY_ORIGINS
+    ):
+        raise ProvisionError("invalid source origin")
+    for source_config in relay_sources:
+        source_config["baseUrl"] = relay_origin
+        authentication = source_config["authentication"]
+        authentication["tokenEndpoint"] = f"{mint_origin}/token"
+        authentication["clientAssertionAudience"] = f"{mint_origin}/token"
+
+
 def _patch_runtime(path: Path, bind_host: str, extract_name: str | None = None) -> None:
     config = yaml.safe_load(path.read_text(encoding="utf-8"))
     config["listener"]["bindHost"] = bind_host
@@ -416,9 +490,21 @@ def _patch_runtime(path: Path, bind_host: str, extract_name: str | None = None) 
     path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
 
 
-def _stage_relay(assets: Path, authority: str, runtime: Path, source: Path) -> None:
+def _stage_relay(
+    assets: Path,
+    authority: str,
+    runtime: Path,
+    source: Path,
+    mint_origin: str,
+) -> None:
     relay = assets / "relays" / authority
-    _write(runtime / "runtime.yaml", (relay / "runtime.yaml").read_bytes(), 0o444)
+    config = yaml.safe_load((relay / "runtime.yaml").read_text(encoding="utf-8"))
+    _patch_relay_origin(config, mint_origin)
+    _write(
+        runtime / "runtime.yaml",
+        yaml.safe_dump(config, sort_keys=False).encode(),
+        0o444,
+    )
     _copy_tree(relay / "package", runtime / "package")
     _write(
         source / f"{authority}.sqlite",
@@ -653,6 +739,8 @@ def _stage_evidence(
     bind_host: str,
     published_at: str,
     observed_at: str,
+    mint_origin: str,
+    relay_origin: str | None,
 ) -> None:
     source = assets / "evidence" / "cells" / cell
     _copy_tree(source, runtime)
@@ -660,6 +748,7 @@ def _stage_evidence(
     bundle_config = runtime / "bundle" / "evidence.yaml"
     config = yaml.safe_load(bundle_config.read_text(encoding="utf-8"))
     config["signing"]["activePublicJwkFile"] = f"public-keys/{public['kid']}.jwk.json"
+    _patch_evidence_origins(config, cell, mint_origin, relay_origin)
     bundle_config.chmod(0o644)
     bundle_config.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     bundle_config.chmod(0o444)
@@ -697,10 +786,16 @@ def _stage_evidence(
 
 
 def _stage_mint(
-    assets: Path, secrets: Path, runtime: Path, secret_output: Path, bind_host: str
+    assets: Path,
+    secrets: Path,
+    runtime: Path,
+    secret_output: Path,
+    bind_host: str,
+    mint_origin: str,
 ) -> None:
     public = _public_jwk(_read_secret(secrets, "signing-public.jwk"), allow_rsa=False)
     config = yaml.safe_load((assets / "mint" / "mint.yaml").read_text(encoding="utf-8"))
+    _patch_mint_origin(config, mint_origin)
     config["listener"]["address"] = bind_host
     config["signing"]["activePublicJwkFile"] = f"public-keys/{public['kid']}.jwk.json"
     _write(
@@ -751,6 +846,7 @@ def _stage_mint(
 def provision(args: argparse.Namespace) -> None:
     assets, target = args.assets.resolve(), args.target
     verify_assets(assets)
+    mint_origin = _validated_origin(args.mint_origin, MINT_ORIGIN)
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     with tempfile.TemporaryDirectory(prefix="solmara-provision-") as temporary:
         root = Path(temporary)
@@ -766,9 +862,10 @@ def provision(args: argparse.Namespace) -> None:
                 or args.secret_output
                 or args.extract_output
                 or args.bind_host
+                or args.relay_origin
             ):
                 raise ProvisionError("invalid target")
-            _stage_relay(assets, authority, runtime, source)
+            _stage_relay(assets, authority, runtime, source, mint_origin)
             _check_install_tree(source, args.source_output.resolve())
             _check_install_tree(runtime, args.runtime_output.resolve())
             _install_tree(source, args.source_output.resolve(), root_mode=0o555)
@@ -778,6 +875,7 @@ def provision(args: argparse.Namespace) -> None:
                 or not args.bind_host
                 or args.source_output
                 or args.extract_output
+                or args.relay_origin
             ):
                 raise ProvisionError("invalid target")
             if args.bind_host != EXPECTED_BIND_HOST["mint"]:
@@ -790,7 +888,12 @@ def provision(args: argparse.Namespace) -> None:
             }
             _validate_secret_inventory(args.secrets.resolve(), mint_secrets)
             _stage_mint(
-                assets, args.secrets.resolve(), runtime, secret_output, args.bind_host
+                assets,
+                args.secrets.resolve(),
+                runtime,
+                secret_output,
+                args.bind_host,
+                mint_origin,
             )
             _check_install_tree(secret_output, args.secret_output.resolve())
             _check_install_tree(runtime, args.runtime_output.resolve())
@@ -811,6 +914,14 @@ def provision(args: argparse.Namespace) -> None:
                 raise ProvisionError("invalid target")
             if (cell in DIRECT) != (args.extract_output is not None):
                 raise ProvisionError("invalid target")
+            expected_relay_origin = RELAY_ORIGINS.get(cell)
+            if (expected_relay_origin is None) != (args.relay_origin is None):
+                raise ProvisionError("invalid origin")
+            relay_origin = (
+                _validated_origin(args.relay_origin, expected_relay_origin)
+                if expected_relay_origin is not None
+                else None
+            )
             if args.bind_host != EXPECTED_BIND_HOST[cell]:
                 raise ProvisionError("invalid bind host")
             cell_secrets = {
@@ -841,6 +952,8 @@ def provision(args: argparse.Namespace) -> None:
                 args.bind_host,
                 published_at,
                 now,
+                mint_origin,
+                relay_origin,
             )
             runtime_preserve = _preserve_extract_rollback if cell in DIRECT else None
             _check_install_tree(secret_output, args.secret_output.resolve())
@@ -896,6 +1009,8 @@ def parser() -> argparse.ArgumentParser:
     ready.add_argument("--secret-output", type=Path)
     ready.add_argument("--extract-output", type=Path)
     ready.add_argument("--bind-host")
+    ready.add_argument("--mint-origin", required=True)
+    ready.add_argument("--relay-origin")
     publication = sub.add_parser("publish-extract", add_help=False)
     publication.add_argument("--target", required=True)
     publication.add_argument("--assets", required=True, type=Path)

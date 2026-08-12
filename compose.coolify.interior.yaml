@@ -31,7 +31,7 @@ services:
     command: [serve, --runtime, /etc/relay/cra/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${CRA_RELAY_AUDIT_KEY:?required}"}
     volumes: [cra-relay-runtime:/etc/relay/cra:ro, cra-relay-source:/var/lib/relay/source:ro, cra-relay-audit:/var/lib/relay/audit]
-    labels: {solmara.lab.host: cra-relay.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: cra-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   nia-relay:
     <<: *runtime
@@ -39,7 +39,7 @@ services:
     command: [serve, --runtime, /etc/relay/nia/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${NIA_RELAY_AUDIT_KEY:?required}"}
     volumes: [nia-relay-runtime:/etc/relay/nia:ro, nia-relay-source:/var/lib/relay/source:ro, nia-relay-audit:/var/lib/relay/audit]
-    labels: {solmara.lab.host: nia-relay.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: nia-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   cra-evidence:
     <<: *runtime

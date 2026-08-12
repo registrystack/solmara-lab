@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import contextlib
 import hashlib
 import importlib.util
@@ -26,6 +27,20 @@ SPEC = importlib.util.spec_from_file_location("provision_hosted_runtime", SCRIPT
 assert SPEC and SPEC.loader
 provisioner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(provisioner)
+REPOSITORY = SCRIPT.parent.parent
+
+
+def changed_paths(before, after, prefix: tuple[str, ...] = ()) -> set[tuple[str, ...]]:
+    if isinstance(before, dict) and isinstance(after, dict):
+        result: set[tuple[str, ...]] = set()
+        for key in before.keys() | after.keys():
+            result.update(
+                changed_paths(before.get(key), after.get(key), (*prefix, str(key)))
+            )
+        return result
+    if before != after:
+        return {prefix}
+    return set()
 
 
 def write_manifest(root: Path) -> None:
@@ -76,6 +91,181 @@ def write_secret(root: Path, name: str, value: bytes | dict[str, str]) -> None:
 
 
 class HostedProvisionerTests(unittest.TestCase):
+    def test_rollout_origins_are_exact_canonical_https_origins(self) -> None:
+        origins = [provisioner.MINT_ORIGIN, *provisioner.RELAY_ORIGINS.values()]
+        for origin in origins:
+            with self.subTest(origin=origin):
+                self.assertEqual(provisioner._validated_origin(origin, origin), origin)
+
+        expected = provisioner.MINT_ORIGIN
+        hostname = expected.removeprefix("https://")
+        invalid = [
+            None,
+            f"http://{hostname}",
+            f"https://user@{hostname}",
+            f"https://{hostname}:443",
+            f"https://{hostname}/",
+            f"https://{hostname}/path",
+            f"https://{hostname}?query=yes",
+            f"https://{hostname}#fragment",
+            "https://mint.solmara.registrystack.org",
+            provisioner.RELAY_ORIGINS["cra"],
+        ]
+        for origin in invalid:
+            with self.subTest(origin=origin):
+                with self.assertRaises(provisioner.ProvisionError):
+                    provisioner._validated_origin(origin, expected)
+
+    def test_mint_origin_is_required_for_every_provision_target(self) -> None:
+        for target in [
+            "mint",
+            *(f"{authority}-relay" for authority in provisioner.RELAYS),
+            *(f"{cell}-evidence" for cell in provisioner.CELLS),
+        ]:
+            with self.subTest(target=target):
+                with self.assertRaises(provisioner.ProvisionError):
+                    provisioner.parser().parse_args(
+                        [
+                            "provision",
+                            "--target",
+                            target,
+                            "--assets",
+                            "/assets",
+                            "--secrets",
+                            "/secrets",
+                            "--runtime-output",
+                            "/runtime",
+                        ]
+                    )
+
+    def test_only_relay_backed_evidence_accepts_its_exact_relay_origin(self) -> None:
+        for cell in provisioner.CELLS:
+            config = yaml.safe_load(
+                (
+                    REPOSITORY
+                    / "evidence"
+                    / "cells"
+                    / cell
+                    / "bundle"
+                    / "evidence.yaml"
+                ).read_text(encoding="utf-8")
+            )
+            expected = provisioner.RELAY_ORIGINS.get(cell)
+            if expected is None:
+                provisioner._patch_evidence_origins(
+                    copy.deepcopy(config), cell, provisioner.MINT_ORIGIN, None
+                )
+                with self.assertRaises(provisioner.ProvisionError):
+                    provisioner._patch_evidence_origins(
+                        copy.deepcopy(config),
+                        cell,
+                        provisioner.MINT_ORIGIN,
+                        provisioner.RELAY_ORIGINS["cra"],
+                    )
+            else:
+                provisioner._patch_evidence_origins(
+                    copy.deepcopy(config), cell, provisioner.MINT_ORIGIN, expected
+                )
+                with self.assertRaises(provisioner.ProvisionError):
+                    provisioner._patch_evidence_origins(
+                        copy.deepcopy(config), cell, provisioner.MINT_ORIGIN, None
+                    )
+                foreign = next(
+                    origin
+                    for authority, origin in provisioner.RELAY_ORIGINS.items()
+                    if authority != cell
+                )
+                with self.assertRaises(provisioner.ProvisionError):
+                    provisioner._patch_evidence_origins(
+                        copy.deepcopy(config), cell, provisioner.MINT_ORIGIN, foreign
+                    )
+
+    def test_origin_patching_changes_only_closed_authentication_fields(self) -> None:
+        mint_before = yaml.safe_load(
+            (REPOSITORY / "evidence" / "mint.yaml").read_text(encoding="utf-8")
+        )
+        mint_after = copy.deepcopy(mint_before)
+        provisioner._patch_mint_origin(mint_after, provisioner.MINT_ORIGIN)
+        self.assertEqual(
+            changed_paths(mint_before, mint_after),
+            {("issuer",), ("clientAssertion", "audience")},
+        )
+        self.assertEqual(mint_after["accessTokens"], mint_before["accessTokens"])
+        self.assertEqual(mint_after["signing"], mint_before["signing"])
+
+        for authority in provisioner.RELAYS:
+            before = yaml.safe_load(
+                (REPOSITORY / "relays" / authority / "runtime.yaml").read_text(
+                    encoding="utf-8"
+                )
+            )
+            after = copy.deepcopy(before)
+            provisioner._patch_relay_origin(after, provisioner.MINT_ORIGIN)
+            self.assertEqual(
+                changed_paths(before, after),
+                {("authentication", "issuer", "discoveryUrl")},
+            )
+            self.assertEqual(after["sources"], before["sources"])
+            self.assertEqual(
+                after["authentication"]["issuer"]["audience"],
+                before["authentication"]["issuer"]["audience"],
+            )
+
+        for cell in provisioner.CELLS:
+            before = yaml.safe_load(
+                (
+                    REPOSITORY
+                    / "evidence"
+                    / "cells"
+                    / cell
+                    / "bundle"
+                    / "evidence.yaml"
+                ).read_text(encoding="utf-8")
+            )
+            after = copy.deepcopy(before)
+            provisioner._patch_evidence_origins(
+                after,
+                cell,
+                provisioner.MINT_ORIGIN,
+                provisioner.RELAY_ORIGINS.get(cell),
+            )
+            expected_paths = {
+                ("authentication", "issuer"),
+                ("authentication", "jwksUri"),
+            }
+            for source_name, source in before["sources"].items():
+                if source["transport"] == "http-json":
+                    expected_paths.update(
+                        {
+                            ("sources", source_name, "baseUrl"),
+                            (
+                                "sources",
+                                source_name,
+                                "authentication",
+                                "tokenEndpoint",
+                            ),
+                            (
+                                "sources",
+                                source_name,
+                                "authentication",
+                                "clientAssertionAudience",
+                            ),
+                        }
+                    )
+                    for field in ("clientIdRef", "scope", "audience"):
+                        self.assertEqual(
+                            after["sources"][source_name]["authentication"][field],
+                            source["authentication"][field],
+                        )
+                    self.assertEqual(
+                        after["sources"][source_name]["request"], source["request"]
+                    )
+            self.assertEqual(changed_paths(before, after), expected_paths)
+            self.assertEqual(after["issuer"], before["issuer"])
+            self.assertEqual(after["signing"], before["signing"])
+            self.assertEqual(after["requirements"], before["requirements"])
+            self.assertEqual(after["authorityProfiles"], before["authorityProfiles"])
+
     def test_no_argument_cli_failure_is_one_generic_line(self) -> None:
         completed = subprocess.run(
             [sys.executable, str(SCRIPT)],
@@ -108,6 +298,8 @@ class HostedProvisionerTests(unittest.TestCase):
                     "/canary/runtime",
                     "--source-output",
                     "/canary/source",
+                    "--mint-origin",
+                    provisioner.MINT_ORIGIN,
                 ]
             )
         self.assertEqual(result, 1)
@@ -199,7 +391,22 @@ class HostedProvisionerTests(unittest.TestCase):
             cell = assets / "evidence" / "cells" / "sipf"
             (cell / "bundle").mkdir(parents=True)
             (cell / "bundle" / "evidence.yaml").write_text(
-                yaml.safe_dump({"signing": {"activePublicJwkFile": "old"}}),
+                yaml.safe_dump(
+                    {
+                        "authentication": {"issuer": "old", "jwksUri": "old"},
+                        "signing": {"activePublicJwkFile": "old"},
+                        "sources": {
+                            "pension": {
+                                "transport": "http-json",
+                                "baseUrl": "old",
+                                "authentication": {
+                                    "tokenEndpoint": "old",
+                                    "clientAssertionAudience": "old",
+                                },
+                            }
+                        },
+                    }
+                ),
                 encoding="utf-8",
             )
             (cell / "runtime.yaml").write_text(
@@ -226,6 +433,8 @@ class HostedProvisionerTests(unittest.TestCase):
                 provisioner.EXPECTED_BIND_HOST["sipf"],
                 "2026-08-12T00:00:00Z",
                 "2026-08-12T00:00:00Z",
+                provisioner.MINT_ORIGIN,
+                provisioner.RELAY_ORIGINS["sipf"],
             )
 
             self.assertEqual(
@@ -247,6 +456,21 @@ class HostedProvisionerTests(unittest.TestCase):
             )
             self.assertEqual(json.loads(public_file.read_text()), signing_public)
             self.assertNotIn(signing_private["d"], public_file.read_text())
+            authored = yaml.safe_load(
+                (cell / "bundle" / "evidence.yaml").read_text(encoding="utf-8")
+            )
+            provisioned = yaml.safe_load(
+                (runtime / "bundle" / "evidence.yaml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(authored["authentication"]["issuer"], "old")
+            self.assertEqual(authored["sources"]["pension"]["baseUrl"], "old")
+            self.assertEqual(
+                provisioned["authentication"]["issuer"], provisioner.MINT_ORIGIN
+            )
+            self.assertEqual(
+                provisioned["sources"]["pension"]["baseUrl"],
+                provisioner.RELAY_ORIGINS["sipf"],
+            )
 
     def test_mint_writes_only_audit_secret_and_public_client_registrations(
         self,
@@ -260,6 +484,8 @@ class HostedProvisionerTests(unittest.TestCase):
                     {
                         "listener": {"address": "old"},
                         "signing": {"activePublicJwkFile": "old"},
+                        "issuer": "old",
+                        "clientAssertion": {"audience": "old"},
                     }
                 ),
                 encoding="utf-8",
@@ -279,6 +505,7 @@ class HostedProvisionerTests(unittest.TestCase):
                 runtime,
                 output_secrets,
                 provisioner.EXPECTED_BIND_HOST["mint"],
+                provisioner.MINT_ORIGIN,
             )
             self.assertEqual(
                 {path.name for path in output_secrets.iterdir()}, {"audit-hmac-key"}
@@ -288,6 +515,18 @@ class HostedProvisionerTests(unittest.TestCase):
             )
             self.assertNotIn(private["d"], emitted)
             self.assertEqual(len(list((runtime / "clients").glob("*.yaml"))), 9)
+            authored = yaml.safe_load(
+                (assets / "mint" / "mint.yaml").read_text(encoding="utf-8")
+            )
+            provisioned = yaml.safe_load(
+                (runtime / "mint.yaml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(authored["issuer"], "old")
+            self.assertEqual(provisioned["issuer"], provisioner.MINT_ORIGIN)
+            self.assertEqual(
+                provisioned["clientAssertion"]["audience"],
+                f"{provisioner.MINT_ORIGIN}/token",
+            )
 
             write_secret(secrets, "signing-public.jwk", private)
             with self.assertRaises(provisioner.ProvisionError):
@@ -297,6 +536,7 @@ class HostedProvisionerTests(unittest.TestCase):
                     root / "bad-runtime",
                     root / "bad-secrets",
                     provisioner.EXPECTED_BIND_HOST["mint"],
+                    provisioner.MINT_ORIGIN,
                 )
 
     def test_relay_provision_preserves_database_and_is_idempotent(self) -> None:
@@ -309,7 +549,17 @@ class HostedProvisionerTests(unittest.TestCase):
             (relay / "source").mkdir()
             database = b"SQLite format 3\x00\n\xff\x00"
             (relay / "source" / "cra.sqlite").write_bytes(database)
-            (relay / "runtime.yaml").write_text("version: 1\n", encoding="utf-8")
+            (relay / "runtime.yaml").write_text(
+                yaml.safe_dump(
+                    {
+                        "version": 1,
+                        "authentication": {
+                            "issuer": {"discoveryUrl": "https://old.invalid"}
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             write_manifest(assets)
             secrets = root / "unused-secrets"
             secrets.mkdir()
@@ -327,6 +577,8 @@ class HostedProvisionerTests(unittest.TestCase):
                     str(runtime),
                     "--source-output",
                     str(source),
+                    "--mint-origin",
+                    provisioner.MINT_ORIGIN,
                 ]
             )
 
@@ -338,6 +590,20 @@ class HostedProvisionerTests(unittest.TestCase):
             )
             self.assertEqual(
                 stat.S_IMODE((source / "cra.sqlite").stat().st_mode), 0o444
+            )
+            authored = yaml.safe_load(
+                (relay / "runtime.yaml").read_text(encoding="utf-8")
+            )
+            provisioned = yaml.safe_load(
+                (runtime / "runtime.yaml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                authored["authentication"]["issuer"]["discoveryUrl"],
+                "https://old.invalid",
+            )
+            self.assertEqual(
+                provisioned["authentication"]["issuer"]["discoveryUrl"],
+                f"{provisioner.MINT_ORIGIN}/.well-known/openid-configuration",
             )
 
     def test_all_outputs_are_preflighted_before_any_volume_changes(self) -> None:
@@ -362,10 +628,12 @@ class HostedProvisionerTests(unittest.TestCase):
                     str(secret_output),
                     "--bind-host",
                     provisioner.EXPECTED_BIND_HOST["mint"],
+                    "--mint-origin",
+                    provisioner.MINT_ORIGIN,
                 ]
             )
 
-            def stage(_assets, _inputs, runtime, secrets, _bind):
+            def stage(_assets, _inputs, runtime, secrets, _bind, _mint_origin):
                 provisioner._write(runtime / "runtime.yaml", b"replacement", 0o444)
                 provisioner._write(secrets / "audit-hmac-key", b"a" * 32, 0o400)
 
@@ -388,7 +656,17 @@ class HostedProvisionerTests(unittest.TestCase):
             (relay / "package" / "sealed.json").write_bytes(b"sealed")
             (relay / "source").mkdir()
             (relay / "source" / "cra.sqlite").write_bytes(b"SQLite format 3\x00")
-            (relay / "runtime.yaml").write_text("version: 1\n", encoding="utf-8")
+            (relay / "runtime.yaml").write_text(
+                yaml.safe_dump(
+                    {
+                        "version": 1,
+                        "authentication": {
+                            "issuer": {"discoveryUrl": "https://old.invalid"}
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             write_manifest(assets)
             runtime, source = root / "runtime", root / "source"
             completed = subprocess.run(
@@ -406,6 +684,8 @@ class HostedProvisionerTests(unittest.TestCase):
                     str(runtime),
                     "--source-output",
                     str(source),
+                    "--mint-origin",
+                    provisioner.MINT_ORIGIN,
                 ],
                 check=False,
                 capture_output=True,
@@ -439,6 +719,8 @@ class HostedProvisionerTests(unittest.TestCase):
                     str(runtime),
                     "--source-output",
                     str(source),
+                    "--mint-origin",
+                    provisioner.MINT_ORIGIN,
                 ]
             )
             with self.assertRaises(provisioner.ProvisionError):
@@ -653,6 +935,10 @@ class HostedProvisionerTests(unittest.TestCase):
                     str(root / "output-secrets"),
                     "--bind-host",
                     "172.29.1.99",
+                    "--mint-origin",
+                    provisioner.MINT_ORIGIN,
+                    "--relay-origin",
+                    provisioner.RELAY_ORIGINS["sipf"],
                 ]
             )
             with (

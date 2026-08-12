@@ -31,7 +31,7 @@ services:
     command: [serve, --runtime, /etc/relay/mosd/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${MOSD_RELAY_AUDIT_KEY:?required}"}
     volumes: [mosd-relay-runtime:/etc/relay/mosd:ro, mosd-relay-source:/var/lib/relay/source:ro, mosd-relay-audit:/var/lib/relay/audit]
-    labels: {solmara.lab.host: mosd-programme-relay.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: mosd-programme-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   sro-evidence:
     <<: *runtime

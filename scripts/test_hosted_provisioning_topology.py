@@ -17,6 +17,13 @@ RUNTIME_COMPOSES = (
 )
 PROVIDERS = ("mint", "cra", "nia", "sro", "mosd", "sipf", "nagdi")
 RELAYS = ("cra", "nia", "mosd", "sipf", "nagdi")
+MINT_ORIGIN = "https://mint-authority-cells.solmara.registrystack.org"
+RELAY_ORIGINS = {
+    "cra": "https://cra-relay-authority-cells.solmara.registrystack.org",
+    "mosd": "https://mosd-programme-relay-authority-cells.solmara.registrystack.org",
+    "sipf": "https://sipf-relay-authority-cells.solmara.registrystack.org",
+    "nagdi": "https://nagdi-relay-authority-cells.solmara.registrystack.org",
+}
 
 
 class HostedProvisioningTopologyTests(unittest.TestCase):
@@ -125,6 +132,25 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         services = self.provision["services"]
         for authority in RELAYS:
             self.assertNotIn("secrets", services[f"{authority}-relay-provisioner"])
+
+    def test_provisioners_receive_closed_permanent_dependency_origins(self) -> None:
+        services = self.provision["services"]
+        for name, service in services.items():
+            if not name.endswith("provisioner"):
+                continue
+            command = service["command"]
+            self.assertEqual(command[command.index("--mint-origin") + 1], MINT_ORIGIN)
+            if name.endswith("-evidence-provisioner"):
+                provider = name.removesuffix("-evidence-provisioner")
+                if provider in RELAY_ORIGINS:
+                    self.assertEqual(
+                        command[command.index("--relay-origin") + 1],
+                        RELAY_ORIGINS[provider],
+                    )
+                else:
+                    self.assertNotIn("--relay-origin", command)
+            else:
+                self.assertNotIn("--relay-origin", command)
 
     def test_each_signer_and_transit_initializer_mount_only_its_matching_volume(self) -> None:
         services = self.provision["services"]

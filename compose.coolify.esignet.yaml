@@ -1,20 +1,24 @@
+name: solmara-esignet-authority-cells
+
 services:
   esignet-database:
     image: ${SOLMARA_ESIGNET_POSTGRES_IMAGE:?set digest-pinned eSignet database image}
-    environment: {POSTGRES_USER: esignet, POSTGRES_PASSWORD: "${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?required}"}
-    volumes: ["esignet-db-data:/var/lib/postgresql"]
+    environment:
+      POSTGRES_USER: esignet
+      POSTGRES_PASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?required}
+    volumes: [esignet-db-data:/var/lib/postgresql]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U esignet -d esignet"]
+      test: [CMD-SHELL, pg_isready -U esignet -d esignet]
       interval: 5s
       timeout: 5s
       retries: 30
 
   esignet-redis:
     image: ${ESIGNET_REDIS_IMAGE:?versions.env must pin Redis}
-    command: ["redis-server"]
-    volumes: ["esignet-redis-data:/data"]
+    command: [redis-server]
+    volumes: [esignet-redis-data:/data]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [CMD, redis-cli, ping]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -40,10 +44,10 @@ services:
       SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
       SPRING_CACHE_TYPE: redis
       SPRING_DATA_REDIS_HOST: esignet-redis
-      MOSIP_ESIGNET_HOST: esignet.solmara.registrystack.org
-      MOSIP_ESIGNET_DISCOVERY_ISSUER_ID: https://esignet.solmara.registrystack.org
-      MOSIP_ESIGNET_DISCOVERY_KEY_VALUES: "{'issuer':'https://esignet.solmara.registrystack.org','authorization_endpoint':'https://esignet-ui.solmara.registrystack.org/authorize','token_endpoint':'https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token','userinfo_endpoint':'https://esignet.solmara.registrystack.org/v1/esignet/oidc/userinfo','jwks_uri':'https://esignet.solmara.registrystack.org/v1/esignet/oauth/.well-known/jwks.json','token_endpoint_auth_methods_supported':{'private_key_jwt'},'token_endpoint_auth_signing_alg_values_supported':{'RS256','PS256','ES256'}}"
-      MOSIP_ESIGNET_OAUTH_KEY_VALUES: "{'issuer':'https://esignet.solmara.registrystack.org','authorization_endpoint':'https://esignet-ui.solmara.registrystack.org/authorize','token_endpoint':'https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token','jwks_uri':'https://esignet.solmara.registrystack.org/v1/esignet/oauth/.well-known/jwks.json','token_endpoint_auth_methods_supported':{'private_key_jwt'},'token_endpoint_auth_signing_alg_values_supported':{'RS256','PS256','ES256'}}"
+      MOSIP_ESIGNET_HOST: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
+      MOSIP_ESIGNET_DISCOVERY_ISSUER_ID: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}
+      MOSIP_ESIGNET_DISCOVERY_KEY_VALUES: "{'issuer':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}','authorization_endpoint':'${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize','token_endpoint':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token','userinfo_endpoint':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oidc/userinfo','jwks_uri':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/.well-known/jwks.json','token_endpoint_auth_methods_supported':{'private_key_jwt'},'token_endpoint_auth_signing_alg_values_supported':{'RS256','PS256','ES256'}}"
+      MOSIP_ESIGNET_OAUTH_KEY_VALUES: "{'issuer':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}','authorization_endpoint':'${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize','token_endpoint':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token','jwks_uri':'${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/.well-known/jwks.json','token_endpoint_auth_methods_supported':{'private_key_jwt'},'token_endpoint_auth_signing_alg_values_supported':{'RS256','PS256','ES256'}}"
       MOSIP_ESIGNET_DATABASE_URL: jdbc:postgresql://esignet-database:5432/mosip_esignet?currentSchema=esignet
       MOSIP_ESIGNET_DATABASE_USERNAME: esignet
       MOSIP_ESIGNET_DATABASE_PASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?required}
@@ -51,13 +55,13 @@ services:
       MOSIP_ESIGNET_INTEGRATION_AUTHENTICATOR: RelayAuthenticationService
       MOSIP_ESIGNET_INTEGRATION_KEY_BINDER: MockKeyBindingWrapperService
       MOSIP_ESIGNET_OPENID_SCOPE_CLAIMS: "{'profile' : {'given_name','family_name','gender','birthdate','individual_id'}}"
-      REGISTRY_RELAY_BASE_URL: https://nia-relay.solmara.registrystack.org
+      REGISTRY_RELAY_BASE_URL: https://nia-relay-authority-cells.solmara.registrystack.org
       REGISTRY_RELAY_RESOURCE: population-person
       REGISTRY_RELAY_LOOKUP: esignet-userinfo
       REGISTRY_RELAY_ACCESS_PROFILE: esignet
       REGISTRY_RELAY_DEFAULT_CLAIMS: individualId,givenName,familyName,birthdate,gender
       SPRING_APPLICATION_JSON: '{"registry":{"esignet":{"claim-map":{"sub":"$$psut","individual_id":"individualId","given_name":"givenName","family_name":"familyName","birthdate":"birthdate","gender":"gender"}}}}'
-      REGISTRY_MINT_TOKEN_ENDPOINT: https://mint.solmara.registrystack.org/token
+      REGISTRY_MINT_TOKEN_ENDPOINT: https://mint-authority-cells.solmara.registrystack.org/token
       REGISTRY_MINT_CLIENT_ID: nia-esignet
       REGISTRY_MINT_PRIVATE_JWK: ${NIA_ESIGNET_CLIENT_PRIVATE_JWK:?required}
       REGISTRY_MINT_TOKEN_CACHE_MAX_SECONDS: "300"
@@ -74,14 +78,26 @@ services:
       REGISTRY_ESIGNET_KYC_SIGNING_KEY_ALIAS: esignet-relay-kyc
       REGISTRY_ESIGNET_KYC_SIGNING_KEY_PASSWORD: ${REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD:?required}
       MOSIP_KERNEL_KEYMANAGER_HSM_CONFIG_PATH: /home/mosip/keystore/esignet_local.p12
-    volumes: ["esignet-keystore:/home/mosip/keystore", "esignet-kyc-signing:/home/mosip/kyc-signing"]
-    depends_on: {esignet-database: {condition: service_healthy}, esignet-redis: {condition: service_healthy}}
-    labels: {solmara.lab.host: esignet.solmara.registrystack.org}
+    volumes:
+      - esignet-keystore:/home/mosip/keystore
+      - esignet-kyc-signing:/home/mosip/kyc-signing
+    depends_on:
+      esignet-database: {condition: service_healthy}
+      esignet-redis: {condition: service_healthy}
+    labels:
+      solmara.lab.host: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
+      solmara.rollout.slot: authority-cells
 
   esignet-ui:
     image: ${SOLMARA_ESIGNET_UI_IMAGE:?set digest-pinned eSignet UI image}
-    depends_on: {esignet: {condition: service_started}}
-    labels: {solmara.lab.host: esignet-ui.solmara.registrystack.org}
+    environment:
+      SOLMARA_ESIGNET_PUBLIC_HOST: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
+      SOLMARA_ESIGNET_UI_PUBLIC_HOST: ${SOLMARA_ESIGNET_UI_PUBLIC_HOST:-esignet-ui.solmara.registrystack.org}
+    depends_on:
+      esignet: {condition: service_started}
+    labels:
+      solmara.lab.host: ${SOLMARA_ESIGNET_UI_PUBLIC_HOST:-esignet-ui.solmara.registrystack.org}
+      solmara.rollout.slot: authority-cells
 
   esignet-seed:
     image: ${SOLMARA_ESIGNET_SEED_IMAGE:?set digest-pinned eSignet seed image}
@@ -94,27 +110,11 @@ services:
       ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}
       ESIGNET_REDIS_HOST: esignet-redis
       ESIGNET_REQUIRE_HTTPS_REDIRECTS: "true"
-      ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["https://portal.solmara.registrystack.org/auth/callback"]'
-    entrypoint: ["seed-esignet.py"]
-    depends_on: {esignet-database: {condition: service_healthy}, esignet: {condition: service_started}}
-
-  # This file is an overlay on compose.coolify.yaml. It switches the main
-  # Portal from mock login to the hosted eSignet client seeded above.
-  portal:
-    environment:
-      PORTAL_AUTH_PROVIDER: esignet
-      PORTAL_SECURE_COOKIES: "true"
-      PORTAL_ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
-      PORTAL_ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
-      PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}
-      PORTAL_ESIGNET_ISSUER: https://esignet.solmara.registrystack.org
-      PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT: https://esignet-ui.solmara.registrystack.org/authorize
-      PORTAL_ESIGNET_TOKEN_ENDPOINT: https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token
-      PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE: https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token
-      PORTAL_ESIGNET_USERINFO_ENDPOINT: https://esignet.solmara.registrystack.org/v1/esignet/oidc/userinfo
-      PORTAL_ESIGNET_REDIRECT_URI: https://portal.solmara.registrystack.org/auth/callback
-      PORTAL_ESIGNET_SCOPE: openid profile
-      PORTAL_ESIGNET_SUBJECT_CLAIM: sub
+      ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback"]'
+    entrypoint: [seed-esignet.py]
+    depends_on:
+      esignet-database: {condition: service_healthy}
+      esignet: {condition: service_started}
 
 volumes:
   esignet-db-data:

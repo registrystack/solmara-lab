@@ -97,10 +97,6 @@ class SmokeEsignetTests(unittest.TestCase):
             self.assertIn("REGISTRY_MINT_PRIVATE_JWK", environment)
             self.assertNotIn("REGISTRY_MINT_CLIENT_PRIVATE_JWK", environment)
             self.assertEqual(
-                environment["REGISTRY_MINT_TOKEN_ENDPOINT"],
-                "https://mint.solmara.registrystack.org/token",
-            )
-            self.assertEqual(
                 environment["MOSIP_ESIGNET_DATABASE_URL"],
                 "jdbc:postgresql://esignet-database:5432/mosip_esignet?currentSchema=esignet",
             )
@@ -136,6 +132,19 @@ class SmokeEsignetTests(unittest.TestCase):
                     "gender": "gender",
                 },
             )
+
+        self.assertEqual(
+            local_env["REGISTRY_MINT_TOKEN_ENDPOINT"],
+            "https://mint.solmara.registrystack.org/token",
+        )
+        self.assertEqual(
+            hosted_env["REGISTRY_MINT_TOKEN_ENDPOINT"],
+            "https://mint-authority-cells.solmara.registrystack.org/token",
+        )
+        self.assertEqual(
+            hosted_env["REGISTRY_RELAY_BASE_URL"],
+            "https://nia-relay-authority-cells.solmara.registrystack.org",
+        )
 
         mint = yaml.safe_load((ROOT / "evidence" / "mint.yaml").read_text())
         self.assertEqual(mint["clientAssertion"]["algorithms"], ["ES256", "RS256"])

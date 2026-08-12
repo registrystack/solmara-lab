@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 from urllib.parse import urlparse
@@ -10,6 +11,11 @@ import yaml
 
 ROOT = Path(__file__).parents[1]
 COMPOSE_PATH = ROOT / "compose.coolify.yaml"
+
+
+def interpolation_default(value: str) -> str:
+    match = re.fullmatch(r"\$\{[A-Z0-9_]+:-(.+)\}", value)
+    return match.group(1) if match else value
 
 
 class HostedHomeTopologyTests(unittest.TestCase):
@@ -28,23 +34,23 @@ class HostedHomeTopologyTests(unittest.TestCase):
         environment = home["environment"]
 
         expected_origins = {
-            "PORTAL_URL": "https://portal.solmara.registrystack.org",
-            "STATIC_METADATA_URL": "https://metadata.solmara.registrystack.org",
-            "CRA_CIVIL_RELAY_URL": "https://cra-relay.solmara.registrystack.org",
-            "NIA_POPULATION_RELAY_URL": "https://nia-relay.solmara.registrystack.org",
-            "MOSD_PROGRAMME_RELAY_URL": "https://mosd-programme-relay.solmara.registrystack.org",
-            "SIPF_PENSIONS_RELAY_URL": "https://sipf-relay.solmara.registrystack.org",
-            "NAGDI_AGRICULTURE_RELAY_URL": "https://nagdi-relay.solmara.registrystack.org",
-            "SOLMARA_CRA_EVIDENCE_URL": "https://cra-evidence.solmara.registrystack.org",
-            "SOLMARA_NIA_EVIDENCE_URL": "https://nia-evidence.solmara.registrystack.org",
-            "SOLMARA_SRO_EVIDENCE_URL": "https://sro-evidence.solmara.registrystack.org",
-            "SOLMARA_MOSD_PROGRAMME_EVIDENCE_URL": "https://mosd-programme-evidence.solmara.registrystack.org",
-            "SOLMARA_SIPF_EVIDENCE_URL": "https://sipf-evidence.solmara.registrystack.org",
-            "SOLMARA_NAGDI_EVIDENCE_URL": "https://nagdi-evidence.solmara.registrystack.org",
-            "MINT_URL": "https://mint.solmara.registrystack.org",
-            "CHILD_BENEFIT_FEDERATOR_URL": "https://child-benefit.solmara.registrystack.org",
-            "SCENARIO_RUNNER_URL": "https://scenarios.solmara.registrystack.org",
-            "PORTAL_PROBE_URL": "https://portal.solmara.registrystack.org",
+            "PORTAL_URL": "${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}",
+            "STATIC_METADATA_URL": "${SOLMARA_METADATA_PUBLIC_BASE_URL:-https://metadata.solmara.registrystack.org}",
+            "CRA_CIVIL_RELAY_URL": "https://cra-relay-authority-cells.solmara.registrystack.org",
+            "NIA_POPULATION_RELAY_URL": "https://nia-relay-authority-cells.solmara.registrystack.org",
+            "MOSD_PROGRAMME_RELAY_URL": "https://mosd-programme-relay-authority-cells.solmara.registrystack.org",
+            "SIPF_PENSIONS_RELAY_URL": "https://sipf-relay-authority-cells.solmara.registrystack.org",
+            "NAGDI_AGRICULTURE_RELAY_URL": "https://nagdi-relay-authority-cells.solmara.registrystack.org",
+            "SOLMARA_CRA_EVIDENCE_URL": "${SOLMARA_CRA_EVIDENCE_PUBLIC_BASE_URL:-https://cra-evidence.solmara.registrystack.org}",
+            "SOLMARA_NIA_EVIDENCE_URL": "${SOLMARA_NIA_EVIDENCE_PUBLIC_BASE_URL:-https://nia-evidence.solmara.registrystack.org}",
+            "SOLMARA_SRO_EVIDENCE_URL": "${SOLMARA_SRO_EVIDENCE_PUBLIC_BASE_URL:-https://sro-evidence.solmara.registrystack.org}",
+            "SOLMARA_MOSD_PROGRAMME_EVIDENCE_URL": "${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_BASE_URL:-https://mosd-programme-evidence.solmara.registrystack.org}",
+            "SOLMARA_SIPF_EVIDENCE_URL": "${SOLMARA_SIPF_EVIDENCE_PUBLIC_BASE_URL:-https://sipf-evidence.solmara.registrystack.org}",
+            "SOLMARA_NAGDI_EVIDENCE_URL": "${SOLMARA_NAGDI_EVIDENCE_PUBLIC_BASE_URL:-https://nagdi-evidence.solmara.registrystack.org}",
+            "MINT_URL": "https://mint-authority-cells.solmara.registrystack.org",
+            "CHILD_BENEFIT_FEDERATOR_URL": "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}",
+            "SCENARIO_RUNNER_URL": "${SOLMARA_SCENARIO_RUNNER_PUBLIC_BASE_URL:-https://scenarios.solmara.registrystack.org}",
+            "PORTAL_PROBE_URL": "${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}",
         }
         self.assertEqual(
             {key: environment.get(key) for key in expected_origins},
@@ -57,9 +63,12 @@ class HostedHomeTopologyTests(unittest.TestCase):
             for service in hosted_compose.get("services", {}).values():
                 host = service.get("labels", {}).get("solmara.lab.host")
                 if host:
-                    declared_hosts.add(host)
+                    declared_hosts.add(interpolation_default(host))
         self.assertTrue(
-            {urlparse(origin).hostname for origin in expected_origins.values()}
+            {
+                urlparse(interpolation_default(origin)).hostname
+                for origin in expected_origins.values()
+            }
             <= declared_hosts
         )
 
