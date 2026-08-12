@@ -16,43 +16,37 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 cd "$root"
+run_relayctl() {
+  authority=$1
+  database=$2
+  stage=$3
+  shift 3
+  if ! docker run --rm \
+    --platform linux/amd64 \
+    --user "$(id -u):$(id -g)" \
+    --volume "$root:/workspace" \
+    --volume "$database:/var/lib/relay/source/$authority.sqlite:ro" \
+    --workdir /workspace \
+    "$REGISTRY_RELAYCTL_IMAGE" \
+    --json "$@" >/dev/null; then
+    printf 'relay-check: %s %s failed\n' "$authority" "$stage" >&2
+    return 1
+  fi
+}
+
 for authority in cra nia mosd sipf nagdi; do
   project="relays/$authority"
   database="$root/output/sqlite/relay/$authority.sqlite"
   generated="$temporary_root/$authority-generated"
   package="$temporary_root/$authority-package"
-  docker run --rm \
-    --platform linux/amd64 \
-    --user "$(id -u):$(id -g)" \
-    --volume "$root:/workspace" \
-    --volume "$database:/var/lib/relay/source/$authority.sqlite:ro" \
-    --workdir /workspace \
-    "$REGISTRY_RELAYCTL_IMAGE" \
-    --json check "$project" --production >/dev/null
-  docker run --rm \
-    --platform linux/amd64 \
-    --user "$(id -u):$(id -g)" \
-    --volume "$root:/workspace" \
-    --volume "$database:/var/lib/relay/source/$authority.sqlite:ro" \
-    --workdir /workspace \
-    "$REGISTRY_RELAYCTL_IMAGE" \
-    --json generate "$project" --output "${generated#"$root/"}" >/dev/null
-  docker run --rm \
-    --platform linux/amd64 \
-    --user "$(id -u):$(id -g)" \
-    --volume "$root:/workspace" \
-    --volume "$database:/var/lib/relay/source/$authority.sqlite:ro" \
-    --workdir /workspace \
-    "$REGISTRY_RELAYCTL_IMAGE" \
-    --json test "$project" >/dev/null
-  docker run --rm \
-    --platform linux/amd64 \
-    --user "$(id -u):$(id -g)" \
-    --volume "$root:/workspace" \
-    --volume "$database:/var/lib/relay/source/$authority.sqlite:ro" \
-    --workdir /workspace \
-    "$REGISTRY_RELAYCTL_IMAGE" \
-    --json package "$project" --output "${package#"$root/"}" >/dev/null
+  run_relayctl "$authority" "$database" check \
+    check "$project" --production
+  run_relayctl "$authority" "$database" generate \
+    generate "$project" --output "${generated#"$root/"}"
+  run_relayctl "$authority" "$database" test \
+    test "$project"
+  run_relayctl "$authority" "$database" package \
+    package "$project" --output "${package#"$root/"}"
 done
 
 printf '%s\n' 'relay-check: five production Relay projects passed check, generate, test, and package'
