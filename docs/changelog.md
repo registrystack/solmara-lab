@@ -3,6 +3,15 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-09 Registry Stack v0.18.0 consumption
+
+The lab now consumes Registry Stack v0.18.0 release artifacts. Relay uses its
+published digest-pinned image, while local Evidence and Mint images package the
+checksum-verified release binaries. Active metadata, request examples, and
+performance examples now describe one centralized Registry Evidence service
+backed by six protected Relay Records APIs. Historical Notary operations are no
+longer presented as a deployable topology.
+
 ## 2026-08-06 Registry Stack main Evidence migration
 
 The local lab now builds Relay, Registry Evidence, and Registry Mint from the

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PURPOSES } from '$lib/forms/descriptors';
 import { LiveEvidenceProvider } from './index';
 
 const ctx = { subject: '2300018263', delegatedTarget: '2300010248' };
@@ -24,7 +23,7 @@ function envelope(results: Array<{ claim_id: string; satisfied: boolean; value?:
 }
 
 describe('LiveEvidenceProvider', () => {
-  it('routes reviewed fields through the scenario runner with an Evidence purpose code', async () => {
+  it('routes reviewed fields through the scenario runner without overriding its purpose', async () => {
     const fetcher = vi.fn(async () => envelope([{ claim_id: 'farmer-registered', satisfied: true }])) as unknown as typeof fetch;
     const provider = new LiveEvidenceProvider({ SCENARIO_RUNNER_URL: 'http://scenario-runner:8080' }, fetcher);
     const evaluation = await provider.evaluateDetailed(
@@ -35,9 +34,9 @@ describe('LiveEvidenceProvider', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = vi.mocked(fetcher).mock.calls[0];
     expect(String(url)).toContain('/v1/scenarios/farmer-climate-smart-voucher/steps/positive/run');
-    expect(JSON.parse(String(init?.body))).toEqual({ config: { purpose_override: PURPOSES.voucherEligibilityReview } });
+    expect(JSON.parse(String(init?.body))).toEqual({ config: {} });
     expect(evaluation.result.state).toBe('verified');
-    expect(evaluation.proof.crypto.algorithm).toBe('Flattened JWS, EdDSA');
+    expect(evaluation.proof.crypto.algorithm).toBe('Flattened JWS, ES256');
     expect(JSON.stringify(evaluation)).not.toContain('x-api-key');
   });
 

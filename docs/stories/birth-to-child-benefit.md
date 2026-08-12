@@ -6,9 +6,9 @@ Status: normative for Solmara Lab wave 1 story 1.
 
 This story demonstrates a canonical CRVS-to-social-protection journey: a
 registered birth, a population identity, a household eligibility predicate, and
-a programme duplicate check are gathered as source-owned predicates without
-exposing raw registry rows. The programme policy layer, not the evidence
-collector, decides whether those predicates amount to child benefit
+a programme duplicate check are gathered as signed, source-owned Evidence
+assertions without exposing raw registry rows. The programme policy layer, not
+Registry Evidence, decides whether those assertions amount to child benefit
 eligibility.
 
 ## Authorities And Registries
@@ -23,16 +23,20 @@ eligibility.
 Purpose IRI:
 `https://id.registrystack.org/solmara/purpose/child-benefit-review`.
 
-Evidence offering: `solmara.child-benefit.authority-predicate-collection`.
+Evidence endpoint: `https://evidence.solmara.registrystack.org/v1/evidence`.
 
-Evidence collector endpoint:
-`https://child-benefit-federator.solmara.registrystack.org/v1/evaluations`.
+Requester-scoped discovery endpoint:
+`https://evidence.solmara.registrystack.org/v1/evidence-definitions`.
 
-Response media type: `application/json`.
+The application requests four reviewed requirements:
 
-Credential `vct`: not issued by the child-benefit evidence collector.
+- `https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1`
+- `https://id.registrystack.org/solmara/requirement/nia-child-benefit/v1`
+- `https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1`
+- `https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1`
 
-Offering name: Child Benefit Authority Predicate Collection.
+Each successful response is a flattened JWS with media type
+`application/jose+json`.
 
 ## Positive Path
 
@@ -48,12 +52,11 @@ Expected claims:
 | `household-below-poverty-threshold` | Pass: household score band is eligible; raw score is not disclosed. |
 | `not-already-enrolled` | Pass: no active child support enrollment exists. |
 
-The child-benefit evidence collector calls the CRA, NIA, SRO, and Programme
-Notaries through their ordinary evidence APIs and returns the minimized
-predicate results to the programme review. Its `source_trace` identifies the
-authority service and response status without copying source rows or internal
-evaluation state. The collector does not return a composed eligibility
-decision.
+Registry Evidence calls the CRA, NIA, SRO, and Programme Records APIs through
+separate reviewed source definitions. Each request selects one requirement and
+returns only its approved concepts. The child-benefit application verifies and
+combines those assertions, but does not receive source rows or a composed
+eligibility decision from Evidence.
 
 ## Failure Cases
 
@@ -66,14 +69,11 @@ decision.
 
 ## Purpose Denial
 
-The smoke must attempt a request for raw household poverty score or complete
-household profile under `child-benefit-review`. The response must deny access
-with problem code `pdp.purpose_not_permitted` and must not include the raw
-field.
-
-The smoke must also attempt a request with an unrelated purpose, such as
-`pension-payment-review`, against the child benefit offering. The response must
-deny access with `pdp.purpose_not_permitted`.
+The smoke must submit a complete child-benefit Evidence request with an
+unsupported purpose. Evidence must return HTTP 403 with the generic
+`not_authorized` problem before source access. The response must not reveal
+whether a requirement, purpose, subject, grant, or source would otherwise
+match. Raw household fields are not part of any child-benefit requirement.
 
 ## Smoke Expectations
 
@@ -81,12 +81,11 @@ The story smoke asserts:
 
 1. Metadata discovery returns the child benefit offering and the purpose IRI
    from `docs/purposes.md`.
-2. Mateo's positive evaluation passes all five source predicates.
-3. The response contains an authority `source_trace` and no
-   `eligible-for-child-benefit` composition from the collector.
+2. Mateo's four Evidence requests return all five approved positive concepts.
+3. Each response is a signed assertion and none contains an
+   `eligible-for-child-benefit` application decision.
 4. Each listed failure case returns a failed predicate with no raw protected
    source row in the response.
-5. A raw household score/profile request returns `403`
-   `pdp.purpose_not_permitted` without reflecting a protected field.
-6. An unrelated-purpose request returns `pdp.purpose_not_permitted`.
-7. Message text is not asserted.
+5. An unsupported-purpose request returns HTTP 403 `not_authorized` without
+   reflecting a protected field.
+6. Message text is not asserted.

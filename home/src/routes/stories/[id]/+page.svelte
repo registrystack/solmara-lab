@@ -104,10 +104,10 @@
   }
 
   function sourceAuthorityCount(result: StepRunResult): number {
-    const serviceIds = (result.source_trace ?? [])
-      .map((source) => source.service_id)
-      .filter((serviceId): serviceId is string => typeof serviceId === 'string' && serviceId.length > 0);
-    return new Set(serviceIds).size;
+    const authorities = (result.source_trace ?? [])
+      .map((source) => source.authority ?? source.service_id)
+      .filter((authority): authority is string => typeof authority === 'string' && authority.length > 0);
+    return new Set(authorities).size;
   }
 
   onMount(() => {

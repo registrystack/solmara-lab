@@ -5,32 +5,33 @@ meta {
 }
 
 post {
-  url: {{nagdi_notary_url}}/v1/evaluations
+  url: {{evidence_url}}/v1/evidence
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{NAGDI_NOTARY_TOKEN}}
-  Data-Purpose: {{livestock_purpose}}
-  Accept: application/vnd.registry-notary.claim-result+json
+  Authorization: Bearer {{SOLMARA_EVIDENCE_ACCESS_TOKEN}}
+  Content-Type: application/json
+  Accept: application/jose+json
 }
 
 body:json {
   {
-    "target": {
-      "type": "Person",
-      "identifiers": [
-        {
-          "scheme": "farmer_id",
-          "value": "FR-1001"
-        }
-      ]
-    },
-    "claims": [
-      "eligible-for-livestock-movement-permit"
-    ],
-    "disclosure": "predicate",
-    "format": "application/vnd.registry-notary.claim-result+json"
+    "requestNonce": "{{request_nonce}}",
+    "requirement": "https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1",
+    "purpose": "livestock-movement-control",
+    "subjects": [{
+      "role": "subject",
+      "selector": {
+        "profile": "farmer-reference-v1",
+        "values": { "farmer_id": "FR-1001" }
+      }
+    }]
   }
+}
+
+script:pre-request {
+  const crypto = require("crypto");
+  bru.setVar("request_nonce", crypto.randomBytes(32).toString("base64url"));
 }

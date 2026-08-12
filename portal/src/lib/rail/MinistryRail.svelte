@@ -7,7 +7,7 @@
   //
   // prefers-reduced-motion: all animation is suppressed; a numbered-sequence
   // list renders instead so the gating and fan-out story remains legible.
-  import type { RailEvent, NotaryId } from '$lib/types';
+  import type { AuthorityId, RailEvent } from '$lib/types';
   import { AUTHORITY_NAMES } from '$lib/fields/authorities';
 
   type Props = {
@@ -25,7 +25,7 @@
   const ORBIT_R = 90;
 
   // Ministry nodes in clockwise order around the citizen seat.
-  type NodeId = NotaryId;
+  type NodeId = AuthorityId;
   type NodeDef = {
     id: NodeId;
     label: string;
@@ -47,7 +47,7 @@
     { id: 'certs',          label: 'Certs',       angle: 225, color: 'var(--color-ministry-civil)', glyph: 'Ce' }
   ];
 
-  // NodeId -> NodeDef lookup. We use string keys so NotaryId events from the
+  // NodeId -> NodeDef lookup. We use string keys so authority events from the
   // wire can be looked up directly.
   const nodeMap = new Map<string, NodeDef>(NODES.map((n) => [n.id, n]));
 
@@ -87,7 +87,7 @@
   // pairs: a request event whose id is not superseded by a sealed/denied event.
   type Packet = {
     id: string;
-    authority: NotaryId;
+    authority: AuthorityId;
     channel: string;  // 'verify' | 'fetch' | 'denied'
     motion: 'pulse-target' | 'travel-stamp' | 'bounce';
   };
@@ -112,7 +112,7 @@
           ev.channel === 'verify' ? 'pulse-target' :
           ev.channel === 'fetch'  ? 'travel-stamp' :
           'bounce';
-        packets.push({ id: ev.id, authority: ev.authority as NotaryId, channel: ev.channel, motion } satisfies Packet);
+        packets.push({ id: ev.id, authority: ev.authority as AuthorityId, channel: ev.channel, motion } satisfies Packet);
       }
       return packets;
     })()
@@ -130,7 +130,7 @@
 
   const sequenceSteps = $derived(
     events.map((ev, i): SequenceStep => {
-      const authLabel = AUTHORITY_NAMES[ev.authority as NotaryId] ?? ev.authority;
+      const authLabel = AUTHORITY_NAMES[ev.authority as AuthorityId] ?? ev.authority;
       const channelLabel =
         ev.channel === 'verify' ? 'verify' :
         ev.channel === 'fetch'  ? 'fetch'  :
@@ -206,7 +206,7 @@
           data-motion={packet.motion}
           data-channel={packet.channel}
           data-authority={packet.authority}
-          aria-label={`${packet.channel} packet to ${AUTHORITY_NAMES[packet.authority as NotaryId] ?? packet.authority}`}
+          aria-label={`${packet.channel} packet to ${AUTHORITY_NAMES[packet.authority as AuthorityId] ?? packet.authority}`}
         >
           {#if packet.motion === 'travel-stamp' || packet.motion === 'bounce'}
             <!-- Travel: move from citizen to node (or partway then back for bounce) -->

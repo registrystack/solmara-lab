@@ -1,8 +1,15 @@
 name: solmara-lab-core
 
-# Core hosted Coolify compose. Keep this file and the per-authority
-# compose.coolify.*.yaml files free of custom Docker networks; Coolify owns the
-# proxy network and domains. Cross-authority calls use public TLS endpoints.
+# Coolify owns ingress and TLS. Deploy each authority application first so it
+# creates and populates its fixed-name Relay token volume, then deploy core.
+# Operator-managed Transit proxies must populate the two signer socket volumes
+# before Evidence or Mint starts. Neither service receives provider credentials.
+x-evidence-client-environment: &evidence-client-environment
+  SOLMARA_EVIDENCE_URL: https://evidence.solmara.registrystack.org
+  SOLMARA_MINT_URL: https://mint.solmara.registrystack.org
+  SOLMARA_MINT_ASSERTION_AUDIENCE: https://mint.solmara.registrystack.org/token
+  SOLMARA_EVIDENCE_CLIENT_ID: solmara-demo
+  SOLMARA_EVIDENCE_CLIENT_KEY: /run/secrets/solmara-evidence-client.jwk
 
 services:
   static-metadata:
@@ -22,49 +29,86 @@ services:
     labels:
       solmara.lab.host: workload-issuer.solmara.registrystack.org
 
-  scenario-runner:
+  evidence-state-init:
     image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    user: "0:0"
+    restart: "no"
     environment:
-      SCENARIO_RUNNER_HOST: 0.0.0.0
-      SCENARIO_RUNNER_PORT: 8080
-      SOLMARA_LAB_MODE: hosted
-      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
-      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      CRA_PENSION_CLIENT_TOKEN: ${CRA_PENSION_CLIENT_TOKEN}
-      CRA_CITIZEN_CLIENT_TOKEN: ${CRA_CITIZEN_CLIENT_TOKEN}
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      NIA_CITIZEN_CLIENT_TOKEN: ${NIA_CITIZEN_CLIENT_TOKEN}
-      SIPF_NOTARY_URL: https://sipf-notary.solmara.registrystack.org
-      SIPF_PENSION_CLIENT_TOKEN: ${SIPF_PENSION_CLIENT_TOKEN}
-      NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
-      NAGDI_NOTARY_TOKEN: ${NAGDI_NOTARY_TOKEN}
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      EVIDENCE_AUDIT_HMAC_KEY: ${EVIDENCE_AUDIT_HMAC_KEY}
+      EVIDENCE_SUBJECT_BINDING_HMAC_KEY: ${EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+      EVIDENCE_SIGNING_PUBLIC_JWK: ${EVIDENCE_SIGNING_PUBLIC_JWK}
+      MINT_AUDIT_HMAC_KEY: ${MINT_AUDIT_HMAC_KEY}
+      MINT_SIGNING_PUBLIC_JWK: ${MINT_SIGNING_PUBLIC_JWK}
+      SOLMARA_EVIDENCE_CLIENT_JWK: ${SOLMARA_EVIDENCE_CLIENT_JWK}
+      SOLMARA_EVIDENCE_CLIENT_PUBLIC_JWK: ${SOLMARA_EVIDENCE_CLIENT_PUBLIC_JWK}
+    command: ["python", "/usr/local/bin/hosted-evidence-init.py", "--bundle-source", "/seed/bundle", "--bundle-target", "/bundle", "--evidence-secrets", "/evidence", "--mint-secrets", "/mint", "--application-secrets", "/application", "--mint-clients", "/clients", "--mint-public-keys", "/mint-public-keys", "--evidence-audit", "/evidence-audit", "--mint-audit", "/mint-audit"]
+    volumes:
+      - ./evidence/hosted/init.py:/usr/local/bin/hosted-evidence-init.py:ro
+      - ./evidence/bundle:/seed/bundle:ro
+      - evidence-secrets:/evidence
+      - mint-secrets:/mint
+      - evidence-application-secrets:/application
+      - mint-clients:/clients
+      - mint-public-keys:/mint-public-keys
+      - evidence-audit:/evidence-audit
+      - mint-audit:/mint-audit
+      - evidence-bundle:/bundle
+
+  mint:
+    image: ${SOLMARA_MINT_IMAGE:?set digest-pinned Solmara Mint image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    command: ["serve", "--config", "/etc/registry-mint/config.yaml"]
+    expose: ["8081"]
+    volumes:
+      - ./evidence/hosted/mint.yaml:/etc/registry-mint/config.yaml:ro
+      - mint-clients:/etc/registry-mint/clients:ro
+      - mint-public-keys:/etc/registry-mint/public-keys:ro
+      - mint-secrets:/run/secrets/registry-mint:ro
+      - mint-transit-socket:/run/registry-mint:ro
+      - mint-audit:/var/lib/registry-mint/audit
     depends_on:
-      child-benefit-federator:
-        condition: service_healthy
+      evidence-state-init: { condition: service_completed_successfully }
     labels:
-      solmara.lab.visibility: internal
+      solmara.lab.host: mint.solmara.registrystack.org
+
+  evidence:
+    image: ${SOLMARA_EVIDENCE_IMAGE:?set digest-pinned Solmara Evidence image}
+    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    command: ["--runtime", "/etc/registry-evidence/runtime.yaml", "serve"]
+    expose: ["8080"]
+    volumes:
+      - ./evidence/hosted/runtime.yaml:/etc/registry-evidence/runtime.yaml:ro
+      - evidence-bundle:/etc/registry-evidence/bundle:ro
+      - evidence-secrets:/run/secrets/registry-evidence:ro
+      - evidence-transit-socket:/run/registry-evidence:ro
+      - cra-evidence-workload-token:/run/secrets/registry-evidence/relay/cra:ro
+      - nia-evidence-workload-token:/run/secrets/registry-evidence/relay/nia:ro
+      - sro-evidence-workload-token:/run/secrets/registry-evidence/relay/sro:ro
+      - programme-evidence-workload-token:/run/secrets/registry-evidence/relay/programme:ro
+      - sipf-evidence-workload-token:/run/secrets/registry-evidence/relay/sipf:ro
+      - nagdi-evidence-workload-token:/run/secrets/registry-evidence/relay/nagdi:ro
+      - evidence-audit:/var/lib/registry-evidence/audit
+    depends_on:
+      evidence-state-init: { condition: service_completed_successfully }
+      mint: { condition: service_started }
+    labels:
+      solmara.lab.host: evidence.solmara.registrystack.org
 
   child-benefit-federator:
     image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
     command: ["python", "scenario-runner/child_benefit_federator.py"]
     environment:
+      <<: *evidence-client-environment
       CHILD_BENEFIT_FEDERATOR_HOST: 0.0.0.0
       CHILD_BENEFIT_FEDERATOR_PORT: 8080
       CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      CRA_CHILD_BENEFIT_CLIENT_TOKEN: ${CRA_CHILD_BENEFIT_CLIENT_TOKEN}
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      NIA_CHILD_BENEFIT_CLIENT_TOKEN: ${NIA_CHILD_BENEFIT_CLIENT_TOKEN}
-      SRO_NOTARY_URL: https://sro-notary.solmara.registrystack.org
-      SRO_CHILD_BENEFIT_CLIENT_TOKEN: ${SRO_CHILD_BENEFIT_CLIENT_TOKEN}
-      PROGRAMME_NOTARY_URL: https://programme-notary.solmara.registrystack.org
-      PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN: ${PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN}
+    volumes:
+      - evidence-application-secrets:/run/secrets:ro
+    depends_on:
+      evidence: { condition: service_started }
+      mint: { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
       interval: 30s
@@ -72,6 +116,27 @@ services:
       retries: 3
     labels:
       solmara.lab.host: child-benefit-federator.solmara.registrystack.org
+
+  scenario-runner:
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    environment:
+      <<: *evidence-client-environment
+      SCENARIO_RUNNER_HOST: 0.0.0.0
+      SCENARIO_RUNNER_PORT: 8080
+      SOLMARA_LAB_MODE: hosted
+      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
+      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
+    volumes:
+      - evidence-application-secrets:/run/secrets:ro
+    depends_on:
+      child-benefit-federator: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      solmara.lab.visibility: internal
 
   home:
     image: ${SOLMARA_HOME_IMAGE:?set digest-pinned Solmara home image}
@@ -84,6 +149,8 @@ services:
       SCENARIO_RUNNER_URL: http://scenario-runner:8080
       STATIC_METADATA_URL: http://static-metadata:8080
       PORTAL_PROBE_URL: http://portal:4000
+      SOLMARA_EVIDENCE_URL: https://evidence.solmara.registrystack.org
+      SOLMARA_MINT_URL: https://mint.solmara.registrystack.org
       CRA_CIVIL_RELAY_URL: https://cra-relay.solmara.registrystack.org
       NIA_POPULATION_RELAY_URL: https://nia-relay.solmara.registrystack.org
       SRO_SOCIAL_RELAY_URL: https://sro-relay.solmara.registrystack.org
@@ -91,33 +158,12 @@ services:
       SIPF_PENSIONS_RELAY_URL: https://sipf-relay.solmara.registrystack.org
       NAGDI_AGRICULTURE_RELAY_URL: https://nagdi-relay.solmara.registrystack.org
       CHILD_BENEFIT_FEDERATOR_URL: https://child-benefit-federator.solmara.registrystack.org
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      SRO_NOTARY_URL: https://sro-notary.solmara.registrystack.org
-      PROGRAMME_NOTARY_URL: https://programme-notary.solmara.registrystack.org
-      SIPF_NOTARY_URL: https://sipf-notary.solmara.registrystack.org
-      NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
       HOME_PUBLISHED_TOKENS: >-
-        {"child-benefit-federator":"${CHILD_BENEFIT_FEDERATOR_TOKEN}",
-        "cra-pension-client":"${CRA_PENSION_CLIENT_TOKEN}",
-        "cra-citizen-client":"${CRA_CITIZEN_CLIENT_TOKEN}",
-        "nia-citizen-client":"${NIA_CITIZEN_CLIENT_TOKEN}",
-        "sipf-pension-client":"${SIPF_PENSION_CLIENT_TOKEN}",
-        "nagdi-notary":"${NAGDI_NOTARY_TOKEN}"}
+        {"child-benefit-federator":"${CHILD_BENEFIT_FEDERATOR_TOKEN}"}
       SOLMARA_PUBLIC_URL_MAP: >-
         {"child-benefit-federator:8080":"https://child-benefit-federator.solmara.registrystack.org",
-        "cra-notary:8081":"https://cra-notary.solmara.registrystack.org",
-        "nia-notary:8081":"https://nia-notary.solmara.registrystack.org",
-        "sro-notary:8081":"https://sro-notary.solmara.registrystack.org",
-        "programme-notary:8081":"https://programme-notary.solmara.registrystack.org",
-        "sipf-notary:8081":"https://sipf-notary.solmara.registrystack.org",
-        "nagdi-notary:8081":"https://nagdi-notary.solmara.registrystack.org",
-        "cra-civil-relay:8080":"https://cra-relay.solmara.registrystack.org",
-        "nia-population-relay:8080":"https://nia-relay.solmara.registrystack.org",
-        "sro-social-relay:8080":"https://sro-relay.solmara.registrystack.org",
-        "programme-mis-relay:8080":"https://mosd-programme-relay.solmara.registrystack.org",
-        "sipf-pensions-relay:8080":"https://sipf-relay.solmara.registrystack.org",
-        "nagdi-agriculture-relay:8080":"https://nagdi-relay.solmara.registrystack.org",
+        "evidence:8080":"https://evidence.solmara.registrystack.org",
+        "mint:8081":"https://mint.solmara.registrystack.org",
         "static-metadata:8080":"https://metadata.solmara.registrystack.org",
         "portal:4000":"https://portal.solmara.registrystack.org"}
       UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
@@ -127,10 +173,8 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      static-metadata:
-        condition: service_started
-      scenario-runner:
-        condition: service_healthy
+      static-metadata: { condition: service_started }
+      scenario-runner: { condition: service_healthy }
     labels:
       solmara.lab.host: solmara.registrystack.org
 
@@ -156,15 +200,6 @@ services:
       PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
       CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
       CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      CRA_PENSION_CLIENT_TOKEN: ${CRA_PENSION_CLIENT_TOKEN}
-      CRA_CITIZEN_CLIENT_TOKEN: ${CRA_CITIZEN_CLIENT_TOKEN}
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      NIA_CITIZEN_CLIENT_TOKEN: ${NIA_CITIZEN_CLIENT_TOKEN}
-      SIPF_NOTARY_URL: https://sipf-notary.solmara.registrystack.org
-      SIPF_PENSION_CLIENT_TOKEN: ${SIPF_PENSION_CLIENT_TOKEN}
-      NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
-      NAGDI_NOTARY_TOKEN: ${NAGDI_NOTARY_TOKEN}
       SCENARIO_RUNNER_URL: http://scenario-runner:8080
       STATIC_METADATA_URL: http://static-metadata:8080
     healthcheck:
@@ -173,7 +208,40 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      scenario-runner:
-        condition: service_healthy
+      scenario-runner: { condition: service_healthy }
     labels:
       solmara.lab.host: portal.solmara.registrystack.org
+
+volumes:
+  evidence-secrets:
+  mint-secrets:
+  evidence-application-secrets:
+  mint-clients:
+  mint-public-keys:
+  evidence-audit:
+  mint-audit:
+  evidence-bundle:
+  cra-evidence-workload-token:
+    external: true
+    name: ${CRA_EVIDENCE_WORKLOAD_TOKEN_VOLUME:-solmara-cra-evidence-workload-token}
+  nia-evidence-workload-token:
+    external: true
+    name: ${NIA_EVIDENCE_WORKLOAD_TOKEN_VOLUME:-solmara-nia-evidence-workload-token}
+  sro-evidence-workload-token:
+    external: true
+    name: ${SRO_EVIDENCE_WORKLOAD_TOKEN_VOLUME:-solmara-sro-evidence-workload-token}
+  programme-evidence-workload-token:
+    external: true
+    name: ${PROGRAMME_EVIDENCE_WORKLOAD_TOKEN_VOLUME:-solmara-programme-evidence-workload-token}
+  sipf-evidence-workload-token:
+    external: true
+    name: ${SIPF_EVIDENCE_WORKLOAD_TOKEN_VOLUME:-solmara-sipf-evidence-workload-token}
+  nagdi-evidence-workload-token:
+    external: true
+    name: ${NAGDI_EVIDENCE_WORKLOAD_TOKEN_VOLUME:-solmara-nagdi-evidence-workload-token}
+  evidence-transit-socket:
+    external: true
+    name: ${EVIDENCE_TRANSIT_SOCKET_VOLUME:-solmara-evidence-transit-socket}
+  mint-transit-socket:
+    external: true
+    name: ${MINT_TRANSIT_SOCKET_VOLUME:-solmara-mint-transit-socket}

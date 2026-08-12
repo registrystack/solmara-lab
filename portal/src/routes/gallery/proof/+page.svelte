@@ -63,7 +63,7 @@
         </li>
         <li>
           <span class="legend-badge denied">denied</span>
-          event-4: denied (Civil, subject_mismatch - cross-person attempt)
+          event-4: denied (Civil, not_authorized - cross-person attempt)
         </li>
         <li>
           <span class="legend-badge identity">identity</span>

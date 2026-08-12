@@ -301,6 +301,9 @@ class ChildBenefitCollectorTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as raised:
             self.request("/v1/claims", token="wrong")
         self.assertEqual(raised.exception.code, 401)
+        self.assertEqual(
+            raised.exception.headers.get_content_type(), "application/problem+json"
+        )
         raised.exception.close()
 
     def test_rejects_duplicate_or_unknown_concepts_before_evidence(self) -> None:
@@ -309,7 +312,134 @@ class ChildBenefitCollectorTest(unittest.TestCase):
             with self.subTest(claims=claims), self.assertRaises(urllib.error.HTTPError) as raised:
                 self.request("/v1/evaluations", body={**base, "claims": claims})
             self.assertEqual(raised.exception.code, 400)
+            self.assertEqual(
+                raised.exception.headers.get_content_type(),
+                "application/problem+json",
+            )
+            problem = json.loads(raised.exception.read())
+            self.assertEqual(problem["code"], "invalid_request")
+            self.assertNotIn("2300010248", json.dumps(problem))
+            self.assertTrue(
+                {"type", "title", "status", "code", "detail"}.issubset(problem)
+            )
             raised.exception.close()
+
+    def test_collects_central_evidence_with_exact_authority_trace(self) -> None:
+        claims_by_requirement = {
+            child_benefit_federator.requirement_id(route["client_id"]): route["claims"]
+            for route in child_benefit_federator.SOURCE_ROUTES
+        }
+        calls: list[tuple[str, str, dict[str, str], dict[str, Any]]] = []
+        original_http_json = child_benefit_federator.http_json
+        original_service_token = child_benefit_federator.service_token
+
+        def fake_http_json(method, url, headers, body=None, timeout=8.0):
+            calls.append((method, url, headers, body))
+            return StepHttpResult(
+                200,
+                signed_evidence(
+                    [(claim, True) for claim in claims_by_requirement[body["requirement"]]]
+                ),
+                {"content-type": common.EVIDENCE_JWS_MEDIA_TYPE},
+            )
+
+        child_benefit_federator.http_json = fake_http_json
+        child_benefit_federator.service_token = lambda _: "evidence-token"
+        try:
+            with self.request(
+                "/v1/evaluations",
+                body={
+                    "target": {
+                        "identifiers": [
+                            {"scheme": "solmara_uin", "value": "2300010248"}
+                        ]
+                    },
+                    "claims": list(child_benefit.CLAIMS),
+                },
+            ) as response:
+                payload = json.loads(response.read())
+        finally:
+            child_benefit_federator.http_json = original_http_json
+            child_benefit_federator.service_token = original_service_token
+
+        self.assertEqual(len(calls), 4)
+        self.assertTrue(all(method == "POST" for method, _, _, _ in calls))
+        self.assertTrue(
+            all(url.endswith("/v1/evidence") for _, url, _, _ in calls)
+        )
+        self.assertTrue(
+            all(
+                headers == {
+                    "Authorization": "Bearer evidence-token",
+                    "Accept": common.EVIDENCE_JWS_MEDIA_TYPE,
+                }
+                for _, _, headers, _ in calls
+            )
+        )
+        self.assertEqual(
+            [body["requirement"] for _, _, _, body in calls],
+            [
+                child_benefit_federator.requirement_id(route["client_id"])
+                for route in child_benefit_federator.SOURCE_ROUTES
+            ],
+        )
+        self.assertEqual(
+            len({body["requestNonce"] for _, _, _, body in calls}),
+            4,
+        )
+        self.assertEqual(
+            [trace["authority"] for trace in payload["source_trace"]],
+            [route["authority"] for route in child_benefit_federator.SOURCE_ROUTES],
+        )
+        self.assertEqual(
+            [trace["requirement"] for trace in payload["source_trace"]],
+            [
+                child_benefit_federator.requirement_id(route["client_id"])
+                for route in child_benefit_federator.SOURCE_ROUTES
+            ],
+        )
+        self.assertEqual(
+            {trace["service_id"] for trace in payload["source_trace"]},
+            {"registry-evidence"},
+        )
+        self.assertEqual(len(payload["signed_evidence"]), 4)
+        self.assertNotIn("2300010248", json.dumps(payload))
+
+    def test_upstream_evidence_denial_returns_value_free_problem(self) -> None:
+        original_http_json = child_benefit_federator.http_json
+        original_service_token = child_benefit_federator.service_token
+        child_benefit_federator.http_json = lambda *args, **kwargs: StepHttpResult(
+            403,
+            {"value": "2300010248", "source_record": {"private": True}},
+            {"content-type": "application/problem+json"},
+        )
+        child_benefit_federator.service_token = lambda _: "evidence-token"
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                self.request(
+                    "/v1/evaluations",
+                    body={
+                        "target": {
+                            "identifiers": [
+                                {"scheme": "solmara_uin", "value": "2300010248"}
+                            ]
+                        },
+                        "claims": ["birth-is-registered"],
+                    },
+                )
+            self.assertEqual(raised.exception.code, 502)
+            self.assertEqual(
+                raised.exception.headers.get_content_type(),
+                "application/problem+json",
+            )
+            problem = json.loads(raised.exception.read())
+            self.assertEqual(problem["code"], "evidence_unavailable")
+            self.assertNotIn("2300010248", json.dumps(problem))
+            self.assertNotIn("source_record", problem)
+            raised.exception.close()
+        finally:
+            child_benefit_federator.http_json = original_http_json
+            child_benefit_federator.service_token = original_service_token
 
 
 if __name__ == "__main__":

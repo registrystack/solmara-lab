@@ -15,7 +15,7 @@ function trace(id: string): ProofTrace {
     ts: '2026-06-22T12:00:00.000Z',
     request: {
       method: 'POST',
-      url: 'https://civil-notary.gov.solmara.example/v1/evaluations',
+      url: 'https://evidence.solmara.example/v1/evidence',
       body: { claim: 'person-is-deceased' }
     },
     response: {

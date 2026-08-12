@@ -17,28 +17,29 @@ const verifiedTrace: ProofTrace = {
   ts: '2026-06-21T12:04:09.000Z',
   request: {
     method: 'POST',
-    url: 'https://nagdi-notary.solmara.example/v1/evaluations',
+    url: 'https://evidence.solmara.example/v1/evidence',
     body: {
-      claim: 'farmer-registered',
-      purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-      relationship: 'self'
+      requestNonce: 'U29sbWFyYVJlZ2lzdHJ5RXZpZGVuY2VEZW1vMDAwMDE',
+      requirement: 'urn:solmara:requirement:farmer-registered:v1',
+      purpose: 'voucher-eligibility-review',
+      subjects: [{ role: 'subject', selector: { profile: 'solmara-farmer-v1', values: {} } }]
     }
   },
   response: {
     status: 200,
     body: {
-      registered: true,
-      source_authority: 'Agriculture',
-      as_of: '2026-05-01'
+      protected: 'eyJhbGciOiJFUzI1NiJ9',
+      payload: 'c3ludGhldGljLWV2aWRlbmNl',
+      signature: 'synthetic-signature-redacted'
     }
   },
   proof: {
-    signedBy: 'No credential issued; National Agricultural Data Institute returned a claim evaluation',
-    algorithm: 'Registry Notary claim-result response; no credential signature asserted',
-    issuerKey: 'Not applicable for claim-result evaluation',
-    holderBound: 'Not credential-bound; the portal selected the purpose and subject',
-    credential: 'Claim result only; no credential issued',
-    auditId: 'Not available in this canned gallery trace'
+    signedBy: 'National Agricultural Data Institute through Registry Evidence',
+    algorithm: 'Flattened JWS, ES256',
+    issuerKey: '/.well-known/evidence/jwks.json',
+    holderBound: 'Audience-scoped to the portal requester, purpose, nonce, and subject binding',
+    credential: 'Signed minimum-disclosure Evidence assertion',
+    auditId: 'evidence:event-2'
   }
 };
 
@@ -47,26 +48,26 @@ const denialTrace: ProofTrace = {
   seq: 4,
   fieldId: 'person-is-deceased',
   authority: 'civil',
-  headline: 'Denied by Civil Registry: subject mismatch, no data read',
-  answered: 'Civil answered: person-is-deceased = denied (subject_mismatch)',
+  headline: 'Denied by the portal: request was not authorized, no data read',
+  answered: 'Portal authorization gate answered: request = denied (not_authorized)',
   notDisclosed: 'No data was read; the query was rejected before any registry access',
   status: 'denied',
   ts: '2026-06-21T12:04:15.000Z',
   request: {
     method: 'POST',
-    url: 'https://cra-notary.solmara.example/v1/evaluations',
+    url: 'solmara://citizen-portal/blocked-before-evidence',
     body: {
-      claim: 'person-is-deceased',
-      purpose: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
-      relationship: 'self'
+      requirement: 'urn:solmara:requirement:person-is-deceased:v1',
+      purpose: 'pension-payment-review'
     }
   },
   response: {
     status: 403,
     body: {
-      error: 'subject_mismatch',
-      source_authority: 'Civil Registry',
-      message: 'Token subject does not match requested target'
+      type: 'urn:solmara:portal:problem:not_authorized',
+      title: 'Portal authorization denied the request',
+      status: 403,
+      detail: 'The portal stopped this request before source access'
     }
   }
 };
@@ -76,12 +77,12 @@ const applicationEvidenceTrace: ProofTrace = {
   id: 'event-application-evidence',
   authority: 'population',
   proof: {
-    signedBy: 'National Identity Agency source-owned Notary',
-    algorithm: 'Ordinary JSON response; no application signature asserted',
-    issuerKey: 'Not applicable for an application evidence set',
-    holderBound: 'The application selected the purpose and subject',
-    credential: 'Minimized source-attributed predicate result',
-    auditId: 'evidence-set:cbe_test'
+    signedBy: 'National Identity Agency through Registry Evidence',
+    algorithm: 'Flattened JWS, ES256',
+    issuerKey: '/.well-known/evidence/jwks.json',
+    holderBound: 'Audience-scoped to the portal requester, purpose, nonce, and subject binding',
+    credential: 'Signed minimum-disclosure Evidence assertion',
+    auditId: 'evidence:cbe_test'
   }
 };
 
@@ -114,10 +115,10 @@ describe('ProofInspector', () => {
       ).toBeInTheDocument();
     });
 
-    it('does not present canned evaluations or UserInfo as signed credentials', () => {
+    it('presents Evidence calls as signed assertions while keeping UserInfo distinct', () => {
       const serialized = JSON.stringify(CANNED_TRACES);
-      expect(serialized).not.toMatch(/SD-JWT|EdDSA\/Ed25519/);
-      expect(serialized).toContain('no credential signature asserted');
+      expect(serialized).toContain('Signed minimum-disclosure Evidence assertion');
+      expect(serialized).toContain('OIDC UserInfo response; no credential signature asserted');
       expect(CANNED_TRACES.find((trace) => trace.fieldId === 'household-below-poverty-threshold')?.authority).toBe(
         'socialRegistry'
       );
@@ -179,16 +180,16 @@ describe('ProofInspector', () => {
       await fireEvent.click(screen.getByText(/Request and response/));
       await fireEvent.click(screen.getByText(/Cryptographic proof/));
 
-      expect(screen.getByText('Minimized source-attributed predicate result')).toBeInTheDocument();
+      expect(screen.getByText('Signed minimum-disclosure Evidence assertion')).toBeInTheDocument();
       expect(
-        screen.getByText('National Identity Agency source-owned Notary')
+        screen.getByText('National Identity Agency through Registry Evidence')
       ).toBeInTheDocument();
       expect(screen.queryByText('Raw SD-JWT')).not.toBeInTheDocument();
     });
   });
 
   describe('Copy-as-curl', () => {
-    it('curl output contains $NOTARY_TOKEN placeholder, not a real token', async () => {
+    it('curl output contains the Evidence bearer placeholder, not a real token', async () => {
       const writtenTexts: string[] = [];
       const mockWriteText = vi.fn((text: string) => {
         writtenTexts.push(text);
@@ -216,8 +217,8 @@ describe('ProofInspector', () => {
       const curlCmd = writtenTexts[0];
 
       // Must contain the placeholder token variable
-      expect(curlCmd).toContain('$NOTARY_TOKEN');
-      expect(curlCmd).toContain('x-api-key: $NOTARY_TOKEN');
+      expect(curlCmd).toContain('$EVIDENCE_TOKEN');
+      expect(curlCmd).toContain('Authorization: Bearer $EVIDENCE_TOKEN');
 
       // Must NOT contain any real token material
       // Real tokens would be long base64 or JWT-format strings

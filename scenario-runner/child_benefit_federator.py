@@ -57,7 +57,7 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
             return
         purpose = self.headers.get("Data-Purpose", "")
         if purpose != CHILD_PURPOSE:
-            self.write_problem(HTTPStatus.FORBIDDEN, "purpose_not_permitted", "Only child-benefit-review is permitted.")
+            self.write_problem(HTTPStatus.FORBIDDEN, "not_authorized", "Only child-benefit-review is permitted.")
             return
         body = self.read_body()
         if body is None:
@@ -119,17 +119,33 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
             return None
         return value
 
-    def write_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
+    def write_json(
+        self,
+        payload: dict[str, Any],
+        status: HTTPStatus = HTTPStatus.OK,
+        *,
+        content_type: str = "application/json",
+    ) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode()
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", content_type)
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def write_problem(self, status: HTTPStatus, code: str, detail: str) -> None:
-        self.write_json({"type": f"https://id.registrystack.org/problems/solmara/{code}", "title": code.replace("_", " ").title(), "status": int(status), "code": code, "detail": detail}, status)
+        self.write_json(
+            {
+                "type": f"https://id.registrystack.org/problems/solmara/{code}",
+                "title": code.replace("_", " ").title(),
+                "status": int(status),
+                "code": code,
+                "detail": detail,
+            },
+            status,
+            content_type="application/problem+json",
+        )
 
     def log_message(self, format: str, *args: Any) -> None:
         if os.environ.get("CHILD_BENEFIT_FEDERATOR_ACCESS_LOG") == "1":

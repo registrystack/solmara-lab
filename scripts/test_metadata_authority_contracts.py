@@ -10,18 +10,28 @@ METADATA = ROOT / "metadata" / "public" / "metadata"
 
 
 class AuthorityMetadataContractTests(unittest.TestCase):
-    def test_notary_data_services_publish_real_runtime_routes(self) -> None:
+    def test_data_services_publish_evidence_and_exact_records_routes(self) -> None:
         catalog = json.loads((METADATA / "catalog.json").read_text(encoding="utf-8"))
-        authority_services = [
+        evidence = next(
+            service for service in catalog["data_services"]
+            if service["id"] == "registry-evidence-api"
+        )
+        self.assertEqual(
+            evidence["endpoint_url"],
+            "https://evidence.solmara.registrystack.org/v1/evidence",
+        )
+
+        records_services = [
             service
             for service in catalog["data_services"]
-            if service["id"].endswith("-notary-api")
+            if service["id"].endswith("-records-api")
         ]
 
-        self.assertEqual(len(authority_services), 6)
-        for service in authority_services:
+        self.assertEqual(len(records_services), 8)
+        for service in records_services:
             with self.subTest(service=service["id"]):
-                self.assertTrue(service["iri"].endswith("/v1/evaluations"))
+                self.assertIn("/v1/datasets/", service["iri"])
+                self.assertTrue(service["iri"].endswith("/records"))
                 self.assertEqual(service["endpoint_url"], service["iri"])
                 self.assertTrue(
                     service["endpoint_description"].endswith("/openapi.json")
@@ -41,12 +51,16 @@ class AuthorityMetadataContractTests(unittest.TestCase):
         for offering in authority_offerings:
             with self.subTest(offering=offering["id"]):
                 access = offering["access"]
-                self.assertTrue(access["endpoint_url"].endswith("/v1/evaluations"))
-                self.assertTrue(
-                    access["discovery_url"].endswith("/.well-known/evidence-service")
+                self.assertEqual(
+                    access["endpoint_url"],
+                    "https://evidence.solmara.registrystack.org/v1/evidence",
+                )
+                self.assertEqual(
+                    access["discovery_url"],
+                    "https://evidence.solmara.registrystack.org/v1/evidence-definitions",
                 )
 
-    def test_offering_purposes_match_notary_services(self) -> None:
+    def test_offering_purposes_match_evidence_requirements(self) -> None:
         document = json.loads(
             (METADATA / "evidence-offerings.json").read_text(encoding="utf-8")
         )
@@ -66,6 +80,10 @@ class AuthorityMetadataContractTests(unittest.TestCase):
         self.assertEqual(
             offerings["nagdi-agriculture-livestock-movement-offering"]["purposes"],
             ["https://id.registrystack.org/solmara/purpose/livestock-movement-control"],
+        )
+
+        self.assertNotIn(
+            "solmara.child-benefit.authority-predicate-collection", offerings
         )
 
     def test_cra_offerings_publish_only_the_supported_uin_lookup(self) -> None:
@@ -90,7 +108,7 @@ class AuthorityMetadataContractTests(unittest.TestCase):
             / "03 - Read survivor eligibility.bru"
         ).read_text(encoding="utf-8")
 
-        self.assertIn('"value": "2300118698"', request)
+        self.assertIn('"values": { "uin": "2300118698" }', request)
         self.assertNotIn('"value": "2300109568"', request)
 
 

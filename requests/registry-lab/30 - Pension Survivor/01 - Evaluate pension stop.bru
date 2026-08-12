@@ -1,36 +1,37 @@
 meta {
-  name: 01 - Read CRA death predicate
+  name: 01 - Request CRA death evidence
   type: http
   seq: 1
 }
 
 post {
-  url: {{cra_notary_url}}/v1/evaluations
+  url: {{evidence_url}}/v1/evidence
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{CRA_PENSION_CLIENT_TOKEN}}
-  Data-Purpose: {{pension_payment_purpose}}
-  Accept: application/vnd.registry-notary.claim-result+json
+  Authorization: Bearer {{SOLMARA_EVIDENCE_ACCESS_TOKEN}}
+  Content-Type: application/json
+  Accept: application/jose+json
 }
 
 body:json {
   {
-    "target": {
-      "type": "Person",
-      "identifiers": [
-        {
-          "scheme": "solmara_uin",
-          "value": "2300109568"
-        }
-      ]
-    },
-    "claims": [
-      "person-is-deceased"
-    ],
-    "disclosure": "predicate",
-    "format": "application/vnd.registry-notary.claim-result+json"
+    "requestNonce": "{{request_nonce}}",
+    "requirement": "https://id.registrystack.org/solmara/requirement/cra-pension-death/v1",
+    "purpose": "pension-payment-review",
+    "subjects": [{
+      "role": "subject",
+      "selector": {
+        "profile": "solmara-uin-v1",
+        "values": { "uin": "2300109568" }
+      }
+    }]
   }
+}
+
+script:pre-request {
+  const crypto = require("crypto");
+  bru.setVar("request_nonce", crypto.randomBytes(32).toString("base64url"));
 }

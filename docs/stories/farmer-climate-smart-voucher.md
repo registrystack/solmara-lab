@@ -27,15 +27,8 @@ Evidence offerings:
 - `solmara.nagdi.climate-smart-voucher-eligibility`
 - `solmara.nagdi.livestock-movement-permit`
 
-Credential `vct` values:
-
-- `https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility`
-- `https://id.registrystack.org/solmara/vct/livestock-movement-permit`
-
-Credential names:
-
-- Climate-Smart Voucher Eligibility SD-JWT VC.
-- Livestock Movement Permit SD-JWT VC.
+The active lab bundle permits signed JWS responses for both requirements. It
+does not expose a wallet issuance flow for either application decision.
 
 ## Positive Path
 
@@ -59,9 +52,12 @@ Expected livestock companion claims:
 | `origin-district-not-quarantined-for-species` | Pass: no species-specific quarantine applies. |
 | `destination-permitted` | Pass: destination district allows the movement. |
 
-The NAgDI notary previews or issues the voucher eligibility credential and the
-livestock movement permit credential. Responses disclose predicates and
-references, not full workbook rows.
+Registry Evidence calls the NAgDI farmer or herd Records API for the selected
+requirement and returns a signed minimized assertion. The voucher requirement
+is `https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1`; the
+livestock requirement is
+`https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1`.
+Responses disclose approved concepts, not full workbook rows.
 
 ## Failure Cases
 
@@ -74,13 +70,10 @@ references, not full workbook rows.
 
 ## Purpose Denial
 
-The smoke must attempt to use `livestock-movement-control` to read voucher
-budget, market-sizing, or crop programme details. The response must deny access
-with `pdp.purpose_not_permitted`.
-
-The smoke must attempt to use `voucher-eligibility-review` to read unrelated
-livestock movement details. The response must deny access with
-`pdp.purpose_not_permitted`.
+The smoke must submit the livestock requirement with the voucher purpose and
+the voucher requirement with the livestock purpose. Each mismatch must return
+HTTP 403 `not_authorized` before source access. Neither requirement exposes
+voucher budget, market-sizing, or unrelated movement details.
 
 ## Smoke Expectations
 
@@ -88,11 +81,12 @@ The story smoke asserts:
 
 1. Metadata discovery returns both NAgDI offerings and purpose IRIs from
    `docs/purposes.md`.
-2. Amina passes voucher eligibility and receives the expected voucher `vct`.
-3. Amina passes the livestock movement companion and receives the expected
-   livestock movement `vct`.
+2. Amina passes voucher eligibility and receives a verifiable signed Evidence
+   assertion.
+3. Amina passes the livestock movement companion and receives a verifiable
+   signed Evidence assertion.
 4. Diego, Noor, Beatriz, and Sefu each fail the listed predicate.
-5. Cross-purpose NAgDI access is denied with `pdp.purpose_not_permitted`.
+5. Cross-purpose NAgDI access is denied with HTTP 403 `not_authorized`.
 6. The ported claim configs use `FR-*` farmer identifiers and Solmara P-coded
    districts, not legacy real-country geography or agriculture national-id
    aliases.

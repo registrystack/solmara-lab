@@ -51,76 +51,96 @@
   ],
   "data_services": [
     {
-      "conforms_to": "https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
       "description": {
-        "en": "Returns application/json collections assembled from source-Notary predicates without composing an eligibility decision."
+        "en": "Returns signed, minimum-disclosure evidence from reviewed requirements backed by authority Records APIs."
       },
-      "endpoint_description": "https://child-benefit-federator.solmara.registrystack.org/v1/claims",
-      "endpoint_url": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
-      "id": "child-benefit-evidence-collector-api",
-      "iri": "https://child-benefit-federator.solmara.registrystack.org/v1/evaluations",
+      "endpoint_description": "https://evidence.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://evidence.solmara.registrystack.org/v1/evidence",
+      "id": "registry-evidence-api",
+      "iri": "https://evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "Child benefit authority predicate collection API"
+        "en": "Registry Evidence API"
       }
     },
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_description": "https://cra-notary.solmara.registrystack.org/openapi.json",
-      "endpoint_url": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
-      "id": "cra-notary-api",
-      "iri": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://cra-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://cra-relay.solmara.registrystack.org/v1/datasets/civil_people/entities/civil_people/records",
+      "id": "cra-records-api",
+      "iri": "https://cra-relay.solmara.registrystack.org/v1/datasets/civil_people/entities/civil_people/records",
       "title": {
-        "en": "CRA evidence API"
+        "en": "CRA Records API"
       }
     },
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_description": "https://nia-notary.solmara.registrystack.org/openapi.json",
-      "endpoint_url": "https://nia-notary.solmara.registrystack.org/v1/evaluations",
-      "id": "nia-notary-api",
-      "iri": "https://nia-notary.solmara.registrystack.org/v1/evaluations",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://nia-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://nia-relay.solmara.registrystack.org/v1/datasets/population/entities/population/records",
+      "id": "nia-records-api",
+      "iri": "https://nia-relay.solmara.registrystack.org/v1/datasets/population/entities/population/records",
       "title": {
-        "en": "NIA evidence API"
+        "en": "NIA Records API"
       }
     },
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_description": "https://sro-notary.solmara.registrystack.org/openapi.json",
-      "endpoint_url": "https://sro-notary.solmara.registrystack.org/v1/evaluations",
-      "id": "sro-notary-api",
-      "iri": "https://sro-notary.solmara.registrystack.org/v1/evaluations",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://sro-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://sro-relay.solmara.registrystack.org/v1/datasets/sro_child/entities/sro_child/records",
+      "id": "sro-records-api",
+      "iri": "https://sro-relay.solmara.registrystack.org/v1/datasets/sro_child/entities/sro_child/records",
       "title": {
-        "en": "SRO evidence API"
+        "en": "SRO Records API"
       }
     },
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_description": "https://programme-notary.solmara.registrystack.org/openapi.json",
-      "endpoint_url": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
-      "id": "programme-notary-api",
-      "iri": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://mosd-programme-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://mosd-programme-relay.solmara.registrystack.org/v1/datasets/mosd_enroll/entities/mosd_enroll/records",
+      "id": "programme-records-api",
+      "iri": "https://mosd-programme-relay.solmara.registrystack.org/v1/datasets/mosd_enroll/entities/mosd_enroll/records",
       "title": {
-        "en": "Programme MIS evidence API"
+        "en": "Programme MIS Records API"
       }
     },
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_description": "https://sipf-notary.solmara.registrystack.org/openapi.json",
-      "endpoint_url": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
-      "id": "sipf-notary-api",
-      "iri": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://sipf-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://sipf-relay.solmara.registrystack.org/v1/datasets/pension/entities/pension/records",
+      "id": "sipf-pension-records-api",
+      "iri": "https://sipf-relay.solmara.registrystack.org/v1/datasets/pension/entities/pension/records",
       "title": {
-        "en": "SIPF evidence API"
+        "en": "SIPF pension Records API"
       }
     },
     {
-      "conforms_to": "https://id.registrystack.org/spec/registry-notary/evidence/v1",
-      "endpoint_description": "https://nagdi-notary.solmara.registrystack.org/openapi.json",
-      "endpoint_url": "https://nagdi-notary.solmara.registrystack.org/v1/evaluations",
-      "id": "nagdi-notary-api",
-      "iri": "https://nagdi-notary.solmara.registrystack.org/v1/evaluations",
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://sipf-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://sipf-relay.solmara.registrystack.org/v1/datasets/survivor/entities/survivor/records",
+      "id": "sipf-survivor-records-api",
+      "iri": "https://sipf-relay.solmara.registrystack.org/v1/datasets/survivor/entities/survivor/records",
       "title": {
-        "en": "NAgDI evidence API"
+        "en": "SIPF survivor Records API"
+      }
+    },
+    {
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://nagdi-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_farmer/entities/nagdi_farmer/records",
+      "id": "nagdi-farmer-records-api",
+      "iri": "https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_farmer/entities/nagdi_farmer/records",
+      "title": {
+        "en": "NAgDI farmer Records API"
+      }
+    },
+    {
+      "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
+      "endpoint_description": "https://nagdi-relay.solmara.registrystack.org/openapi.json",
+      "endpoint_url": "https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_herd/entities/nagdi_herd/records",
+      "id": "nagdi-livestock-records-api",
+      "iri": "https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_herd/entities/nagdi_herd/records",
+      "title": {
+        "en": "NAgDI livestock Records API"
       }
     }
   ],
@@ -489,22 +509,6 @@
       }
     },
     {
-      "description": {
-        "en": "A transient collection of source-owned child benefit predicates with no copied source rows or eligibility decision."
-      },
-      "id": "child-benefit-authority-predicate-collection-evidence",
-      "information_concepts": [
-        "ps:Person"
-      ],
-      "iri": "https://id.registrystack.org/solmara/evidence-types/child-benefit-authority-predicate-collection",
-      "proves": [
-        "child-benefit-review-requirement"
-      ],
-      "title": {
-        "en": "Child benefit authority predicate collection"
-      }
-    },
-    {
       "id": "death-registration-evidence",
       "information_concepts": [
         "ps:crvs/Death"
@@ -618,11 +622,11 @@
     {
       "competent_authority": "mosd-programme-mis",
       "data_services": [
-        "child-benefit-evidence-collector-api",
-        "cra-notary-api",
-        "nia-notary-api",
-        "sro-notary-api",
-        "programme-notary-api"
+        "registry-evidence-api",
+        "cra-records-api",
+        "nia-records-api",
+        "sro-records-api",
+        "programme-records-api"
       ],
       "description": {
         "en": "MoSD review of child benefit eligibility using minimized registry evidence."
@@ -640,8 +644,10 @@
     {
       "competent_authority": "sipf",
       "data_services": [
-        "cra-notary-api",
-        "sipf-notary-api"
+        "registry-evidence-api",
+        "cra-records-api",
+        "sipf-pension-records-api",
+        "sipf-survivor-records-api"
       ],
       "description": {
         "en": "SIPF review for pension payment stop and survivor benefit eligibility."
@@ -659,7 +665,8 @@
     {
       "competent_authority": "nagdi",
       "data_services": [
-        "nagdi-notary-api"
+        "registry-evidence-api",
+        "nagdi-farmer-records-api"
       ],
       "description": {
         "en": "NAgDI review of farmer eligibility for climate-smart input support."
@@ -677,7 +684,8 @@
     {
       "competent_authority": "nagdi",
       "data_services": [
-        "nagdi-notary-api"
+        "registry-evidence-api",
+        "nagdi-livestock-records-api"
       ],
       "description": {
         "en": "NAgDI review of livestock movement permit eligibility and quarantine controls."

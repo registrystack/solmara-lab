@@ -1,6 +1,6 @@
 // Provenance kinds -> field types (portal spec section 5.3, UX section 3).
 export type FieldKind = 'self' | 'verify' | 'fetch' | 'decision';
-export type NotaryId =
+export type AuthorityId =
   | 'civil'
   | 'social'
   | 'agri'
@@ -29,7 +29,7 @@ export type Field = {
   label: string;
   kind: FieldKind;
   claim?: string;            // e.g. 'household-below-poverty-threshold'
-  notary?: NotaryId;
+  authority?: AuthorityId;
   purpose?: string;          // declared purpose, shown in the proof inspector
   disclose?: string;         // what is NOT disclosed (the minimization "money shot")
   selfPlaceholder?: string;  // placeholder for kind:'self' inputs
@@ -40,7 +40,7 @@ export type Field = {
 export type ServiceForm = {
   slug: string;
   title: string;
-  authorities: NotaryId[];   // seal glyphs shown on the card / form header
+  authorities: AuthorityId[]; // seal glyphs shown on the card / form header
   fields: Field[];
 };
 
@@ -53,7 +53,7 @@ export type ServiceForm = {
 export type ClaimResult = {
   state: FieldState;
   display: string;        // value or predicate sentence shown in the field
-  authority?: NotaryId;
+  authority?: AuthorityId;
   asOf?: string;          // freshness timestamp
   reasonCode?: string;    // e.g. 'VR-RED-02'
   traceId: string;        // links to the ProofTrace ('event N')
@@ -65,7 +65,7 @@ export type ProofTrace = {
   id: string;             // 'event N' label
   seq: number;
   fieldId?: string;
-  authority?: NotaryId;
+  authority?: AuthorityId;
   // depth 1 - human
   headline: string;       // consequence-first
   answered: string;       // "{Authority} answered: {claim} = {value}"
@@ -90,7 +90,7 @@ export type ProofTrace = {
 export type RailChannel = 'verify' | 'fetch' | 'denied';
 export type RailEvent = {
   id: string;
-  authority: NotaryId;
+  authority: AuthorityId;
   channel: RailChannel;
   phase: 'request' | 'sealed' | 'denied';
   ts: string;

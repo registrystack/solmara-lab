@@ -1,5 +1,5 @@
 version: 1
-assuranceProfile: production
+assuranceProfile: local
 service: { providerId: https://id.registrystack.org/solmara/evidence/national, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
 issuer: { id: https://id.registrystack.org/solmara/issuer/national-evidence-service }
 authentication:
@@ -7,13 +7,15 @@ authentication:
   issuer: https://mint.evidence.solmara.invalid
   audiences: [solmara-evidence]
   tokenTypes: [at+jwt]
-  algorithms: [EdDSA]
+  algorithms: [ES256]
   jwksUri: https://mint.evidence.solmara.invalid/.well-known/jwks.json
   principalClaim: sub
   requesterTagsClaim: evidence_tags
   evidenceAudienceClaim: evidence_audience
   grantIdClaim: evidence_grant_id
   grantAuthorityClaim: evidence_authority
+  maximumTokenLifetimeSeconds: 300
+  revokedKeyIds: []
 audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
 subjectBinding: { secretRef: secret:file/subject-binding-hmac-key, keyVersion: 1 }
 # One demo principal drives every guided workflow, so its burst covers a full
@@ -21,10 +23,10 @@ subjectBinding: { secretRef: secret:file/subject-binding-hmac-key, keyVersion: 1
 rateLimits: { requestsPerPrincipalPerMinute: 600, burstPerPrincipal: 100, failedSelectorAttemptsPerPrincipalAuthorityPerMinute: 50 }
 signing:
   format: flattened-jws-json
-  algorithm: EdDSA
-  activeKeyId: solmara-evidence-signing-key-1
-  activeKeyRef: secret:file/signing-ed25519-private-jwk
-  retiredPublicJwkFiles: []
+  algorithm: ES256
+  activePublicJwkFile: public-keys/active.jwk.json
+  publishedPublicJwkFiles: []
+  revokedKeyIds: []
   jwksPath: /.well-known/evidence/jwks.json
   maximumAssertionValiditySeconds: 86400
   verifierClockSkewSeconds: 30
@@ -46,7 +48,7 @@ sources:
     baseUrl: https://cra-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/cra-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/cra-relay-token }
     request:
       method: GET
       path: /v1/datasets/civil_people/entities/civil_people/records
@@ -71,7 +73,7 @@ sources:
     baseUrl: https://cra-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/cra-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/cra-relay-token }
     request:
       method: GET
       path: /v1/datasets/civil_people/entities/civil_people/records
@@ -96,7 +98,7 @@ sources:
     baseUrl: https://cra-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/cra-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/cra-relay-token }
     request:
       method: GET
       path: /v1/datasets/civil_people/entities/civil_people/records
@@ -121,7 +123,7 @@ sources:
     baseUrl: https://nia-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/nia-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/nia-relay-token }
     request:
       method: GET
       path: /v1/datasets/population/entities/population/records
@@ -146,7 +148,7 @@ sources:
     baseUrl: https://nia-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/nia-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/nia-relay-token }
     request:
       method: GET
       path: /v1/datasets/population/entities/population/records
@@ -171,7 +173,7 @@ sources:
     baseUrl: https://sro-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/sro-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/sro-relay-token }
     request:
       method: GET
       path: /v1/datasets/sro_child/entities/sro_child/records
@@ -196,7 +198,7 @@ sources:
     baseUrl: https://programme-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/programme-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/programme-relay-token }
     request:
       method: GET
       path: /v1/datasets/mosd_enroll/entities/mosd_enroll/records
@@ -221,7 +223,7 @@ sources:
     baseUrl: https://sipf-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/sipf-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/sipf-relay-token }
     request:
       method: GET
       path: /v1/datasets/pension/entities/pension/records
@@ -246,7 +248,7 @@ sources:
     baseUrl: https://sipf-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/sipf-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/sipf-relay-token }
     request:
       method: GET
       path: /v1/datasets/survivor/entities/survivor/records
@@ -271,7 +273,7 @@ sources:
     baseUrl: https://nagdi-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/nagdi-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/nagdi-relay-token }
     request:
       method: GET
       path: /v1/datasets/nagdi_farmer/entities/nagdi_farmer/records
@@ -296,7 +298,7 @@ sources:
     baseUrl: https://nagdi-relay.evidence.solmara.invalid
     tlsTrustProfile: solmara-lab
     posture: field-projected
-    authentication: { kind: static-bearer, tokenRef: secret:file/nagdi-relay-token }
+    authentication: { kind: static-authorization, tokenRef: secret:file/nagdi-relay-token }
     request:
       method: GET
       path: /v1/datasets/nagdi_herd/entities/nagdi_herd/records
@@ -381,7 +383,7 @@ authorityProfiles:
 requirements:
   - id: https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1
     kind: information-requirement
-    source: cra-child-benefit
+    acquisition: { kind: single, source: cra-child-benefit }
     purposes: [child-benefit-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
@@ -400,7 +402,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/cra-pension-death/v1
     kind: information-requirement
-    source: cra-pension
+    acquisition: { kind: single, source: cra-pension }
     purposes: [pension-payment-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/social-insurance/v1]
@@ -413,7 +415,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/cra-citizen-record/v1
     kind: information-requirement
-    source: cra-citizen
+    acquisition: { kind: single, source: cra-citizen }
     purposes: [citizen-self-service]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/citizen-self-service/v1]
@@ -426,7 +428,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/nia-child-benefit/v1
     kind: information-requirement
-    source: nia-child-benefit
+    acquisition: { kind: single, source: nia-child-benefit }
     purposes: [child-benefit-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
@@ -442,7 +444,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/nia-citizen-status/v1
     kind: information-requirement
-    source: nia-citizen
+    acquisition: { kind: single, source: nia-citizen }
     purposes: [citizen-self-service]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/citizen-self-service/v1]
@@ -458,7 +460,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
     kind: information-requirement
-    source: sro-child-benefit
+    acquisition: { kind: single, source: sro-child-benefit }
     purposes: [child-benefit-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
@@ -471,7 +473,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1
     kind: information-requirement
-    source: mosd-child-benefit
+    acquisition: { kind: single, source: mosd-child-benefit }
     purposes: [child-benefit-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
@@ -484,7 +486,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1
     kind: information-requirement
-    source: sipf-pension
+    acquisition: { kind: single, source: sipf-pension }
     purposes: [pension-payment-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/social-insurance/v1]
@@ -497,7 +499,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1
     kind: information-requirement
-    source: sipf-survivor
+    acquisition: { kind: single, source: sipf-survivor }
     purposes: [survivor-benefit-determination]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/social-insurance/v1]
@@ -510,7 +512,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1
     kind: information-requirement
-    source: nagdi-voucher
+    acquisition: { kind: single, source: nagdi-voucher }
     purposes: [voucher-eligibility-review]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [farmer-reference-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/agriculture/v1]
@@ -526,7 +528,7 @@ requirements:
     existenceDisclosure: collapse-unresolved
   - id: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1
     kind: information-requirement
-    source: nagdi-livestock
+    acquisition: { kind: single, source: nagdi-livestock }
     purposes: [livestock-movement-control]
     subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [farmer-reference-v1] }]
     referenceFrameworks: [https://id.registrystack.org/solmara/framework/agriculture/v1]

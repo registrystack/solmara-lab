@@ -1,19 +1,18 @@
 // Canned scenarios driving the Phase 0 mock. Each scenario is keyed by a stable
 // lookup id (field id, with a few delegated/denial variants) and carries enough
 // to build both a ClaimResult and a ProofTrace using the owning service's real
-// wire contract: Registry Notary evaluations or the child federator bundle.
+// wire contract: signed Registry Evidence assertions or a portal composition.
 //
 // Volatile fields (evaluation_id, issued_at/expires_at, signatures, freshness)
 // are present but value-variable: they are stamped at evaluate() time, never
 // byte-matched. Everything else (key set, types, ordering) matches the OpenAPI.
 
-import type { FieldState, NotaryId, ProofStatus } from '$lib/types';
+import type { AuthorityId, FieldState, ProofStatus } from '$lib/types';
 import { SOLMARA_AUTHORITIES } from '$lib/fields/authorities';
 import { PURPOSES } from '$lib/forms/descriptors';
 
-// Map a portal NotaryId to the human authority label the Notary returns and the
-// proof inspector shows. Single canonical name per authority.
-export const AUTHORITY_LABEL: Record<NotaryId, string> = {
+// Map a portal authority id to the human label shown by the proof inspector.
+export const AUTHORITY_LABEL: Record<AuthorityId, string> = {
   civil: SOLMARA_AUTHORITIES.civil.label,
   social: SOLMARA_AUTHORITIES.social.label,
   agri: SOLMARA_AUTHORITIES.agri.label,
@@ -24,8 +23,8 @@ export const AUTHORITY_LABEL: Record<NotaryId, string> = {
   programme: SOLMARA_AUTHORITIES.programme.label
 };
 
-// Per-notary service id that appears in provenance.generated_by.service_id.
-export const NOTARY_SERVICE_ID: Record<NotaryId, string> = {
+// Authority-owned Registry Evidence service shown in request provenance.
+export const EVIDENCE_SERVICE_ID: Record<AuthorityId, string> = {
   civil: SOLMARA_AUTHORITIES.civil.serviceId,
   social: SOLMARA_AUTHORITIES.social.serviceId,
   agri: SOLMARA_AUTHORITIES.agri.serviceId,
@@ -36,27 +35,26 @@ export const NOTARY_SERVICE_ID: Record<NotaryId, string> = {
   programme: SOLMARA_AUTHORITIES.programme.serviceId
 };
 
-// What the Notary sends back as source_authority / the proof "answered" line.
-// The `disclosure` mirrors the EvaluateRequest.disclosure on the wire.
+// The disclosure mode drives the minimized value represented by the assertion.
 export type ScenarioDisclosure = 'predicate' | 'value' | 'object' | 'decision';
 
 // The depth-2 response value (the ClaimResultView.value). The runtime may return
 // any JSON value; we keep it as unknown so booleans, dates, and objects all fit.
 export type ScenarioResult = {
   // ---- routing / lookup ----
-  notary: NotaryId;
+  authority: AuthorityId;
   service: 'childBenefit' | 'pension' | 'nagdi' | 'citizen';
   claimId: string; // the wire claim id, e.g. 'farmer-registered'
   claimVersion: string;
   subjectPersona?: PersonaKey;
   applicationOwned?: boolean;
-  // ---- request shaping (EvaluateRequest) ----
+  // ---- Registry Evidence request shaping ----
   purpose: string; // declared purpose
   disclosure: ScenarioDisclosure;
   // delegated scenarios send on_behalf_of + relationship:guardian, and read a
   // dependent subject. Non-delegated scenarios are relationship:self.
   delegated?: boolean;
-  // ---- response / claim-result shaping (ClaimResultView) ----
+  // ---- response / assertion projection ----
   value: unknown; // boolean | string (date) | object summary
   satisfied: boolean | null; // null for plain value/object fetches
   subjectType: string; // 'person' | 'household' | 'holding'
@@ -66,7 +64,7 @@ export type ScenarioResult = {
   state: FieldState; // resulting FieldState
   display: string; // the value/predicate sentence shown in the field
   reasonCode?: string; // e.g. 'VR-RED-02'
-  reasonCodes?: { code: string; authority: NotaryId; text: string }[]; // decisions
+  reasonCodes?: { code: string; authority: AuthorityId; text: string }[]; // decisions
   // ---- proof depth-1 copy ----
   headline: string; // consequence-first
   answered: string; // "{Authority} answered: {claim} = {value}"
@@ -74,7 +72,7 @@ export type ScenarioResult = {
   status: ProofStatus;
   // ---- denial / error shaping ----
   httpStatus: number; // 200 normally; 403 denial; 503 error
-  denial?: { code: string; message: string }; // for the subject_mismatch beat
+  denial?: { code: string; message: string }; // for the not_authorized beat
   // ---- resilience flavor ----
   // latencyMs is the deterministic delay; staggerOrder gives the top-to-bottom
   // stagger so fields land in a believable cascade, never all at once.
@@ -105,7 +103,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // farmer-voucher
   // ---------------------------------------------------------------------------
   'registered-farmer': {
-    notary: 'agri',
+    authority: 'agri',
     service: 'nagdi',
     claimId: 'farmer-registered',
     claimVersion: '2026-07',
@@ -129,7 +127,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'farm-holding': {
-    notary: 'agri',
+    authority: 'agri',
     service: 'nagdi',
     claimId: 'data-use-authorized-for-purpose',
     claimVersion: '2026-07',
@@ -153,7 +151,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'voucher-eligibility': {
-    notary: 'agri',
+    authority: 'agri',
     service: 'nagdi',
     claimId: 'eligible-for-climate-smart-input-voucher',
     claimVersion: '2026-07',
@@ -185,7 +183,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // child-benefit (guardian gate, then five source-owned predicates)
   // ---------------------------------------------------------------------------
   'caregiver-link': {
-    notary: 'childCivil',
+    authority: 'childCivil',
     service: 'childBenefit',
     claimId: 'birth-is-registered',
     claimVersion: '2026-07',
@@ -211,7 +209,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // The source reads below are only authorized after the caregiver-link verify
   // above succeeds. The provider enforces this gate.
   'birth-event-exists': {
-    notary: 'childCivil',
+    authority: 'childCivil',
     service: 'childBenefit',
     claimId: 'birth-is-registered',
     claimVersion: '2026-07',
@@ -236,7 +234,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'population-record-active': {
-    notary: 'population',
+    authority: 'population',
     service: 'childBenefit',
     claimId: 'population-record-active',
     claimVersion: '2026-07',
@@ -251,7 +249,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     asOf: '2026-06-15',
     state: 'verified',
     display: 'Population record active: yes',
-    headline: 'Confirmed by the National Identity Agency through a source-owned Notary',
+    headline: 'Confirmed by the National Identity Agency through Registry Evidence',
     answered: 'National Identity Agency answered: population-record-active = true',
     notDisclosed: 'Not disclosed: identity attributes or population register row',
     status: 'ok',
@@ -261,7 +259,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'date-of-birth': {
-    notary: 'childCivil',
+    authority: 'childCivil',
     service: 'childBenefit',
     claimId: 'child-age-under-5',
     claimVersion: '2026-07',
@@ -286,7 +284,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'household-composition': {
-    notary: 'socialRegistry',
+    authority: 'socialRegistry',
     service: 'childBenefit',
     claimId: 'household-below-poverty-threshold',
     claimVersion: '2026-07',
@@ -300,7 +298,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     asOf: '2026-05-09',
     state: 'verified',
     display: 'Household below threshold: yes',
-    headline: 'Confirmed by the Social Registry Office through its source-owned Notary',
+    headline: 'Confirmed by the Social Registry Office through Registry Evidence',
     answered: 'Social Registry Office answered: household-below-poverty-threshold = true',
     notDisclosed: 'Not disclosed: poverty score or household roster',
     status: 'ok',
@@ -310,7 +308,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'not-already-enrolled': {
-    notary: 'programme',
+    authority: 'programme',
     service: 'childBenefit',
     claimId: 'not-already-enrolled',
     claimVersion: '2026-07',
@@ -339,7 +337,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // pension-survivor (multi-authority decision)
   // ---------------------------------------------------------------------------
   'person-is-alive': {
-    notary: 'civil',
+    authority: 'civil',
     service: 'pension',
     claimId: 'person-is-deceased',
     claimVersion: '2026-07',
@@ -363,7 +361,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'disability-determination': {
-    notary: 'social',
+    authority: 'social',
     service: 'pension',
     claimId: 'pension-payment-should-stop',
     claimVersion: '2026-07',
@@ -388,7 +386,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 2
   },
   'functioning-assessment': {
-    notary: 'social',
+    authority: 'social',
     service: 'pension',
     claimId: 'survivor-is-eligible',
     claimVersion: '2026-07',
@@ -412,7 +410,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'pension-payment-active': {
-    notary: 'social',
+    authority: 'social',
     service: 'pension',
     claimId: 'pension-payment-active',
     claimVersion: '2026-07',
@@ -436,7 +434,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     sourceCount: 1
   },
   'combined-support-eligibility': {
-    notary: 'social',
+    authority: 'social',
     service: 'pension',
     claimId: 'survivor-benefit-eligible',
     claimVersion: '2026-07',
@@ -470,7 +468,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // citizen self-service gallery fixture
   // ---------------------------------------------------------------------------
   'citizen-record-status': {
-    notary: 'certs',
+    authority: 'certs',
     service: 'citizen',
     claimId: 'citizen-self-service-ready',
     claimVersion: '2026-07',
@@ -497,10 +495,10 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
 
   // ---------------------------------------------------------------------------
   // Denial beat (cross-person, stranger Karim 2300073046): a real denied
-  // evaluation, 403 subject_mismatch, NO source read.
+  // refusal, 403 not_authorized, NO source read.
   // ---------------------------------------------------------------------------
   denial: {
-    notary: 'civil',
+    authority: 'civil',
     service: 'pension',
     claimId: 'person-is-deceased',
     claimVersion: '2026-07',
@@ -514,13 +512,13 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     asOf: '2026-06-21',
     state: 'error',
     display: 'Denied: you cannot query this person',
-    reasonCode: 'subject_mismatch',
+    reasonCode: 'not_authorized',
     headline: 'Denied by Civil Registry before any record was read',
-    answered: 'Civil Registration Authority answered: 403 subject_mismatch, no data returned',
+    answered: 'Portal authorization gate answered: 403 not_authorized, no data returned',
     notDisclosed: 'Not disclosed: nothing, the boundary held and no source was read',
     status: 'denied',
     httpStatus: 403,
-    denial: { code: 'subject_mismatch', message: 'requester is not authorized for this target' },
+    denial: { code: 'not_authorized', message: 'requester is not authorized for this target' },
     latencyMs: 600,
     staggerOrder: 0,
     sourceCount: 0
@@ -532,7 +530,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // SLOW: a still-in-flight live call that crosses the ~6-8s SLOW threshold but
   // eventually resolves verified. The provider surfaces SLOW before VERIFIED.
   slow: {
-    notary: 'agri',
+    authority: 'agri',
     service: 'nagdi',
     claimId: 'farmer-registered',
     claimVersion: '2026-07',
@@ -558,7 +556,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   // ERROR: a hard failure (503). Scoped to the field, framed as minimization. No
   // source read, no value.
   error: {
-    notary: 'socialRegistry',
+    authority: 'socialRegistry',
     service: 'childBenefit',
     claimId: 'household-below-poverty-threshold',
     claimVersion: '2026-07',
@@ -572,7 +570,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
     asOf: '2026-06-21',
     state: 'error',
     display: 'Could not reach Social Protection; other evidence is unaffected',
-    reasonCode: 'upstream_unavailable',
+    reasonCode: 'service_unavailable',
     headline: 'Could not reach Social Protection, the other authorities are unaffected',
     answered: 'Social Registry Office answered: 503, no data returned',
     notDisclosed: 'Not disclosed: nothing, there is no central lake so this failure is isolated',
@@ -584,7 +582,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   },
   // STALE: fetched but older than the freshness rule (BLUE + AMBER flag).
   stale: {
-    notary: 'social',
+    authority: 'social',
     service: 'pension',
     claimId: 'survivor-is-eligible',
     claimVersion: '2026-07',
@@ -609,7 +607,7 @@ export const SCENARIOS: Record<string, ScenarioResult> = {
   },
   // AMBIGUOUS: more than one record matched; never collapses to false.
   ambiguous: {
-    notary: 'civil',
+    authority: 'civil',
     service: 'pension',
     claimId: 'person-is-deceased',
     claimVersion: '2026-07',

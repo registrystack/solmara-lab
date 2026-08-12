@@ -12,7 +12,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE_KEYS = {
     "REGISTRY_RELAY_IMAGE": "ghcr.io/registrystack/registry-relay",
-    "REGISTRY_NOTARY_IMAGE": "ghcr.io/registrystack/registry-notary",
 }
 REGISTRY_STACK_REMOTE = "https://github.com/registrystack/registry-stack.git"
 PIN_RE = re.compile(r"^(?P<image>[^@\s]+)@(?P<digest>sha256:[0-9a-f]{64})$")
@@ -22,6 +21,9 @@ TAG_RE = re.compile(
     r"(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$"
 )
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+CHECKSUM_RE = re.compile(r"^[0-9a-f]{64}$")
+RELEASE_TOOLS = ("EVIDENCE", "EVIDENCECTL", "MINT", "REGISTRYCTL")
+RELEASE_PLATFORMS = ("LINUX_AMD64", "LINUX_ARM64", "MACOS_ARM64")
 
 
 def main(argv: list[str]) -> int:
@@ -60,6 +62,12 @@ def main(argv: list[str]) -> int:
         failures.append(
             "REGISTRY_STACK_SOURCE_COMMIT must be exactly 40 lowercase hex characters"
         )
+
+    for tool in RELEASE_TOOLS:
+        for platform in RELEASE_PLATFORMS:
+            key = f"REGISTRY_STACK_{tool}_{platform}_SHA256"
+            if not CHECKSUM_RE.fullmatch(versions.get(key, "")):
+                failures.append(f"{key} must be exactly 64 lowercase hex characters")
 
     for key in IMAGE_KEYS:
         pinned = versions.get(key)

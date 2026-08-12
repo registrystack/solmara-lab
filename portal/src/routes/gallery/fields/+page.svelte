@@ -16,27 +16,27 @@
     label: 'Farmer registration',
     kind: 'verify',
     claim: 'farmer-registered',
-    notary: 'agri'
+    authority: 'agri'
   };
   const fetchField: Field = {
     id: 'g-fetch',
     label: 'Child age under 5',
     kind: 'verify',
     claim: 'child-age-under-5',
-    notary: 'civil'
+    authority: 'civil'
   };
   const householdField: Field = {
     id: 'g-household',
     label: 'Household below threshold',
     kind: 'verify',
     claim: 'household-below-poverty-threshold',
-    notary: 'social'
+    authority: 'social'
   };
   const decisionField: Field = {
     id: 'g-decision',
     label: 'Combined eligibility',
     kind: 'decision',
-    notary: 'social',
+    authority: 'social',
     manual: true
   };
 

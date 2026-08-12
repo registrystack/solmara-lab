@@ -22,7 +22,6 @@ PROJECTS = (
 )
 BUNDLE_VARIANTS = (
     ("public", "relay.yaml", "", False),
-    ("consultation", "relay-consultation.yaml", "consultation", True),
 )
 BUNDLE_ROOT = ROOT / "config" / "hosted-relay-bundles"
 CONTAINER_ROOT = Path("/etc/solmara/hosted-relay-bundles")

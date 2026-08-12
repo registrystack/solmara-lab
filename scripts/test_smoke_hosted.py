@@ -102,34 +102,47 @@ def hosted_routes() -> dict[tuple[str, str], Any]:
                                 {
                                     "claim_id": "birth-is-registered",
                                     "satisfied": True,
-                                    "notary_service_id": "cra-notary",
+                                    "authority": "Civil Registration Authority",
                                 },
                                 {
                                     "claim_id": "population-record-active",
                                     "satisfied": True,
-                                    "notary_service_id": "nia-notary",
+                                    "authority": "National Identity Agency",
                                 },
                                 {
                                     "claim_id": "child-age-under-5",
                                     "satisfied": True,
-                                    "notary_service_id": "cra-notary",
+                                    "authority": "Civil Registration Authority",
                                 },
                                 {
                                     "claim_id": "household-below-poverty-threshold",
                                     "satisfied": True,
-                                    "notary_service_id": "sro-notary",
+                                    "authority": "Social Registry Office",
                                 },
                                 {
                                     "claim_id": "not-already-enrolled",
                                     "satisfied": True,
-                                    "notary_service_id": "programme-notary",
+                                    "authority": "MoSD Programme MIS",
                                 },
                             ],
+                            "signed_evidence": ["one", "two", "three", "four"],
                             "source_trace": [
-                                {"service_id": "cra-notary"},
-                                {"service_id": "nia-notary"},
-                                {"service_id": "sro-notary"},
-                                {"service_id": "programme-notary"},
+                                {
+                                    "service_id": "registry-evidence",
+                                    "authority": "Civil Registration Authority",
+                                },
+                                {
+                                    "service_id": "registry-evidence",
+                                    "authority": "National Identity Agency",
+                                },
+                                {
+                                    "service_id": "registry-evidence",
+                                    "authority": "Social Registry Office",
+                                },
+                                {
+                                    "service_id": "registry-evidence",
+                                    "authority": "MoSD Programme MIS",
+                                },
                             ],
                         },
                     },
@@ -142,7 +155,7 @@ def hosted_routes() -> dict[tuple[str, str], Any]:
                 "result": {
                     "response_source": {
                         "status": 403,
-                        "body": {"code": "pdp.purpose_not_permitted"},
+                        "body": {"code": "not_authorized"},
                     }
                 }
             },
@@ -166,17 +179,13 @@ class HostedSmokeTests(unittest.TestCase):
             "https://cra-relay.solmara.registrystack.org",
             {relay.base_url for relay in targets.relays},
         )
-        authority_urls = {
-            "https://cra-notary.solmara.registrystack.org",
-            "https://nia-notary.solmara.registrystack.org",
-            "https://sro-notary.solmara.registrystack.org",
-            "https://programme-notary.solmara.registrystack.org",
-            "https://sipf-notary.solmara.registrystack.org",
-            "https://nagdi-notary.solmara.registrystack.org",
+        evidence_urls = {
+            "https://evidence.solmara.registrystack.org",
+            "https://mint.solmara.registrystack.org",
         }
         self.assertEqual(
-            authority_urls,
-            {notary.base_url for notary in targets.notaries},
+            evidence_urls,
+            {service.base_url for service in targets.evidence_services},
         )
         self.assertEqual(
             {"https://child-benefit-federator.solmara.registrystack.org"},
@@ -193,24 +202,12 @@ class HostedSmokeTests(unittest.TestCase):
             "https://child-benefit-federator.solmara.registrystack.org",
         )
         self.assertEqual(
-            env["CRA_NOTARY_URL"], "https://cra-notary.solmara.registrystack.org"
+            env["SOLMARA_EVIDENCE_URL"],
+            "https://evidence.solmara.registrystack.org",
         )
         self.assertEqual(
-            env["NIA_NOTARY_URL"], "https://nia-notary.solmara.registrystack.org"
-        )
-        self.assertEqual(
-            env["SRO_NOTARY_URL"], "https://sro-notary.solmara.registrystack.org"
-        )
-        self.assertEqual(
-            env["PROGRAMME_NOTARY_URL"],
-            "https://programme-notary.solmara.registrystack.org",
-        )
-        self.assertEqual(
-            env["SIPF_NOTARY_URL"], "https://sipf-notary.solmara.registrystack.org"
-        )
-        self.assertEqual(
-            env["NAGDI_NOTARY_URL"],
-            "https://nagdi-notary.solmara.registrystack.org",
+            env["SOLMARA_MINT_URL"],
+            "https://mint.solmara.registrystack.org",
         )
         self.assertEqual(
             env["SOLMARA_CRA_RELAY_URL"], "https://cra-relay.solmara.registrystack.org"
@@ -270,13 +267,20 @@ class HostedSmokeTests(unittest.TestCase):
             with self.assertRaises(smoke_hosted.SmokeFailure):
                 smoke_hosted.check_home_demo(server.url, timeout=2)
 
-    def test_home_demo_requires_stable_denial_code(self) -> None:
+    def test_home_demo_requires_current_evidence_denial_code(self) -> None:
         routes = hosted_routes()
         routes[
             ("POST", "/api/scenarios/birth-to-child-benefit/steps/purpose-denial/run")
         ] = (
             200,
-            {"result": {"response_source": {"status": 403, "body": {}}}},
+            {
+                "result": {
+                    "response_source": {
+                        "status": 403,
+                        "body": {"code": "pdp.purpose_not_permitted"},
+                    }
+                }
+            },
         )
         with StubServer(routes) as server:
             with self.assertRaises(smoke_hosted.SmokeFailure):

@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 const NAV_LINKS = ['How it works', 'Stories', 'Citizen demo', 'Developers', 'Status'];
 
-const evaluationUrl = (configuredUrl: string | undefined, fallbackUrl: string) =>
-  `${(configuredUrl ?? fallbackUrl).replace('127.0.0.1', 'localhost').replace(/\/+$/, '')}/v1/evaluations`;
+const evidenceUrl = (configuredUrl: string | undefined, fallbackUrl: string) =>
+  `${(configuredUrl ?? fallbackUrl).replace('127.0.0.1', 'localhost').replace(/\/+$/, '')}/v1/evidence`;
 
 test('landing renders with header nav and every section in order', async ({ page }) => {
   const response = await page.goto('/');
@@ -130,7 +130,7 @@ test('country, developer, and status inventories have dedicated routes', async (
   await expect(page.locator('#engineer-door')).toContainText('pension-payment-review');
 
   await page.goto('/status');
-  await expect(page.locator('#status .status')).toHaveCount(17);
+  await expect(page.locator('#status .status')).toHaveCount(13);
 });
 
 test('non-developer page data excludes developer-only published tokens', async ({ request }) => {
@@ -152,22 +152,20 @@ test('purposes page lists every purpose with plain language and working anchors'
   await expect(page.locator('#child-benefit-review')).toBeVisible();
   await expect(page.locator('#child-benefit-review .plain')).not.toBeEmpty();
   // Denial codes link to the problem-code reference.
-  await expect(
-    page.locator('#child-benefit-review a[href="/problem-codes#pdp.purpose_not_permitted"]')
-  ).toBeVisible();
+  await expect(page.locator('#child-benefit-review a[href="/problem-codes#not_authorized"]')).toBeVisible();
 });
 
-test('problem-codes anchors resolve, including pdp.purpose_not_permitted', async ({ page }) => {
-  await page.goto('/problem-codes#pdp.purpose_not_permitted');
-  await expect(page.locator('[id="pdp.purpose_not_permitted"]')).toBeVisible();
+test('problem-codes anchors resolve, including not_authorized', async ({ page }) => {
+  await page.goto('/problem-codes#not_authorized');
+  await expect(page.locator('[id="not_authorized"]')).toBeVisible();
   // The raw-row refusal a skeptic hits is documented too.
-  await expect(page.locator('[id="request.invalid"]')).toBeVisible();
+  await expect(page.locator('[id="malformed_request"]')).toBeVisible();
 });
 
-test('anatomy lists every relay and notary with repo config links', async ({ page }) => {
+test('anatomy lists every relay and the shared Evidence services with repo config links', async ({ page }) => {
   await page.goto('/anatomy');
   await expect(page.locator('#relays .entity')).toHaveCount(6);
-  await expect(page.locator('#notaries .entity')).toHaveCount(6);
+  await expect(page.locator('#evidence .entity')).toHaveCount(2);
   const craLinks = page.locator('#cra-civil-relay a.config-link');
   await expect(craLinks.filter({ hasText: 'projects/cra-civil/registry-stack.yaml' })).toHaveAttribute(
     'href',
@@ -184,7 +182,7 @@ test('anatomy lists every relay and notary with repo config links', async ({ pag
 
 test('status grid shows the whole topology', async ({ page }) => {
   await page.goto('/status');
-  await expect(page.locator('#status .status')).toHaveCount(17);
+  await expect(page.locator('#status .status')).toHaveCount(13);
 });
 
 test('engineer door always shows the copy-as-curl examples', async ({ page }) => {
@@ -226,11 +224,11 @@ test('explorer renders all five published artifact families from the live bundle
   await expect(page.locator('#offerings a[href^="/purposes#"]').first()).toBeVisible();
 });
 
-test('engineer door publishes the synthetic demo tokens', async ({ page }) => {
-  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'demo tokens come from the container allowlist env');
+test('engineer door does not publish Evidence credentials', async ({ page }) => {
+  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'credential posture comes from the live deployment');
   await page.goto('/developers');
-  await expect(page.locator('#engineer-door .token').first()).toBeVisible();
-  await expect(page.locator('#engineer-door .token-disclaimer')).toContainText('synthetic');
+  await expect(page.locator('#engineer-door .token')).toHaveCount(0);
+  await expect(page.locator('#engineer-door .token-disclaimer')).toContainText('No credentials are published');
 });
 
 test('landing fails closed when the scenario runner is unavailable', async ({ page }) => {
@@ -416,12 +414,12 @@ test('citizen story renders runnable curls for each authority call', async ({ pa
   await expect(authorityRequests).toHaveCount(2);
   await expect(authorityRequests.getByRole('button', { name: 'Copy as curl' })).toHaveCount(2);
   await expect(authorityRequests.nth(0)).toContainText(
-    evaluationUrl(process.env.CRA_NOTARY_URL, 'http://localhost:4325')
+    evidenceUrl(process.env.EVIDENCE_URL, 'https://localhost:4341')
   );
   await expect(authorityRequests.nth(1)).toContainText(
-    evaluationUrl(process.env.NIA_NOTARY_URL, 'http://localhost:4326')
+    evidenceUrl(process.env.EVIDENCE_URL, 'https://localhost:4341')
   );
-  await expect(result).not.toContainText('solmara://authority-notaries');
+  await expect(result).not.toContainText('solmara://registry-evidence');
 });
 
 test('story page fits a mobile viewport without horizontal overflow', async ({ page }) => {

@@ -24,7 +24,6 @@ PROJECTS = (
 )
 BUNDLE_VARIANTS = (
     ("public", "relay.yaml", "", False),
-    ("consultation", "relay-consultation.yaml", "consultation", True),
 )
 CONTAINER_ROOT = Path("/etc/solmara/hosted-relay-bundles")
 ANTIROLLBACK_PATH = (

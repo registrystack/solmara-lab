@@ -1,6 +1,6 @@
 # portal - Glass Government Citizen Services Portal
 
-This is the Phase 0 mock of the Glass Government citizen services portal for the Republic of Solmara (a fictional nation). It demonstrates the "evidence field" UX pattern: structured, authority-verified fields that show the citizen exactly what data was checked, which authority answered, and what was NOT disclosed. All authority calls are behind the `EvidenceProvider` seam (see `src/lib/providers/EvidenceProvider.ts`), which starts with a `MockEvidenceProvider` and will be wired to live Registry Notary endpoints in Phase 1 without a rewrite.
+This is the Phase 0 mock of the Glass Government citizen services portal for the Republic of Solmara (a fictional nation). It demonstrates the "evidence field" UX pattern: structured, authority-verified fields that show the citizen exactly what data was checked, which authority answered, and what was NOT disclosed. All authority calls are behind the `EvidenceProvider` seam (see `src/lib/providers/EvidenceProvider.ts`). The mock and live providers project signed minimum-disclosure Registry Evidence assertions into the same portal-facing model.
 
 ## Source-of-truth documentation
 

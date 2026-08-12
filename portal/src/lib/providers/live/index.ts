@@ -46,13 +46,13 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
     const scenario = SCENARIOS[scenarioKey];
     if (!scenario) throw new Error(`LiveEvidenceProvider: no scenario mapping for field "${field.id}"`);
 
-    if (scenarioKey === 'denial') return this.#blocked(field, scenario, 'subject_mismatch');
+    if (scenarioKey === 'denial') return this.#blocked(field, scenario, 'not_authorized');
     if (scenario.delegated && opts?.guardianLinkVerified !== true) {
       return this.#blocked(field, scenario, 'relationship_not_proven');
     }
 
     const calls = runnerCalls(scenarioKey, scenario.service);
-    const responses = await Promise.all(calls.map((call) => this.#run(call, scenario.purpose)));
+    const responses = await Promise.all(calls.map((call) => this.#run(call)));
     const status = responses.find((response) => !isSuccess(response.response_source?.status))?.response_source?.status ?? 200;
     const results = responses.flatMap((response) => responseResults(response));
     const outcome = outcomeFor(scenarioKey, scenario.claimId, results, responses);
@@ -78,7 +78,7 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
       result: {
         state: proofStatus === 'ok' ? scenario.state : proofStatus === 'false' ? 'false' : 'error',
         display,
-        ...(!applicationOwned ? { authority: scenario.notary } : {}),
+        ...(!applicationOwned ? { authority: scenario.authority } : {}),
         traceId: `event ${seq}`
       },
       raw: {
@@ -96,24 +96,33 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
           : 'Registry Evidence returned no usable value for this field',
         notDisclosed: scenario.notDisclosed,
         status: proofStatus,
-        authority: applicationOwned ? undefined : scenario.notary,
+        authority: applicationOwned ? undefined : scenario.authority,
         crypto: evidenceProof(responses)
       },
       timing: { latencyMs: 0, staggerOrder: scenario.staggerOrder, slow: false }
     };
   }
 
-  async #run(call: RunnerCall, purpose: string): Promise<RunnerResult> {
+  async #run(call: RunnerCall): Promise<RunnerResult> {
     const url = `${requiredRunnerUrl(this.#runnerUrl)}/v1/scenarios/${call.scenarioId}/steps/${call.stepId}/run`;
     const response = await this.#fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ config: { purpose_override: purpose } })
+      body: JSON.stringify({ config: {} })
     });
     const envelope = asDict(await response.json().catch(() => ({})));
     const result = asDict(envelope.result) as RunnerResult;
     if (!response.ok && result.response_source === undefined) {
-      return { response_source: { status: response.status, body: { code: 'scenario_runner_unavailable' } } };
+      return {
+        response_source: {
+          status: response.status,
+          body: {
+            type: 'https://registrystack.org/problems/evidence/service_unavailable',
+            title: 'Registry Evidence is unavailable',
+            status: response.status
+          }
+        }
+      };
     }
     return result;
   }
@@ -124,7 +133,13 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
     code: string
   ): MockEvaluation {
     const seq = ++this.#seq;
-    const body = { error: code, error_description: 'The portal stopped this request before source access.' };
+    const body = {
+      type: `urn:solmara:portal:problem:${code}`,
+      title: 'Portal authorization denied the request',
+      status: 403,
+      detail: 'The portal stopped this request before source access.',
+      operation: `denial:event-${seq}`
+    };
     return {
       result: {
         state: 'error',
@@ -229,7 +244,7 @@ function evidenceProof(responses: RunnerResult[]): NonNullable<ProofTrace['proof
   const assertions = responses.flatMap(signedEvidence);
   return {
     signedBy: assertions.length ? 'Registry Evidence signed the returned assertion set' : 'No signed assertion was returned',
-    algorithm: assertions.length ? 'Flattened JWS, EdDSA' : 'Not available',
+    algorithm: assertions.length ? 'Flattened JWS, ES256' : 'Not available',
     issuerKey: '/.well-known/evidence/jwks.json',
     holderBound: 'Mint requester identity, purpose, requirement, nonce, and selector',
     credential: 'Registry Evidence assertion, not an application credential',

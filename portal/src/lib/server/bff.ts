@@ -54,8 +54,8 @@ function railFromStatus(ev: MockEvaluation): { channel: RailChannel; phase: Rail
       // a signed "no" is still a sealed verify, not a denial.
       return { channel: 'verify', phase: 'sealed' };
     case 'ok': {
-      const disclosure = (ev.raw.request.body.disclosure ?? '') as string;
-      const channel: RailChannel = disclosure === 'predicate' || disclosure === 'decision' ? 'verify' : 'fetch';
+      const channel: RailChannel =
+        ev.result.state === 'fetched' || ev.result.state === 'stale' ? 'fetch' : 'verify';
       return { channel, phase: 'sealed' };
     }
     default:

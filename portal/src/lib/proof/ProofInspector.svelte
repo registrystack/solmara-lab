@@ -46,7 +46,7 @@
     const body = JSON.stringify(trace.request.body, null, 2);
     return (
       `curl -X ${trace.request.method} '${trace.request.url}' \\\n` +
-      `  -H 'x-api-key: $NOTARY_TOKEN' \\\n` +
+      `  -H 'Authorization: Bearer $EVIDENCE_TOKEN' \\\n` +
       `  -H 'Content-Type: application/json' \\\n` +
       `  -d '${body}'`
     );
@@ -263,7 +263,7 @@
                 {trace.request.method} {trace.request.url}
               </code>
               <code class="wire-line wire-auth">
-                x-api-key: <span class="redacted" aria-label="API key redacted">&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span> (redacted)
+                Authorization: Bearer <span class="redacted" aria-label="access token redacted">&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span> (redacted)
               </code>
               <pre class="wire-body">{formatJson(trace.request.body)}</pre>
 
@@ -303,7 +303,7 @@
                           <td class="mono">{trace.proof.issuerKey}</td>
                         </tr>
                         <tr>
-                          <th scope="row">Holder bound</th>
+                          <th scope="row">Subject binding</th>
                           <td>{trace.proof.holderBound}</td>
                         </tr>
                         <tr>
@@ -416,7 +416,7 @@
               {trace.request.method} {trace.request.url}
             </code>
             <code class="wire-line wire-auth">
-              x-api-key: <span class="redacted" aria-label="API key redacted">&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span> (redacted)
+              Authorization: Bearer <span class="redacted" aria-label="access token redacted">&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;</span> (redacted)
             </code>
             <pre class="wire-body">{formatJson(trace.request.body)}</pre>
             {#if trace.response}
@@ -454,7 +454,7 @@
                         <td class="mono">{trace.proof.issuerKey}</td>
                       </tr>
                       <tr>
-                        <th scope="row">Holder bound</th>
+                        <th scope="row">Subject binding</th>
                         <td>{trace.proof.holderBound}</td>
                       </tr>
                       <tr>

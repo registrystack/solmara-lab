@@ -16,11 +16,12 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:05.000Z',
     request: {
       method: 'POST',
-      url: 'https://nagdi-notary.solmara.example/v1/evaluations',
+      url: 'https://evidence.solmara.example/v1/evidence',
       body: {
-        claim: 'farmer-registered',
-        purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-        relationship: 'self'
+        requestNonce: 'U29sbWFyYVJlZ2lzdHJ5RXZpZGVuY2VEZW1vMDAwMDE',
+        requirement: 'urn:solmara:requirement:farmer-registered:v1',
+        purpose: 'voucher-eligibility-review',
+        subjects: [{ role: 'subject', selector: { profile: 'solmara-farmer-v1', values: {} } }]
       }
     }
   },
@@ -39,28 +40,29 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:09.000Z',
     request: {
       method: 'POST',
-      url: 'https://nagdi-notary.solmara.example/v1/evaluations',
+      url: 'https://evidence.solmara.example/v1/evidence',
       body: {
-        claim: 'farmer-registered',
-        purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-        relationship: 'self'
+        requestNonce: 'U29sbWFyYVJlZ2lzdHJ5RXZpZGVuY2VEZW1vMDAwMDE',
+        requirement: 'urn:solmara:requirement:farmer-registered:v1',
+        purpose: 'voucher-eligibility-review',
+        subjects: [{ role: 'subject', selector: { profile: 'solmara-farmer-v1', values: {} } }]
       }
     },
     response: {
       status: 200,
       body: {
-        registered: true,
-        source_authority: 'Agriculture',
-        as_of: '2026-05-01'
+        protected: 'eyJhbGciOiJFUzI1NiIsInR5cCI6ImV2aWRlbmNlK2p3cyJ9',
+        payload: 'c3ludGhldGljLWV2aWRlbmNlLXBheWxvYWQ',
+        signature: 'synthetic-signature-redacted'
       }
     },
     proof: {
-      signedBy: 'No credential issued; National Agricultural Data Institute returned a claim evaluation',
-      algorithm: 'Registry Notary claim-result response; no credential signature asserted',
-      issuerKey: 'Not applicable for claim-result evaluation',
-      holderBound: 'Not credential-bound; the portal selected the purpose and subject',
-      credential: 'Claim result only; no credential issued',
-      auditId: 'Not available in this canned gallery trace'
+      signedBy: 'National Agricultural Data Institute through Registry Evidence',
+      algorithm: 'Flattened JWS, ES256',
+      issuerKey: '/.well-known/evidence/jwks.json',
+      holderBound: 'Audience-scoped to the portal requester, purpose, nonce, and subject binding',
+      credential: 'Signed minimum-disclosure Evidence assertion',
+      auditId: 'evidence:event-2'
     }
   },
 
@@ -78,28 +80,29 @@ export const CANNED_TRACES: ProofTrace[] = [
     ts: '2026-06-21T12:04:12.000Z',
     request: {
       method: 'POST',
-      url: 'https://sro-notary.solmara.example/v1/evaluations',
+      url: 'https://evidence.solmara.example/v1/evidence',
       body: {
-        claim: 'household-below-poverty-threshold',
-        purpose: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
-        relationship: 'self'
+        requestNonce: 'U29sbWFyYVJlZ2lzdHJ5RXZpZGVuY2VEZW1vMDAwMDI',
+        requirement: 'urn:solmara:requirement:household-below-poverty-threshold:v1',
+        purpose: 'child-benefit-review',
+        subjects: [{ role: 'subject', selector: { profile: 'solmara-person-v1', values: {} } }]
       }
     },
     response: {
       status: 200,
       body: {
-        satisfied: true,
-        source_authority: 'Social Registry Office',
-        as_of: '2026-04-15'
+        protected: 'eyJhbGciOiJFUzI1NiIsInR5cCI6ImV2aWRlbmNlK2p3cyJ9',
+        payload: 'c3ludGhldGljLWV2aWRlbmNlLXBheWxvYWQ',
+        signature: 'synthetic-signature-redacted'
       }
     },
     proof: {
-      signedBy: 'Social Registry Office source-owned Notary',
-      algorithm: 'Authenticated claim-result evaluation; no credential signature asserted',
-      issuerKey: 'Not applicable for claim-result evaluation',
-      holderBound: 'Portal-selected purpose and subject',
-      credential: 'Minimized predicate claim result',
-      auditId: 'Not available in this canned gallery trace'
+      signedBy: 'Social Registry Office through Registry Evidence',
+      algorithm: 'Flattened JWS, ES256',
+      issuerKey: '/.well-known/evidence/jwks.json',
+      holderBound: 'Audience-scoped to the portal requester, purpose, nonce, and subject binding',
+      credential: 'Signed minimum-disclosure Evidence assertion',
+      auditId: 'evidence:event-3'
     }
   },
 
@@ -109,28 +112,27 @@ export const CANNED_TRACES: ProofTrace[] = [
     seq: 4,
     fieldId: 'person-is-deceased',
     authority: 'civil',
-    headline:
-      'Denied by Civil Registry: subject mismatch, no data read for 2300073046',
-    answered: 'Civil answered: person-is-deceased = denied (subject_mismatch)',
+    headline: 'Denied by the portal: request was not authorized, no data read',
+    answered: 'Portal authorization gate answered: request = denied (not_authorized)',
     notDisclosed:
       'No data was read; the query was rejected before any registry access',
     status: 'denied',
     ts: '2026-06-21T12:04:15.000Z',
     request: {
       method: 'POST',
-      url: 'https://cra-notary.solmara.example/v1/evaluations',
+      url: 'solmara://citizen-portal/blocked-before-evidence',
       body: {
-        claim: 'person-is-deceased',
-        purpose: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
-        relationship: 'self'
+        requirement: 'urn:solmara:requirement:person-is-deceased:v1',
+        purpose: 'pension-payment-review'
       }
     },
     response: {
       status: 403,
       body: {
-        error: 'subject_mismatch',
-        source_authority: 'Civil Registry',
-        message: 'Token subject does not match requested target'
+        type: 'urn:solmara:portal:problem:not_authorized',
+        title: 'Portal authorization denied the request',
+        status: 403,
+        detail: 'The portal stopped this request before source access'
       }
     }
   },

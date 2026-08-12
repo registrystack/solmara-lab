@@ -36,7 +36,7 @@ describe('runnableRequestSources', () => {
   it('uses the primary request when no underlying calls are present', () => {
     const request: RequestSource = {
       method: 'GET',
-      url: 'http://localhost:4325/v1/claims',
+      url: 'http://localhost:4321/v1/claims',
       headers: {}
     };
 

@@ -12,6 +12,9 @@ listener:
 secretProviders:
   file:
     root: /run/secrets/registry-evidence
+signer:
+  kind: local-jwk
+  privateKeyRef: secret:file/signing-p256-private-jwk
 auditStorage:
   path: /var/lib/registry-evidence/audit/evidence.jsonl
   maximumFileBytes: 1073741824

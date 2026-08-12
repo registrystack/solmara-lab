@@ -1,37 +1,22 @@
 # syntax=docker/dockerfile:1.7
 
-FROM rust:1.95-trixie@sha256:f49565f188ee00bc2a18dd418183f2c5f23ef7d6e691890517ed341a598f67c3 AS relay-builder
-WORKDIR /workspace
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775 AS evidence
 
-COPY . .
+COPY --chown=65532:65532 evidence-root/ /
+COPY --chmod=0755 evidence /usr/local/bin/evidence
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/workspace/target \
-    cargo build --release --locked --package registry-relay \
-    && install -D -m 0755 target/release/registry-relay /runtime/usr/local/bin/registry-relay \
-    && install -D -m 0755 target/release/registry-relay-rhai-worker /runtime/usr/local/bin/registry-relay-rhai-worker \
-    && install -D -m 0644 LICENSE /runtime/licenses/registry-relay/LICENSE \
-    && mkdir -p \
-        /runtime/etc/registry-relay \
-        /runtime/var/lib/registry/audit \
-        /runtime/var/lib/registry/state \
-        /runtime/var/lib/registry-relay/cache \
-        /runtime/var/lib/registry-relay/data \
-        /runtime/var/log/registry-relay \
-    && chown -R 65532:65532 \
-        /runtime/etc/registry-relay \
-        /runtime/var/lib/registry \
-        /runtime/var/lib/registry-relay \
-        /runtime/var/log/registry-relay
-
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775 AS relay
-
-COPY --from=relay-builder /runtime/ /
-
-WORKDIR /var/lib/registry-relay
-ENV REGISTRY_RELAY_CONFIG=/etc/registry-relay/config.yaml
+WORKDIR /var/lib/registry-evidence
+ENV REGISTRY_EVIDENCE_RUNTIME=/etc/registry-evidence/runtime.yaml
 EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/evidence"]
+CMD ["serve"]
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/usr/local/bin/registry-relay", "healthcheck"]
-ENTRYPOINT ["/usr/local/bin/registry-relay"]
-CMD ["--config", "/etc/registry-relay/config.yaml"]
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775 AS mint
+
+COPY --chown=65532:65532 mint-root/ /
+COPY --chmod=0755 mint /usr/local/bin/mint
+
+ENV MINT_CONFIG=/etc/registry-mint/config.yaml
+EXPOSE 8081
+ENTRYPOINT ["/usr/local/bin/mint"]
+CMD ["serve"]

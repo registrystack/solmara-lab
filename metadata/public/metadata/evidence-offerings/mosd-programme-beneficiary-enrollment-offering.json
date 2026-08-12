@@ -1,8 +1,8 @@
 {
   "access": {
     "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-    "discovery_url": "https://programme-notary.solmara.registrystack.org/.well-known/evidence-service",
-    "endpoint_url": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
+    "discovery_url": "https://evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://evidence.solmara.registrystack.org/v1/evidence",
     "kind": "evidence-verification-api"
   },
   "dataset": "mosd-programme",

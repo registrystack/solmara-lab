@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import secrets
 import shlex
@@ -26,6 +27,7 @@ JWK_KIDS = {
     "SIPF_RELAY_WORKLOAD_JWK": "solmara-sipf-relay-workload-key-1",
     "NAGDI_RELAY_WORKLOAD_JWK": "solmara-nagdi-relay-workload-key-1",
 }
+
 
 def raw_key() -> str:
     return secrets.token_urlsafe(32)
@@ -62,15 +64,82 @@ def local_ed25519_jwk(kid: str) -> str:
     return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
 
 
+def local_p256_jwk() -> str:
+    private_der = subprocess.run(
+        [
+            "openssl",
+            "genpkey",
+            "-algorithm",
+            "EC",
+            "-pkeyopt",
+            "ec_paramgen_curve:P-256",
+            "-outform",
+            "DER",
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    details = subprocess.run(
+        ["openssl", "pkey", "-inform", "DER", "-text", "-noout"],
+        input=private_der,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout.decode("ascii")
+    private_key = openssl_key_component(details, "priv")
+    public_key = openssl_key_component(details, "pub")
+    if len(private_key) != 32 or len(public_key) != 65 or public_key[0] != 4:
+        raise RuntimeError("OpenSSL did not return one P-256 private key")
+    x = b64url(public_key[1:33])
+    y = b64url(public_key[33:])
+    thumbprint_input = json.dumps(
+        {"crv": "P-256", "kty": "EC", "x": x, "y": y},
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("ascii")
+    jwk = {
+        "kty": "EC",
+        "crv": "P-256",
+        "kid": b64url(hashlib.sha256(thumbprint_input).digest()),
+        "alg": "ES256",
+        "x": x,
+        "y": y,
+        "d": b64url(private_key),
+    }
+    return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
+
+
+def openssl_key_component(details: str, name: str) -> bytes:
+    lines = iter(details.splitlines())
+    for line in lines:
+        if line.strip() != f"{name}:":
+            continue
+        encoded: list[str] = []
+        for component in lines:
+            if not component.startswith((" ", "\t")):
+                break
+            encoded.append(component.strip().replace(":", ""))
+        return bytes.fromhex("".join(encoded))
+    raise RuntimeError(f"OpenSSL did not report the {name} component")
+
+
 def public_jwk(private_jwk: str) -> dict[str, str]:
     jwk = json.loads(private_jwk)
-    return {key: jwk[key] for key in ("kty", "crv", "kid", "alg", "x")}
+    names = ("kty", "crv", "kid", "alg", "x", "y")
+    return {key: jwk[key] for key in names if key in jwk}
 
 
 def write_private(path: Path, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(value.rstrip("\n") + "\n")
     path.chmod(0o600)
+
+
+def write_public(path: Path, value: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, separators=(",", ":"), sort_keys=True) + "\n")
+    path.chmod(0o644)
 
 
 def ensure_evidence_material() -> None:
@@ -83,7 +152,7 @@ def ensure_evidence_material() -> None:
     private_paths = (
         evidence_dir / "audit-hmac-key",
         evidence_dir / "subject-binding-hmac-key",
-        evidence_dir / "signing-ed25519-private-jwk",
+        evidence_dir / "signing-p256-private-jwk",
         mint_dir / "signing.jwk",
         mint_dir / "audit-hmac-key",
         mint_dir / "client-private.jwk",
@@ -91,17 +160,21 @@ def ensure_evidence_material() -> None:
         tls_dir / "gateway.key",
     )
     public_paths = (
+        evidence_dir / "signing-p256-public.jwk",
+        mint_dir / "signing-public.jwk",
         mint_dir / "clients" / "solmara-demo.yaml",
         tls_dir / "ca.crt",
         tls_dir / "gateway.crt",
     )
     material_paths = (*private_paths, *public_paths)
+    migrate_legacy_evidence_signing_material(evidence_dir, mint_dir, material_paths)
     present = tuple(path for path in material_paths if path.is_file())
     if len(present) == len(material_paths):
         for path in private_paths:
             path.chmod(0o600)
         for path in public_paths:
             path.chmod(0o644)
+        render_evidence_service_configs(evidence_dir, mint_dir)
         return
     if present:
         missing = ", ".join(
@@ -118,14 +191,17 @@ def ensure_evidence_material() -> None:
 
     write_private(evidence_dir / "audit-hmac-key", raw_key())
     write_private(evidence_dir / "subject-binding-hmac-key", raw_key())
-    write_private(
-        evidence_dir / "signing-ed25519-private-jwk",
-        local_ed25519_jwk("solmara-evidence-signing-key-1"),
+    evidence_signing_jwk = local_p256_jwk()
+    write_private(evidence_dir / "signing-p256-private-jwk", evidence_signing_jwk)
+    write_public(
+        evidence_dir / "signing-p256-public.jwk",
+        public_jwk(evidence_signing_jwk),
     )
 
-    mint_signing_jwk = local_ed25519_jwk("solmara-mint-signing-key-1")
+    mint_signing_jwk = local_p256_jwk()
     client_jwk = local_ed25519_jwk("solmara-demo-client-key-1")
     write_private(mint_dir / "signing.jwk", mint_signing_jwk)
+    write_public(mint_dir / "signing-public.jwk", public_jwk(mint_signing_jwk))
     write_private(mint_dir / "audit-hmac-key", raw_key())
     write_private(mint_dir / "client-private.jwk", client_jwk)
     client = {
@@ -246,6 +322,87 @@ def ensure_evidence_material() -> None:
     private_key.chmod(0o600)
     ca_certificate.chmod(0o644)
     certificate.chmod(0o644)
+    render_evidence_service_configs(evidence_dir, mint_dir)
+
+
+def render_evidence_service_configs(evidence_dir: Path, mint_dir: Path) -> None:
+    configurations = (
+        (
+            ROOT / "evidence/bundle/evidence.yaml",
+            evidence_dir / "evidence.yaml",
+            evidence_dir / "signing-p256-public.jwk",
+        ),
+        (
+            ROOT / "evidence/mint.yaml",
+            mint_dir / "mint.yaml",
+            mint_dir / "signing-public.jwk",
+        ),
+    )
+    for template, destination, public_source in configurations:
+        public = json.loads(public_source.read_text())
+        kid = public.get("kid")
+        if not isinstance(kid, str) or len(kid) != 43:
+            raise RuntimeError("service public JWK does not have one thumbprint kid")
+        public_directory = destination.parent / "public-keys"
+        public_directory.mkdir(parents=True, exist_ok=True)
+        for previous in public_directory.glob("*.jwk.json"):
+            previous.unlink()
+        write_public(public_directory / f"{kid}.jwk.json", public)
+
+        rendered = template.read_text().replace(
+            "public-keys/active.jwk.json", f"public-keys/{kid}.jwk.json"
+        )
+        if rendered == template.read_text():
+            raise RuntimeError(
+                f"{template} does not name the generated public key placeholder"
+            )
+        destination.write_text(rendered)
+        destination.chmod(0o644)
+
+
+def migrate_legacy_evidence_signing_material(
+    evidence_dir: Path, mint_dir: Path, material_paths: tuple[Path, ...]
+) -> None:
+    legacy_evidence_signing = evidence_dir / "signing-ed25519-private-jwk"
+    replacement_paths = {
+        evidence_dir / "signing-p256-private-jwk",
+        evidence_dir / "signing-p256-public.jwk",
+        mint_dir / "signing-public.jwk",
+    }
+    legacy_paths = tuple(
+        legacy_evidence_signing
+        if path == evidence_dir / "signing-p256-private-jwk"
+        else path
+        for path in material_paths
+        if path not in replacement_paths - {evidence_dir / "signing-p256-private-jwk"}
+    )
+    if not all(path.is_file() for path in legacy_paths) or any(
+        path.exists() for path in replacement_paths
+    ):
+        return
+
+    try:
+        evidence_legacy = json.loads(legacy_evidence_signing.read_text())
+        mint_legacy = json.loads((mint_dir / "signing.jwk").read_text())
+    except (OSError, json.JSONDecodeError):
+        return
+    if any(
+        jwk.get("alg") != "EdDSA" or "d" not in jwk
+        for jwk in (evidence_legacy, mint_legacy)
+    ):
+        return
+
+    evidence_signing_jwk = local_p256_jwk()
+    mint_signing_jwk = local_p256_jwk()
+    write_private(evidence_dir / "signing-p256-private-jwk", evidence_signing_jwk)
+    write_public(
+        evidence_dir / "signing-p256-public.jwk",
+        public_jwk(evidence_signing_jwk),
+    )
+    write_private(mint_dir / "signing.jwk", mint_signing_jwk)
+    write_public(mint_dir / "signing-public.jwk", public_jwk(mint_signing_jwk))
+    legacy_evidence_signing.unlink()
+    print("rotated local Evidence and Mint service signing keys from EdDSA to ES256")
 
 
 def local_rsa_private_key_b64() -> str:
@@ -357,9 +514,7 @@ def main(argv: list[str] | None = None) -> int:
         "SOLMARA_EVIDENCE_CLIENT_KEY": str(
             ROOT / "config/evidence/local/mint/client-private.jwk"
         ),
-        "SOLMARA_EVIDENCE_CA_BUNDLE": str(
-            ROOT / "config/evidence/local/tls/ca.crt"
-        ),
+        "SOLMARA_EVIDENCE_CA_BUNDLE": str(ROOT / "config/evidence/local/tls/ca.crt"),
     }
 
     for name, kid in JWK_KIDS.items():

@@ -1,8 +1,8 @@
 // Allowlist redaction at the BFF boundary (spec 5.2 / 10).
 //
 // This is denylist-free by construction: nothing passes UNLESS its key is on an
-// explicit allowlist. Everything else (bearer/x-api-key values, the request
-// `target` / subject the BFF holds, any raw identifier echoed in a response) is
+// explicit allowlist. Everything else (bearer/API-key values, request selectors,
+// or any raw identifier echoed in a response) is
 // dropped before anything reaches the proof feed. The structural WIRE SHAPE the
 // proof inspector renders is preserved, but raw identifier values inside it are
 // blanked so the inspector shows the derived self-attestation framing, never a
@@ -36,6 +36,12 @@ export const PROOF_ALLOWLIST = [
 // at the identifier level: identifier strings inside them are blanked.
 const BODY_VALUE_ALLOWLIST = new Set<string>([
   'claims',
+  'requestNonce',
+  'requirement',
+  'requirements',
+  'subjects',
+  'role',
+  'selector',
   'id',
   'version',
   'purpose',
@@ -54,9 +60,31 @@ const BODY_VALUE_ALLOWLIST = new Set<string>([
   'requests',
   'body',
   'status',
+  'title',
+  'detail',
+  'operation',
   'request_summary',
   'response_summary',
   'derived_decisions',
+  'signed_evidence',
+  'assertion',
+  'protected',
+  'payload',
+  'signature',
+  'schema',
+  'assuranceProfile',
+  'subjectBinding',
+  'supportsRequirement',
+  'isConformantTo',
+  'issuedBy',
+  'providedBy',
+  'issuedAt',
+  'observedAt',
+  'validUntil',
+  'audience',
+  'configurationRevision',
+  'supportedValues',
+  'providesValueFor',
   'pension-payment-should-stop',
   'citizen-self-service-ready',
   'survivor-benefit-eligible',
@@ -81,7 +109,6 @@ const BODY_VALUE_ALLOWLIST = new Set<string>([
   'policy_hash',
   'policy_version',
   'service_id',
-  'notary_service_id',
   'authority',
   'source_count',
   'source_versions',
@@ -100,6 +127,7 @@ const HANDLE_KEYS = new Set<string>(['handle', 'identifier_schemes', 'profile'])
 // that could still embed a fixture id, plus the test's assertion surface.
 const SOLMARA_UIN_RE = /\b[2-9]\d{9}\b/g;
 const CP_RE = /CP-\d+/g;
+const FARMER_ID_RE = /\bFR-\d+\b/g;
 const BEARER_RE = /Bearer\s+[A-Za-z0-9._~+/=-]+/gi;
 const X_API_KEY_RE = /(x-api-key\s*[:=]\s*)[A-Za-z0-9._~+/=-]+/gi;
 
@@ -109,7 +137,8 @@ export function scrubString(input: string): string {
     .replace(BEARER_RE, 'Bearer •••••••• (redacted)')
     .replace(X_API_KEY_RE, '$1•••••••• (redacted)')
     .replace(SOLMARA_UIN_RE, '••••')
-    .replace(CP_RE, '••••');
+    .replace(CP_RE, '••••')
+    .replace(FARMER_ID_RE, '••••');
 }
 
 type Json = unknown;
@@ -145,6 +174,14 @@ function walk(node: Json, valuePreserved: boolean): Json {
       // identifier arrays anywhere are dropped to an empty, shape-preserving form.
       if (key === 'identifiers') {
         out[key] = [];
+        continue;
+      }
+      // Registry Evidence selector values are the source lookup material. Keep
+      // their named shape for the inspector, but never forward their values.
+      if (key === 'values' && val !== null && typeof val === 'object' && !Array.isArray(val)) {
+        out[key] = Object.fromEntries(
+          Object.keys(val as Record<string, Json>).map((selector) => [selector, '••••(redacted)'])
+        );
         continue;
       }
       const childPreserved =
@@ -213,6 +250,7 @@ export function containsRawIdentifier(serialized: string): boolean {
   return (
     /\b[2-9]\d{9}\b/.test(serialized) ||
     /CP-\d+/.test(serialized) ||
+    /\bFR-\d+\b/.test(serialized) ||
     /Bearer\s+[A-Za-z0-9._~+/=-]{8,}/.test(serialized) ||
     /x-api-key\s*[:=]\s*[A-Za-z0-9._~+/=-]{8,}/i.test(serialized)
   );

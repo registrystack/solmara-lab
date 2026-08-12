@@ -3,8 +3,7 @@
 // per field/claim, with deterministic latency and a top-to-bottom stagger.
 //
 // The depth-2 request/response bodies inside each ProofTrace are built by ./wire
-// from the owning service contract. Notary services keep their evaluation shape;
-// child benefit uses its ordinary source-attributed JSON application shape.
+// from the current Registry Evidence request and signed-assertion contracts.
 
 import type { EvaluateContext, EvidenceProvider } from '$lib/providers/EvidenceProvider';
 import type { ClaimResult, Field, ProofStatus, ProofTrace } from '$lib/types';
@@ -16,14 +15,13 @@ import {
 } from '$lib/providers/authority-plan';
 import {
   authorityLabel,
-  buildClaimResultView,
-  buildChildBenefitRequest,
-  buildChildBenefitResponse,
-  buildEvaluationRequest,
+  buildEvidenceAssertion,
+  buildEvidenceRequest,
   buildRawRequest,
   buildRawResponse,
-  makeEvaluationId,
-  notaryUrl,
+  evidenceUrl,
+  makeOperationId,
+  signEvidence,
   type RawApplicationRequest,
   type RawApplicationResponse,
   type RawProviderRequest,
@@ -63,7 +61,13 @@ export type MockEvaluation = {
   timing: { latencyMs: number; staggerOrder: number; slow: boolean };
 };
 
-type DenialBody = { error: string; error_description: string };
+type DenialBody = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  operation: string;
+};
 
 const SLOW_THRESHOLD_MS = 6000;
 
@@ -84,7 +88,7 @@ export function resolveScenarioKey(field: Field, opts?: EvaluateOptions): string
 function resolveSubject(scenario: ScenarioResult, ctx: EvaluateContext, key: string): string {
   if (key === 'denial') return PERSONA.karim;
   if (scenario.subjectPersona) return PERSONA[scenario.subjectPersona];
-  if (scenario.notary === 'agri') return PERSONA.aminaFarmer;
+  if (scenario.authority === 'agri') return PERSONA.aminaFarmer;
   if (scenario.delegated) return ctx.delegatedTarget ?? PERSONA.mateo;
   return ctx.subject;
 }
@@ -94,58 +98,48 @@ function buildCrypto(
   evaluationId: string,
   plan: AuthorityPlan[]
 ): NonNullable<ProofTrace['proof']> {
-  if (scenario.service === 'childBenefit') {
-    return {
-      signedBy: `${authorityLabel(scenario)} source result collected by child-benefit-federator`,
-      algorithm: 'Ordinary JSON response; no application signature asserted',
-      issuerKey: 'Not applicable for an application evidence set',
-      holderBound: 'Purpose- and subject-bound child-benefit evidence request',
-      credential: 'Minimized source-attributed predicate result',
-      auditId: `evidence-set:cbe_${evaluationId}`
-    };
-  }
   if (isApplicationOwnedPlan(plan)) {
     const authorities = [...new Set(plan.map((authority) => authority.authority))];
     return {
-      signedBy: `No credential issued; ${authorities.join(' and ')} returned separate claim evaluations`,
-      algorithm: 'Independent Registry Notary claim-result responses',
-      issuerKey: 'Not applicable for claim-result evaluation',
-      holderBound: 'Not credential-bound; the BFF selected the purpose and subject',
-      credential: 'Application decision only; no credential issued by the portal',
+      signedBy: `${authorities.join(' and ')} returned separate Registry Evidence assertions`,
+      algorithm: 'Independent flattened JWS assertions, ES256',
+      issuerKey: 'Each Evidence service publishes /.well-known/evidence/jwks.json',
+      holderBound: 'Audience-scoped to the portal requester, purpose, nonce, and subject binding',
+      credential: 'Signed minimum-disclosure assertions; the portal composed the decision',
       auditId: plan
-        .map((_authority, index) => `evaluation:${evaluationId}-${index + 1}`)
+        .map((_authority, index) => `evidence:${evaluationId}-${index + 1}`)
         .join('; ')
     };
   }
   return {
-    signedBy: `No credential issued; ${authorityLabel(scenario)} returned a claim result`,
-    algorithm: 'Registry Notary claim-result response',
-    issuerKey: 'Not applicable for claim-result evaluation',
-    holderBound: 'Not credential-bound; the BFF selected the purpose and subject',
-    credential: 'Claim result only; no credential issued',
-    auditId: `evaluation:${evaluationId}`
+    signedBy: `${authorityLabel(scenario)} through Registry Evidence`,
+    algorithm: 'Flattened JWS, ES256',
+    issuerKey: '/.well-known/evidence/jwks.json',
+    holderBound: 'Audience-scoped to the portal requester, purpose, nonce, and subject binding',
+    credential: 'Signed minimum-disclosure Evidence assertion',
+    auditId: `evidence:${evaluationId}`
   };
 }
 
 function blockedCrypto(evaluationId: string): NonNullable<ProofTrace['proof']> {
   return {
-    signedBy: 'Portal authorization gate; no authority Notary called',
-    algorithm: 'No signature; request stopped before source access',
+    signedBy: 'Portal authorization gate; Registry Evidence was not called',
+    algorithm: 'No Evidence assertion was produced',
     issuerKey: 'Not applicable',
     holderBound: 'Portal session actor and server-selected subject',
-    credential: 'No credential or evidence result returned',
+    credential: 'No credential or Evidence assertion returned',
     auditId: `denial:${evaluationId}`
   };
 }
 
 function unavailableCrypto(scenario: ScenarioResult): NonNullable<ProofTrace['proof']> {
   return {
-    signedBy: `No claim result; ${authorityLabel(scenario)} was unavailable`,
+    signedBy: `No Evidence assertion; ${authorityLabel(scenario)} was unavailable`,
     algorithm: 'No response proof available',
     issuerKey: 'Not applicable',
     holderBound: 'The BFF selected the purpose and subject',
-    credential: 'No credential or evidence result returned',
-    auditId: 'No evaluation identifier returned'
+    credential: 'No credential or Evidence assertion returned',
+    auditId: 'No Evidence operation identifier returned'
   };
 }
 
@@ -184,7 +178,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
 
     const subject = resolveSubject(scenario, ctx, key);
     const seq = ++this.#seq;
-    const evaluationId = makeEvaluationId(seq);
+    const evaluationId = makeOperationId(seq);
     const issuedAt =
       scenario.state === 'stale'
         ? new Date(`${scenario.asOf}T00:00:00.000Z`)
@@ -202,32 +196,22 @@ export class MockEvidenceProvider implements EvidenceProvider {
       ? buildApplicationExchange(scenario, plan, subject, evaluationId, issuedAt)
       : undefined;
     const rawRequest =
-      applicationExchange?.request ?? buildProviderRequest(scenario, subject, ctx.subject);
+      applicationExchange?.request ?? buildProviderRequest(scenario, subject);
 
     // Denial / error scenarios perform NO source read: there is no 200 body.
     if (scenario.httpStatus === 403) {
-      return this.#denied(field, scenario, ctx, key, scenario.denial?.code ?? 'subject_mismatch');
+      return this.#denied(field, scenario, ctx, key, scenario.denial?.code ?? 'not_authorized');
     }
     if (scenario.httpStatus === 503) {
       return this.#errored(field, scenario, ctx, key, rawRequest);
     }
 
-    const rawResponse =
-      applicationExchange?.response ??
-      (scenario.service === 'childBenefit'
-        ? buildChildBenefitResponse(
-            scenario,
-            evaluationId,
-            issuedAt,
-            // The service branch above guarantees the child application request shape.
-            (rawRequest as ReturnType<typeof buildChildBenefitRequest>).target
-          )
-        : buildRawResponse(scenario, evaluationId, issuedAt));
+    const rawResponse = applicationExchange?.response ?? buildRawResponse(scenario, evaluationId, issuedAt);
 
     const result: ClaimResult = {
       state: scenario.state,
       display: scenario.display,
-      ...(!applicationOwned ? { authority: scenario.notary } : {}),
+      ...(!applicationOwned ? { authority: scenario.authority } : {}),
       asOf: scenario.asOf,
       ...(scenario.reasonCode ? { reasonCode: scenario.reasonCode } : {}),
       traceId: `event ${seq}`
@@ -240,7 +224,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
           method: applicationOwned ? 'MULTI' : 'POST',
           url: applicationOwned
             ? 'solmara://citizen-portal/application-composition'
-            : notaryUrl(scenario),
+            : evidenceUrl(scenario),
           body: rawRequest
         },
         response: { status: scenario.httpStatus, body: rawResponse }
@@ -250,7 +234,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
         answered: scenario.answered,
         notDisclosed: scenario.notDisclosed,
         status: scenario.status,
-        authority: applicationOwned ? undefined : scenario.notary,
+        authority: applicationOwned ? undefined : scenario.authority,
         crypto: buildCrypto(scenario, evaluationId, plan)
       },
       timing: {
@@ -270,16 +254,18 @@ export class MockEvidenceProvider implements EvidenceProvider {
     code: string
   ): MockEvaluation {
     const seq = ++this.#seq;
-    const evaluationId = makeEvaluationId(seq);
+    const evaluationId = makeOperationId(seq);
     // We still show the REQUEST the BFF attempted, with the stranger target, so the
     // inspector shows what was asked, then the 403 with no source read. The target
     // is redacted before it ever reaches the feed.
     const subject = scenario.denial ? PERSONA.karim : (scenario.subjectPersona ? PERSONA[scenario.subjectPersona] : PERSONA.mateo);
-    const rawRequest = buildProviderRequest(scenario, subject, _ctx.subject);
+    const rawRequest = buildProviderRequest(scenario, subject);
     const denialBody: DenialBody = {
-      error: code,
-      error_description:
-        scenario.denial?.message ?? 'requester is not authorized for this target'
+      type: `urn:solmara:portal:problem:${code}`,
+      title: 'Portal authorization denied the request',
+      status: 403,
+      detail: scenario.denial?.message ?? 'requester is not authorized for this target',
+      operation: evaluationId
     };
     const result: ClaimResult = {
       state: 'error',
@@ -330,20 +316,23 @@ export class MockEvidenceProvider implements EvidenceProvider {
   ): MockEvaluation {
     const seq = this.#seq; // already incremented by the caller
     const errBody: DenialBody = {
-      error: 'upstream_unavailable',
-      error_description: `could not reach ${authorityLabel(scenario)}`
+      type: 'https://registrystack.org/problems/evidence/service_unavailable',
+      title: 'Registry Evidence is unavailable',
+      status: 503,
+      detail: `could not reach ${authorityLabel(scenario)}`,
+      operation: `unavailable:${seq}`
     };
     const result: ClaimResult = {
       state: 'error',
       display: scenario.display,
-      authority: scenario.notary,
+      authority: scenario.authority,
       reasonCode: scenario.reasonCode,
       traceId: `event ${seq}`
     };
     return {
       result,
       raw: {
-        request: { method: 'POST', url: notaryUrl(scenario), body: rawRequest },
+        request: { method: 'POST', url: evidenceUrl(scenario), body: rawRequest },
         response: { status: 503, body: errBody }
       },
       proof: {
@@ -351,7 +340,7 @@ export class MockEvidenceProvider implements EvidenceProvider {
         answered: scenario.answered,
         notDisclosed: scenario.notDisclosed,
         status: 'error',
-        authority: scenario.notary,
+        authority: scenario.authority,
         crypto: unavailableCrypto(scenario)
       },
       timing: {
@@ -376,37 +365,19 @@ function buildApplicationExchange(
       purposes.length === 1
         ? (purposes[0] ?? '')
         : 'application-composed-from-source-authorized-purposes',
-    disclosure: 'decision',
-    composition: 'application',
-    requests: plan.map((authority) => ({
+    composition: 'portal-application',
+    requests: plan.map((authority, index) => ({
       authority: authority.authority,
       service_id: authority.serviceId,
-      body: buildEvaluationRequest(
+      body: buildEvidenceRequest(
         authority.claimId,
         subject,
         authority.purpose,
-        authority.scheme ?? 'solmara_uin'
+        authority.scheme ?? 'solmara_uin',
+        index + 1
       )
     }))
   };
-  const results = plan.map((authority, index) =>
-    buildClaimResultView(
-      {
-        claimId: authority.claimId,
-        claimVersion: scenario.claimVersion,
-        serviceId: authority.serviceId,
-        subjectType: 'person',
-        satisfied: true,
-        value: true,
-        disclosure: 'predicate',
-        sourceCount: 1,
-        identifierScheme: authority.scheme ?? 'solmara_uin',
-        freshnessDays: scenario.freshnessDays
-      },
-      `${evaluationId}-${index + 1}`,
-      issuedAt
-    )
-  );
   return {
     request,
     response: {
@@ -415,12 +386,27 @@ function buildApplicationExchange(
         service_id: 'citizen-portal',
         decision: 'application_composed'
       },
-      results,
+      signed_evidence: plan.map((authority, index) => ({
+        authority: authority.authority,
+        service_id: authority.serviceId,
+        assertion: signEvidence(
+          buildEvidenceAssertion(
+            scenario,
+            `${evaluationId}-${index + 1}`,
+            issuedAt,
+            authority.claimId,
+            authority.serviceId,
+            true,
+            authority.authorityId
+          ),
+          authority.serviceId
+        )
+      })),
       source_trace: plan.map((authority) => ({
         authority: authority.authority,
         service_id: authority.serviceId,
         status: 200,
-        claims: [authority.claimId]
+        requirements: [`urn:solmara:requirement:${authority.claimId}:v1`]
       })),
       derived_decisions: { [scenario.claimId]: scenario.satisfied }
     }
@@ -429,26 +415,9 @@ function buildApplicationExchange(
 
 function buildProviderRequest(
   scenario: ScenarioResult,
-  subject: string,
-  actorSubject: string
+  subject: string
 ): RawProviderRequest {
-  if (scenario.service === 'childBenefit') {
-    return buildChildBenefitRequest(scenario, subject);
-  }
-  return buildRawRequest(scenario, subject, {
-    actorIdHash: scenario.delegated ? hashActor(actorSubject) : undefined,
-    delegationRef: scenario.delegated ? 'rnref:v1:REL-1001-MOTHER' : undefined
-  });
-}
-
-// A keyed-hash placeholder for an actor id. Never the raw principal; matches the
-// id_hash wire shape (hmac-sha256:<hex>). Deterministic for the mock.
-function hashActor(subject: string): string {
-  let h = 0;
-  for (let i = 0; i < subject.length; i++) {
-    h = (h * 31 + subject.charCodeAt(i)) & 0xffffffff;
-  }
-  return `hmac-sha256:${(h >>> 0).toString(16).padStart(8, '0')}`;
+  return buildRawRequest(scenario, subject);
 }
 
 function delay(ms: number): Promise<void> {

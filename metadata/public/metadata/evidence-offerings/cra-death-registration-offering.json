@@ -1,10 +1,10 @@
 {
   "access": {
     "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-    "discovery_url": "https://cra-notary.solmara.registrystack.org/.well-known/evidence-service",
-    "endpoint_url": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
+    "discovery_url": "https://evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://evidence.solmara.registrystack.org/v1/evidence",
     "kind": "evidence-verification-api",
-    "ruleset": "person-is-deceased"
+    "ruleset": "https://id.registrystack.org/solmara/requirement/cra-pension-death/v1"
   },
   "dataset": "cra-civil",
   "description": "Purpose-limited evidence predicates from Civil registration.",

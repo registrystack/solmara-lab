@@ -1,21 +1,21 @@
-# Retired wallet issuer topology
+# Wallet and OID4VCI status
 
-Status: retired before Registry Stack 1.0.
+Status: holder demonstrator only.
 
-The former citizen-services deployment added a portal Notary and a separate
-OpenID for Verifiable Credential Issuance (OID4VCI) Notary. That
-purpose-specific model is not part of the clean Solmara topology. Do not deploy
+Registry Stack v0.18.0 includes an Evidence OpenID for Verifiable Credential
+Issuance (OID4VCI) adapter. Solmara Lab does not currently configure or deploy
+that adapter. The active application journeys request audience-scoped signed
+Evidence directly from the centralized Evidence service.
+
+The former citizen-services deployment used purpose-specific Notary services.
+That retired model is not part of the current topology. Do not deploy
 `citizen-notary`, `citizen-issuer-notary`, or the removed
 `compose.coolify.citizen-services.yaml` application.
 
-Solmara now runs exactly six authority-owned public Relay and Notary pairs:
-CRA, NIA, SRO, Programme, SIPF, and NAgDI. Each pair has a private consultation
-Relay beside its Notary; that internal process is not another authority or
-public endpoint. Citizen portal journeys use evidence exposed by those
-authority Notaries. Adding a credential issuance journey must extend the
-owning authority project rather than create a purpose-specific Notary.
-
 The Walt holder wallet application remains available as an isolated UI
-demonstrator through `compose.coolify.walt.yaml`, but the current six-authority
-topology does not expose an OID4VCI issuer. eSignet remains the portal identity
-provider, and its Redis service remains eSignet-owned state.
+demonstrator through `compose.coolify.walt.yaml`. It is not proof of an issuer
+integration and the current Solmara topology does not expose an OID4VCI issuer.
+Any future wallet delivery must use the Registry Evidence OID4VCI adapter,
+retain Evidence as the signer, and add an end-to-end holder-bound verification
+journey. eSignet remains the portal identity provider, and its Redis service
+remains eSignet-owned state.

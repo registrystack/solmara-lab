@@ -3,58 +3,134 @@ name: release-candidate
 on:
   workflow_dispatch:
     inputs:
-      registry_relay_image:
-        description: Digest-pinned registry-relay image
-        required: true
-      registry_notary_image:
-        description: Digest-pinned registry-notary image
-        required: true
       registry_stack_tag:
-        description: Registry Stack candidate or release tag matching the supplied image digests
+        description: Registry Stack release tag used by versions.env
         required: true
-      solmara_image_tag:
-        description: Tag for Solmara-owned images. Defaults to the workflow commit SHA.
-        required: false
 
 permissions:
   contents: read
-  packages: write
+
+concurrency:
+  group: solmara-release-candidate
+  cancel-in-progress: false
+
+env:
+  SOLMARA_IMAGE_REGISTRY: ghcr.io/registrystack
+  GRYPE_VERSION: v0.114.0
+  GRYPE_LINUX_AMD64_SHA256: edda0968d8827daab01d32b3cd7de192ae0915005e7bbfcfef9e68e79bc43343
+  ESIGNET_RELAY_AUTHENTICATOR_REF: 2e7d0e452a778e048f2c259391397d1e1844318e
+  ESIGNET_BASE_IMAGE: mosipid/esignet-with-plugins:1.8.0
+  ESIGNET_UI_IMAGE: mosipid/oidc-ui:1.8.0
+  ESIGNET_POSTGRES_IMAGE: postgres:16
 
 jobs:
-  smoke:
-    runs-on: ubuntu-latest
-    env:
-      REGISTRY_RELAY_IMAGE: ${{ inputs.registry_relay_image }}
-      REGISTRY_NOTARY_IMAGE: ${{ inputs.registry_notary_image }}
-      REGISTRY_STACK_TAG: ${{ inputs.registry_stack_tag }}
-      SOLMARA_IMAGE_REGISTRY: ghcr.io/registrystack
-      SOLMARA_IMAGE_TAG: ${{ inputs.solmara_image_tag || github.sha }}
-      POSTGRES_IMAGE: postgres:16-alpine
-      ESIGNET_POSTGRES_IMAGE: postgres:16
-      ESIGNET_BASE_IMAGE: mosipid/esignet-with-plugins:1.8.0
-      ESIGNET_UI_IMAGE: mosipid/oidc-ui:1.8.0
-      ESIGNET_RELAY_AUTHENTICATOR_REF: 2e7d0e452a778e048f2c259391397d1e1844318e
-      STATIC_METADATA_IMAGE: python:3.12-alpine
+  validate:
+    name: Validate exact protected-main release inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    outputs:
+      registry_stack_tag: ${{ steps.identity.outputs.registry_stack_tag }}
+      registry_stack_version: ${{ steps.identity.outputs.registry_stack_version }}
+      registry_stack_source: ${{ steps.identity.outputs.registry_stack_source }}
+      registry_relay_image: ${{ steps.identity.outputs.registry_relay_image }}
+      volume_init_image: ${{ steps.identity.outputs.volume_init_image }}
+      solmara_image_tag: ${{ steps.identity.outputs.solmara_image_tag }}
+      ci_run_url: ${{ steps.identity.outputs.ci_run_url }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Checkout Registry Stack source
+      - name: Checkout exact workflow source
         uses: actions/checkout@v4
         with:
-          repository: registrystack/registry-stack
-          ref: ${{ env.REGISTRY_STACK_TAG }}
-          path: vendor/registry-stack
-      - name: Verify Registry Stack source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Validate protected-main source and release identity
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST_REGISTRY_STACK_TAG: ${{ inputs.registry_stack_tag }}
+        shell: bash
         run: |
           set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ||
+                "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Release candidates must be dispatched from main" >&2
+            exit 1
+          fi
+          if [[ ! "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "GitHub did not supply an exact source commit" >&2
+            exit 1
+          fi
+          git fetch --force origin refs/heads/main:refs/remotes/origin/main
+          if [[ "$(git rev-parse refs/remotes/origin/main)" != "${GITHUB_SHA}" ]]; then
+            echo "Release candidate source must be the current protected-main commit" >&2
+            exit 1
+          fi
+          ci_run="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${GITHUB_SHA}&status=success&per_page=100" \
+              | jq -c --arg sha "${GITHUB_SHA}" \
+                '[.workflow_runs[] | select(
+                  .head_sha == $sha and
+                  .conclusion == "success" and
+                  .event == "push"
+                )] | sort_by(.updated_at) | last'
+          )"
+          if [[ "${ci_run}" == "null" ]]; then
+            echo "Protected-main CI has no successful push run for this source" >&2
+            exit 1
+          fi
+
           set -a
           source versions.env
           set +a
-          test "$REGISTRY_STACK_SOURCE_REF" = "$REGISTRY_STACK_TAG"
-          test "$(git -C vendor/registry-stack rev-parse HEAD)" = "$REGISTRY_STACK_SOURCE_COMMIT"
+          if [[ "${REQUEST_REGISTRY_STACK_TAG}" != "${REGISTRY_STACK_SOURCE_REF}" ]]; then
+            echo "Requested Registry Stack tag must match versions.env" >&2
+            exit 1
+          fi
+          REGISTRY_STACK_TAG="${REQUEST_REGISTRY_STACK_TAG}"
+          scripts/check-release-pins.py "${REGISTRY_STACK_TAG}"
+
+          solmara_image_tag="candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
+          if [[ ! "${solmara_image_tag}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Solmara image tag is not a valid OCI tag" >&2
+            exit 1
+          fi
           {
-            printf 'SOLMARA_RELAY_BUNDLE_SEQUENCE=%s\n' "$SOLMARA_RELAY_BUNDLE_SEQUENCE"
-            printf 'VOLUME_INIT_IMAGE=%s\n' "$VOLUME_INIT_IMAGE"
-          } >> "$GITHUB_ENV"
+            echo "registry_stack_tag=${REGISTRY_STACK_SOURCE_REF}"
+            echo "registry_stack_version=${REGISTRYCTL_VERSION}"
+            echo "registry_stack_source=${REGISTRY_STACK_SOURCE_COMMIT}"
+            echo "registry_relay_image=${REGISTRY_RELAY_IMAGE}"
+            echo "volume_init_image=${VOLUME_INIT_IMAGE}"
+            echo "solmara_image_tag=${solmara_image_tag}"
+            echo "ci_run_url=$(jq -r .html_url <<<"${ci_run}")"
+          } >> "${GITHUB_OUTPUT}"
+
+  candidate:
+    name: First-run smoke and publish hosted images
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY_STACK_TAG: ${{ needs.validate.outputs.registry_stack_tag }}
+      SOLMARA_IMAGE_TAG: ${{ needs.validate.outputs.solmara_image_tag }}
+      POSTGRES_IMAGE: postgres:16-alpine
+      STATIC_METADATA_IMAGE: python:3.12-alpine
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
       - name: Checkout eSignet relay authenticator
         uses: actions/checkout@v4
         with:
@@ -62,57 +138,53 @@ jobs:
           ref: ${{ env.ESIGNET_RELAY_AUTHENTICATOR_REF }}
           path: vendor/esignet-relay-authenticator
           ssh-key: ${{ secrets.ESIGNET_RELAY_AUTHENTICATOR_SSH_KEY }}
+
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - uses: docker/setup-buildx-action@v3
-      - name: Install tools
+      - uses: extractions/setup-just@v2
+
+      - name: Prepare first-start inputs
         run: |
           corepack enable
-          sudo apt-get update
-          sudo apt-get install -y just
-      - name: Setup
-        run: just setup
-      - name: Install Playwright browser
-        run: |
-          cd portal && pnpm exec playwright install --with-deps chromium
-          cd ../home && pnpm exec playwright install chromium
-      - name: Generate fixtures and secrets
-        run: |
+          just setup
           just generate
           just metadata-publish
-      - name: Validate
+
+      - name: Run one first-start smoke
         run: |
-          just lint
-          just test
-          just registry-projects-editor
-          if [ -n "$(git status --short -- projects)" ]; then
-            git status --short -- projects
-            exit 1
-          fi
-          just registry-projects-check
-          just registry-projects-test
-          just registry-projects-capabilities
-          just registry-projects-runtime-check
-          just compose
-          just review-release "$REGISTRY_STACK_TAG"
-      - name: Prove SRO contract generation transition
-        run: just contract-generation-proof
-      - name: Start stack
-        run: just up
-      - name: Smoke and PostgreSQL restart persistence
-        run: just smoke
-      - name: Portal live e2e
-        run: just portal-live-e2e
-      - name: Visitor center e2e
-        run: just home-live-e2e
+          just up
+          just smoke
+
+      - name: Stop first-start stack
+        if: always()
+        run: just down
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push checksum-verified Evidence and Mint wrappers
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source versions.env
+          set +a
+          for pair in \
+            "${SOLMARA_EVIDENCE_IMAGE} solmara-lab-registry-evidence" \
+            "${SOLMARA_MINT_IMAGE} solmara-lab-registry-mint"; do
+            read -r local_image package <<<"${pair}"
+            remote_image="${SOLMARA_IMAGE_REGISTRY}/${package}:${SOLMARA_IMAGE_TAG}"
+            docker tag "${local_image}" "${remote_image}"
+            docker push "${remote_image}"
+          done
+
       - name: Build and push hosted Relay image
         uses: docker/build-push-action@v6
         with:
@@ -122,40 +194,32 @@ jobs:
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
           build-args: |
-            REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}
-            VOLUME_INIT_IMAGE=${{ env.VOLUME_INIT_IMAGE }}
+            REGISTRY_RELAY_IMAGE=${{ needs.validate.outputs.registry_relay_image }}
+            VOLUME_INIT_IMAGE=${{ needs.validate.outputs.volume_init_image }}
+
       - name: Verify hosted Relay signed bundles
         env:
           SOLMARA_HOSTED_RELAY_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
         run: |
           set -euo pipefail
+          set -a
+          source versions.env
+          set +a
           for project in cra-civil nia-population sro-social mosd-programme sipf-pensions nagdi-agriculture; do
-            for bundle in "$project" "$project/consultation"; do
-              docker run --rm --platform linux/amd64 \
-                -e REGISTRY_RELAY_AUDIT_HASH_SECRET=0123456789abcdef0123456789abcdef \
-                -e REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1=abcdef0123456789abcdef0123456789 \
-                -e REGISTRY_RELAY_CONSULTATION_DATABASE_URL=postgresql://runtime:placeholder@postgres:5432/consultation?sslmode=require \
-                -e SOLMARA_NIA_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
-                -e SOLMARA_SIPF_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
-                "$SOLMARA_HOSTED_RELAY_IMAGE" \
-                config verify-bundle \
-                --bundle-dir "/etc/solmara/hosted-relay-bundles/$bundle/bundle" \
-                --anchor-path "/etc/solmara/hosted-relay-bundles/$bundle/trust-anchor.json" \
-                --state-path "/etc/solmara/hosted-relay-bundles/$bundle/antirollback-seed.json" \
-                | jq -e --argjson expected "$SOLMARA_RELAY_BUNDLE_SEQUENCE" \
-                    '.result == "verified" and .bundle_sequence == $expected' >/dev/null
-            done
+            docker run --rm --platform linux/amd64 \
+              -e REGISTRY_RELAY_AUDIT_HASH_SECRET=0123456789abcdef0123456789abcdef \
+              -e REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1=abcdef0123456789abcdef0123456789 \
+              -e SOLMARA_NIA_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
+              -e SOLMARA_SIPF_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
+              "${SOLMARA_HOSTED_RELAY_IMAGE}" \
+              config verify-bundle \
+              --bundle-dir "/etc/solmara/hosted-relay-bundles/${project}/bundle" \
+              --anchor-path "/etc/solmara/hosted-relay-bundles/${project}/trust-anchor.json" \
+              --state-path "/etc/solmara/hosted-relay-bundles/${project}/antirollback-seed.json" \
+              | jq -e --argjson expected "${SOLMARA_RELAY_BUNDLE_SEQUENCE}" \
+                  '.result == "verified" and .bundle_sequence == $expected' >/dev/null
           done
-      - name: Build and push hosted Notary image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/notary/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-notary:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            REGISTRY_NOTARY_IMAGE=${{ env.REGISTRY_NOTARY_IMAGE }}
+
       - name: Build and push hosted Postgres image
         uses: docker/build-push-action@v6
         with:
@@ -164,8 +228,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-postgres:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            POSTGRES_IMAGE=${{ env.POSTGRES_IMAGE }}
+          build-args: POSTGRES_IMAGE=${{ env.POSTGRES_IMAGE }}
+
       - name: Build and push hosted static metadata image
         uses: docker/build-push-action@v6
         with:
@@ -174,8 +238,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-static-metadata:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            STATIC_METADATA_IMAGE=${{ env.STATIC_METADATA_IMAGE }}
+          build-args: STATIC_METADATA_IMAGE=${{ env.STATIC_METADATA_IMAGE }}
+
       - name: Build and push scenario runner image
         uses: docker/build-push-action@v6
         with:
@@ -184,6 +248,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-scenario-runner:${{ env.SOLMARA_IMAGE_TAG }}
+
       - name: Build and push Visitor Center image
         uses: docker/build-push-action@v6
         with:
@@ -192,6 +257,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-home:${{ env.SOLMARA_IMAGE_TAG }}
+
       - name: Build and push portal image
         uses: docker/build-push-action@v6
         with:
@@ -200,18 +266,18 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-portal:${{ env.SOLMARA_IMAGE_TAG }}
+
       - name: Build and push eSignet relay image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/esignet-relay/Dockerfile
-          build-contexts: |
-            esignet_relay_authenticator_src=./vendor/esignet-relay-authenticator
+          build-contexts: esignet_relay_authenticator_src=./vendor/esignet-relay-authenticator
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-relay:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            ESIGNET_BASE_IMAGE=${{ env.ESIGNET_BASE_IMAGE }}
+          build-args: ESIGNET_BASE_IMAGE=${{ env.ESIGNET_BASE_IMAGE }}
+
       - name: Build and push eSignet Postgres image
         uses: docker/build-push-action@v6
         with:
@@ -220,8 +286,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-postgres:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            POSTGRES_IMAGE=${{ env.ESIGNET_POSTGRES_IMAGE }}
+          build-args: POSTGRES_IMAGE=${{ env.ESIGNET_POSTGRES_IMAGE }}
+
       - name: Build and push eSignet UI image
         uses: docker/build-push-action@v6
         with:
@@ -233,6 +299,7 @@ jobs:
           build-args: |
             ESIGNET_UI_IMAGE=${{ env.ESIGNET_UI_IMAGE }}
             ESIGNET_NGINX_CONF=config/esignet/nginx-hosted.conf
+
       - name: Build and push eSignet seed image
         uses: docker/build-push-action@v6
         with:
@@ -241,20 +308,92 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed:${{ env.SOLMARA_IMAGE_TAG }}
-      - name: Report image digests
+
+      - name: Install pinned vulnerability scanner
+        shell: bash
         run: |
+          set -euo pipefail
+          version="${GRYPE_VERSION#v}"
+          archive="${RUNNER_TEMP}/grype.tar.gz"
+          curl -sSfL \
+            "https://github.com/anchore/grype/releases/download/${GRYPE_VERSION}/grype_${version}_linux_amd64.tar.gz" \
+            -o "${archive}"
+          echo "${GRYPE_LINUX_AMD64_SHA256}  ${archive}" | sha256sum --check --strict
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}" grype
+          echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+
+      - name: Record digests and enforce vulnerability decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p candidate/scans
+          grype db update
+          images=(
+            solmara-lab-registry-evidence
+            solmara-lab-registry-mint
+            solmara-lab-relay
+            solmara-lab-postgres
+            solmara-lab-static-metadata
+            solmara-lab-scenario-runner
+            solmara-lab-home
+            solmara-lab-portal
+            solmara-lab-esignet-relay
+            solmara-lab-esignet-postgres
+            solmara-lab-esignet-ui
+            solmara-lab-esignet-seed
+          )
+          : > candidate/images.jsonl
+          for image in "${images[@]}"; do
+            tagged="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
+            digest="$(docker buildx imagetools inspect "${tagged}" --format '{{.Manifest.Digest}}')"
+            exact="${SOLMARA_IMAGE_REGISTRY}/${image}@${digest}"
+            jq -cn --arg name "${image}" --arg ref "${exact}" \
+              '{name:$name,ref:$ref}' >> candidate/images.jsonl
+            grype "${exact}" --only-fixed --fail-on high -o json \
+              > "candidate/scans/${image}.json"
+          done
+          jq -s \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --arg source_sha "${GITHUB_SHA}" \
+            --arg registry_stack_tag "${REGISTRY_STACK_TAG}" \
+            --arg registry_stack_source "${{ needs.validate.outputs.registry_stack_source }}" \
+            --arg ci_run_url "${{ needs.validate.outputs.ci_run_url }}" \
+            '{
+              schema_version: "solmara.release-candidate.v1",
+              repository: $repository,
+              source_sha: $source_sha,
+              protected_ci: $ci_run_url,
+              registry_stack: {
+                tag: $registry_stack_tag,
+                source_sha: $registry_stack_source
+              },
+              vulnerability_decision: "passed-no-fixed-high-or-critical",
+              images: .
+            }' candidate/images.jsonl > candidate/manifest.json
+          jq -e '
+            .schema_version == "solmara.release-candidate.v1" and
+            (.images | length == 12) and
+            all(.images[]; .ref | test("@sha256:[0-9a-f]{64}$"))
+          ' candidate/manifest.json >/dev/null
+          sha256sum candidate/manifest.json > candidate/SHA256SUMS
+          sha256sum --check candidate/SHA256SUMS
           {
-            echo "### Solmara image digests"
+            echo "### Solmara release candidate"
             echo
-            for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal solmara-lab-esignet-relay solmara-lab-esignet-postgres solmara-lab-esignet-ui solmara-lab-esignet-seed; do
-              ref="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
-              digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
-              echo "- ${SOLMARA_IMAGE_REGISTRY}/${image}@${digest}"
-            done
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Stop stack
-        if: always()
-        run: |
-          if command -v just >/dev/null 2>&1; then
-            just down
-          fi
+            echo "- Source: \`${GITHUB_SHA}\`"
+            echo "- Protected CI: ${{ needs.validate.outputs.ci_run_url }}"
+            echo "- Registry Stack: \`${REGISTRY_STACK_TAG}\` at \`${{ needs.validate.outputs.registry_stack_source }}\`"
+            echo "- First-run smoke: passed"
+            echo "- Vulnerability decision: no fixed high or critical findings"
+            echo "- Candidate manifest: \`$(cut -d ' ' -f 1 candidate/SHA256SUMS)\`"
+            echo
+            jq -r '.images[] | "- `\(.ref)`"' candidate/manifest.json
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload candidate manifest and scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: solmara-release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate
+          if-no-files-found: error
+          retention-days: 14

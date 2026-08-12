@@ -16,12 +16,12 @@ describe('home data adapters', () => {
     expect(services).toContain('static-metadata');
   });
 
-  it('reads the exact source commit and local Evidence image names', async () => {
+  it('reads the exact release tag, source commit, and local Evidence image names', async () => {
     const versions = await readVersions();
-    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('main');
+    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('v0.18.0');
     expect(versions.REGISTRY_STACK_SOURCE_COMMIT).toMatch(/^[0-9a-f]{40}$/);
-    expect(versions.SOLMARA_EVIDENCE_IMAGE).toContain(':source');
-    expect(versions.SOLMARA_MINT_IMAGE).toContain(':source');
+    expect(versions.SOLMARA_EVIDENCE_IMAGE).toBe('solmara-lab-registry-evidence:v0.18.0');
+    expect(versions.SOLMARA_MINT_IMAGE).toBe('solmara-lab-registry-mint:v0.18.0');
   });
 
   it('keeps compose-internal health probes out of visitor links', async () => {

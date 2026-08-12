@@ -24,7 +24,7 @@ test('sign in, open a service, see a field resolve and a proof entry appear', as
   await expect(page.getByText('Registered farmer: yes')).toBeVisible({ timeout: 10_000 });
 
   // The proof inspector / ticker shows the matching authority answer (SSE round-trip).
-  await expect(page.getByText(/National Agricultural Data Institute answered: farmer-registered = true/).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Registry Evidence answered: farmer-registered = true/).first()).toBeVisible({ timeout: 10_000 });
 
   // The synthetic-data banner stays visible throughout.
   await expect(page.getByText('Synthetic demo data')).toBeVisible();

@@ -25,11 +25,11 @@ const CODE_META: Record<
     typeUri: 'https://registrystack.org/problems/evidence/malformed_request',
     meaning:
       'The request does not match the closed Evidence request contract. Registry Evidence rejects it before evaluating a requirement.',
-    coverage: 'Covered by the Evidence bundle fixtures and current-main contract tests.'
+    coverage: 'Covered by the Evidence bundle fixtures and v0.18.0 contract tests.'
   }
 };
 
-/** Steps whose id marks them as a purpose denial demonstrate purpose_not_permitted. */
+/** Steps whose id marks them as a purpose denial demonstrate not_authorized. */
 function denialSteps(scenarios: Scenario[]): StoryStepLink[] {
   const links: StoryStepLink[] = [];
   for (const scenario of scenarios) {

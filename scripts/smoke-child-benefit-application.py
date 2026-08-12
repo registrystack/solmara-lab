@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Smoke child-benefit application composition over authority Notaries.
+"""Smoke child-benefit collection over the central Registry Evidence API.
 
-The legacy-named child-benefit service is an application evidence collector,
-not a Notary. It uses the ordinary Registry Notary HTTP API to collect
-minimized predicates from the CRA, NIA, SRO, and Programme authority Notaries.
+The child-benefit service is an application evidence collector. It requests
+separately governed requirements and never composes the programme decision.
 """
 
 from __future__ import annotations
@@ -20,13 +19,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scenarios.common import (  # noqa: E402
-    CHILD_BENEFIT_AS_OF_DATE,
     PURPOSES,
-    auth_headers,
-    evaluation_body,
     http_json,
     joined_url,
 )
+from scenarios.service_config import requirement_id  # noqa: E402
 
 
 POSITIVE_SUBJECT = "2300010248"
@@ -35,11 +32,14 @@ APPLICATION_URL_DEFAULT = "http://127.0.0.1:4321"
 APPLICATION_TOKEN_ENV = "CHILD_BENEFIT_FEDERATOR_TOKEN"
 UNSUPPORTED_PURPOSE = "https://id.registrystack.org/solmara/purpose/unsupported-application-smoke"
 EXPECTED_CLAIM_OWNERS = {
-    "birth-is-registered": "cra-notary",
-    "child-age-under-5": "cra-notary",
-    "population-record-active": "nia-notary",
-    "household-below-poverty-threshold": "sro-notary",
-    "not-already-enrolled": "programme-notary",
+    "birth-is-registered": ("Civil Registration Authority", "cra-child-benefit"),
+    "child-age-under-5": ("Civil Registration Authority", "cra-child-benefit"),
+    "population-record-active": ("National Identity Agency", "nia-child-benefit"),
+    "household-below-poverty-threshold": (
+        "Social Registry Office",
+        "sro-child-benefit",
+    ),
+    "not-already-enrolled": ("MoSD Programme MIS", "programme-child-benefit"),
 }
 
 
@@ -94,14 +94,8 @@ def application_evidence_failures(
     response = http_json(
         "POST",
         joined_url(base_url, "/v1/evaluations"),
-        auth_headers(token, PURPOSES["child_benefit"], "application/json"),
-        evaluation_body(
-            subject,
-            claims,
-            scheme="solmara_uin",
-            format="application/json",
-            variables={"as_of_date": CHILD_BENEFIT_AS_OF_DATE},
-        ),
+        application_headers(token, PURPOSES["child_benefit"]),
+        application_body(subject, claims),
     )
     return validated_evidence_failures(response.status, response.body, subject, claims)
 
@@ -150,29 +144,59 @@ def validated_evidence_failures(
             continue
         if any(key in result for key in ("error", "source_record", "raw")):
             failures.append(f"{claim_id} leaked an error or raw source representation")
-        if result.get("satisfied") is not True or result.get("disclosure") != "predicate":
+        if result.get("satisfied") is not True or result.get("value") is not True:
             failures.append(f"positive application response did not satisfy {claim_id} as a predicate")
-        if result.get("notary_service_id") != EXPECTED_CLAIM_OWNERS[claim_id]:
-            failures.append(f"{claim_id} was not attributed to its authority Notary")
+        expected_authority, _ = EXPECTED_CLAIM_OWNERS[claim_id]
+        if result.get("authority") != expected_authority:
+            failures.append(f"{claim_id} was not attributed to its source authority")
 
     source_trace = body.get("source_trace")
-    expected_services = {EXPECTED_CLAIM_OWNERS[claim_id] for claim_id in claims}
-    traced_services: set[str] = set()
+    expected_sources = []
+    for authority, client_id in dict.fromkeys(
+        EXPECTED_CLAIM_OWNERS[claim] for claim in claims
+    ):
+        expected_sources.append(
+            (
+                authority,
+                requirement_id(client_id),
+                "registry-evidence",
+                200,
+            )
+        )
     if not isinstance(source_trace, list):
         failures.append("positive application response omitted its ordinary source trace")
     else:
+        traced_sources: list[tuple[Any, Any, Any, Any]] = []
         for item in source_trace:
             if not isinstance(item, dict):
                 failures.append("positive application source trace contained an invalid entry")
                 continue
-            service_id = item.get("service_id")
-            if isinstance(service_id, str):
-                traced_services.add(service_id)
-            summary = item.get("response_summary")
-            if not isinstance(summary, dict) or summary.get("status") != 200:
-                failures.append(f"{service_id or 'unknown authority'} source trace did not record HTTP 200")
-        if traced_services != expected_services:
-            failures.append("positive application source trace did not cover the requested authority Notaries")
+            traced_sources.append(
+                (
+                    item.get("authority"),
+                    item.get("requirement"),
+                    item.get("service_id"),
+                    item.get("status"),
+                )
+            )
+        if traced_sources != expected_sources:
+            failures.append(
+                "positive application source trace did not exactly cover the requested Evidence requirements"
+            )
+
+    signed_evidence = body.get("signed_evidence")
+    if not isinstance(signed_evidence, list) or len(signed_evidence) != len(
+        expected_sources
+    ):
+        failures.append(
+            "positive application response did not preserve one signed assertion per Evidence requirement"
+        )
+    elif any(
+        not isinstance(assertion, dict)
+        or not {"protected", "payload", "signature"}.issubset(assertion)
+        for assertion in signed_evidence
+    ):
+        failures.append("positive application response contained an invalid signed assertion")
 
     if subject in json.dumps(body, sort_keys=True):
         failures.append("positive application response echoed the raw subject identifier")
@@ -183,13 +207,8 @@ def wrong_purpose_failures(base_url: str, token: str, subject: str) -> list[str]
     response = http_json(
         "POST",
         joined_url(base_url, "/v1/evaluations"),
-        auth_headers(token, UNSUPPORTED_PURPOSE, "application/json"),
-        evaluation_body(
-            subject,
-            ["birth-is-registered"],
-            scheme="solmara_uin",
-            format="application/json",
-        ),
+        application_headers(token, UNSUPPORTED_PURPOSE),
+        application_body(subject, ["birth-is-registered"]),
     )
     return denial_failures(
         "unsupported-purpose request",
@@ -197,7 +216,8 @@ def wrong_purpose_failures(base_url: str, token: str, subject: str) -> list[str]
         response.headers,
         response.body,
         expected_status=403,
-        expected_code="pdp.purpose_not_permitted",
+        expected_code="not_authorized",
+        forbidden_values=(subject,),
     )
 
 
@@ -209,6 +229,7 @@ def denial_failures(
     *,
     expected_status: int,
     expected_code: str,
+    forbidden_values: tuple[str, ...] = (),
 ) -> list[str]:
     failures: list[str] = []
     if status != expected_status:
@@ -221,6 +242,14 @@ def denial_failures(
     code = body.get("code") if isinstance(body, dict) else None
     if code != expected_code:
         failures.append(f"{label} returned problem code {code!r}, expected {expected_code!r}")
+    serialized = json.dumps(body, sort_keys=True) if body is not None else ""
+    if any(value and value in serialized for value in forbidden_values):
+        failures.append(f"{label} reflected a protected request or source value")
+    if isinstance(body, dict) and any(
+        key in body
+        for key in ("results", "signed_evidence", "source_trace", "assertion")
+    ):
+        failures.append(f"{label} returned partial Evidence data")
     return failures
 
 
@@ -230,27 +259,41 @@ def raw_household_denial_failures(
     response = http_json(
         "POST",
         joined_url(base_url, "/v1/evaluations"),
-        auth_headers(token, PURPOSES["child_benefit"], "application/json"),
-        evaluation_body(
-            subject,
-            ["household-poverty-score"],
-            scheme="solmara_uin",
-            disclosure="value",
-            format="application/json",
-        ),
+        application_headers(token, PURPOSES["child_benefit"]),
+        application_body(subject, ["household-poverty-score"]),
     )
     failures = denial_failures(
         "raw household request",
         response.status,
         response.headers,
         response.body,
-        expected_status=403,
-        expected_code="pdp.purpose_not_permitted",
+        expected_status=400,
+        expected_code="invalid_request",
+        forbidden_values=(subject, "raw_household_score"),
     )
     serialized = json.dumps(response.body, sort_keys=True)
     if "raw_household_score" in serialized or subject in serialized:
         failures.append("raw household denial reflected protected source data")
     return failures
+
+
+def application_headers(token: str, purpose: str) -> dict[str, str]:
+    return {
+        "x-api-key": token,
+        "Data-Purpose": purpose,
+        "Accept": "application/json",
+    }
+
+
+def application_body(subject: str, claims: list[str]) -> dict[str, Any]:
+    return {
+        "target": {
+            "identifiers": [
+                {"scheme": "solmara_uin", "value": subject},
+            ]
+        },
+        "claims": claims,
+    }
 
 
 if __name__ == "__main__":

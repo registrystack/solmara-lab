@@ -97,29 +97,26 @@ class HostedRelayBundleTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "expected a public-only JWK"):
                 generator.validate_public_jwk(public_jwk)
 
-    def test_public_and_consultation_bundle_variants_are_explicit(self) -> None:
+    def test_only_deployed_public_bundle_variant_is_generated(self) -> None:
         generator = load_generator()
         checker = load_checker()
         expected = (
             ("public", "relay.yaml", "", False),
-            ("consultation", "relay-consultation.yaml", "consultation", True),
         )
         self.assertEqual(generator.BUNDLE_VARIANTS, expected)
         self.assertEqual(checker.BUNDLE_VARIANTS, expected)
 
-    def test_governed_config_uses_variant_specific_trust_paths(self) -> None:
+    def test_governed_config_uses_deployment_bound_trust_paths(self) -> None:
         generator = load_generator()
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            source = root / "relay-consultation.yaml"
+            source = root / "source-relay.yaml"
             destination = root / "relay.yaml"
             source.write_text(
-                "instance:\n  id: example-relay-consultation\nconsultation: {}\n",
+                "instance:\n  id: example-relay\n",
                 encoding="utf-8",
             )
-            container_dir = (
-                generator.CONTAINER_ROOT / "example" / "consultation"
-            )
+            container_dir = generator.CONTAINER_ROOT / "example"
             generator.write_governed_config(
                 source,
                 destination,

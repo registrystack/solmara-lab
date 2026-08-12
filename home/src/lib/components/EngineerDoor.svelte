@@ -39,14 +39,18 @@
       </div>
 
       <div class="engineer-col">
-        <h3>Published demo tokens</h3>
-        <p class="token-disclaimer">
-          These are synthetic lab tokens, deliberately published. They only unlock the synthetic data
-          on this lab and are safe to copy. Do not reuse this pattern for real credentials.
-        </p>
         {#if tokens.length === 0}
+          <h3>Demo credentials</h3>
+          <p class="token-disclaimer">
+            No credentials are published. Evidence access uses a server-held private key and short-lived Mint tokens.
+          </p>
           <p class="empty">No demo tokens are published on this deployment.</p>
         {:else}
+          <h3>Published demo tokens</h3>
+          <p class="token-disclaimer">
+            These are synthetic lab tokens, deliberately published. They only unlock the synthetic data
+            on this lab and are safe to copy. Do not reuse this pattern for real credentials.
+          </p>
           <div class="token-list">
             {#each tokens as token}
               <div class="token">

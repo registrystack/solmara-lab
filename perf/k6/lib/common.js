@@ -7,7 +7,7 @@ export const PENSION_PAYMENT_PURPOSE = 'https://id.registrystack.org/solmara/pur
 export const SURVIVOR_BENEFIT_PURPOSE = 'https://id.registrystack.org/solmara/purpose/survivor-benefit-determination';
 export const VOUCHER_PURPOSE = 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review';
 export const LIVESTOCK_PURPOSE = 'https://id.registrystack.org/solmara/purpose/livestock-movement-control';
-export const CLAIM_RESULT = 'application/vnd.registry-notary.claim-result+json';
+export const EVIDENCE_JWS = 'application/jose+json';
 export const SD_JWT = 'application/dc+sd-jwt';
 
 export const unexpectedStatus = new Counter('registry_lab_unexpected_status_total');
@@ -180,10 +180,12 @@ export function bearerHeaders(token, purpose = PURPOSE, accept = 'application/js
   };
 }
 
-export function jsonHeaders(token, purpose = PURPOSE, accept = CLAIM_RESULT) {
+export function jsonHeaders(token, accept = EVIDENCE_JWS) {
   return {
-    ...bearerHeaders(token, purpose, accept),
+    Authorization: `Bearer ${token}`,
+    Accept: accept,
     'Content-Type': 'application/json',
+    'X-Request-Id': requestId(),
   };
 }
 
@@ -198,12 +200,18 @@ export function target(subjectId, scheme = 'solmara_uin') {
   };
 }
 
-export function evaluationPayload(subjectId, claim, disclosure = 'predicate', format = CLAIM_RESULT, scheme = 'solmara_uin') {
+export function evidencePayload(requestNonce, subjectId, requirement, purpose, profile = 'solmara-uin-v1', field = 'uin') {
   return JSON.stringify({
-    target: target(subjectId, scheme),
-    claims: [claim],
-    disclosure,
-    format,
+    requestNonce,
+    requirement,
+    purpose,
+    subjects: [{
+      role: 'subject',
+      selector: {
+        profile,
+        values: { [field]: subjectId },
+      },
+    }],
   });
 }
 

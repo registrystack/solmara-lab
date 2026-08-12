@@ -1,31 +1,31 @@
 {
   "format": "registry.stack.editor-manifest",
   "version": 1,
-  "registryctl_version": "0.15.2",
+  "registryctl_version": "0.18.0",
   "schemas": [
     {
       "kind": "project",
       "path": "schemas/project.schema.json",
       "file_glob": "registry-stack.yaml",
-      "sha256": "sha256:9fd76663c866c52bb5a17a4cfea821049b7428c812f1666da9db0d43a00da144"
+      "sha256": "sha256:c25b6d24ad72725f3cd79ff7a05c76b2daf08ce5a2447cd2dd2391a5d9b64195"
     },
     {
       "kind": "environment",
       "path": "schemas/environment.schema.json",
       "file_glob": "environments/*.yaml",
-      "sha256": "sha256:d16828629e001a30a1705af90bcc12a214be18cf5805a9833e65b03d631c9e9b"
+      "sha256": "sha256:a29594aec0034b85aad9f3e6416930cf449a32f23703de3975664d1cbcc5af57"
     },
     {
       "kind": "integration",
       "path": "schemas/integration.schema.json",
       "file_glob": "integrations/*/integration.yaml",
-      "sha256": "sha256:2e45452f63c3c610ed14b79244bc9aa086d79d811ad0899223b36c160d449a79"
+      "sha256": "sha256:2dc120a391641c4c0157f4e0fcb8ba8e1c96ba925c5029f846aec1b93b4f4de7"
     },
     {
       "kind": "fixture",
       "path": "schemas/fixture.schema.json",
       "file_glob": "integrations/*/fixtures/*.yaml",
-      "sha256": "sha256:98c0ab21e35cecd143b51e4b5dd487de07ceea24e505bbe351d212e0628c8c8c"
+      "sha256": "sha256:ccddc7c649c880984b636501ec8727d353393724257ec3066fbba187781236e3"
     },
     {
       "kind": "entity",

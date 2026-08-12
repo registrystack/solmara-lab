@@ -1,54 +1,40 @@
-# Solmara Lab Performance Harness
+# Solmara Lab performance harness
 
-This k6 harness exercises four live evaluation paths through the Solmara demo
-stack: the Child Benefit Federator and the CRA, SIPF, and NAgDI authority-owned
-Notaries. It assumes the lab has generated `.env` secrets and the local Docker
-Compose topology is running.
+This k6 harness exercises four live Registry Evidence requirements backed by
+the CRA, SIPF, and NAgDI Relay Records APIs. It assumes the local Compose
+topology is running and a short-lived Mint token is available as
+`SOLMARA_EVIDENCE_ACCESS_TOKEN`.
 
-## Start the Lab
+## Start the lab
 
 ```bash
 just setup
-just generate
-just up
-```
-
-Wait for the standard smoke prerequisites to pass before collecting a baseline:
-
-```bash
+just up-generated
 just smoke
 ```
 
-## Run with Local k6
+## Run with local k6
+
+Load the generated environment, obtain a current Evidence token through the
+normal Mint client flow, and export it without writing it to a report:
 
 ```bash
 set -a
 . .env
 set +a
+export SOLMARA_EVIDENCE_ACCESS_TOKEN='<short-lived token>'
 mkdir -p output/perf/results output/perf/reports
 
-k6 run perf/k6/notary_relay_backed.js
+K6_INSECURE_SKIP_TLS_VERIFY=true \
+  k6 run perf/k6/evidence_relay_backed.js
 ```
 
-The default profile is `smoke`. It intentionally uses a small VU count and a
-short think time to validate routes without creating load. It is not a capacity
-measurement.
+The TLS override is for the generated local CA on `https://localhost:4341`.
+Do not use it against a hosted target.
 
-The generated `.env` supplies the required bearer tokens:
-
-- `CHILD_BENEFIT_FEDERATOR_TOKEN`
-- `CRA_PENSION_CLIENT_TOKEN`
-- `SIPF_PENSION_CLIENT_TOKEN`
-- `NAGDI_NOTARY_TOKEN`
-
-The scenario uses these target URLs and local defaults:
-
-| Target | Environment variable | Default |
-| --- | --- | --- |
-| Child Benefit Federator | `CHILD_BENEFIT_FEDERATOR_URL` | `http://127.0.0.1:4321` |
-| CRA Notary | `CRA_NOTARY_URL` | `http://127.0.0.1:4325` |
-| SIPF Notary | `SIPF_NOTARY_URL` | `http://127.0.0.1:4322` |
-| NAgDI Notary | `NAGDI_NOTARY_URL` | `http://127.0.0.1:4323` |
+The default `smoke` profile uses a small virtual-user count and short think
+time to catch broken routes, authorization drift, invalid Evidence response
+shapes, and basic latency regressions. It is not a capacity measurement.
 
 Run a capacity baseline with an explicit arrival rate:
 
@@ -58,7 +44,8 @@ REGISTRY_LAB_DURATION=2m \
 REGISTRY_LAB_RATE=200 \
 REGISTRY_LAB_PRE_ALLOCATED_VUS=64 \
 REGISTRY_LAB_MAX_VUS=400 \
-k6 run perf/k6/notary_relay_backed.js
+K6_INSECURE_SKIP_TLS_VERIFY=true \
+k6 run perf/k6/evidence_relay_backed.js
 ```
 
 Run a breakpoint ramp:
@@ -68,66 +55,50 @@ REGISTRY_LAB_PROFILE=breakpoint \
 REGISTRY_LAB_STAGES=1m:100,1m:200,1m:400,30s:0 \
 REGISTRY_LAB_PRE_ALLOCATED_VUS=64 \
 REGISTRY_LAB_MAX_VUS=400 \
-k6 run perf/k6/notary_relay_backed.js
+K6_INSECURE_SKIP_TLS_VERIFY=true \
+k6 run perf/k6/evidence_relay_backed.js
 ```
 
 ## Run with Docker k6
 
-Docker Desktop on macOS does not support `--network host` the same way Linux
-does. Use `host.docker.internal` for loopback services:
+Docker Desktop on macOS uses `host.docker.internal` for host loopback. Pass the
+short-lived token through the environment and keep the local TLS exception
+explicit:
 
 ```bash
 docker run --rm \
   --env-file .env \
-  -e CHILD_BENEFIT_FEDERATOR_URL=http://host.docker.internal:4321 \
-  -e CRA_NOTARY_URL=http://host.docker.internal:4325 \
-  -e SIPF_NOTARY_URL=http://host.docker.internal:4322 \
-  -e NAGDI_NOTARY_URL=http://host.docker.internal:4323 \
+  -e SOLMARA_EVIDENCE_URL=https://host.docker.internal:4341 \
+  -e SOLMARA_EVIDENCE_ACCESS_TOKEN \
+  -e K6_INSECURE_SKIP_TLS_VERIFY=true \
   -v "$PWD:/workspace" \
   -w /workspace \
-  grafana/k6:0.57.0 run perf/k6/notary_relay_backed.js
+  grafana/k6:0.57.0 run perf/k6/evidence_relay_backed.js
 ```
 
 ## Profiles
 
-The scenario is profile-aware via `REGISTRY_LAB_PROFILE`:
+- `smoke`: constant virtual users, defaulting to 4 users for 30 seconds with a
+  0.1-second think time.
+- `capacity`: constant arrival rate, defaulting to 200 requests per second.
+- `breakpoint`: ramping arrival rate, defaulting from 100 to 200 to 400
+  requests per second and then to zero.
 
-- `smoke`: `constant-vus`, defaults to `REGISTRY_LAB_VUS=4`,
-  `REGISTRY_LAB_DURATION=30s`, and `REGISTRY_LAB_THINK_TIME_SECONDS=0.1`.
-  This catches broken routes, auth drift, and basic latency regressions.
-- `capacity`: `constant-arrival-rate`, defaults to the script's baseline target
-  rate and `REGISTRY_LAB_THINK_TIME_SECONDS=0`. Use this for comparable
-  requests-per-second baselines.
-- `breakpoint`: `ramping-arrival-rate`, defaults to the script's ramp stages
-  and `REGISTRY_LAB_THINK_TIME_SECONDS=0`. Use this to find the first target
-  rate where latency or error thresholds fail.
+Common overrides are `REGISTRY_LAB_DURATION`, `REGISTRY_LAB_VUS`,
+`REGISTRY_LAB_RATE`, `REGISTRY_LAB_PRE_ALLOCATED_VUS`,
+`REGISTRY_LAB_MAX_VUS`, `REGISTRY_LAB_START_RATE`,
+`REGISTRY_LAB_THINK_TIME_SECONDS`, and `REGISTRY_LAB_STAGES`.
 
-Common overrides:
-
-- `REGISTRY_LAB_PROFILE=smoke|capacity|breakpoint`
-- `REGISTRY_LAB_DURATION=30s`
-- `REGISTRY_LAB_VUS=4`
-- `REGISTRY_LAB_RATE=200`
-- `REGISTRY_LAB_PRE_ALLOCATED_VUS=64`
-- `REGISTRY_LAB_MAX_VUS=400`
-- `REGISTRY_LAB_START_RATE=0`
-- `REGISTRY_LAB_THINK_TIME_SECONDS=0`
-- `REGISTRY_LAB_STAGES=1m:100,1m:200,1m:400,30s:0`
-
-Keep hosted or shared environments opt-in; the default URLs are local loopback
-ports.
-
-`notary_relay_backed` defaults to `200 req/s` for capacity runs and ramps from
-`100` to `200` to `400 req/s` for breakpoint runs.
+Keep shared or hosted environments opt-in. A hosted run requires explicit
+authorization from the environment owner, a valid TLS chain, and an explicit
+`SOLMARA_EVIDENCE_URL`.
 
 ## Reports
 
 The script writes:
 
-- `output/perf/results/<scenario>.json`
-- `output/perf/reports/<scenario>.txt`
+- `output/perf/results/evidence_relay_backed.json`
+- `output/perf/reports/evidence_relay_backed.txt`
 
-The text summaries print the active profile, think time, rate/count gauges,
-latency distributions (`avg`, `med`, `p90`, `p95`, `p99`, `max`), and
-status-code counters. Status-specific counters are emitted as first-class
-metrics because k6 does not include tag cardinality in the compact text summary.
+The reports contain aggregate rate, latency, check, and HTTP status metrics.
+They must not contain the access token, request subject, or signed response.

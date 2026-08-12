@@ -14,7 +14,6 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 RELAY = "ghcr.io/registrystack/registry-relay@sha256:" + "1" * 64
-NOTARY = "ghcr.io/registrystack/registry-notary@sha256:" + "2" * 64
 
 
 def load_check_release_pins():
@@ -35,7 +34,6 @@ class ReleasePinTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
         os.environ.pop("REGISTRY_RELAY_IMAGE", None)
-        os.environ.pop("REGISTRY_NOTARY_IMAGE", None)
 
         self.module = load_check_release_pins()
         self.resolve_tag_implementation = self.module.resolve_tag_commit
@@ -49,12 +47,17 @@ class ReleasePinTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.root = Path(self.directory.name)
         self.module.ROOT = self.root
+        checksums = "".join(
+            f"REGISTRY_STACK_{tool}_{platform}_SHA256={'3' * 64}\n"
+            for tool in ("EVIDENCE", "EVIDENCECTL", "MINT", "REGISTRYCTL")
+            for platform in ("LINUX_AMD64", "LINUX_ARM64", "MACOS_ARM64")
+        )
         (self.root / "versions.env").write_text(
             f"REGISTRY_RELAY_IMAGE={RELAY}\n"
-            f"REGISTRY_NOTARY_IMAGE={NOTARY}\n"
             "REGISTRYCTL_VERSION=1.0.0\n"
             "REGISTRY_STACK_SOURCE_REF=v1.0.0\n"
-            f"REGISTRY_STACK_SOURCE_COMMIT={'a' * 40}\n",
+            f"REGISTRY_STACK_SOURCE_COMMIT={'a' * 40}\n"
+            + checksums,
             encoding="utf-8",
         )
 
@@ -65,22 +68,21 @@ class ReleasePinTests(unittest.TestCase):
         with (
             mock.patch.dict(
                 os.environ,
-                {"REGISTRY_RELAY_IMAGE": RELAY, "REGISTRY_NOTARY_IMAGE": NOTARY},
+                {"REGISTRY_RELAY_IMAGE": RELAY},
                 clear=True,
             ),
             mock.patch.object(
                 self.module,
                 "inspect_tag_digest",
-                side_effect=["sha256:" + "1" * 64, "sha256:" + "2" * 64],
+                return_value="sha256:" + "1" * 64,
             ) as inspect,
         ):
             self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 0)
 
-        self.assertEqual(inspect.call_count, 2)
+        inspect.assert_called_once_with("ghcr.io/registrystack/registry-relay:v1.0.0")
 
     def test_temporary_versions_are_isolated_from_ambient_image_overrides(self) -> None:
         self.assertNotIn("REGISTRY_RELAY_IMAGE", os.environ)
-        self.assertNotIn("REGISTRY_NOTARY_IMAGE", os.environ)
 
     def test_candidate_test_passes_with_workflow_image_environment(self) -> None:
         committed = self.module.read_versions(ROOT / "versions.env")
@@ -88,7 +90,6 @@ class ReleasePinTests(unittest.TestCase):
         environment.update(
             {
                 "REGISTRY_RELAY_IMAGE": committed["REGISTRY_RELAY_IMAGE"],
-                "REGISTRY_NOTARY_IMAGE": committed["REGISTRY_NOTARY_IMAGE"],
             }
         )
 
@@ -130,7 +131,7 @@ class ReleasePinTests(unittest.TestCase):
         with mock.patch.object(
             self.module,
             "inspect_tag_digest",
-            side_effect=["sha256:" + "1" * 64, "sha256:" + "2" * 64],
+            return_value="sha256:" + "1" * 64,
         ):
             self.assertEqual(
                 self.module.main(["check-release-pins.py", "v1.0.0-rc.1"]),
@@ -251,6 +252,25 @@ class ReleasePinTests(unittest.TestCase):
             stderr.getvalue(),
         )
 
+    def test_release_artifact_checksum_closure_is_required(self) -> None:
+        versions = (self.root / "versions.env").read_text(encoding="utf-8")
+        (self.root / "versions.env").write_text(
+            versions.replace(
+                f"REGISTRY_STACK_MINT_LINUX_AMD64_SHA256={'3' * 64}",
+                "REGISTRY_STACK_MINT_LINUX_AMD64_SHA256=missing",
+            ),
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(self.module, "inspect_tag_digest") as inspect,
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(self.module.main(["check-release-pins.py", "v1.0.0"]), 1)
+
+        inspect.assert_not_called()
+        self.assertIn("REGISTRY_STACK_MINT_LINUX_AMD64_SHA256", stderr.getvalue())
+
     def test_malicious_tags_are_rejected_before_registry_lookup(self) -> None:
         malicious_tags = (
             "v1.0.0; echo INJECTED",
@@ -272,50 +292,6 @@ class ReleasePinTests(unittest.TestCase):
                 self.assertEqual(result, 2)
                 inspect.assert_not_called()
                 self.assertIn("tag must match", stderr.getvalue())
-
-    def test_release_recipe_dry_runs_do_not_interpolate_tag(self) -> None:
-        malicious_tags = (
-            "v1.0.0; echo INJECTED",
-            "v1.0.0 rc.1",
-            "v1.0.0'quoted",
-            'v1.0.0"quoted',
-            "v1.0.0$(echo INJECTED)",
-            "v1.0.0\necho INJECTED",
-        )
-        recipes = {
-            "release-pins": 'scripts/check-release-pins.py "$1"',
-            "review-release": (
-                'scripts/check-release-pins.py "$1"\nscripts/review.sh'
-            ),
-        }
-        for recipe, expected in recipes.items():
-            for tag in malicious_tags:
-                with self.subTest(recipe=recipe, tag=tag):
-                    result = subprocess.run(
-                        ["just", "--dry-run", recipe, tag],
-                        cwd=ROOT,
-                        check=False,
-                        text=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                    )
-
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stderr.strip(), expected)
-
-    def test_review_release_recipe_requires_tag(self) -> None:
-        result = subprocess.run(
-            ["just", "--dry-run", "review-release"],
-            cwd=ROOT,
-            check=False,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("takes 1", result.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()

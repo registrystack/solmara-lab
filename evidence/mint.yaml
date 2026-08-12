@@ -1,17 +1,24 @@
 version: 1
+validationMode: supervised-local-development
 issuer: https://mint.evidence.solmara.invalid
 listener:
   address: 0.0.0.0
   port: 8081
 signing:
-  algorithm: EdDSA
-  activeKeyId: solmara-mint-signing-key-1
-  activeKeyFile: /run/secrets/registry-mint/signing.jwk
-  retiredPublicJwkFiles: []
+  algorithm: ES256
+  activePublicJwkFile: public-keys/active.jwk.json
+  publishedPublicJwkFiles: []
+  revokedKeyIds: []
+signer:
+  kind: local-jwk
+  privateKeyRef: secret:file/signing.jwk
+secretProviders:
+  file:
+    root: /run/secrets/registry-mint
 audit:
   path: /var/lib/registry-mint/audit/mint.jsonl
   maximumFileBytes: 1073741824
-  hashKeyFile: /run/secrets/registry-mint/audit-hmac-key
+  hashKeyRef: secret:file/audit-hmac-key
   hashKeyVersion: 1
 accessTokens:
   audiences: [solmara-evidence]

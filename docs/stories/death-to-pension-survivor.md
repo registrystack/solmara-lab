@@ -7,8 +7,8 @@ Status: normative for Solmara Lab wave 1 story 2.
 This story demonstrates a high-value DPI control: a registered death triggers a
 review of an active pension payment and determines whether a spouse is eligible
 for survivor benefit evidence. The pension-review application receives
-minimized predicates from the CRA and SIPF Notaries, not medical details or full
-registry rows.
+signed minimized Evidence from CRA and SIPF Records APIs, not medical details
+or full registry rows.
 
 ## Authorities And Registries
 
@@ -27,11 +27,16 @@ Evidence offerings:
 - `cra-death-registration-offering`
 - `sipf-pensions-pension-case-offering`
 
-Credential `vct` values:
+All three requests use the centralized
+`https://evidence.solmara.registrystack.org/v1/evidence` endpoint with these
+requirements:
 
-- `https://id.registrystack.org/solmara/vct/survivor-benefit-status`
+- `https://id.registrystack.org/solmara/requirement/cra-pension-death/v1`
+- `https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1`
+- `https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1`
 
-Credential name: Survivor Benefit Eligibility SD-JWT VC.
+The active lab bundle permits the signed JWS response format. It does not turn
+this application workflow into a wallet issuance flow.
 
 ## Positive Path
 
@@ -48,11 +53,10 @@ Expected claims:
 | `pension-payment-active` | Pass: Rafael has an active in-payment award that requires review. |
 | `survivor-is-eligible` | Pass: SIPF has a verified eligible survivor link. |
 
-The pension-review application combines CRA death evidence with SIPF payment
-evidence. It does not ask either Notary to make the cross-authority stop-payment
-decision. SIPF separately returns survivor eligibility evidence and can issue
-the survivor benefit credential for Imani. Neither path discloses cause of
-death.
+The pension-review application combines CRA death Evidence with SIPF payment
+Evidence. It does not ask Registry Evidence to make the cross-authority
+stop-payment decision. SIPF separately supplies the Records API data for the
+survivor requirement. Neither path discloses cause of death.
 
 ## Failure Cases
 
@@ -65,9 +69,10 @@ death.
 
 ## Purpose Denial
 
-The smoke must attempt to request `cause_of_death` or medical death details
-under `pension-payment-review`. The response must deny access with problem code
-`pdp.purpose_not_permitted`. The SIPF needs the death fact, not the medicine.
+The reviewed pension Evidence requirements do not expose `cause_of_death` or
+medical death details. A complete request with an unsupported purpose must be
+denied with HTTP 403 `not_authorized` before source access. The SIPF needs the
+death fact, not the medicine.
 
 ## Smoke Expectations
 
@@ -77,9 +82,9 @@ The story smoke asserts:
    `docs/purposes.md`.
 2. The application combines Rafael's CRA death predicate and SIPF active-payment
    predicate without treating either source response as a composed decision.
-3. SIPF's survivor eligibility evaluation passes and uses the expected
-   survivor credential `vct`.
+3. SIPF's survivor Evidence assertion contains the approved eligibility
+   concept and verifies against the Evidence key set.
 4. Otto and Lucia produce the stale-data or reconciliation path.
 5. Mina's survivor claim fails because the marriage is dissolved.
-6. Cause-of-death access is denied with `pdp.purpose_not_permitted`.
+6. An unsupported-purpose request is denied with HTTP 403 `not_authorized`.
 7. Denial smokes assert stable problem codes, not message text.

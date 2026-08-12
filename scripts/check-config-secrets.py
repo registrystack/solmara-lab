@@ -16,7 +16,6 @@ SCAN_DIRS = [
     "evidence",
     "config/hosted-relay-bundles",
     "compose.yaml",
-    "compose.hosted.yaml",
     "compose.esignet.yaml",
 ]
 RAW_SECRET_KEYS = re.compile(

@@ -32,18 +32,18 @@ EXPECTED_CHILD_BENEFIT_CLAIMS = {
     "household-below-poverty-threshold",
     "not-already-enrolled",
 }
-EXPECTED_CHILD_BENEFIT_NOTARIES = {
-    "cra-notary",
-    "nia-notary",
-    "sro-notary",
-    "programme-notary",
+EXPECTED_CHILD_BENEFIT_AUTHORITIES = {
+    "Civil Registration Authority",
+    "National Identity Agency",
+    "Social Registry Office",
+    "MoSD Programme MIS",
 }
 EXPECTED_CHILD_BENEFIT_ATTRIBUTION = {
-    "birth-is-registered": "cra-notary",
-    "child-age-under-5": "cra-notary",
-    "population-record-active": "nia-notary",
-    "household-below-poverty-threshold": "sro-notary",
-    "not-already-enrolled": "programme-notary",
+    "birth-is-registered": "Civil Registration Authority",
+    "child-age-under-5": "Civil Registration Authority",
+    "population-record-active": "National Identity Agency",
+    "household-below-poverty-threshold": "Social Registry Office",
+    "not-already-enrolled": "MoSD Programme MIS",
 }
 
 
@@ -64,7 +64,7 @@ class HostedTargets:
     esignet_ui_url: str
     wallet_url: str
     relays: tuple[ServiceTarget, ...]
-    notaries: tuple[ServiceTarget, ...]
+    evidence_services: tuple[ServiceTarget, ...]
     applications: tuple[ServiceTarget, ...]
 
 
@@ -99,22 +99,6 @@ def main(argv: list[str] | None = None) -> int:
             "Relay source endpoints",
             lambda: run_command(
                 [sys.executable, str(ROOT / "scripts" / "smoke-relay-sources.py")],
-                env,
-                cwd=ROOT,
-            ),
-        ),
-        (
-            "Notary scenario evaluations",
-            lambda: run_command(
-                [sys.executable, str(ROOT / "scripts" / "smoke-live.py")],
-                env,
-                cwd=ROOT,
-            ),
-        ),
-        (
-            "published demo token refusals",
-            lambda: run_command(
-                [sys.executable, str(ROOT / "scripts" / "smoke-published-tokens.py")],
                 env,
                 cwd=ROOT,
             ),
@@ -266,42 +250,18 @@ def default_targets(domain: str, scheme: str = "https") -> HostedTargets:
                 env_name="SOLMARA_NAGDI_RELAY_URL",
             ),
         ),
-        notaries=(
+        evidence_services=(
             ServiceTarget(
-                "CRA Notary",
-                subdomain("cra-notary"),
-                health_path="/ready",
-                env_name="CRA_NOTARY_URL",
+                "Registry Evidence",
+                subdomain("evidence"),
+                health_path="/health",
+                env_name="SOLMARA_EVIDENCE_URL",
             ),
             ServiceTarget(
-                "NIA Notary",
-                subdomain("nia-notary"),
-                health_path="/ready",
-                env_name="NIA_NOTARY_URL",
-            ),
-            ServiceTarget(
-                "SRO Notary",
-                subdomain("sro-notary"),
-                health_path="/ready",
-                env_name="SRO_NOTARY_URL",
-            ),
-            ServiceTarget(
-                "Programme Notary",
-                subdomain("programme-notary"),
-                health_path="/ready",
-                env_name="PROGRAMME_NOTARY_URL",
-            ),
-            ServiceTarget(
-                "SIPF Notary",
-                subdomain("sipf-notary"),
-                health_path="/ready",
-                env_name="SIPF_NOTARY_URL",
-            ),
-            ServiceTarget(
-                "NAgDI notary",
-                subdomain("nagdi-notary"),
-                health_path="/ready",
-                env_name="NAGDI_NOTARY_URL",
+                "Registry Mint",
+                subdomain("mint"),
+                health_path="/health",
+                env_name="SOLMARA_MINT_URL",
             ),
         ),
         applications=(
@@ -339,7 +299,7 @@ def hosted_env(
             "SOLMARA_PORTAL_EXPECT_AUTH_REQUIRED": "1",
         }
     )
-    for target in (*targets.relays, *targets.notaries, *targets.applications):
+    for target in (*targets.relays, *targets.evidence_services, *targets.applications):
         if target.env_name:
             env[target.env_name] = target.base_url
     return env
@@ -349,10 +309,9 @@ def check_public_routes(targets: HostedTargets, timeout: float) -> None:
     checks = [
         ServiceTarget("Visitor Center", targets.home_url, "/"),
         ServiceTarget("portal", targets.portal_url, "/"),
-        ServiceTarget("Walt wallet", targets.wallet_url, "/"),
         ServiceTarget("static metadata", targets.metadata_url, "/metadata/index.json"),
         *targets.relays,
-        *targets.notaries,
+        *targets.evidence_services,
         *targets.applications,
     ]
     failures: list[str] = []
@@ -423,11 +382,11 @@ def check_home_demo(home_url: str, timeout: float) -> None:
         raise SmokeFailure("child positive step returned a composed eligibility claim")
     attribution = (
         {
-            result.get("claim_id"): result.get("notary_service_id")
+            result.get("claim_id"): result.get("authority")
             for result in results
             if isinstance(result, dict)
             and isinstance(result.get("claim_id"), str)
-            and isinstance(result.get("notary_service_id"), str)
+            and isinstance(result.get("authority"), str)
         }
         if isinstance(results, list)
         else {}
@@ -437,19 +396,32 @@ def check_home_demo(home_url: str, timeout: float) -> None:
             f"child positive step returned incorrect authority attribution, attribution={attribution!r}"
         )
     trace = positive_body.get("source_trace")
-    source_notaries = (
+    source_authorities = (
         {
-            item.get("service_id")
+            item.get("authority")
             for item in trace
-            if isinstance(item, dict) and isinstance(item.get("service_id"), str)
+            if isinstance(item, dict) and isinstance(item.get("authority"), str)
         }
         if isinstance(trace, list)
         else set()
     )
-    if source_notaries != EXPECTED_CHILD_BENEFIT_NOTARIES:
+    source_services = (
+        {item.get("service_id") for item in trace if isinstance(item, dict)}
+        if isinstance(trace, list)
+        else set()
+    )
+    if source_authorities != EXPECTED_CHILD_BENEFIT_AUTHORITIES:
         raise SmokeFailure(
-            f"child positive step returned an incomplete source trace, source_notaries={sorted(source_notaries)!r}"
+            "child positive step returned an incomplete authority trace, "
+            f"authorities={sorted(source_authorities)!r}"
         )
+    if source_services != {"registry-evidence"}:
+        raise SmokeFailure(
+            f"child positive step did not use central Evidence, services={sorted(source_services)!r}"
+        )
+    signed_evidence = positive_body.get("signed_evidence")
+    if not isinstance(signed_evidence, list) or len(signed_evidence) != 4:
+        raise SmokeFailure("child positive step did not return four signed Evidence results")
     if "credential" in positive_result:
         raise SmokeFailure("child positive step unexpectedly issued a credential")
 
@@ -472,9 +444,9 @@ def check_home_demo(home_url: str, timeout: float) -> None:
         raise SmokeFailure(
             f"child purpose-denial step returned outer={denial.status}, inner={denial_status}"
         )
-    if not denial_code:
+    if denial_code != "not_authorized":
         raise SmokeFailure(
-            "child purpose-denial step did not return a stable problem code"
+            "child purpose-denial step did not return not_authorized"
         )
 
 

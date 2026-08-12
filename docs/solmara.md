@@ -91,9 +91,9 @@ Solmara uses three domain layers:
 | Machine identifiers | `https://id.registrystack.org/solmara/...` | Purpose IRIs, credential `vct` values, schema `$id` values, and issuer identifiers. |
 | Service endpoints | `<service>.solmara.registrystack.org` | Real TLS endpoints for hosted lab services. |
 
-Notary node identifiers use `did:web` at their authority service host, for
-example `did:web:cra-notary.solmara.registrystack.org`. Credential holder
-binding uses `did:jwk`.
+Registry Evidence uses the Solmara issuer identifier under
+`https://id.registrystack.org/solmara/issuer/`. Credential holder binding uses
+`did:jwk` when a holder-bound Evidence flow is configured.
 
 ## Ministries And Registries
 
@@ -102,16 +102,16 @@ needs them. Wave 1 runs seven registries.
 
 | # | Registry | Owner | Tier | Wave |
 |---|---|---|---|---|
-| 1 | Civil registration: births, deaths, marriages | Ministry of Interior, Civil Registration Authority | Rows, Relay, Notary source | 1 |
-| 2 | Population register / national ID | Ministry of Interior, National Identity Agency | Rows, Relay, Notary source | 1 |
-| 3 | Social registry: households | Ministry of Social Development, Social Registry Office | Rows, Relay, Notary source | 1 |
-| 4 | Integrated beneficiary registry | Ministry of Social Development, programme MISes | Rows, Relay, Notary source | 1 |
-| 5 | Pensions / social insurance | Ministry of Labour, Social Insurance and Pensions Fund | Rows, Relay, Notary source | 1 |
-| 6 | Farmer registry | Ministry of Agriculture, National Agricultural Data Institute | Rows, Relay, Notary source | 1 |
-| 7 | Livestock registry | Ministry of Agriculture, National Agricultural Data Institute | Rows, Relay, Notary source | 1 |
-| 8 | Land registry and cadastre | Ministry of Lands and Survey | Rows, Relay, Notary source | 2 |
-| 9 | Taxpayer registry | Ministry of Finance, Solmara Revenue Authority | Rows, Relay, Notary source | 2 |
-| 10 | Business / company registry | Ministry of Justice and Commerce, Solmara Business Registration Service | Rows, Relay, Notary source | 2 |
+| 1 | Civil registration: births, deaths, marriages | Ministry of Interior, Civil Registration Authority | Rows, Relay Records API, Evidence source | 1 |
+| 2 | Population register / national ID | Ministry of Interior, National Identity Agency | Rows, Relay Records API, Evidence source | 1 |
+| 3 | Social registry: households | Ministry of Social Development, Social Registry Office | Rows, Relay Records API, Evidence source | 1 |
+| 4 | Integrated beneficiary registry | Ministry of Social Development, programme MISes | Rows, Relay Records API, Evidence source | 1 |
+| 5 | Pensions / social insurance | Ministry of Labour, Social Insurance and Pensions Fund | Rows, Relay Records API, Evidence source | 1 |
+| 6 | Farmer registry | Ministry of Agriculture, National Agricultural Data Institute | Rows, Relay Records API, Evidence source | 1 |
+| 7 | Livestock registry | Ministry of Agriculture, National Agricultural Data Institute | Rows, Relay Records API, Evidence source | 1 |
+| 8 | Land registry and cadastre | Ministry of Lands and Survey | Planned | 2 |
+| 9 | Taxpayer registry | Ministry of Finance, Solmara Revenue Authority | Planned | 2 |
+| 10 | Business / company registry | Ministry of Justice and Commerce, Solmara Business Registration Service | Planned | 2 |
 | 11 | Beneficial ownership register | Solmara Business Registration Service | Thin fixtures, evidence only | 2 |
 | 12 | Disability registry | Ministry of Social Development, Disability Assessment Board | Thin fixtures, evidence only | 3 |
 | 13 | Education learner registry | Ministry of Education | Thin fixtures, evidence only | 3 |
@@ -120,12 +120,12 @@ needs them. Wave 1 runs seven registries.
 | 16 | Vehicle and driving licence registry | Ministry of Transport | World bible only | None |
 | 17 | Customs trader registry | Ministry of Finance, Customs Service | World bible only | None |
 
-Wave 1 runs one authority Notary beside each Relay: `cra-notary`, `nia-notary`,
-`sro-notary`, `programme-notary`, `sipf-notary`, and `nagdi-notary`. An
-authority Notary exposes every reviewed evidence workflow owned by that
-authority. It is not duplicated per purpose. The child-benefit orchestration
-service composes the four required authority responses but does not own Notary
-correctness state or make the final eligibility decision.
+Wave 1 runs one public Records API Relay for each of the six data-owning
+authorities and one centralized Registry Evidence service. Evidence holds the
+eleven reviewed requirement definitions, calls only the necessary protected
+Records API for each request, and returns signed minimized assertions. The
+child-benefit application composes the required authority-owned Evidence
+responses without turning Evidence into the programme decision maker.
 
 ## Persona Roster
 

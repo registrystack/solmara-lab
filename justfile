@@ -44,7 +44,7 @@ registry-projects-editor:
 registry-projects-test:
     scripts/registry-projects.sh test
 
-# Build private public and consultation Relay inputs for every authority project.
+# Build the Registry compiler outputs for every authority project.
 registry-projects-build environment="local":
     scripts/registry-projects.sh build {{ environment }}
 
@@ -63,6 +63,10 @@ gen-secrets:
 # Check the paired Mint config and all authored Registry Evidence fixtures.
 evidence-check:
     scripts/check-evidence-runtime.py
+
+# Prove the released v0.18.0 SQLite-extract starter in a fresh directory.
+evidence-sqlite-extract-demo:
+    scripts/demo-evidence-sqlite-extract.py
 
 # Publish the static metadata bundle served by static-metadata.
 metadata-publish:
@@ -93,7 +97,7 @@ test:
     uv run python3 -m unittest discover -s scenario-runner -p 'test_*.py'
     @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
     @if [ -f home/package.json ]; then cd home && pnpm test; fi
-    uv run python3 -m unittest scripts/test_gen_secrets.py scripts/test_image_pins.py scripts/test_registryctl_build_output.py scripts/test_registryctl_test_output.py scripts/test_relay_workload_identity_agent.py scripts/test_smoke_esignet.py scripts/test_smoke_nia_attribute_release.py scripts/test_smoke_portal_compose.py scripts/test_smoke_relay_sources.py
+    uv run python3 -m unittest scripts/test_demo_evidence_sqlite_extract.py scripts/test_gen_secrets.py scripts/test_image_pins.py scripts/test_migrate_local_audit.py scripts/test_quality_scripts.py scripts/test_registry_stack_runtime.py scripts/test_registry_stack_tool.py scripts/test_registryctl_build_output.py scripts/test_registryctl_test_output.py scripts/test_release_pins.py scripts/test_relay_workload_identity_agent.py scripts/test_smoke_esignet.py scripts/test_smoke_hosted.py scripts/test_smoke_nia_attribute_release.py scripts/test_smoke_portal_compose.py scripts/test_smoke_relay_sources.py
 
 # Validate Compose files without starting services.
 compose:
@@ -157,7 +161,7 @@ portal-compose-smoke:
 
 # Run browser e2e against the live local topology.
 portal-live-e2e:
-    @cd portal && PORT="${PORT:-4001}" PORTAL_PROVIDER=live pnpm e2e
+    @cd portal && SOLMARA_PORTAL_E2E_MODE=hosted PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}" pnpm e2e
 
 # Run browser e2e against the Visitor's Center.
 home-live-e2e:

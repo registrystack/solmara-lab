@@ -165,11 +165,44 @@ services:
   evidence-secrets-init:
     image: ${VOLUME_INIT_IMAGE:?versions.env must pin the volume init image}
     restart: "no"
-    command: ["sh", "-ec", "cp /seed/audit-hmac-key /seed/subject-binding-hmac-key /seed/signing-ed25519-private-jwk /target/; chown -R 65532:65532 /target /audit; chmod 700 /target /audit; chmod 600 /target/*"]
+    command:
+      - sh
+      - -ec
+      - |
+        install_secret() {
+          name="$$1"
+          if [ -e "/target/$$name" ]; then
+            cmp -s "/seed/$$name" "/target/$$name" || {
+              echo "retained Evidence secret $$name differs from the generated seed; refusing replacement" >&2
+              exit 1
+            }
+          else
+            cp "/seed/$$name" "/target/$$name"
+            chown 65532:65532 "/target/$$name"
+            chmod 600 "/target/$$name"
+          fi
+        }
+        chown 65532:65532 /target /audit
+        chmod 700 /target /audit
+        install_secret audit-hmac-key
+        install_secret subject-binding-hmac-key
+        install_secret signing-p256-private-jwk
+        rm -f /target/signing-ed25519-private-jwk
     volumes:
       - ./config/evidence/local/evidence:/seed:ro
       - evidence-secrets:/target
       - evidence-audit:/audit
+
+  evidence-audit-migrate:
+    image: ${STATIC_METADATA_IMAGE:?versions.env must pin the local audit migration Python image}
+    restart: "no"
+    command: ["python", "/usr/local/bin/migrate-local-audit.py", "--audit-path", "/audit/evidence.jsonl", "--key-file", "/secrets/audit-hmac-key", "--legacy-key-mode", "exact"]
+    volumes:
+      - ./scripts/migrate-local-audit.py:/usr/local/bin/migrate-local-audit.py:ro
+      - evidence-secrets:/secrets:ro
+      - evidence-audit:/audit
+    depends_on:
+      evidence-secrets-init: { condition: service_completed_successfully }
 
   cra-workload-agent:
     <<: *workload-agent-common
@@ -256,24 +289,71 @@ services:
   mint-secrets-init:
     image: ${VOLUME_INIT_IMAGE:?versions.env must pin the volume init image}
     restart: "no"
-    command: ["sh", "-ec", "cp /seed/signing.jwk /seed/audit-hmac-key /target/; chown -R 65532:65532 /target /audit; chmod 700 /target /audit; chmod 600 /target/*"]
+    command:
+      - sh
+      - -ec
+      - |
+        install_secret() {
+          name="$$1"
+          if [ -e "/target/$$name" ]; then
+            cmp -s "/seed/$$name" "/target/$$name" || {
+              echo "retained Mint secret $$name differs from the generated seed; refusing replacement" >&2
+              exit 1
+            }
+          else
+            cp "/seed/$$name" "/target/$$name"
+            chown 65532:65532 "/target/$$name"
+            chmod 600 "/target/$$name"
+          fi
+        }
+        install_signing_secret() {
+          if [ ! -e /target/signing.jwk ]; then
+            install_secret signing.jwk
+          elif cmp -s /seed/signing.jwk /target/signing.jwk; then
+            return
+          elif grep -Eq '"kty"[[:space:]]*:[[:space:]]*"OKP"' /target/signing.jwk && grep -Eq '"crv"[[:space:]]*:[[:space:]]*"Ed25519"' /target/signing.jwk; then
+            cp /seed/signing.jwk /target/.signing.jwk.v018
+            chown 65532:65532 /target/.signing.jwk.v018
+            chmod 600 /target/.signing.jwk.v018
+            mv /target/.signing.jwk.v018 /target/signing.jwk
+          else
+            echo "retained Mint signing.jwk differs from the generated seed; refusing replacement" >&2
+            exit 1
+          fi
+        }
+        chown 65532:65532 /target /audit
+        chmod 700 /target /audit
+        install_signing_secret
+        install_secret audit-hmac-key
     volumes:
       - ./config/evidence/local/mint:/seed:ro
       - mint-secrets:/target
       - mint-audit:/audit
 
+  mint-audit-migrate:
+    image: ${STATIC_METADATA_IMAGE:?versions.env must pin the local audit migration Python image}
+    restart: "no"
+    command: ["python", "/usr/local/bin/migrate-local-audit.py", "--audit-path", "/audit/mint.jsonl", "--key-file", "/secrets/audit-hmac-key", "--legacy-key-mode", "trim-newlines"]
+    volumes:
+      - ./scripts/migrate-local-audit.py:/usr/local/bin/migrate-local-audit.py:ro
+      - mint-secrets:/secrets:ro
+      - mint-audit:/audit
+    depends_on:
+      mint-secrets-init: { condition: service_completed_successfully }
+
   mint:
-    image: ${SOLMARA_MINT_IMAGE:?versions.env must name the locally built Registry Stack main Mint image}
+    image: ${SOLMARA_MINT_IMAGE:?versions.env must name the Registry Stack v0.18.0 release-binary Mint image}
     restart: unless-stopped
     command: ["serve", "--config", "/etc/registry-mint/config.yaml"]
     volumes:
-      - ./evidence/mint.yaml:/etc/registry-mint/config.yaml:ro
+      - ./config/evidence/local/mint/mint.yaml:/etc/registry-mint/config.yaml:ro
+      - ./config/evidence/local/mint/public-keys:/etc/registry-mint/public-keys:ro
       - ./config/evidence/local/mint/clients:/etc/registry-mint/clients:ro
       - mint-secrets:/run/secrets/registry-mint:ro
       - mint-audit:/var/lib/registry-mint/audit
     networks: [evidence]
     depends_on:
-      mint-secrets-init: { condition: service_completed_successfully }
+      mint-audit-migrate: { condition: service_completed_successfully }
 
   evidence-gateway:
     image: ${EVIDENCE_GATEWAY_IMAGE:?versions.env must pin the Evidence TLS gateway image}
@@ -300,7 +380,7 @@ services:
           - nagdi-relay.evidence.solmara.invalid
 
   evidence:
-    image: ${SOLMARA_EVIDENCE_IMAGE:?versions.env must name the locally built Registry Stack main Evidence image}
+    image: ${SOLMARA_EVIDENCE_IMAGE:?versions.env must name the Registry Stack v0.18.0 release-binary Evidence image}
     restart: unless-stopped
     command: ["--runtime", "/etc/registry-evidence/runtime.yaml", "serve"]
     environment:
@@ -308,6 +388,8 @@ services:
     volumes:
       - ./evidence/runtime.yaml:/etc/registry-evidence/runtime.yaml:ro
       - ./evidence/bundle:/etc/registry-evidence/bundle:ro
+      - ./config/evidence/local/evidence/evidence.yaml:/etc/registry-evidence/bundle/evidence.yaml:ro
+      - ./config/evidence/local/evidence/public-keys:/etc/registry-evidence/bundle/public-keys:ro
       - ./config/evidence/local/tls/ca.crt:/etc/registry-evidence/tls/lab-ca.crt:ro
       - evidence-secrets:/run/secrets/registry-evidence:ro
       - evidence-audit:/var/lib/registry-evidence/audit
@@ -315,6 +397,7 @@ services:
       evidence:
         ipv4_address: 172.29.0.10
     depends_on:
+      evidence-audit-migrate: { condition: service_completed_successfully }
       evidence-gateway: { condition: service_started }
       cra-workload-agent: { condition: service_healthy }
       nia-workload-agent: { condition: service_healthy }

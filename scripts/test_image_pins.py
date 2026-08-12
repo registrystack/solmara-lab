@@ -10,9 +10,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELAY = "solmara-lab-registry-relay:source"
-EVIDENCE = "solmara-lab-registry-evidence:source"
-MINT = "solmara-lab-registry-mint:source"
+RELAY = "ghcr.io/registrystack/registry-relay@sha256:" + "1" * 64
+EVIDENCE = "solmara-lab-registry-evidence:v1.2.3"
+MINT = "solmara-lab-registry-mint:v1.2.3"
 VOLUME_INIT = "busybox@sha256:" + "4" * 64
 GATEWAY = "caddy@sha256:" + "5" * 64
 
@@ -37,6 +37,7 @@ class ImagePinTests(unittest.TestCase):
         self.module.ROOT = self.root
         (self.root / "versions.env").write_text(
             f"REGISTRY_RELAY_IMAGE={RELAY}\n"
+            "REGISTRYCTL_VERSION=1.2.3\n"
             f"SOLMARA_EVIDENCE_IMAGE={EVIDENCE}\n"
             f"SOLMARA_MINT_IMAGE={MINT}\n"
             f"VOLUME_INIT_IMAGE={VOLUME_INIT}\n"
@@ -61,12 +62,12 @@ class ImagePinTests(unittest.TestCase):
             result = self.module.main()
         return result, stderr.getvalue()
 
-    def test_matching_source_image_references_pass(self) -> None:
+    def test_published_relay_and_versioned_local_images_pass(self) -> None:
         result, stderr = self.run_check()
 
         self.assertEqual(result, 0, stderr)
 
-    def test_source_images_must_be_required(self) -> None:
+    def test_runtime_images_must_be_required(self) -> None:
         result, stderr = self.run_check(required=False)
 
         self.assertEqual(result, 1)
@@ -79,6 +80,29 @@ class ImagePinTests(unittest.TestCase):
 
         self.assertEqual(result, 1)
         self.assertIn("EVIDENCE_GATEWAY_IMAGE must use image@sha256", stderr)
+
+    def test_relay_must_be_digest_pinned(self) -> None:
+        versions = (self.root / "versions.env").read_text().replace(
+            RELAY, "ghcr.io/registrystack/registry-relay:v1.2.3"
+        )
+        (self.root / "versions.env").write_text(versions)
+        result, stderr = self.run_check()
+
+        self.assertEqual(result, 1)
+        self.assertIn("REGISTRY_RELAY_IMAGE must use image@sha256", stderr)
+
+    def test_local_runtime_images_must_match_the_release_version(self) -> None:
+        versions = (self.root / "versions.env").read_text().replace(
+            EVIDENCE, "solmara-lab-registry-evidence:source"
+        )
+        (self.root / "versions.env").write_text(versions)
+        result, stderr = self.run_check()
+
+        self.assertEqual(result, 1)
+        self.assertIn(
+            "SOLMARA_EVIDENCE_IMAGE must be solmara-lab-registry-evidence:v1.2.3",
+            stderr,
+        )
 
 
 if __name__ == "__main__":

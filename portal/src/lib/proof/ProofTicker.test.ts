@@ -64,8 +64,8 @@ describe('ProofTicker', () => {
   });
 
   it('labels the identity-binding trace as eSignet, never Unknown', () => {
-    // The identity trace carries no Notary `authority` (eSignet is not one of the
-    // four Notaries), so a naive authority lookup falls through to "Unknown". It
+    // The identity trace carries no Registry Evidence authority (eSignet is the
+    // identity provider), so a naive lookup falls through to "Unknown". It
     // must instead name its issuer so the very first audit line reads honestly.
     render(ProofTicker, { props: { traces: [buildIdentityTrace('Elena Dela Cruz')] } });
     expect(screen.queryByText('Unknown')).toBeNull();

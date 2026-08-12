@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { AUTHORITY_LABEL, NOTARY_SERVICE_ID, SCENARIOS } from './scenarios';
+import { AUTHORITY_LABEL, EVIDENCE_SERVICE_ID, SCENARIOS } from './scenarios';
 
 // The depth-1 proof feed always names the authority that answered. Every
 // "answered" line must open with that authority's canonical
 // label (the same label the field badge, ministry rail, and proof crypto
-// "signedBy" already use for that notary id), never an operational short
+// "signedBy" already use for that authority id), never an operational short
 // name or nickname.
 describe('SCENARIOS answered lines use the canonical authority label', () => {
   for (const [key, scenario] of Object.entries(SCENARIOS)) {
-    const label = AUTHORITY_LABEL[scenario.notary];
+    const label = AUTHORITY_LABEL[scenario.authority];
 
     it(`"${key}" attributes its answered line to its actual owner`, () => {
       expect(
         scenario.answered.startsWith(
-          scenario.applicationOwned ? 'Portal application answered:' : `${label} answered:`
+          scenario.status === 'denied'
+            ? 'Portal authorization gate answered:'
+            : scenario.applicationOwned
+              ? 'Portal application answered:'
+              : `${label} answered:`
         )
       ).toBe(true);
     });
@@ -30,7 +34,7 @@ describe('pension purpose ownership', () => {
 });
 
 describe('child-benefit source ownership', () => {
-  it('uses five predicates from four source-owned Notaries without a composed eligibility scenario', () => {
+  it('uses five predicates from four authority-owned Evidence services without a composed eligibility scenario', () => {
     const scenarios = [
       SCENARIOS['birth-event-exists'],
       SCENARIOS['population-record-active'],
@@ -46,16 +50,16 @@ describe('child-benefit source ownership', () => {
       'household-below-poverty-threshold',
       'not-already-enrolled'
     ]);
-    expect(new Set(scenarios.map((scenario) => scenario.notary))).toEqual(
+    expect(new Set(scenarios.map((scenario) => scenario.authority))).toEqual(
       new Set(['childCivil', 'population', 'socialRegistry', 'programme'])
     );
     expect(SCENARIOS['eligible-for-child-benefit']).toBeUndefined();
-    expect(scenarios.map((scenario) => NOTARY_SERVICE_ID[scenario.notary])).toEqual([
-      'cra-notary',
-      'nia-notary',
-      'cra-notary',
-      'sro-notary',
-      'programme-notary'
+    expect(scenarios.map((scenario) => EVIDENCE_SERVICE_ID[scenario.authority])).toEqual([
+      'registry-evidence',
+      'registry-evidence',
+      'registry-evidence',
+      'registry-evidence',
+      'registry-evidence'
     ]);
   });
 });

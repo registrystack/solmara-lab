@@ -136,16 +136,6 @@ evidence_types:
       - child-benefit-review-requirement
     information_concepts:
       - ps:sp/Enrollment
-  - id: child-benefit-authority-predicate-collection-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/child-benefit-authority-predicate-collection
-    title:
-      en: Child benefit authority predicate collection
-    description:
-      en: A transient collection of source-owned child benefit predicates with no copied source rows or eligibility decision.
-    proves:
-      - child-benefit-review-requirement
-    information_concepts:
-      - ps:Person
   - id: death-registration-evidence
     iri: https://id.registrystack.org/solmara/evidence-types/death-registration
     title:
@@ -186,11 +176,11 @@ public_services:
     holds_requirements:
       - child-benefit-review-requirement
     data_services:
-      - child-benefit-evidence-collector-api
-      - cra-notary-api
-      - nia-notary-api
-      - sro-notary-api
-      - programme-notary-api
+      - registry-evidence-api
+      - cra-records-api
+      - nia-records-api
+      - sro-records-api
+      - programme-records-api
   - id: pension-survivor-review
     iri: https://id.registrystack.org/solmara/services/pension-survivor-review
     title:
@@ -202,8 +192,10 @@ public_services:
     holds_requirements:
       - pension-survivor-review-requirement
     data_services:
-      - cra-notary-api
-      - sipf-notary-api
+      - registry-evidence-api
+      - cra-records-api
+      - sipf-pension-records-api
+      - sipf-survivor-records-api
   - id: nagdi-voucher-review
     iri: https://id.registrystack.org/solmara/services/nagdi-voucher-review
     title:
@@ -215,7 +207,8 @@ public_services:
     holds_requirements:
       - nagdi-voucher-requirement
     data_services:
-      - nagdi-notary-api
+      - registry-evidence-api
+      - nagdi-farmer-records-api
   - id: livestock-movement-control
     iri: https://id.registrystack.org/solmara/services/livestock-movement-control
     title:
@@ -227,59 +220,74 @@ public_services:
     holds_requirements:
       - livestock-movement-requirement
     data_services:
-      - nagdi-notary-api
+      - registry-evidence-api
+      - nagdi-livestock-records-api
 data_services:
-  - id: child-benefit-evidence-collector-api
-    iri: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
+  - id: registry-evidence-api
+    iri: https://evidence.solmara.registrystack.org/v1/evidence
     title:
-      en: Child benefit authority predicate collection API
+      en: Registry Evidence API
     description:
-      en: Returns application/json collections assembled from source-Notary predicates without composing an eligibility decision.
-    endpoint_url: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://child-benefit-federator.solmara.registrystack.org/v1/claims
-    conforms_to: https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1
-  - id: cra-notary-api
-    iri: https://cra-notary.solmara.registrystack.org/v1/evaluations
+      en: Returns signed, minimum-disclosure evidence from reviewed requirements backed by authority Records APIs.
+    endpoint_url: https://evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://evidence.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: cra-records-api
+    iri: https://cra-relay.solmara.registrystack.org/v1/datasets/civil_people/entities/civil_people/records
     title:
-      en: CRA evidence API
-    endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://cra-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: nia-notary-api
-    iri: https://nia-notary.solmara.registrystack.org/v1/evaluations
+      en: CRA Records API
+    endpoint_url: https://cra-relay.solmara.registrystack.org/v1/datasets/civil_people/entities/civil_people/records
+    endpoint_description: https://cra-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: nia-records-api
+    iri: https://nia-relay.solmara.registrystack.org/v1/datasets/population/entities/population/records
     title:
-      en: NIA evidence API
-    endpoint_url: https://nia-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://nia-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: sro-notary-api
-    iri: https://sro-notary.solmara.registrystack.org/v1/evaluations
+      en: NIA Records API
+    endpoint_url: https://nia-relay.solmara.registrystack.org/v1/datasets/population/entities/population/records
+    endpoint_description: https://nia-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: sro-records-api
+    iri: https://sro-relay.solmara.registrystack.org/v1/datasets/sro_child/entities/sro_child/records
     title:
-      en: SRO evidence API
-    endpoint_url: https://sro-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://sro-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: programme-notary-api
-    iri: https://programme-notary.solmara.registrystack.org/v1/evaluations
+      en: SRO Records API
+    endpoint_url: https://sro-relay.solmara.registrystack.org/v1/datasets/sro_child/entities/sro_child/records
+    endpoint_description: https://sro-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: programme-records-api
+    iri: https://mosd-programme-relay.solmara.registrystack.org/v1/datasets/mosd_enroll/entities/mosd_enroll/records
     title:
-      en: Programme MIS evidence API
-    endpoint_url: https://programme-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://programme-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: sipf-notary-api
-    iri: https://sipf-notary.solmara.registrystack.org/v1/evaluations
+      en: Programme MIS Records API
+    endpoint_url: https://mosd-programme-relay.solmara.registrystack.org/v1/datasets/mosd_enroll/entities/mosd_enroll/records
+    endpoint_description: https://mosd-programme-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: sipf-pension-records-api
+    iri: https://sipf-relay.solmara.registrystack.org/v1/datasets/pension/entities/pension/records
     title:
-      en: SIPF evidence API
-    endpoint_url: https://sipf-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://sipf-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: nagdi-notary-api
-    iri: https://nagdi-notary.solmara.registrystack.org/v1/evaluations
+      en: SIPF pension Records API
+    endpoint_url: https://sipf-relay.solmara.registrystack.org/v1/datasets/pension/entities/pension/records
+    endpoint_description: https://sipf-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: sipf-survivor-records-api
+    iri: https://sipf-relay.solmara.registrystack.org/v1/datasets/survivor/entities/survivor/records
     title:
-      en: NAgDI evidence API
-    endpoint_url: https://nagdi-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://nagdi-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+      en: SIPF survivor Records API
+    endpoint_url: https://sipf-relay.solmara.registrystack.org/v1/datasets/survivor/entities/survivor/records
+    endpoint_description: https://sipf-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: nagdi-farmer-records-api
+    iri: https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_farmer/entities/nagdi_farmer/records
+    title:
+      en: NAgDI farmer Records API
+    endpoint_url: https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_farmer/entities/nagdi_farmer/records
+    endpoint_description: https://nagdi-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
+  - id: nagdi-livestock-records-api
+    iri: https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_herd/entities/nagdi_herd/records
+    title:
+      en: NAgDI livestock Records API
+    endpoint_url: https://nagdi-relay.solmara.registrystack.org/v1/datasets/nagdi_herd/entities/nagdi_herd/records
+    endpoint_description: https://nagdi-relay.solmara.registrystack.org/openapi.json
+    conforms_to: https://spec.openapis.org/oas/v3.1.0
 datasets:
   - id: cra-civil
     title:
@@ -330,9 +338,9 @@ datasets:
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
-          discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
-          ruleset: birth-is-registered
+          endpoint_url: https://evidence.solmara.registrystack.org/v1/evidence
+          discovery_url: https://evidence.solmara.registrystack.org/v1/evidence-definitions
+          ruleset: https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1
         policy:
           purpose:
             - https://id.registrystack.org/solmara/purpose/child-benefit-review
@@ -354,9 +362,9 @@ datasets:
         access:
           kind: evidence-verification-api
           conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
-          discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
-          ruleset: person-is-deceased
+          endpoint_url: https://evidence.solmara.registrystack.org/v1/evidence
+          discovery_url: https://evidence.solmara.registrystack.org/v1/evidence-definitions
+          ruleset: https://id.registrystack.org/solmara/requirement/cra-pension-death/v1
         policy:
           purpose:
             - https://id.registrystack.org/solmara/purpose/pension-payment-review
@@ -391,44 +399,3 @@ datasets:
     entities:
       - name: farmer_voucher
       - name: livestock_movement
-evaluation_profiles:
-  - id: birth-is-registered
-    ruleset: birth-is-registered-v1
-    claim_id: birth-is-registered
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: population-record-active
-    ruleset: population-record-active-v1
-    claim_id: population-record-active
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: child-age-under-5
-    ruleset: child-age-under-5-v1
-    claim_id: child-age-under-5
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: household-below-poverty-threshold
-    ruleset: household-below-poverty-threshold-v1
-    claim_id: household-below-poverty-threshold
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: not-already-enrolled
-    ruleset: not-already-enrolled-v1
-    claim_id: not-already-enrolled
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: survivor-benefit-eligibility
-    ruleset: survivor-benefit-eligibility-v1
-    claim_id: survivor-is-eligible
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: climate-smart-voucher-eligibility
-    ruleset: climate-smart-voucher-eligibility-v1
-    claim_id: eligible-for-climate-smart-input-voucher
-    subject_id_type: farmer_id
-    max_source_observed_age_seconds: 86400
-  - id: livestock-movement-permit
-    ruleset: livestock-movement-permit-v1
-    claim_id: eligible-for-livestock-movement-permit
-    subject_id_type: farmer_id
-    max_source_observed_age_seconds: 86400

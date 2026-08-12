@@ -1,40 +1,37 @@
 meta {
-  name: 01 - Collect source predicates
+  name: 01 - Request CRA child benefit evidence
   type: http
   seq: 1
 }
 
 post {
-  url: {{child_benefit_federator_url}}/v1/evaluations
+  url: {{evidence_url}}/v1/evidence
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{CHILD_BENEFIT_FEDERATOR_TOKEN}}
-  Data-Purpose: {{child_benefit_purpose}}
-  Accept: application/json
+  Authorization: Bearer {{SOLMARA_EVIDENCE_ACCESS_TOKEN}}
+  Content-Type: application/json
+  Accept: application/jose+json
 }
 
 body:json {
   {
-    "target": {
-      "type": "Person",
-      "identifiers": [
-        {
-          "scheme": "solmara_uin",
-          "value": "2300010248"
-        }
-      ]
-    },
-    "claims": [
-      "birth-is-registered",
-      "population-record-active",
-      "child-age-under-5",
-      "household-below-poverty-threshold",
-      "not-already-enrolled"
-    ],
-    "disclosure": "predicate",
-    "format": "application/json"
+    "requestNonce": "{{request_nonce}}",
+    "requirement": "https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1",
+    "purpose": "child-benefit-review",
+    "subjects": [{
+      "role": "subject",
+      "selector": {
+        "profile": "solmara-uin-v1",
+        "values": { "uin": "2300010248" }
+      }
+    }]
   }
+}
+
+script:pre-request {
+  const crypto = require("crypto");
+  bru.setVar("request_nonce", crypto.randomBytes(32).toString("base64url"));
 }
