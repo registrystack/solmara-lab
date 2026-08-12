@@ -5,7 +5,9 @@ ARG REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL
 ARG REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256
 RUN test -n "$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL" && \
     test -n "$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256" && \
-    wget -q -O /evidence "$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL" && \
+    { attempt=0; until wget -q -T 30 -O /evidence "$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL"; do \
+      attempt=$((attempt + 1)); [ "$attempt" -lt 5 ] || exit 1; sleep "$attempt"; \
+    done; } && \
     printf '%s  %s\n' "$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256" /evidence | sha256sum -c - && \
     chmod 0755 /evidence
 
@@ -14,7 +16,9 @@ ARG REGISTRY_STACK_RELEASE_MINT_ASSET_URL
 ARG REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256
 RUN test -n "$REGISTRY_STACK_RELEASE_MINT_ASSET_URL" && \
     test -n "$REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256" && \
-    wget -q -O /mint "$REGISTRY_STACK_RELEASE_MINT_ASSET_URL" && \
+    { attempt=0; until wget -q -T 30 -O /mint "$REGISTRY_STACK_RELEASE_MINT_ASSET_URL"; do \
+      attempt=$((attempt + 1)); [ "$attempt" -lt 5 ] || exit 1; sleep "$attempt"; \
+    done; } && \
     printf '%s  %s\n' "$REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256" /mint | sha256sum -c - && \
     chmod 0755 /mint
 
@@ -23,7 +27,9 @@ ARG REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL
 ARG REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256
 RUN test -n "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL" && \
     test -n "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256" && \
-    wget -q -O /relayctl "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL" && \
+    { attempt=0; until wget -q -T 30 -O /relayctl "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL"; do \
+      attempt=$((attempt + 1)); [ "$attempt" -lt 5 ] || exit 1; sleep "$attempt"; \
+    done; } && \
     printf '%s  %s\n' "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256" /relayctl | sha256sum -c - && \
     chmod 0755 /relayctl
 
