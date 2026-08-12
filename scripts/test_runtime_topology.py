@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -178,6 +179,8 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(initializer["cap_drop"], ["ALL"])
         self.assertEqual(set(initializer["cap_add"]), {"CHOWN", "FOWNER"})
         self.assertIn("no-new-privileges:true", initializer["security_opt"])
+        self.assertTrue(initializer["read_only"])
+        self.assertEqual(initializer["restart"], "no")
         audit_init = initializer["command"][2]
         self.assertIn("os.scandir(path)", audit_init)
         self.assertIn("stat.S_ISREG", audit_init)
@@ -360,7 +363,71 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertIn("mint_chain = '/audit/mint/audit'", command)
         self.assertIn("os.mkdir(mint_chain, 0o700)", command)
         self.assertIn("os.lstat(mint_chain)", command)
-        self.assertNotIn("os.scandir", command)
+        self.assertIn("with os.scandir(path) as entries", command)
+        self.assertIn("entry.stat(follow_symlinks=False)", command)
+        self.assertIn("metadata.st_nlink != 1", command)
+        self.assertIn("re.escape(active_name) + r'\\.\\d{8}'", command)
+
+    def test_local_authority_audit_initializer_rejects_unsafe_known_files(self) -> None:
+        compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
+        command = compose["services"]["authority-audit-init"]["command"][2]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers = (
+                "mint",
+                "cra",
+                "nia",
+                "sro",
+                "mosd-programme",
+                "sipf",
+                "nagdi",
+            )
+            paths = [root / provider for provider in providers]
+            for path in paths:
+                path.mkdir()
+            mint_chain = paths[0] / "audit"
+            patched = command.replace(
+                "['/audit/mint', '/audit/cra', '/audit/nia', '/audit/sro', '/audit/mosd-programme', '/audit/sipf', '/audit/nagdi']",
+                repr([str(path) for path in paths]),
+            ).replace("'/audit/mint/audit'", repr(str(mint_chain)))
+            for original, replacement in zip(
+                (
+                    "/audit/cra",
+                    "/audit/nia",
+                    "/audit/sro",
+                    "/audit/mosd-programme",
+                    "/audit/sipf",
+                    "/audit/nagdi",
+                ),
+                paths[1:],
+                strict=True,
+            ):
+                patched = patched.replace(repr(original), repr(str(replacement)))
+
+            target = root / "target"
+            target.write_text("audit-canary\n", encoding="utf-8")
+            unsafe = paths[1] / "evidence.jsonl"
+            unsafe.symlink_to(target)
+            with (
+                mock.patch("os.chown"),
+                mock.patch("os.chmod"),
+                self.assertRaisesRegex(
+                    RuntimeError, "audit sink has unsafe metadata"
+                ),
+            ):
+                exec(patched, {})
+
+            unsafe.unlink()
+            os.link(target, unsafe)
+            with (
+                mock.patch("os.chown"),
+                mock.patch("os.chmod"),
+                self.assertRaisesRegex(
+                    RuntimeError, "audit sink has unsafe metadata"
+                ),
+            ):
+                exec(patched, {})
 
     def test_local_transit_signers_are_one_key_one_socket_sidecars(self) -> None:
         compose_path = SCRIPT.parents[1] / "compose.yaml"

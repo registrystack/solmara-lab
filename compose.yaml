@@ -155,6 +155,7 @@ services:
       - -c
       - |-
         import os
+        import re
         import stat
 
         paths = ['/audit/mint', '/audit/cra', '/audit/nia', '/audit/sro', '/audit/mosd-programme', '/audit/sipf', '/audit/nagdi']
@@ -174,6 +175,25 @@ services:
             raise RuntimeError('audit sink has unsafe metadata')
         os.chown(mint_chain, 0, 0)
         os.chmod(mint_chain, 0o700)
+        audit_files = {
+            '/audit/cra': 'evidence.jsonl',
+            '/audit/nia': 'evidence.jsonl',
+            '/audit/sro': 'evidence.jsonl',
+            '/audit/mosd-programme': 'evidence.jsonl',
+            '/audit/sipf': 'evidence.jsonl',
+            '/audit/nagdi': 'evidence.jsonl',
+            mint_chain: 'mint.jsonl',
+        }
+        for path, active_name in audit_files.items():
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if entry.name not in {active_name, active_name + '.lock'} and not re.fullmatch(re.escape(active_name) + r'\.\d{8}', entry.name):
+                        continue
+                    metadata = entry.stat(follow_symlinks=False)
+                    if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                        raise RuntimeError('audit sink has unsafe metadata')
+                    os.chown(entry.path, 0, 0, follow_symlinks=False)
+                    os.chmod(entry.path, 0o600, follow_symlinks=False)
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
