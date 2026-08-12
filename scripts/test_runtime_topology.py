@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +18,71 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RuntimeTopologyTests(unittest.TestCase):
+    def test_authority_runtime_uses_the_versioned_relayctl_image(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            runtime_script = scripts / "prepare-authority-runtime.sh"
+            shutil.copy2(SCRIPT.with_name("prepare-authority-runtime.sh"), runtime_script)
+            (root / "versions.env").write_text(
+                "REGISTRY_RELAYCTL_IMAGE=example.invalid/relayctl:v0.20.1\n",
+                encoding="utf-8",
+            )
+            publisher = scripts / "publish-relay-sources.sh"
+            publisher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            publisher.chmod(0o755)
+
+            fake_bin = root / "fake-bin"
+            fake_bin.mkdir()
+            fake_uv = fake_bin / "uv"
+            fake_uv.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            fake_uv.chmod(0o755)
+            fake_docker = fake_bin / "docker"
+            fake_docker.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$*\" >> \"$DOCKER_LOG\"\n"
+                "previous=\n"
+                "for argument in \"$@\"; do\n"
+                "  if [ \"$previous\" = --output ]; then\n"
+                "    mkdir -p \"$argument\"\n"
+                "    : > \"$argument/relay-package.json\"\n"
+                "  fi\n"
+                "  previous=$argument\n"
+                "done\n",
+                encoding="utf-8",
+            )
+            fake_docker.chmod(0o755)
+
+            for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
+                (root / "relays" / authority).mkdir(parents=True)
+
+            docker_log = root / "docker.log"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "DOCKER_LOG": str(docker_log),
+                    "PATH": f"{fake_bin}:{environment['PATH']}",
+                    "REGISTRY_RELAYCTL_IMAGE": "wrong.invalid/relayctl:ambient",
+                }
+            )
+            subprocess.run(
+                [str(runtime_script)],
+                cwd=root,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            invocations = docker_log.read_text(encoding="utf-8").splitlines()
+
+        self.assertEqual(len(invocations), 5)
+        self.assertTrue(
+            all("example.invalid/relayctl:v0.20.1" in line for line in invocations)
+        )
+        self.assertTrue(all("--platform linux/amd64" in line for line in invocations))
+        self.assertTrue(all("wrong.invalid" not in line for line in invocations))
+
     def test_relay_publication_uses_pinned_linux_sqlite_runtime(self) -> None:
         script = SCRIPT.with_name("publish-relay-sources.sh").read_text(
             encoding="utf-8"

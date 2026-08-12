@@ -2,7 +2,11 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-relayctl_image=${REGISTRY_RELAYCTL_IMAGE:-solmara-lab-relayctl:source}
+set -a
+# shellcheck disable=SC1091
+. "$root/versions.env"
+set +a
+relayctl_image=${REGISTRY_RELAYCTL_IMAGE:?missing REGISTRY_RELAYCTL_IMAGE}
 
 "$root/scripts/publish-relay-sources.sh"
 
@@ -18,6 +22,7 @@ for authority in cra nia mosd sipf nagdi; do
   }
   trap cleanup EXIT HUP INT TERM
   docker run --rm \
+    --platform linux/amd64 \
     --user "$(id -u):$(id -g)" \
     --volume "$root:/workspace" \
     --volume "$root/output/sqlite/relay/$authority.sqlite:/var/lib/relay/source/$authority.sqlite:ro" \
