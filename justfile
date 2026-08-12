@@ -38,7 +38,7 @@ metadata-publish-check:
     uv run scripts/publish-metadata.py --check
 
 lint:
-    uvx ruff check --select E4,E7,E9,F .
+    uvx ruff check --select E4,E7,E9,F --exclude vendor .
     scripts/check-fiction.sh
     scripts/check-config-secrets.py
     scripts/check-image-pins.py

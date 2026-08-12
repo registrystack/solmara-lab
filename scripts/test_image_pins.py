@@ -127,6 +127,11 @@ class ImagePinTests(unittest.TestCase):
 
         self.assertIn("hosted-pin-check: build-runtime-images", justfile)
 
+    def test_lint_excludes_the_exact_vendor_checkout_only(self) -> None:
+        justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+
+        self.assertIn("ruff check --select E4,E7,E9,F --exclude vendor .", justfile)
+
 
 if __name__ == "__main__":
     unittest.main()
