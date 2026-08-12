@@ -8,88 +8,62 @@ set -a
 . "$root/versions.env"
 set +a
 
-source_ref=${REGISTRY_STACK_SOURCE_REF:?missing REGISTRY_STACK_SOURCE_REF}
+"$root/scripts/check-registry-stack-release-pin.py" --require-public
+
+version=${REGISTRY_STACK_REQUIRED_VERSION:?missing REGISTRY_STACK_REQUIRED_VERSION}
 source_commit=${REGISTRY_STACK_SOURCE_COMMIT:?missing REGISTRY_STACK_SOURCE_COMMIT}
+relay_digest=${REGISTRY_STACK_RELEASE_RELAY_DIGEST:?missing REGISTRY_STACK_RELEASE_RELAY_DIGEST}
 relay_image=${REGISTRY_RELAY_IMAGE:?missing REGISTRY_RELAY_IMAGE}
+relayctl_image=${REGISTRY_RELAYCTL_IMAGE:?missing REGISTRY_RELAYCTL_IMAGE}
 evidence_image=${SOLMARA_EVIDENCE_IMAGE:?missing SOLMARA_EVIDENCE_IMAGE}
 mint_image=${SOLMARA_MINT_IMAGE:?missing SOLMARA_MINT_IMAGE}
-source_dir=${REGISTRY_STACK_SOURCE_DIR:-"$root/../registry-stack"}
 
-if [ "$source_ref" != "main" ]; then
-  echo "REGISTRY_STACK_SOURCE_REF must be main" >&2
+expected_relay="ghcr.io/registrystack/relay@sha256:$relay_digest"
+if [ "$relay_image" != "$expected_relay" ]; then
+  echo "REGISTRY_RELAY_IMAGE must bind the published Relay digest" >&2
   exit 1
 fi
-case "$source_commit" in
-  *[!0-9a-f]*)
-    echo "REGISTRY_STACK_SOURCE_COMMIT must be exactly 40 lowercase hex characters" >&2
-    exit 1
-    ;;
-esac
-if [ "${#source_commit}" -ne 40 ]; then
-  echo "REGISTRY_STACK_SOURCE_COMMIT must be exactly 40 lowercase hex characters" >&2
-  exit 1
-fi
-if [ ! -d "$source_dir/.git" ]; then
-  echo "REGISTRY_STACK_SOURCE_DIR must name a Registry Stack checkout" >&2
-  exit 1
-fi
-if ! git -C "$source_dir" cat-file -e "$source_commit^{commit}"; then
-  echo "Registry Stack source commit is unavailable in $source_dir" >&2
-  exit 1
-fi
-resolved_ref=$(git -C "$source_dir" rev-parse "$source_ref^{commit}")
-remote_main=$(git -C "$source_dir" rev-parse "refs/remotes/origin/$source_ref^{commit}" 2>/dev/null || true)
-if [ "$resolved_ref" != "$source_commit" ] || [ "$remote_main" != "$source_commit" ]; then
-  echo "Registry Stack main does not match $source_commit; fetch origin/main and update versions.env intentionally" >&2
+observed_relay=$(docker buildx imagetools inspect "ghcr.io/registrystack/relay:v$version" --format '{{.Manifest.Digest}}')
+if [ "$observed_relay" != "sha256:$relay_digest" ]; then
+  echo "published Relay tag does not match the required digest" >&2
   exit 1
 fi
 
-all_current=true
-for image in "$relay_image" "$evidence_image" "$mint_image"; do
-  revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image" 2>/dev/null || true)
-  if [ "$revision" != "$source_commit" ]; then
-    all_current=false
+registry_stack_platform=${REGISTRY_STACK_PLATFORM:-linux/amd64}
+if [ "$registry_stack_platform" != "linux/amd64" ]; then
+  echo "published Registry Stack runtime assets require linux/amd64" >&2
+  exit 1
+fi
+platform_args="--platform $registry_stack_platform"
+
+build_release_binary() {
+  target=$1
+  image=$2
+  current_revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image" 2>/dev/null || true)
+  current_version=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$image" 2>/dev/null || true)
+  current_architecture=$(docker image inspect --format '{{.Architecture}}' "$image" 2>/dev/null || true)
+  if [ "$current_revision" = "$source_commit" ] && [ "$current_version" = "$version" ] && [ "$current_architecture" = "amd64" ]; then
+    echo "$target image already matches Registry Stack v$version"
+    return
   fi
-done
-if [ "$all_current" = true ]; then
-  echo "Registry Stack runtime images already match $source_commit"
-  exit 0
-fi
 
-temporary=$(mktemp -d "${TMPDIR:-/tmp}/solmara-registry-stack.XXXXXX")
-worktree="$temporary/source"
-cleanup() {
-  git -C "$source_dir" worktree remove --force "$worktree" >/dev/null 2>&1 || true
-  rm -rf "$temporary"
-}
-trap cleanup EXIT HUP INT TERM
-git -C "$source_dir" worktree add --detach "$worktree" "$source_commit" >/dev/null
-
-platform_args=""
-if [ -n "${REGISTRY_STACK_PLATFORM:-}" ]; then
-  platform_args="--platform $REGISTRY_STACK_PLATFORM"
-fi
-
-# shellcheck disable=SC2086
-docker buildx build --load $platform_args \
-  --label "org.opencontainers.image.revision=$source_commit" \
-  --label "org.opencontainers.image.ref.name=$source_ref" \
-  --tag "$relay_image" \
-  --file "$root/docker/registry-stack-runtime/Dockerfile" \
-  --target relay \
-  "$worktree"
-
-for target in evidence mint; do
-  case "$target" in
-    evidence) image=$evidence_image ;;
-    mint) image=$mint_image ;;
-  esac
   # shellcheck disable=SC2086
   docker buildx build --load $platform_args \
+    --build-arg "REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL=$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_URL" \
+    --build-arg "REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256=$REGISTRY_STACK_RELEASE_EVIDENCE_ASSET_SHA256" \
+    --build-arg "REGISTRY_STACK_RELEASE_MINT_ASSET_URL=$REGISTRY_STACK_RELEASE_MINT_ASSET_URL" \
+    --build-arg "REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256=$REGISTRY_STACK_RELEASE_MINT_ASSET_SHA256" \
+    --build-arg "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL=$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL" \
+    --build-arg "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256=$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256" \
+    --label "org.opencontainers.image.source=https://github.com/registrystack/registry-stack" \
     --label "org.opencontainers.image.revision=$source_commit" \
-    --label "org.opencontainers.image.ref.name=$source_ref" \
+    --label "org.opencontainers.image.version=$version" \
     --tag "$image" \
-    --file "$worktree/docker/Dockerfile" \
+    --file "$root/docker/registry-stack-release-binary/Dockerfile" \
     --target "$target" \
-    "$worktree"
-done
+    "$root"
+}
+
+build_release_binary evidence "$evidence_image"
+build_release_binary mint "$mint_image"
+build_release_binary relayctl "$relayctl_image"

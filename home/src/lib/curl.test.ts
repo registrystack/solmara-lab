@@ -5,7 +5,7 @@ import { runnableRequestSources, toCurl } from './curl';
 describe('runnableRequestSources', () => {
   const multiPreview: RequestSource = {
     method: 'MULTI',
-    url: 'solmara://registry-evidence',
+    url: 'solmara://authority-evidence',
     purpose: 'citizen-self-service'
   };
 
@@ -30,7 +30,7 @@ describe('runnableRequestSources', () => {
     expect(commands).toHaveLength(2);
     expect(commands[0]).toContain("curl -sS -X POST 'https://localhost:4341/v1/evidence'");
     expect(commands[1]).toContain("curl -sS -X POST 'https://localhost:4341/v1/evidence'");
-    expect(commands.join('\n')).not.toContain('solmara://registry-evidence');
+    expect(commands.join('\n')).not.toContain('solmara://authority-evidence');
   });
 
   it('uses the primary request when no underlying calls are present', () => {

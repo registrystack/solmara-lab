@@ -5,10 +5,10 @@
   export let scenarios: Scenario[] = [];
 
   $: authorities = metadata.available
-    ? new Set(metadata.catalog.datasets.map((dataset) => dataset.authority?.id ?? dataset.authority?.name).filter(Boolean)).size
+    ? new Set(metadata.offerings.map((offering) => offering.issuing_authority?.id ?? offering.issuing_authority?.name).filter(Boolean)).size
     : null;
-  $: registries = metadata.available
-    ? metadata.catalog.datasets.length
+  $: evidenceCells = metadata.available
+    ? metadata.catalog.data_services?.length ?? authorities
     : null;
   $: journeys = scenarios.length || null;
 </script>
@@ -17,7 +17,7 @@
   <div class="content proof-grid">
     <div><strong>1</strong><span>synthetic country</span></div>
     <div><strong>{authorities ?? 'Unavailable'}</strong><span>live authorities</span></div>
-    <div><strong>{registries ?? 'Unavailable'}</strong><span>live registries</span></div>
+    <div><strong>{evidenceCells ?? 'Unavailable'}</strong><span>authority Evidence cells</span></div>
     <div><strong>{journeys ?? 'Unavailable'}</strong><span>guided policy journeys</span></div>
     <div><strong>0</strong><span>real resident records</span></div>
   </div>

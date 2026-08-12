@@ -2,7 +2,7 @@ import type { ProblemCode, Purpose, Scenario, StoryStepLink } from '$lib/types';
 
 /**
  * Static, maintained metadata for every stable problem code the lab can emit.
- * The `typeUri` values are the problem type URIs emitted by Registry Evidence
+ * The `typeUri` values are the problem type URIs emitted by authority Evidence
  * responses. The set of codes is assembled from the purpose catalogue (which
  * lists each purpose's denial codes) plus these entries, so the page never
  * hand-maintains prose that can drift from the catalogue. Meanings are plain
@@ -17,15 +17,22 @@ const CODE_META: Record<
     status: 403,
     typeUri: 'https://registrystack.org/problems/evidence/not_authorized',
     meaning:
-      'The requester grant does not authorize this requirement, purpose, response format, or selector shape. Registry Evidence refuses before source access and discloses nothing.'
+      'The requester grant does not authorize this requirement, purpose, response format, or selector shape. The authority Evidence service refuses before source access and discloses nothing.'
   },
   malformed_request: {
     title: 'Invalid evidence request',
     status: 400,
     typeUri: 'https://registrystack.org/problems/evidence/malformed_request',
     meaning:
-      'The request does not match the closed Evidence request contract. Registry Evidence rejects it before evaluating a requirement.',
+      'The request does not match the closed Evidence request contract. The authority Evidence service rejects it before evaluating a requirement.',
     coverage: 'Covered by the Evidence bundle fixtures and current-main contract tests.'
+  },
+  request_refused: {
+    title: 'Request refused',
+    status: 403,
+    typeUri: 'https://registrystack.org/problems/evidence/request_refused',
+    meaning:
+      'The programme or authority refused the request without revealing whether any source record matched. The refusal is intentionally generic for wrong-purpose and unauthorized paths.'
   }
 };
 

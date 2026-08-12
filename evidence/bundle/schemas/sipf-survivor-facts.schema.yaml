@@ -1,6 +1,0 @@
-type: object
-additionalProperties: false
-required: [spouse_uin, survivor_eligible]
-properties:
-  spouse_uin: { type: string, minLength: 10, maxLength: 10 }
-  survivor_eligible: { type: boolean }

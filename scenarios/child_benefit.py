@@ -19,7 +19,7 @@ UNREGISTERED_CONTROL = "2300073046"
 DUPLICATE_CONTROL = "2300054788"
 CLAIMS = ["birth-is-registered", "population-record-active", "child-age-under-5", "household-below-poverty-threshold", "not-already-enrolled"]
 FRIENDLY = {
-    "positive": {"met": ("Mateo's signed source evidence is ready.", "Evidence evaluated five reviewed requirements without copying authority rows.")},
+    "positive": {"met": ("Mateo's signed source evidence is ready.", "The programme composed five concepts from four authority requirements without copying source rows.")},
     "deceased-control": {"unmet": ("Rejected, exactly as designed.", "The civil evidence says the child is not active for this review.")},
     "poverty-control": {"unmet": ("Rejected: the household is above the threshold.", "Only the reviewed poverty predicate was disclosed.")},
     "unregistered-control": {"unmet": ("Registration comes first.", "No registered-birth evidence was asserted.")},
@@ -68,16 +68,36 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     token = service_token(SERVICE_ID) if send else ""
     purpose = "unsupported-demo-purpose" if step_id == "purpose-denial" else str(config.get("purpose_override") or PURPOSES["child_benefit"])
     url = service_url(SERVICE_ID, "/v1/claims" if step_id == "discover" else "/v1/evaluations")
-    headers = {"x-api-key": token, "Accept": "application/json", "Data-Purpose": purpose}
-    body = None if step_id == "discover" else {"target": {"type": "Person", "identifiers": [{"scheme": "solmara_uin", "value": subject}]}, "claims": CLAIMS, "disclosure": "predicate", "format": "application/json", "variables": {"as_of_date": CHILD_BENEFIT_AS_OF_DATE}}
+    headers = {"x-api-key": token, "Accept": "application/json"}
+    body = None if step_id == "discover" else {"purpose": purpose, "target": {"type": "Person", "identifiers": [{"scheme": "solmara_uin", "value": subject}]}, "claims": CLAIMS, "disclosure": "predicate", "format": "application/json", "variables": {"as_of_date": CHILD_BENEFIT_AS_OF_DATE}}
     request = request_source("GET" if step_id == "discover" else "POST", url, headers, body)
+    if body is not None:
+        request["purpose"] = purpose
     if not send:
         return {"request_source": request}
     if not token:
         return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(SERVICE_ID), request)
     result = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
     response_body = result.body if isinstance(result.body, dict) else {}
-    return {"step_id": step_id, "friendly": friendly_result(step_id, result, FRIENDLY), "request_source": request, "response_source": source_response(result), "source_trace": response_body.get("source_trace", [])}
+    results = []
+    for item in response_body.get("results", []):
+        if not isinstance(item, dict) or not isinstance(item.get("satisfied"), bool):
+            continue
+        safe = {
+            "claim_id": item.get("claim_id"),
+            "concept_id": item.get("concept_id"),
+            "satisfied": item["satisfied"],
+            "value": item["satisfied"],
+        }
+        if isinstance(item.get("presentation"), dict):
+            safe["presentation"] = item["presentation"]
+        results.append(safe)
+    presentations = []
+    for item in results:
+        presentation = item.get("presentation")
+        if isinstance(presentation, dict) and presentation not in presentations:
+            presentations.append(presentation)
+    return {"step_id": step_id, "friendly": friendly_result(step_id, result, FRIENDLY), "request_source": request, "response_source": source_response(result), "source_trace": response_body.get("source_trace", []), "results": results, "presentations": presentations}
 
 
 def request_purpose(config: dict[str, Any], step_id: str) -> str:

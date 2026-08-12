@@ -1,0 +1,41 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+    "discovery_url": "https://sro-evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://sro-evidence.solmara.registrystack.org/v1/evidence",
+    "kind": "evidence-verification-api",
+    "source_type": "immutable extract"
+  },
+  "dataset": "sro-social",
+  "description": "An independently signed immutable extract assertion issued by Social Registry Office.",
+  "entity": "poverty_record",
+  "evidence_type": "poverty-priority-v1",
+  "id": "sro-child-benefit-v1-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/sro-child-benefit-v1-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "sro",
+    "iri": "did:web:id.registrystack.org:solmara:authority:sro",
+    "name": "Social Registry Office",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "sro-child-benefit-v1-offering-policy",
+  "public_services": [
+    "child-benefit-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/concept/household-below-poverty-threshold"
+    ]
+  },
+  "title": "Social Registry Office Poverty priority v1"
+}

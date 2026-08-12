@@ -1,53 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { buildCurlExamples, parsePublishedTokens, publishRequestTokens } from './tokens';
+import { buildCurlExamples } from './tokens';
 
-describe('published local application token allowlist', () => {
-  it('renders only tokens explicitly named in the allowlist JSON', () => {
-    const tokens = parsePublishedTokens('{"child-benefit-federator":"tok-child","unknown":"tok-unknown"}');
-    expect(tokens.map((token) => token.token)).toEqual(['tok-child', 'tok-unknown']);
-    expect(tokens[0].purpose).toBe('child-benefit-review');
-  });
+describe('engineer curl examples', () => {
+  it('uses distinct authority endpoints and JSON-body purposes', () => {
+    const examples = buildCurlExamples();
+    const commands = examples.map((example) => example.command).join('\n');
 
-  it('fails closed for absent or malformed allowlists', () => {
-    expect(parsePublishedTokens(undefined)).toEqual([]);
-    expect(parsePublishedTokens('not json')).toEqual([]);
-    expect(parsePublishedTokens('[]')).toEqual([]);
-  });
-
-  it('builds metadata and child collector curls without exposing Mint credentials', () => {
-    const examples = buildCurlExamples(parsePublishedTokens('{"child-benefit-federator":"tok-child"}'));
     expect(examples.map((example) => example.id)).toEqual([
       'metadata-get',
-      'claims-get',
-      'evaluate-post',
+      'cra-evidence-post',
+      'nia-evidence-post',
+      'programme-post',
       'wrong-purpose-post'
     ]);
-    expect(examples.find((example) => example.id === 'evaluate-post')?.command).toContain('tok-child');
-    expect(examples.find((example) => example.id === 'wrong-purpose-post')?.command).toContain('pension-payment-review');
-    expect(JSON.stringify(examples)).not.toContain('client-private.jwk');
+    expect(commands).toContain('cra-evidence.solmara.registrystack.org/v1/evidence');
+    expect(commands).toContain('nia-evidence.solmara.registrystack.org/v1/evidence');
+    expect(commands).toContain('"purpose":"https://id.registrystack.org/solmara/purpose/child-benefit-review"');
+    expect(commands).toContain('"requirement":"https://id.registrystack.org/solmara/requirement/nia-child-benefit/v1"');
+    expect(commands).not.toContain('/purpose/child-benefit-review/v1');
+    expect(commands).not.toContain('Data-Purpose');
   });
 
-  it('republishes only the exact child collector token into matching request sources', () => {
-    const tokens = parsePublishedTokens('{"child-benefit-federator":"tok-child"}');
-    const result = publishRequestTokens(
-      {
-        request_source: {
-          method: 'POST',
-          url: 'http://localhost:4321/v1/evaluations',
-          headers: { 'x-api-key': '[runtime token hidden]', 'Data-Purpose': 'child-benefit-review' }
-        },
-        request_sources: [
-          {
-            method: 'POST',
-            url: 'https://localhost:4341/v1/evidence',
-            headers: { Authorization: 'Bearer [runtime token hidden]' },
-            body: { purpose: 'child-benefit-review' }
-          }
-        ]
-      },
-      tokens
-    );
-    expect(result.request_source.headers['x-api-key']).toBe('tok-child');
-    expect(result.request_sources[0].headers.Authorization).toBe('Bearer [runtime token hidden]');
+  it('publishes placeholders, never token or subject values', () => {
+    const commands = buildCurlExamples().map((example) => example.command).join('\n');
+    expect(commands).toContain('$CRA_EVIDENCE_ACCESS_TOKEN');
+    expect(commands).toContain('$SOLMARA_UIN');
+    expect(commands).toContain('$REQUEST_NONCE');
+    expect(commands).not.toMatch(/Bearer\s+(?!\$)[A-Za-z0-9._-]+/);
+    expect(commands).not.toMatch(/\bFR-\d+\b|\b[2-9]\d{9}\b/);
   });
 });

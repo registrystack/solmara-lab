@@ -1,0 +1,41 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+    "discovery_url": "https://sipf-evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://sipf-evidence.solmara.registrystack.org/v1/evidence",
+    "kind": "evidence-verification-api",
+    "source_type": "Relay lookup"
+  },
+  "dataset": "sipf-pensions",
+  "description": "An independently signed Relay lookup assertion issued by Social Insurance and Pensions Fund.",
+  "entity": "pension_payment",
+  "evidence_type": "pension-payment-active-v1",
+  "id": "sipf-pension-payment-v1-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pension-payment-v1-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "sipf",
+    "iri": "did:web:id.registrystack.org:solmara:authority:sipf",
+    "name": "Social Insurance and Pensions Fund",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "pensioner_uin"
+  ],
+  "policy": "sipf-pension-payment-v1-offering-policy",
+  "public_services": [
+    "pension-survivor-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/pension-payment-review"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/concept/pension-payment-active"
+    ]
+  },
+  "title": "Social Insurance and Pensions Fund Pension payment active v1"
+}

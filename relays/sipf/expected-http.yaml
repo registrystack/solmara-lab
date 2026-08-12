@@ -1,0 +1,32 @@
+schemaVersion: relay.registrystack.org/http-journey/v1alpha1
+registry: https://id.registrystack.org/solmara/registry/sipf
+authorizations:
+  pension-ok: {principal: sipf-pension-evidence, scopes: [solmara:relay:sipf:by-pensioner-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review"}}
+  pension-wrong-scope: {principal: sipf-pension-evidence, scopes: [solmara:relay:sipf:by-spouse-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review"}}
+  pension-wrong-purpose: {principal: sipf-pension-evidence, scopes: [solmara:relay:sipf:by-pensioner-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"}}
+  survivor-ok: {principal: sipf-survivor-evidence, scopes: [solmara:relay:sipf:by-spouse-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"}}
+  survivor-wrong-scope: {principal: sipf-survivor-evidence, scopes: [solmara:relay:sipf:by-pensioner-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"}}
+  survivor-wrong-purpose: {principal: sipf-survivor-evidence, scopes: [solmara:relay:sipf:by-spouse-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review"}}
+steps:
+  - id: pension-success
+    authorizationFixture: pension-ok
+    request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, body: {pensionerUin: "2300109568"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [paymentStatus], domainDataValues: {paymentStatus: active}, absentEverywhere: [pensionerUin, pensioner_uin]}
+  - {id: pension-fields-minimum, authorizationFixture: pension-ok, request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, query: {fields: paymentStatus}, body: {pensionerUin: "2300109568"}}, expect: {status: 200, registryCoreRequired: true, domainDataKeys: [paymentStatus]}}
+  - {id: pension-wrong-scope, authorizationFixture: pension-wrong-scope, request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, body: {pensionerUin: "2300109568"}}, expect: {status: 404, code: resource.not_found}}
+  - {id: pension-wrong-purpose, authorizationFixture: pension-wrong-purpose, request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, body: {pensionerUin: "2300109568"}}, expect: {status: 403, code: consultation.denied}}
+  - {id: pension-malformed-selector, authorizationFixture: pension-ok, request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, body: {pensionerUin: short}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: pension-no-match, authorizationFixture: pension-ok, request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, body: {pensionerUin: "2399999999"}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: pension-invalid-row, authorizationFixture: pension-ok, request: {method: POST, path: /v2/resources/pension-payment/lookups/by-pensioner-uin, body: {pensionerUin: "2300999999"}}, expect: {status: 503, code: source.unavailable}}
+  - {id: pension-no-list, authorizationFixture: pension-ok, request: {method: GET, path: /v2/resources/pension-payment/records}, expect: {status: 404, routeAbsent: true}}
+  - id: survivor-success
+    authorizationFixture: survivor-ok
+    request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, body: {spouseUin: "2300118698"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [survivorEligible], domainDataValues: {survivorEligible: true}, absentEverywhere: [spouseUin, spouse_uin]}
+  - {id: survivor-fields-minimum, authorizationFixture: survivor-ok, request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, query: {fields: survivorEligible}, body: {spouseUin: "2300118698"}}, expect: {status: 200, registryCoreRequired: true, domainDataKeys: [survivorEligible]}}
+  - {id: survivor-wrong-scope, authorizationFixture: survivor-wrong-scope, request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, body: {spouseUin: "2300118698"}}, expect: {status: 404, code: resource.not_found}}
+  - {id: survivor-wrong-purpose, authorizationFixture: survivor-wrong-purpose, request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, body: {spouseUin: "2300118698"}}, expect: {status: 403, code: consultation.denied}}
+  - {id: survivor-malformed-selector, authorizationFixture: survivor-ok, request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, body: {spouseUin: short}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: survivor-no-match, authorizationFixture: survivor-ok, request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, body: {spouseUin: "2399999999"}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: survivor-invalid-row, authorizationFixture: survivor-ok, request: {method: POST, path: /v2/resources/survivor-case/lookups/by-spouse-uin, body: {spouseUin: "2300888888"}}, expect: {status: 503, code: source.unavailable}}
+  - {id: survivor-no-list, authorizationFixture: survivor-ok, request: {method: GET, path: /v2/resources/survivor-case/records}, expect: {status: 404, routeAbsent: true}}

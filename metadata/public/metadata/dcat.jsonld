@@ -8,29 +8,29 @@
   "dcat:dataset": [
     {
       "@id": "https://id.registrystack.org/solmara/datasets/cra-civil",
-      "dct:title": "Civil registration"
+      "dct:title": "CRA civil registration publication"
     },
     {
       "@id": "https://id.registrystack.org/solmara/datasets/nia-population",
-      "dct:title": "Population register"
+      "dct:title": "NIA population publication"
     },
     {
       "@id": "https://id.registrystack.org/solmara/datasets/sro-social",
-      "dct:title": "Social registry"
+      "dct:title": "SRO poverty extract"
     },
     {
       "@id": "https://id.registrystack.org/solmara/datasets/mosd-programme",
-      "dct:title": "Integrated beneficiary registry"
+      "dct:title": "MoSD programme enrolment publication"
     },
     {
       "@id": "https://id.registrystack.org/solmara/datasets/sipf-pensions",
-      "dct:title": "Pensions and social insurance"
+      "dct:title": "SIPF pension and survivor publication"
     },
     {
       "@id": "https://id.registrystack.org/solmara/datasets/nagdi-agriculture",
-      "dct:title": "Farmer and livestock registries"
+      "dct:title": "NAgDI agriculture publication"
     }
   ],
-  "dct:description": "One merged CPSV-AP metadata publish for Solmara Wave 1 registry and evidence services.",
-  "dct:title": "Solmara Lab Wave 1 Service Catalogue"
+  "dct:description": "Six authority-owned Evidence cells, five governed Relay V2 services, and the programme applications that compose signed assertions.",
+  "dct:title": "Solmara authority-owned Evidence catalogue"
 }

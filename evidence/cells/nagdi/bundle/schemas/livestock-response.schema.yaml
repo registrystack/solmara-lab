@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [data]
+properties: { data: { type: object, additionalProperties: false, required: [domainData], properties: { domainData: { type: object, additionalProperties: false, required: [registeredHerd, herdVaccinationCurrent, originDistrictNotQuarantinedForSpecies, destinationDistrictOpen, noConflictingOpenMovementPermit], properties: { registeredHerd: { type: boolean }, herdVaccinationCurrent: { type: boolean }, originDistrictNotQuarantinedForSpecies: { type: boolean }, destinationDistrictOpen: { type: boolean }, noConflictingOpenMovementPermit: { type: boolean } } } } } }

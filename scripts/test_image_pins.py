@@ -43,6 +43,13 @@ class ImagePinTests(unittest.TestCase):
             f"EVIDENCE_GATEWAY_IMAGE={GATEWAY}\n",
             encoding="utf-8",
         )
+        with (self.root / "versions.env").open("a", encoding="utf-8") as versions:
+            for key in (
+                "PYTHON_STATIC_IMAGE", "NODE_BUILD_IMAGE", "UV_BUILD_IMAGE",
+                "ESIGNET_REDIS_IMAGE", "ESIGNET_BASE_IMAGE",
+                "ESIGNET_UI_IMAGE", "ESIGNET_POSTGRES_IMAGE",
+            ):
+                versions.write(f"{key}=example.invalid/image@sha256:{'6' * 64}\n")
 
     def tearDown(self) -> None:
         self.directory.cleanup()
@@ -79,6 +86,18 @@ class ImagePinTests(unittest.TestCase):
 
         self.assertEqual(result, 1)
         self.assertIn("EVIDENCE_GATEWAY_IMAGE must use image@sha256", stderr)
+
+    def test_nonexistent_upstream_evidence_image_is_rejected(self) -> None:
+        self.run_check()
+        (self.root / "compose.hosted.yaml").write_text(
+            "services:\n  evidence:\n    image: ghcr.io/registrystack/evidence@sha256:" + "a" * 64 + "\n",
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            result = self.module.main()
+        self.assertEqual(result, 1)
+        self.assertIn("is not a published Registry Stack image", stderr.getvalue())
 
 
 if __name__ == "__main__":

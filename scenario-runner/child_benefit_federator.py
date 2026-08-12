@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from scenarios.common import PURPOSES, evidence_body, evidence_headers, http_json, normalized_evidence_result
-from scenarios.service_config import requirement_id, service_token, service_url
+from scenarios.service_config import authority_service_id, requirement_config, requirement_id, service_token, service_url
 
 
 API_VERSION = "solmara-child-benefit-evidence/v2"
@@ -26,10 +26,10 @@ FEDERATOR_TOKEN_ENV = "CHILD_BENEFIT_FEDERATOR_TOKEN"
 CHILD_PURPOSE = PURPOSES["child_benefit"]
 MAX_REQUEST_BODY_BYTES = 64 * 1024
 SOURCE_ROUTES: tuple[dict[str, Any], ...] = (
-    {"client_id": "cra-child-benefit", "authority": "Civil Registration Authority", "claims": ("birth-is-registered", "child-age-under-5")},
-    {"client_id": "nia-child-benefit", "authority": "National Identity Agency", "claims": ("population-record-active",)},
-    {"client_id": "sro-child-benefit", "authority": "Social Registry Office", "claims": ("household-below-poverty-threshold",)},
-    {"client_id": "programme-child-benefit", "authority": "MoSD Programme MIS", "claims": ("not-already-enrolled",)},
+    {"client_id": "cra-child-benefit", "claims": ("birth-is-registered", "child-age-under-5")},
+    {"client_id": "nia-child-benefit", "claims": ("population-record-active",)},
+    {"client_id": "sro-child-benefit", "claims": ("household-below-poverty-threshold",)},
+    {"client_id": "programme-child-benefit", "claims": ("not-already-enrolled",)},
 )
 CLAIM_ROUTES = {claim: route for route in SOURCE_ROUTES for claim in route["claims"]}
 
@@ -45,7 +45,7 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
         if path == "/v1/claims":
             if not self.require_token():
                 return
-            self.write_json({"schema_version": API_VERSION, "claims": [{"claim_id": claim, "authority": route["authority"]} for claim, route in CLAIM_ROUTES.items()]})
+            self.write_json({"schema_version": API_VERSION, "claims": [{"claim_id": claim, "authority": requirement_config(route["client_id"])["name"]} for claim, route in CLAIM_ROUTES.items()]})
             return
         self.write_problem(HTTPStatus.NOT_FOUND, "not_found", "No such application route.")
 
@@ -55,12 +55,12 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
             return
         if not self.require_token():
             return
-        purpose = self.headers.get("Data-Purpose", "")
-        if purpose != CHILD_PURPOSE:
-            self.write_problem(HTTPStatus.FORBIDDEN, "purpose_not_permitted", "Only child-benefit-review is permitted.")
-            return
         body = self.read_body()
         if body is None:
+            return
+        purpose = body.get("purpose")
+        if purpose != CHILD_PURPOSE:
+            self.write_problem(HTTPStatus.FORBIDDEN, "purpose_not_permitted", "Only child-benefit-review is permitted.")
             return
         subject = subject_id(body)
         claims = requested_claims(body)
@@ -81,17 +81,22 @@ class ChildBenefitFederatorHandler(BaseHTTPRequestHandler):
             url = service_url(route["client_id"])
             headers = evidence_headers(token)
             request = evidence_body(subject, requirement_id(route["client_id"]), purpose)
-            response = normalized_evidence_result(http_json("POST", url, headers, request))
+            response = normalized_evidence_result(
+                http_json("POST", url, headers, request),
+                request=request,
+                service_id=route["client_id"],
+            )
             if response.status is None or not 200 <= response.status < 300:
-                self.write_problem(HTTPStatus.BAD_GATEWAY, "evidence_unavailable", f"{route['authority']} evidence was unavailable.")
+                self.write_problem(HTTPStatus.BAD_GATEWAY, "evidence_unavailable", "A required Evidence assertion was unavailable.")
                 return
             returned = {item["claim_id"]: item for item in response.body.get("results", [])}
             if any(claim not in returned for claim in requested):
-                self.write_problem(HTTPStatus.BAD_GATEWAY, "evidence_incomplete", f"{route['authority']} omitted a requested concept.")
+                self.write_problem(HTTPStatus.BAD_GATEWAY, "evidence_unavailable", "A required Evidence assertion was unavailable.")
                 return
-            results.extend({**returned[claim], "authority": route["authority"]} for claim in requested)
+            presentation = response.body["presentation"]
+            results.extend({**returned[claim], "presentation": presentation} for claim in requested)
             signed_evidence.append(response.body.get("signed_evidence"))
-            trace.append({"authority": route["authority"], "service_id": "registry-evidence", "requirement": requirement_id(route["client_id"]), "status": response.status})
+            trace.append({"authority": presentation["authority"], "service_id": authority_service_id(route["client_id"]), "issuer": presentation["issuer"], "provider": presentation["provider"], "source": presentation["source"], "status": response.status})
         self.write_json({"schema_version": API_VERSION, "orchestration": {"service_id": FEDERATOR_SERVICE_ID, "decision": "not_composed"}, "purpose": purpose, "target": {"type": "Person", "binding": "withheld"}, "results": results, "signed_evidence": signed_evidence, "source_trace": trace})
 
     def require_token(self) -> bool:

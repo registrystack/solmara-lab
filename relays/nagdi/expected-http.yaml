@@ -1,0 +1,33 @@
+schemaVersion: relay.registrystack.org/http-journey/v1alpha1
+registry: https://id.registrystack.org/solmara/registry/nagdi
+authorizations:
+  voucher-ok: {principal: nagdi-voucher-evidence, scopes: [solmara:relay:nagdi:voucher-by-farmer-id], claims: {purpose: "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"}}
+  voucher-wrong-scope: {principal: nagdi-voucher-evidence, scopes: [solmara:relay:nagdi:movement-by-farmer-id], claims: {purpose: "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"}}
+  voucher-wrong-purpose: {principal: nagdi-voucher-evidence, scopes: [solmara:relay:nagdi:voucher-by-farmer-id], claims: {purpose: "https://id.registrystack.org/solmara/purpose/livestock-movement-control"}}
+  livestock-ok: {principal: nagdi-livestock-evidence, scopes: [solmara:relay:nagdi:movement-by-farmer-id], claims: {purpose: "https://id.registrystack.org/solmara/purpose/livestock-movement-control"}}
+  livestock-wrong-scope: {principal: nagdi-livestock-evidence, scopes: [solmara:relay:nagdi:voucher-by-farmer-id], claims: {purpose: "https://id.registrystack.org/solmara/purpose/livestock-movement-control"}}
+  livestock-wrong-purpose: {principal: nagdi-livestock-evidence, scopes: [solmara:relay:nagdi:movement-by-farmer-id], claims: {purpose: "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"}}
+steps:
+  - id: voucher-success
+    authorizationFixture: voucher-ok
+    request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, body: {farmerId: FR-1001}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [farmerRegistered, dataUseAuthorized, activeSmallholderFarmer, activeFarmParcel, cropDeclaredForSeason, districtClimateRiskActive, voucherEntitlementCurrent, voucherNotRedeemed], domainDataValues: {farmerRegistered: true, voucherNotRedeemed: true}, absentEverywhere: [farmerId, farmer_id]}
+  - {id: voucher-fields-minimum, authorizationFixture: voucher-ok, request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, query: {fields: "farmerRegistered,voucherNotRedeemed"}, body: {farmerId: FR-1001}}, expect: {status: 200, registryCoreRequired: true, domainDataKeys: [farmerRegistered, voucherNotRedeemed], absentEverywhere: [dataUseAuthorized, activeSmallholderFarmer, activeFarmParcel, cropDeclaredForSeason, districtClimateRiskActive, voucherEntitlementCurrent]}}
+  - {id: voucher-wrong-scope, authorizationFixture: voucher-wrong-scope, request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, body: {farmerId: FR-1001}}, expect: {status: 404, code: resource.not_found}}
+  - {id: voucher-wrong-purpose, authorizationFixture: voucher-wrong-purpose, request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, body: {farmerId: FR-1001}}, expect: {status: 403, code: consultation.denied}}
+  - {id: voucher-malformed-selector, authorizationFixture: voucher-ok, request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, body: {farmerId: bad}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: voucher-no-match, authorizationFixture: voucher-ok, request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, body: {farmerId: FR-NONE}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: voucher-invalid-row, authorizationFixture: voucher-ok, request: {method: POST, path: /v2/resources/farmer/lookups/voucher-by-farmer-id, body: {farmerId: FR-BAD01}}, expect: {status: 503, code: source.unavailable}}
+  - {id: voucher-no-list, authorizationFixture: voucher-ok, request: {method: GET, path: /v2/resources/farmer/records}, expect: {status: 404, routeAbsent: true}}
+  - id: livestock-success
+    authorizationFixture: livestock-ok
+    request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: FR-1001}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [herdId, registeredHerd, herdVaccinationCurrent, originDistrictNotQuarantinedForSpecies, destinationDistrictOpen, noConflictingOpenMovementPermit], domainDataValues: {herdId: HERD-000001, registeredHerd: true}, absentEverywhere: [farmerId, farmer_id]}
+  - {id: livestock-fields-minimum, authorizationFixture: livestock-ok, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, query: {fields: "herdId,registeredHerd"}, body: {farmerId: FR-1001}}, expect: {status: 200, registryCoreRequired: true, domainDataKeys: [herdId, registeredHerd], absentEverywhere: [herdVaccinationCurrent, originDistrictNotQuarantinedForSpecies, destinationDistrictOpen, noConflictingOpenMovementPermit]}}
+  - {id: livestock-wrong-scope, authorizationFixture: livestock-wrong-scope, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: FR-1001}}, expect: {status: 404, code: resource.not_found}}
+  - {id: livestock-wrong-purpose, authorizationFixture: livestock-wrong-purpose, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: FR-1001}}, expect: {status: 403, code: consultation.denied}}
+  - {id: livestock-malformed-selector, authorizationFixture: livestock-ok, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: bad}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: livestock-no-match, authorizationFixture: livestock-ok, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: FR-NONE}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: livestock-ambiguous, authorizationFixture: livestock-ok, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: FR-AMB1}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: livestock-invalid-row, authorizationFixture: livestock-ok, request: {method: POST, path: /v2/resources/livestock-herd/lookups/movement-by-farmer-id, body: {farmerId: FR-BAD01}}, expect: {status: 503, code: source.unavailable}}
+  - {id: livestock-no-list, authorizationFixture: livestock-ok, request: {method: GET, path: /v2/resources/livestock-herd/records}, expect: {status: 404, routeAbsent: true}}

@@ -1,0 +1,43 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+    "discovery_url": "https://nagdi-evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://nagdi-evidence.solmara.registrystack.org/v1/evidence",
+    "kind": "evidence-verification-api",
+    "source_type": "Relay lookup"
+  },
+  "dataset": "nagdi-agriculture",
+  "description": "An independently signed Relay lookup assertion issued by National Agricultural Data Institute.",
+  "entity": "farmer_voucher",
+  "evidence_type": "climate-smart-voucher-v1",
+  "id": "nagdi-voucher-v1-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-voucher-v1-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "nagdi",
+    "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+    "name": "National Agricultural Data Institute",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "farmer_id"
+  ],
+  "policy": "nagdi-voucher-v1-offering-policy",
+  "public_services": [
+    "agriculture-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/concept/farmer-registered",
+      "https://id.registrystack.org/solmara/concept/data-use-authorized-for-purpose",
+      "https://id.registrystack.org/solmara/concept/eligible-for-climate-smart-input-voucher"
+    ]
+  },
+  "title": "National Agricultural Data Institute Climate smart voucher v1"
+}

@@ -1,0 +1,9 @@
+version: 1
+bundleDirectory: /etc/registry-evidence/cra/bundle
+listener: { bindHost: 172.29.1.21, port: 8080, tlsTermination: operator-controlled-upstream, trustProxyIdentityHeaders: false, maximumRequestBytes: 65536, maximumConcurrentRequests: 64, requestTimeoutMilliseconds: 10000, shutdownGraceMilliseconds: 30000 }
+secretProviders: { file: { root: /run/secrets/registry-evidence/cra } }
+signer: { kind: transit, unixSocketPath: /run/registry-evidence/cra/transit-proxy.sock, mount: transit, keyName: solmara-evidence-cra, keyVersion: 1, timeoutMilliseconds: 2000 }
+auditStorage: { path: /var/lib/registry-evidence/cra/audit/evidence.jsonl, maximumFileBytes: 1073741824 }
+outboundTls: { systemRoots: true, trustProfiles: {} }
+sourceExtracts:
+  cra-birth-extract: { path: /var/lib/registry-evidence/cra/extracts/cra-birth-20260704T090000Z.sqlite }

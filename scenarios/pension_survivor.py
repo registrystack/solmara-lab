@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .common import PURPOSES, StepHttpResult, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, source_response, standard_error_result
-from .service_config import requirement_id, service_token, service_token_env, service_url
+from .common import PURPOSES, StepHttpResult, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, safe_evidence_projection, source_response, standard_error_result
+from .service_config import authority_service_id, requirement_config, requirement_id, service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "death-to-pension-survivor"
@@ -15,7 +15,6 @@ DECEASED_PENSIONER = "2300109568"
 SURVIVING_SPOUSE = "2300118698"
 STALE_CONTROL = "2300127827"
 DISSOLVED_MARRIAGE_CONTROL = "2300146081"
-AUTHORITY_NAMES = {"cra-pension": "Civil Registration Authority", "sipf-pension": "Social Insurance and Pensions Fund", "sipf-survivor": "Social Insurance and Pensions Fund"}
 FRIENDLY = {
     "stop-payment": {"met": ("The pension stops.", "The application combined two signed values while each authority kept its source row.")},
     "survivor-benefit": {"met": ("Yes. The surviving spouse can be offered the benefit.", "SIPF returned only the reviewed survivor concept.")},
@@ -44,14 +43,14 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     token = service_token("cra-pension") if send else ""
     purpose = request_purpose(config, step_id)
     requests = _requests(step_id, subject or "", purpose, token)
-    preview = requests[0]["source"] if len(requests) == 1 else {"method": "MULTI", "url": "solmara://registry-evidence", "purpose": purpose, "requests": [item["source"] for item in requests]}
+    preview = requests[0]["source"] if len(requests) == 1 else {"method": "MULTI", "url": "solmara://authority-evidence", "purpose": purpose, "requests": [item["source"] for item in requests]}
     if not send:
         return {"request_source": preview}
     if not token:
         return missing_runtime_token(step_id, SERVICE_NAME, service_token_env("cra-pension"), preview)
-    responses = [(item, normalized_evidence_result(http_json(item["method"], item["url"], item["headers"], item["body"]))) for item in requests]
+    responses = [(item, normalized_evidence_result(http_json(item["method"], item["url"], item["headers"], item["body"]), request=item["body"], service_id=item["client_id"])) for item in requests]
     aggregate = _aggregate(responses)
-    payload: dict[str, Any] = {"step_id": step_id, "friendly": friendly_result(step_id, aggregate, FRIENDLY), "request_source": preview, "request_sources": [item["source"] for item, _ in responses], "response_source": source_response(aggregate), "source_trace": [{"authority": AUTHORITY_NAMES.get(item["client_id"], "Registry Evidence"), "service_id": "registry-evidence", "status": response.status} for item, response in responses]}
+    payload: dict[str, Any] = {"step_id": step_id, "friendly": friendly_result(step_id, aggregate, FRIENDLY), "request_source": preview, "request_sources": [item["source"] for item, _ in responses], "response_source": source_response(aggregate), "source_trace": [_source_trace(item["client_id"], response) for item, response in responses], **safe_evidence_projection(aggregate)}
     if step_id in {"stop-payment", "stale-control"} and aggregate.status == 200:
         values = {item.get("claim_id"): item.get("satisfied") for item in aggregate.body.get("results", [])}
         payload["derived_decisions"] = {"pension-payment-should-stop": values.get("person-is-deceased") is True and values.get("pension-payment-active") is True, "owner": "pension-review-application"}
@@ -80,11 +79,25 @@ def _aggregate(responses: list[tuple[dict[str, Any], StepHttpResult]]) -> StepHt
     failed = next((response for _, response in responses if response.status is None or not 200 <= response.status < 300), None)
     if failed:
         return failed
-    results = [entry for _, response in responses for entry in response.body.get("results", [])]
-    return StepHttpResult(200, {"results": results, "signed_evidence": [response.body.get("signed_evidence") for _, response in responses]}, {"content-type": "application/json"})
+    results = []
+    presentations = []
+    for _, response in responses:
+        presentation = response.body.get("presentation")
+        if isinstance(presentation, dict):
+            presentations.append(presentation)
+        results.extend(
+            {**entry, "presentation": presentation}
+            for entry in response.body.get("results", [])
+        )
+    return StepHttpResult(200, {"results": results, "presentations": presentations}, {"content-type": "application/json"})
 
 
 def request_purpose(config: dict[str, Any], step_id: str) -> str:
     if isinstance(config.get("purpose_override"), str):
         return config["purpose_override"]
     return PURPOSES["survivor_benefit"] if step_id in {"survivor-benefit", "dissolved-control"} else PURPOSES["pension_payment"]
+
+
+def _source_trace(service_id: str, response: StepHttpResult) -> dict[str, Any]:
+    config = requirement_config(service_id)
+    return {"authority": config["name"], "service_id": authority_service_id(service_id), "issuer": config["issuer"], "provider": config["provider"], "source": config["source"], "status": response.status}

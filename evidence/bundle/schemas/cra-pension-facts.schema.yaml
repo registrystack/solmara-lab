@@ -1,6 +1,0 @@
-type: object
-additionalProperties: false
-required: [uin, deceased]
-properties:
-  uin: { type: string, minLength: 10, maxLength: 10 }
-  deceased: { type: boolean }

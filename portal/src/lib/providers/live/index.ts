@@ -1,6 +1,8 @@
 import type { EvaluateContext, DetailedEvidenceProvider } from '$lib/providers/EvidenceProvider';
-import type { ClaimResult, Field, ProofTrace } from '$lib/types';
+import type { ClaimResult, EvidencePresentation, EvidenceSource, Field, ProofTrace } from '$lib/types';
 import { SCENARIOS, type EvaluateOptions, type MockEvaluation } from '$lib/providers/mock';
+import { evidencePresentation, SOLMARA_AUTHORITIES } from '$lib/fields/authorities';
+import { authorityPlan, isApplicationOwnedPlan } from '$lib/providers/authority-plan';
 
 export type LiveProviderEnv = {
   SCENARIO_RUNNER_URL?: string;
@@ -15,12 +17,15 @@ type RunnerResult = {
   response_source?: { status?: number | null; body?: unknown; error?: string };
   source_trace?: Dict[];
   derived_decisions?: Record<string, boolean | null>;
+  results?: Dict[];
+  presentation?: unknown;
+  presentations?: unknown[];
 };
 type RunnerCall = { scenarioId: string; stepId: string };
 
 /**
  * The live portal delegates scenario execution to the server-side scenario
- * runner. That runner owns Mint authentication and calls Registry Evidence;
+ * runner. That runner owns Mint authentication and calls authority Evidence;
  * browser-controlled input can select only a reviewed portal field.
  */
 export class LiveEvidenceProvider implements DetailedEvidenceProvider {
@@ -46,22 +51,22 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
     const scenario = SCENARIOS[scenarioKey];
     if (!scenario) throw new Error(`LiveEvidenceProvider: no scenario mapping for field "${field.id}"`);
 
-    if (scenarioKey === 'denial') return this.#blocked(field, scenario, 'subject_mismatch');
+    if (scenarioKey === 'denial') return this.#blocked(field, scenario, 'not_authorized');
     if (scenario.delegated && opts?.guardianLinkVerified !== true) {
       return this.#blocked(field, scenario, 'relationship_not_proven');
     }
 
     const calls = runnerCalls(scenarioKey, scenario.service);
-    const responses = await Promise.all(calls.map((call) => this.#run(call, scenario.purpose)));
+    const responses = await Promise.all(calls.map((call) => this.#run(call)));
     const status = responses.find((response) => !isSuccess(response.response_source?.status))?.response_source?.status ?? 200;
     const results = responses.flatMap((response) => responseResults(response));
+    const presentations = presentationsFor(scenarioKey, scenario, responses);
     const outcome = outcomeFor(scenarioKey, scenario.claimId, results, responses);
     const proofStatus = status === 403 ? 'denied' : !isSuccess(status) || !outcome.found ? 'error' : outcome.satisfied === false ? 'false' : 'ok';
     const seq = ++this.#seq;
     const applicationOwned = scenario.applicationOwned === true;
     const responseBody = {
       results,
-      signed_evidence: responses.flatMap((response) => signedEvidence(response)),
       source_trace: responses.flatMap((response) => response.source_trace ?? []),
       ...(outcome.derivedDecisions ? { derived_decisions: outcome.derivedDecisions } : {})
     };
@@ -78,7 +83,7 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
       result: {
         state: proofStatus === 'ok' ? scenario.state : proofStatus === 'false' ? 'false' : 'error',
         display,
-        ...(!applicationOwned ? { authority: scenario.notary } : {}),
+        ...(!applicationOwned ? { authority: scenario.authority } : {}),
         traceId: `event ${seq}`
       },
       raw: {
@@ -88,32 +93,44 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
           body: requestBody
         },
         response: { status: typeof status === 'number' ? status : 503, body: responseBody }
-      } as unknown as MockEvaluation['raw'],
+      },
       proof: {
         headline: scenario.headline,
         answered: outcome.found
-          ? `Registry Evidence answered: ${scenario.claimId} = ${String(outcome.value)}`
-          : 'Registry Evidence returned no usable value for this field',
+          ? `${presentations[0]?.authority ?? 'Authority Evidence'} answered: ${scenario.claimId} = ${String(outcome.value)}`
+          : 'The authority Evidence service returned no usable value for this field',
         notDisclosed: scenario.notDisclosed,
         status: proofStatus,
-        authority: applicationOwned ? undefined : scenario.notary,
-        crypto: evidenceProof(responses)
+        authority: applicationOwned ? undefined : scenario.authority,
+        purpose: scenario.purpose,
+        presentations,
+        crypto: evidenceProof(presentations, proofStatus)
       },
       timing: { latencyMs: 0, staggerOrder: scenario.staggerOrder, slow: false }
     };
   }
 
-  async #run(call: RunnerCall, purpose: string): Promise<RunnerResult> {
+  async #run(call: RunnerCall): Promise<RunnerResult> {
     const url = `${requiredRunnerUrl(this.#runnerUrl)}/v1/scenarios/${call.scenarioId}/steps/${call.stepId}/run`;
     const response = await this.#fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ config: { purpose_override: purpose } })
+      body: JSON.stringify({})
     });
     const envelope = asDict(await response.json().catch(() => ({})));
+    // RunnerResult is a bounded structural view over the already parsed object.
     const result = asDict(envelope.result) as RunnerResult;
     if (!response.ok && result.response_source === undefined) {
-      return { response_source: { status: response.status, body: { code: 'scenario_runner_unavailable' } } };
+      return {
+        response_source: {
+          status: response.status,
+          body: {
+            type: 'https://registrystack.org/problems/evidence/service_unavailable',
+            title: 'Authority Evidence is unavailable',
+            status: response.status
+          }
+        }
+      };
     }
     return result;
   }
@@ -124,7 +141,13 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
     code: string
   ): MockEvaluation {
     const seq = ++this.#seq;
-    const body = { error: code, error_description: 'The portal stopped this request before source access.' };
+    const body = {
+      type: `urn:solmara:portal:problem:${code}`,
+      title: 'Portal authorization denied the request',
+      status: 403,
+      detail: 'The portal stopped this request before source access.',
+      operation: `denial:event-${seq}`
+    };
     return {
       result: {
         state: 'error',
@@ -139,20 +162,21 @@ export class LiveEvidenceProvider implements DetailedEvidenceProvider {
           body: { field: field.id, purpose: scenario.purpose, disclosure: scenario.disclosure }
         },
         response: { status: 403, body }
-      } as unknown as MockEvaluation['raw'],
+      },
       proof: {
-        headline: 'Portal authorization stopped the request before Registry Evidence was called',
+        headline: 'Portal authorization stopped the request before authority Evidence was called',
         answered: `Portal authorization gate returned 403 ${code}`,
         notDisclosed: scenario.notDisclosed,
         status: 'denied',
         authority: undefined,
+        purpose: scenario.purpose,
+        presentations: [],
         crypto: {
-          signedBy: 'Portal authorization gate; Registry Evidence was not called',
+          signedBy: 'Portal authorization gate; authority Evidence was not called',
           algorithm: 'No evidence assertion was produced',
           issuerKey: 'Not applicable',
           holderBound: 'Portal session and server-selected subject',
-          credential: 'No credential or evidence assertion returned',
-          auditId: `denial:event-${seq}`
+          credential: 'No credential or evidence assertion returned'
         }
       },
       timing: { latencyMs: 0, staggerOrder: scenario.staggerOrder, slow: false }
@@ -180,15 +204,11 @@ function runnerCalls(scenarioKey: string, service: string): RunnerCall[] {
 }
 
 function responseResults(response: RunnerResult): Dict[] {
+  if (Array.isArray(response.results)) {
+    return response.results.map(asDict).filter((item) => Object.keys(item).length > 0);
+  }
   const body = asDict(response.response_source?.body);
   return Array.isArray(body.results) ? body.results.map(asDict).filter((item) => Object.keys(item).length > 0) : [];
-}
-
-function signedEvidence(response: RunnerResult): unknown[] {
-  const body = asDict(response.response_source?.body);
-  const signed = body.signed_evidence;
-  if (Array.isArray(signed)) return signed;
-  return signed && typeof signed === 'object' ? [signed] : [];
 }
 
 function outcomeFor(
@@ -225,16 +245,70 @@ function outcomeFor(
   return { found: item !== undefined, satisfied: typeof item?.satisfied === 'boolean' ? item.satisfied : null, value };
 }
 
-function evidenceProof(responses: RunnerResult[]): NonNullable<ProofTrace['proof']> {
-  const assertions = responses.flatMap(signedEvidence);
+function evidenceProof(
+  presentations: EvidencePresentation[],
+  status: ProofTrace['status']
+): NonNullable<ProofTrace['proof']> {
+  const authorities = [...new Set(presentations.map((item) => item.authority))];
+  const returned = status === 'ok' || status === 'false';
   return {
-    signedBy: assertions.length ? 'Registry Evidence signed the returned assertion set' : 'No signed assertion was returned',
-    algorithm: assertions.length ? 'Flattened JWS, EdDSA' : 'Not available',
-    issuerKey: '/.well-known/evidence/jwks.json',
-    holderBound: 'Mint requester identity, purpose, requirement, nonce, and selector',
-    credential: 'Registry Evidence assertion, not an application credential',
-    auditId: `${assertions.length} signed assertion${assertions.length === 1 ? '' : 's'}`
+    signedBy: returned && authorities.length ? `${authorities.join(' and ')} issued the returned Evidence` : 'No Evidence assertion was returned',
+    algorithm: returned ? 'Verified Evidence assertion' : 'Not available',
+    issuerKey: returned ? 'Authority Evidence JWKS' : 'Not applicable',
+    holderBound: 'Audience-scoped to the portal request',
+    credential: returned ? 'Minimum-disclosure Evidence assertion' : 'No Evidence assertion returned'
   };
+}
+
+function presentationsFor(
+  scenarioKey: string,
+  scenario: (typeof SCENARIOS)[string],
+  responses: RunnerResult[]
+): EvidencePresentation[] {
+  const supplied = responses.flatMap((response) => {
+    const direct = response.presentations ?? (response.presentation ? [response.presentation] : []);
+    const fromTrace = response.source_trace ?? [];
+    const fromResults = responseResults(response).map((result) => result.presentation);
+    return [...direct, ...fromTrace, ...fromResults].map(parsePresentation).filter(isPresentation);
+  });
+  if (supplied.length > 0) return uniquePresentations(supplied);
+
+  const plan = scenario.service === 'childBenefit' ? [] : authorityPlan(scenarioKey, scenario);
+  if (isApplicationOwnedPlan(plan)) {
+    return plan.map((entry) => evidencePresentation(entry.authorityId, entry.source));
+  }
+  return [evidencePresentation(scenario.authority, sourceForScenario(scenario))];
+}
+
+function parsePresentation(value: unknown): EvidencePresentation | null {
+  const item = asDict(value);
+  const source = item.source;
+  const match = Object.values(SOLMARA_AUTHORITIES).find(
+    (authority) => authority.label === item.authority && authority.issuer === item.issuer
+  );
+  if (!match || (source !== 'immutable extract' && source !== 'Relay lookup')) return null;
+  return evidencePresentation(match.id, source);
+}
+
+function isPresentation(value: EvidencePresentation | null): value is EvidencePresentation {
+  return value !== null;
+}
+
+function uniquePresentations(items: EvidencePresentation[]): EvidencePresentation[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.serviceId}:${item.source}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function sourceForScenario(scenario: (typeof SCENARIOS)[string]): EvidenceSource {
+  if (scenario.service === 'childBenefit' && ['childCivil', 'population', 'socialRegistry'].includes(scenario.authority)) {
+    return 'immutable extract';
+  }
+  return 'Relay lookup';
 }
 
 function requiredRunnerUrl(value: string | undefined): string {
@@ -247,6 +321,7 @@ function requiredRunnerUrl(value: string | undefined): string {
 }
 
 function asDict(value: unknown): Dict {
+  // The runtime guard establishes the dictionary shape used by safe readers.
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Dict : {};
 }
 

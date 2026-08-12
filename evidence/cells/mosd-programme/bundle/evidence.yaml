@@ -1,0 +1,54 @@
+version: 1
+assuranceProfile: production
+service: { providerId: https://id.registrystack.org/solmara/evidence/mosd-programme, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
+issuer: { id: did:web:id.registrystack.org:solmara:authority:mosd-programme-mis }
+authentication: { kind: oidc-access-token, issuer: https://mint.solmara.registrystack.org, audiences: [solmara-runtime], tokenTypes: [at+jwt], algorithms: [ES256], jwksUri: https://mint.solmara.registrystack.org/.well-known/jwks.json, principalClaim: sub, requesterTagsClaim: evidence_tags, evidenceAudienceClaim: evidence_audience, grantIdClaim: evidence_grant_id, grantAuthorityClaim: evidence_authority, maximumTokenLifetimeSeconds: 300, revokedKeyIds: [] }
+audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
+subjectBinding: { secretRef: secret:file/subject-binding-hmac-key, keyVersion: 1 }
+rateLimits: { requestsPerPrincipalPerMinute: 60, burstPerPrincipal: 10, failedSelectorAttemptsPerPrincipalAuthorityPerMinute: 10 }
+signing: { format: flattened-jws-json, algorithm: ES256, activePublicJwkFile: public-keys/mosd-programme.jwk.json, publishedPublicJwkFiles: [], revokedKeyIds: [], jwksPath: /.well-known/evidence/jwks.json, maximumAssertionValiditySeconds: 300, verifierClockSkewSeconds: 30 }
+responseFormats: [signed-jws]
+selectorProfiles: { solmara-uin-v1: { maximumAggregateBytes: 16, fields: { uin: { type: string, minimumBytes: 10, maximumBytes: 10 } } } }
+sources:
+  mosd-child-benefit:
+    transport: http-json
+    baseUrl: https://mosd-programme-relay.solmara.registrystack.org
+    posture: field-projected
+    authentication: { kind: oauth2-client-credentials, tokenEndpoint: https://mint.solmara.registrystack.org/token, clientIdRef: secret:file/mosd-child-benefit-evidence-client-id, clientAssertionKeyRef: secret:file/mosd-child-benefit-evidence-client-key, clientAssertionAudience: https://mint.solmara.registrystack.org/token, scope: 'solmara:relay:mosd:by-uin', audience: solmara-runtime, maximumCacheSeconds: 60 }
+    unresolvedProblem: { status: 404, type: https://id.registrystack.org/problems/registry-relay/consultation/unresolved, code: consultation.unresolved }
+    request:
+      method: POST
+      path: /v2/resources/beneficiary-enrolment/lookups/by-uin
+      fixedHeaders: [{ name: Accept, value: application/json }]
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      prepareScript: adapters/relay-prepare.rhai
+      adapterParameters: { fields: duplicateEnrolment }
+      adapterParametersSchema: schemas/relay-adapter-parameters.schema.yaml
+      preparationLimits: { query: required, jsonBody: required, maximumQueryPairs: 1, maximumQueryNameBytes: 16, maximumQueryValueBytes: 64, maximumNormalizedBytes: 1024 }
+      projection: [/data/domainData/duplicateEnrolment]
+      redirects: deny
+      timeoutMilliseconds: 3000
+      maximumResponseBytes: 65536
+      concurrencyLimit: 8
+    responseSchema: schemas/response.schema.yaml
+    extractScript: adapters/relay-extract.rhai
+    factSchema: schemas/facts.schema.yaml
+authorityProfiles:
+  mosd-consumers-v1:
+    kind: statutory
+    requesterTags: [solmara-demo]
+    grants: [{ requirement: https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1, purpose: child-benefit-review, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }] }]
+requirements:
+  - id: https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1
+    kind: information-requirement
+    acquisition: { kind: single, source: mosd-child-benefit }
+    purposes: [child-benefit-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/not-enrolled/v1
+    validitySeconds: 300
+    derivation: { script: derivations/not-enrolled.rhai, parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/not-already-enrolled, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/child-benefit.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/mosd-child-benefit] }
+    existenceDisclosure: collapse-unresolved

@@ -1,0 +1,41 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+    "discovery_url": "https://nia-evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://nia-evidence.solmara.registrystack.org/v1/evidence",
+    "kind": "evidence-verification-api",
+    "source_type": "immutable extract"
+  },
+  "dataset": "nia-population",
+  "description": "An independently signed immutable extract assertion issued by National Identity Agency.",
+  "entity": "population_person",
+  "evidence_type": "population-active-v1",
+  "id": "nia-child-benefit-v1-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/nia-child-benefit-v1-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "nia",
+    "iri": "did:web:id.registrystack.org:solmara:authority:nia",
+    "name": "National Identity Agency",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "nia-child-benefit-v1-offering-policy",
+  "public_services": [
+    "child-benefit-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/concept/population-record-active"
+    ]
+  },
+  "title": "National Identity Agency Population active v1"
+}

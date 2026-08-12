@@ -14,14 +14,14 @@
 
 <svelte:head>
   <title>Anatomy · Solmara Lab</title>
-  <meta name="description" content="What an institution actually runs: source-owned Records APIs, Registry Evidence and Mint, application evidence collection, and the config linked in the repo." />
+  <meta name="description" content="What an institution actually runs: source-owned Records APIs, authority Evidence cells and Mint, application evidence collection, and the config linked in the repo." />
 </svelte:head>
 
 <main class="reference-surface reference-page">
   <ReferenceHero
     eyebrow="System anatomy"
     title="See where every trust boundary runs"
-    description="Trace the deployed topology from source-owned registries and Records APIs through Registry Evidence to the applications that collect bounded signed values. Every card links back to the configuration that creates it."
+    description="Trace the deployed topology from source-owned registries and Records APIs through six authority Evidence cells to the applications that collect bounded signed values. Every card links back to the configuration that creates it."
     active="anatomy"
     {facts}
   />
@@ -39,7 +39,7 @@
         <p class="eyebrow">Sovereignty invariant</p>
         <strong>One authority, one source-owned boundary.</strong>
         <p>
-          No authority hands its rows to a central store. Each keeps an independent audit chain, so
+          No authority hands its rows to a central store. Each keeps an independent accountability boundary, so
           a fault or compromise stays contained rather than becoming a country-wide data exposure.
         </p>
       </aside>

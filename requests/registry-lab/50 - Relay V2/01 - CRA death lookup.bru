@@ -1,0 +1,20 @@
+meta {
+  name: 01 - CRA death lookup
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{cra_relay_url}}/v2/resources/civil-person/lookups/death-by-uin?fields=deceased
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{CRA_PENSION_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"uin":"2300109568"}}
+}

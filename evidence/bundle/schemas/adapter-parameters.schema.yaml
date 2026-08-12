@@ -1,7 +1,0 @@
-type: object
-additionalProperties: false
-required: [selectorField, providerFields, resultLimit]
-properties:
-  selectorField: { type: string, enum: [uin, pensioner_uin, spouse_uin, farmer_id] }
-  providerFields: { type: string, minLength: 1, maxLength: 512 }
-  resultLimit: { const: "2" }

@@ -1,0 +1,24 @@
+{
+  "@context": {
+    "odrl": "http://www.w3.org/ns/odrl/2/"
+  },
+  "id": "cra-child-benefit-v1-offering-policy",
+  "permission": [
+    {
+      "action": "use",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "https://id.registrystack.org/solmara/purpose/child-benefit-review"
+          ]
+        }
+      ]
+    }
+  ],
+  "profile": "https://www.w3.org/TR/odrl-model/",
+  "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-child-benefit-v1-offering",
+  "type": "odrl:Set",
+  "uid": "https://id.registrystack.org/solmara/policies/cra-child-benefit-v1-offering-policy"
+}

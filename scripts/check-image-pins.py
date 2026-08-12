@@ -8,14 +8,19 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LINE_RE = re.compile(r"^([A-Z0-9_]+)=([^#\s]+)$")
+LINE_RE = re.compile(r"^([A-Z0-9_]+)=([^#\s]*)$")
 PIN_RE = re.compile(r"^[^#\s]+@sha256:[0-9a-f]{64}$")
 SOURCE_IMAGE_KEYS = {
     "REGISTRY_RELAY_IMAGE",
     "SOLMARA_EVIDENCE_IMAGE",
     "SOLMARA_MINT_IMAGE",
 }
-PINNED_IMAGE_KEYS = {"VOLUME_INIT_IMAGE", "EVIDENCE_GATEWAY_IMAGE"}
+PINNED_IMAGE_KEYS = {
+    "VOLUME_INIT_IMAGE", "EVIDENCE_GATEWAY_IMAGE", "PYTHON_STATIC_IMAGE",
+    "NODE_BUILD_IMAGE", "UV_BUILD_IMAGE",
+    "ESIGNET_REDIS_IMAGE", "ESIGNET_BASE_IMAGE", "ESIGNET_UI_IMAGE",
+    "ESIGNET_POSTGRES_IMAGE",
+}
 
 
 def main() -> int:
@@ -59,6 +64,14 @@ def main() -> int:
     for key, count in required_counts.items():
         if count == 0:
             failures.append(f"compose files: expected a required {key} reference")
+
+    for deployment in (ROOT / "compose.hosted.yaml", *sorted(ROOT.glob("compose.coolify*.yaml"))):
+        if not deployment.exists():
+            continue
+        text = deployment.read_text(encoding="utf-8")
+        for nonexistent in ("ghcr.io/registrystack/evidence", "ghcr.io/registrystack/mint"):
+            if nonexistent in text:
+                failures.append(f"{deployment.name}: {nonexistent} is not a published Registry Stack image")
 
     if failures:
         for failure in failures:

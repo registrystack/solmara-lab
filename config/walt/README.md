@@ -17,14 +17,10 @@ compose bind mounts from the repo; see the runbook). `Caddyfile` and this
 
 ## Deltas from stock walt
 
-1. **`registration-defaults.conf`** — `defaultKeyConfig.keyType` is `Ed25519`
-   (stock: `secp256r1`). This keeps holder keys compatible with the Registry
-   Notary `EdDSA` plus `did:jwk` binding used when an authority project exposes
-   a reviewed issuance flow.
-2. **`auth.conf`** — the login-session `encryptionKey` / `signKey` / `tokenKey`
+1. **`auth.conf`** — the login-session `encryptionKey` / `signKey` / `tokenKey`
    are read from the environment (`WALT_AUTH_*`) instead of walt's public sample
    values, and fail-closed if unset.
-3. **`dev-mode.conf`** — `enableDidWebResolverHttps=true` (stock: `false`) so the
+2. **`dev-mode.conf`** — `enableDidWebResolverHttps=true` (stock: `false`) so the
    wallet resolves authority `did:web` issuers over HTTPS.
 
 ## Ingress

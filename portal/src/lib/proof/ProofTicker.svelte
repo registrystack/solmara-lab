@@ -39,8 +39,8 @@
   }
 
   function authorityShort(trace: ProofTrace): string {
-    // The identity-binding trace has no Notary authority (eSignet is the identity
-    // provider, not one of the four Notaries), so name its issuer explicitly rather
+    // The identity-binding trace has no Evidence authority (eSignet is the identity
+    // provider, not one of the source authorities), so name its issuer explicitly rather
     // than falling through to a bare "Unknown".
     if (trace.id === IDENTITY_TRACE_ID) {
       return 'eSignet';
@@ -63,7 +63,7 @@
       case 'programme':
         return 'Programme';
       default:
-        return trace.authority ?? 'Unknown';
+        return trace.status === 'denied' ? 'Portal' : trace.authority ?? 'Unattributed';
     }
   }
 
@@ -90,7 +90,7 @@
   class="proof-ticker"
   role="log"
   aria-live="polite"
-  aria-label="Proof audit log"
+  aria-label="Proof log"
   aria-atomic="false"
   aria-relevant="additions"
 >

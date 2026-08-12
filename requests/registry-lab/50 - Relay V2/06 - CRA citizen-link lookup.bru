@@ -1,0 +1,20 @@
+meta {
+  name: 06 - CRA citizen-link lookup
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{cra_relay_url}}/v2/resources/civil-person/lookups/citizen-link-by-uin?fields=linkedUin
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{CRA_CITIZEN_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"uin":"2300010248"}}
+}

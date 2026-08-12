@@ -5,15 +5,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from .common import PURPOSES, StepHttpResult, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, source_response, standard_error_result
-from .service_config import requirement_id, service_token, service_token_env, service_url
+from .common import PURPOSES, StepHttpResult, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, safe_evidence_projection, source_response, standard_error_result
+from .service_config import authority_service_id, requirement_config, requirement_id, service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "citizen-self-service"
 SERVICE_NAME = "Registry Evidence"
 POSITIVE_SUBJECT = "2300018263"
 CLIENTS = ("cra-citizen", "nia-citizen")
-AUTHORITY_NAMES = {"cra-citizen": "Civil Registration Authority", "nia-citizen": "National Identity Agency"}
 FRIENDLY = {"positive": {"met": ("Elena's signed status evidence is ready.", "CRA and NIA released separate reviewed concept values.")}, "purpose-denial": {"refused": ("Refused, exactly as designed.", "No grant permits that purpose.")}}
 
 
@@ -40,9 +39,10 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
         return {"request_source": preview}
     if not token:
         return missing_runtime_token(step_id, SERVICE_NAME, service_token_env("cra-citizen"), preview)
-    responses = [(item, normalized_evidence_result(http_json(item["method"], item["url"], item["headers"], item["body"]))) for item in requests]
+    responses = [(item, normalized_evidence_result(http_json(item["method"], item["url"], item["headers"], item["body"]), request=item["body"], service_id=item["client_id"])) for item in requests]
     aggregate = _aggregate(responses)
-    return {"step_id": step_id, "friendly": friendly_result(step_id, aggregate, FRIENDLY), "request_source": preview, "request_sources": [item["source"] for item, _ in responses], "response_source": source_response(aggregate), "source_trace": [{"authority": AUTHORITY_NAMES[item["client_id"]], "service_id": "registry-evidence", "status": response.status} for item, response in responses]}
+    projection = safe_evidence_projection(aggregate)
+    return {"step_id": step_id, "friendly": friendly_result(step_id, aggregate, FRIENDLY), "request_source": preview, "request_sources": [item["source"] for item, _ in responses], "response_source": source_response(aggregate), "source_trace": [_source_trace(item["client_id"], response) for item, response in responses], **projection}
 
 
 def _requests(step_id: str, subject: str, purpose: str, token: str) -> list[dict[str, Any]]:
@@ -60,12 +60,26 @@ def _requests(step_id: str, subject: str, purpose: str, token: str) -> list[dict
 
 
 def _preview(requests: list[dict[str, Any]], purpose: str) -> dict[str, Any]:
-    return requests[0]["source"] if len(requests) == 1 else {"method": "MULTI", "url": "solmara://registry-evidence", "purpose": purpose, "requests": [item["source"] for item in requests]}
+    return requests[0]["source"] if len(requests) == 1 else {"method": "MULTI", "url": "solmara://authority-evidence", "purpose": purpose, "requests": [item["source"] for item in requests]}
+
+
+def _source_trace(service_id: str, response: StepHttpResult) -> dict[str, Any]:
+    config = requirement_config(service_id)
+    return {"authority": config["name"], "service_id": authority_service_id(service_id), "issuer": config["issuer"], "provider": config["provider"], "source": config["source"], "status": response.status}
 
 
 def _aggregate(responses: list[tuple[dict[str, Any], StepHttpResult]]) -> StepHttpResult:
     failed = next((response for _, response in responses if response.status is None or not 200 <= response.status < 300), None)
     if failed:
         return failed
-    results = [entry for _, response in responses for entry in response.body.get("results", [])]
-    return StepHttpResult(200, {"results": results, "signed_evidence": [response.body.get("signed_evidence") for _, response in responses]}, {"content-type": "application/json"})
+    results = []
+    presentations = []
+    for _, response in responses:
+        presentation = response.body.get("presentation")
+        if isinstance(presentation, dict):
+            presentations.append(presentation)
+        results.extend(
+            {**entry, "presentation": presentation}
+            for entry in response.body.get("results", [])
+        )
+    return StepHttpResult(200, {"results": results, "presentations": presentations}, {"content-type": "application/json"})

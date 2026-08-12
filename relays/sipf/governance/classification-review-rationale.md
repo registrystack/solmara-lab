@@ -1,0 +1,1 @@
+SIPF reviewed the two independent inventories. Pension consultation releases only current payment status; survivor consultation releases only the survivor-eligibility predicate. The UIN selectors and unrelated pension or family data are not properties.

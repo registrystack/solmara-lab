@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .common import PURPOSES, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, source_response, standard_error_result
-from .service_config import requirement_id, service_token, service_token_env, service_url
+from .common import PURPOSES, evidence_body, evidence_headers, friendly_result, http_json, missing_runtime_token, normalized_evidence_result, request_source, safe_evidence_projection, source_response, standard_error_result
+from .service_config import authority_service_id, requirement_config, requirement_id, service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "farmer-climate-smart-voucher"
@@ -51,8 +51,11 @@ def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, A
     if not token:
         return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(client), request)
     raw = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
-    result = raw if step_id == "discover" else normalized_evidence_result(raw)
-    return {"step_id": step_id, "friendly": friendly_result(step_id, result, FRIENDLY), "request_source": request, "response_source": source_response(result)}
+    result = raw if step_id == "discover" else normalized_evidence_result(raw, request=body, service_id=client)
+    config = requirement_config(client)
+    trace = {"authority": config["name"], "service_id": authority_service_id(client), "issuer": config["issuer"], "provider": config["provider"], "source": config["source"], "status": result.status}
+    projection = safe_evidence_projection(result)
+    return {"step_id": step_id, "friendly": friendly_result(step_id, result, FRIENDLY), "request_source": request, "response_source": source_response(result), "source_trace": [trace], **projection}
 
 
 def request_purpose(config: dict[str, Any], step_id: str) -> str:

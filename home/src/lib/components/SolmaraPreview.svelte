@@ -8,10 +8,10 @@
   export let country: any;
 
   $: authorities = metadata.available
-    ? new Set(metadata.catalog.datasets.map((dataset) => dataset.authority?.id ?? dataset.authority?.name).filter(Boolean)).size
+    ? new Set(metadata.offerings.map((offering) => offering.issuing_authority?.id ?? offering.issuing_authority?.name).filter(Boolean)).size
     : null;
-  $: registries = metadata.available
-    ? metadata.catalog.datasets.length
+  $: evidenceCells = metadata.available
+    ? metadata.catalog.data_services?.length ?? authorities
     : null;
 </script>
 
@@ -27,7 +27,7 @@
       </p>
       <dl class="country-facts">
         <div><dt>Live authorities</dt><dd>{authorities ?? 'Unavailable'}</dd></div>
-        <div><dt>Live registries</dt><dd>{registries ?? 'Unavailable'}</dd></div>
+        <div><dt>Evidence cells</dt><dd>{evidenceCells ?? 'Unavailable'}</dd></div>
         <div><dt>Real records</dt><dd>0</dd></div>
       </dl>
       <a class="button-link secondary-link" href="/country">Explore Solmara and its full synthetic cast</a>

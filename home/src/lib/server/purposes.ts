@@ -16,11 +16,22 @@ export function parsePurposes(raw: string): Purpose[] {
   const rules = parseRuleParagraphs(raw);
   return raw
     .split('\n')
-    .filter((line) => line.startsWith(TABLE_ROW_PREFIX) && line.split('|').length === 7)
+    .filter((line) => line.startsWith(TABLE_ROW_PREFIX) && [5, 7].includes(line.split('|').length))
     .map((line) => {
       const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
       const iri = stripTicks(cells[0]);
       const slug = iri.split('/').pop() ?? iri;
+      if (cells.length === 3) {
+        return {
+          iri,
+          slug,
+          advertisedBy: cells[1],
+          enforcedBy: 'Authority Evidence cells',
+          story: slug.replace(/-/g, ' '),
+          denialCodes: ['not_authorized'],
+          plainLanguage: `${cells[1]} may answer this purpose through ${cells[2]}. Wrong-purpose and unauthorized requests disclose nothing.`
+        };
+      }
       return {
         iri,
         slug,
@@ -69,9 +80,8 @@ export function storyLinksForPurpose(iri: string, scenarios: Scenario[]): StoryS
   for (const scenario of scenarios) {
     for (const step of scenario.steps) {
       const preview = step.request_preview;
-      const headers = preview?.headers ?? {};
       const body = preview?.body && typeof preview.body === 'object' ? preview.body as Record<string, unknown> : {};
-      const sent = preview?.purpose ?? body.purpose ?? headers['Data-Purpose'] ?? headers['data-purpose'];
+      const sent = preview?.purpose ?? body.purpose;
       if (sent === iri) {
         links.push({ storyId: scenario.id, storyTitle: scenario.title, stepId: step.id, stepLabel: step.label });
       }

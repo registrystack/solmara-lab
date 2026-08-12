@@ -1,0 +1,5 @@
+type: object
+additionalProperties: false
+required: [rows]
+properties:
+  rows: { type: array, maxItems: 2, items: { type: object, additionalProperties: false, required: [uin, identity_status, alive], properties: { uin: { type: string, minLength: 10, maxLength: 10 }, identity_status: { type: string, minLength: 1, maxLength: 32 }, alive: { type: boolean } } } }

@@ -17,7 +17,7 @@ const verifyField: Field = {
   label: 'Farmer registration',
   kind: 'verify',
   claim: 'farmer-registered',
-  notary: 'agri'
+  authority: 'agri'
 };
 
 const fetchField: Field = {
@@ -25,14 +25,14 @@ const fetchField: Field = {
   label: 'Date of birth',
   kind: 'fetch',
   claim: 'child-age-under-5',
-  notary: 'civil'
+  authority: 'civil'
 };
 
 const decisionField: Field = {
   id: 'combined-eligibility',
   label: 'Combined eligibility',
   kind: 'decision',
-  notary: 'social',
+  authority: 'social',
   manual: true
 };
 

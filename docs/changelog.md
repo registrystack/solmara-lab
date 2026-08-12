@@ -3,6 +3,24 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-12 Authority-owned Relay and Evidence reset
+
+Solmara now authors six independent Evidence cells and five Relay V2 projects.
+CRA, NIA, and SRO publish immutable SQLite extracts for direct Evidence use;
+CRA, MoSD, SIPF, and NAgDI expose only named exact Relay lookups, with NIA's
+Relay reserved for the optional eSignet UserInfo profile. The programme code
+routes all 11 preserved requirements to their owning authority, verifies each
+ES256 JWS against that authority's JWKS, and composes application outcomes.
+
+The reset replaces the old singleton Evidence, Records API, ambient purpose
+header, and authority decision-service topology. Mutable Relay publications and
+versioned immutable extracts now have deliberately different lifecycle proof.
+Registry Stack v0.19.0 was found incapable of issuing Relay-compatible Mint
+claims and of representing Relay's concealed unresolved outcome in Evidence
+fixtures. The reset therefore fixes forward to Registry Stack v0.20.1, pinned
+by exact release source, binary checksums, and Relay OCI digest. The separately
+released `esignet-relay-authenticator` v0.2.0 JAR is pinned by SHA-256.
+
 ## 2026-08-06 Registry Stack main Evidence migration
 
 The local lab now builds Relay, Registry Evidence, and Registry Mint from the

@@ -127,6 +127,7 @@ def check_esignet_discovery(targets: SmokeTargets, timeout: float) -> None:
     root_issuer = root_doc.get("issuer")
     root_oauth_issuer = root_oauth_doc.get("issuer")
     ui_issuer = ui_doc.get("issuer")
+    expected_token_endpoint = f"{targets.esignet_url}/v1/esignet/oauth/v2/token"
     if not isinstance(service_issuer, str) or not service_issuer:
         raise SmokeFailure("service discovery omitted issuer")
     if root_issuer != service_issuer:
@@ -141,6 +142,14 @@ def check_esignet_discovery(targets: SmokeTargets, timeout: float) -> None:
         raise SmokeFailure(
             "UI discovery issuer does not match service discovery issuer"
         )
+    for name, document in (
+        ("service", service_doc),
+        ("root OpenID", root_doc),
+        ("root OAuth", root_oauth_doc),
+        ("UI", ui_doc),
+    ):
+        if document.get("token_endpoint") != expected_token_endpoint:
+            raise SmokeFailure(f"{name} discovery token endpoint is not the public endpoint")
 
 
 def wait_for_json(

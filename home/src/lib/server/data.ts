@@ -4,7 +4,7 @@ import { runtime, joinedUrl } from './runtime';
 import { buildPublicUrlMap, mapPublicUrl } from './urlmap';
 import { statusProbes } from './services';
 import { readSeedSummary, readSmokeEvidence } from './evidence';
-import { buildCurlExamples, parsePublishedTokens } from './tokens';
+import { buildCurlExamples } from './tokens';
 import { readPurposes } from './purposes';
 import type { ChangelogEntry, ChangelogFullEntry, HomeData, MetadataBundle, Persona, Scenario, StatusItem } from '$lib/types';
 
@@ -34,7 +34,7 @@ export type LandingData = Pick<
 
 export type DeveloperData = Pick<
   HomeData,
-  'publishedTokens' | 'curlExamples' | 'versions' | 'repoUrl'
+  'curlExamples' | 'versions' | 'repoUrl'
 >;
 
 export type StatusData = Pick<
@@ -77,23 +77,19 @@ export async function loadLandingData(fetcher: FetchLike = fetch): Promise<Landi
 }
 
 /**
- * This is the only page-data loader allowed to publish the synthetic demo
- * credentials and token-bearing curl examples.
+ * Developer examples use shell placeholders. Runtime credentials never enter
+ * page data.
  */
 export async function loadDeveloperData(): Promise<DeveloperData> {
-  const publishedTokens = parsePublishedTokens();
   return {
-    publishedTokens,
-    curlExamples: buildCurlExamples(publishedTokens),
+    curlExamples: buildCurlExamples(),
     versions: await readVersions(),
     repoUrl: runtime.repoUrl
   };
 }
 
 /**
- * Load only the country route's public fields. Raw published tokens and
- * token-bearing curl examples belong to the developer route and must never
- * enter a non-developer page-data payload.
+ * Load only the country route's public fields.
  */
 export async function loadCountryData(fetcher: FetchLike = fetch): Promise<CountryData> {
   const [metadata, personas, districts, provinces, country] = await Promise.all([
@@ -213,27 +209,47 @@ export async function fetchMetadata(fetcher: FetchLike = fetch): Promise<Metadat
       fetchJson(fetcher, joinedUrl(runtime.staticMetadataUrl, '/metadata/evidence-offerings.json')),
       fetchJson(fetcher, joinedUrl(runtime.staticMetadataUrl, '/metadata/policies.jsonld'))
     ]);
-    return {
-      available: true,
-      apiCatalog,
-      catalog: {
-        datasets: arrayValue(catalog.datasets),
-        gray_registries: arrayValue(catalog.gray_registries),
-        authorities: arrayValue(catalog.authorities),
-        public_services: arrayValue(catalog.public_services)
-      },
-      offerings: arrayValue(offeringsPayload.offerings),
-      policies: arrayValue(policiesPayload['@graph'])
-    };
+    return metadataBundle(apiCatalog, catalog, offeringsPayload, policiesPayload);
   } catch (error) {
-    return {
-      available: false,
-      error: error instanceof Error ? error.message : 'metadata unavailable',
-      catalog: { datasets: [], gray_registries: [], authorities: [], public_services: [] },
-      offerings: [],
-      policies: []
-    };
+    try {
+      const [apiCatalog, catalog, offeringsPayload, policiesPayload] = await Promise.all([
+        readJson('metadata/public/.well-known/api-catalog'),
+        readJson('metadata/public/metadata/catalog.json'),
+        readJson('metadata/public/metadata/evidence-offerings.json'),
+        readJson('metadata/public/metadata/policies.jsonld')
+      ]);
+      return metadataBundle(apiCatalog, catalog, offeringsPayload, policiesPayload);
+    } catch {
+      return {
+        available: false,
+        error: error instanceof Error ? error.message : 'metadata unavailable',
+        catalog: { datasets: [], gray_registries: [], authorities: [], data_services: [], public_services: [] },
+        offerings: [],
+        policies: []
+      };
+    }
   }
+}
+
+function metadataBundle(
+  apiCatalog: Record<string, unknown>,
+  catalog: Record<string, unknown>,
+  offeringsPayload: Record<string, unknown>,
+  policiesPayload: Record<string, unknown>
+): MetadataBundle {
+  return {
+    available: true,
+    apiCatalog,
+    catalog: {
+      datasets: arrayValue(catalog.datasets),
+      gray_registries: arrayValue(catalog.gray_registries),
+      authorities: arrayValue(catalog.authorities),
+      data_services: arrayValue(catalog.data_services),
+      public_services: arrayValue(catalog.public_services)
+    },
+    offerings: arrayValue(offeringsPayload.offerings),
+    policies: arrayValue(policiesPayload['@graph'])
+  };
 }
 
 export async function fetchScenarios(fetcher: FetchLike = fetch): Promise<{ scenarios: Scenario[]; defaultScenarioId: string }> {

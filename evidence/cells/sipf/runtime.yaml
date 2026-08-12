@@ -1,0 +1,7 @@
+version: 1
+bundleDirectory: /etc/registry-evidence/sipf/bundle
+listener: { bindHost: 172.29.1.25, port: 8080, tlsTermination: operator-controlled-upstream, trustProxyIdentityHeaders: false, maximumRequestBytes: 65536, maximumConcurrentRequests: 64, requestTimeoutMilliseconds: 10000, shutdownGraceMilliseconds: 30000 }
+secretProviders: { file: { root: /run/secrets/registry-evidence/sipf } }
+signer: { kind: transit, unixSocketPath: /run/registry-evidence/sipf/transit-proxy.sock, mount: transit, keyName: solmara-evidence-sipf, keyVersion: 1, timeoutMilliseconds: 2000 }
+auditStorage: { path: /var/lib/registry-evidence/sipf/audit/evidence.jsonl, maximumFileBytes: 1073741824 }
+outboundTls: { systemRoots: true, trustProfiles: {} }

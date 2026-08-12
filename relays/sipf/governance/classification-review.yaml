@@ -1,0 +1,9 @@
+apiVersion: relay.registrystack.org/classification-review/v1
+kind: ClassificationReview
+registryIdentifier: https://id.registrystack.org/solmara/registry/sipf
+classificationInventoryDigest: sha256:08882398c5f65f3ccea706759a246e4eee5d4639f984af416a4f2a1b4eeaccd2
+method: manual
+reviewer: did:web:id.registrystack.org:solmara:authority:sipf
+reviewDate: 2026-08-12
+status: reviewed
+rationaleRef: governance/classification-review-rationale.md

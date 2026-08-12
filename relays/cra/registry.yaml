@@ -1,0 +1,86 @@
+apiVersion: relay.registrystack.org/v2alpha1
+kind: RegistryContract
+metadata: {id: solmara-cra-relay, version: "2026-08-12", title: CRA governed consultations}
+registry:
+  registryIdentifier: https://id.registrystack.org/solmara/registry/cra
+  name: Civil Registration Authority Relay
+  authority: {identifier: "did:web:id.registrystack.org:solmara:authority:cra", name: Civil Registration Authority}
+  authoritativeScope: Current civil person link and death-registration facts held by CRA
+  baseUri: https://cra.gov.solmara.example/registry/
+  identifierLifecyclePolicyRef: governance/identifier-lifecycle.yaml
+  alignmentTargets: [{name: govstack-digital-registries, version: 3.0.0-alpha.2, status: directional}]
+governance:
+  controller: "did:web:id.registrystack.org:solmara:authority:cra"
+  publisher: "did:web:id.registrystack.org:solmara:authority:cra"
+  auditOwner: "did:web:id.registrystack.org:solmara:authority:cra"
+semantics: {localVocabulary: https://id.registrystack.org/solmara/vocabulary/cra/}
+classifications:
+  privacy: {scheme: https://w3id.org/dpv, version: "2.3"}
+  institutional: {scheme: https://id.registrystack.org/solmara/classification/cra, version: "1"}
+  handling: {scheme: https://id.registrystack.org/vocab/handling, version: "1"}
+  provenanceRef: governance/classification-review.yaml
+sources:
+  cra: {kind: sqlite, profile: live-read-only, expectedSchemaFingerprint: "sha256:4aea7963a3de909459ac186f0f0630b7f7f2a6c8a53a6be67666e3422ed563fb"}
+resources:
+  - id: civil-person
+    title: Civil person
+    description: Minimum CRA facts for exact, purpose-bound consultations.
+    semanticClass: local:CivilPerson
+    source: {source: cra, view: relay_civil_person}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications:
+      record_id: {privacy: identifying}
+      record_revision: {privacy: non-personal}
+      lifecycle_state: {privacy: personal}
+      recorded_at: {privacy: personal-context}
+      uin: {privacy: identifying}
+      deceased: {privacy: sensitive-personal}
+      birth_date: {privacy: sensitive-personal}
+      birth_brn: {privacy: identifying}
+    recordContext:
+      recordIdentifier: {sourceColumn: record_id}
+      revisionIdentifier: {sourceColumn: record_revision}
+      lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}
+      recordedAt: {sourceColumn: recorded_at}
+    properties:
+      deceased:
+        {sourceColumn: deceased, type: boolean, sourceRequired: true, semanticTerm: local:deceased, label: Deceased, description: Whether CRA records the person as deceased, classification: {privacy: sensitive-personal}}
+      linkedUin:
+        {sourceColumn: uin, type: string, sourceRequired: true, semanticTerm: local:linkedUin, label: Linked UIN, description: The queried UIN exists in the CRA civil-person register, classification: {privacy: identifying}}
+      birthDateInternal:
+        {sourceColumn: birth_date, type: date, sourceRequired: true, semanticTerm: local:birthDateInternal, label: Internal birth date, description: Accounted source column excluded from every disclosure profile, classification: {privacy: sensitive-personal}}
+      birthRegistrationNumberInternal:
+        {sourceColumn: birth_brn, type: string, sourceRequired: false, semanticTerm: local:birthRegistrationNumberInternal, label: Internal birth registration number, description: Accounted source column excluded from every disclosure profile, classification: {privacy: identifying}}
+    disclosureProfiles:
+      death-fact: {properties: [deceased]}
+      citizen-link: {properties: [linkedUin]}
+    operations:
+      lookups:
+        - id: death-by-uin
+          requestBody:
+            maximumBytes: 128
+            selectors:
+              uin: {sourceColumn: uin, type: string, minimumBytes: 10, maximumBytes: 10}
+          defaultAccessProfile: death-evidence
+          accessProfiles:
+            death-evidence:
+              access:
+                scope: solmara:relay:cra:death-by-uin
+                purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/pension-payment-review"]}
+              disclosureProfile: death-fact
+        - id: citizen-link-by-uin
+          requestBody:
+            maximumBytes: 96
+            selectors:
+              uin: {sourceColumn: uin, type: string, minimumBytes: 10, maximumBytes: 10}
+          defaultAccessProfile: citizen-evidence
+          accessProfiles:
+            citizen-evidence:
+              access:
+                scope: solmara:relay:cra:citizen-link-by-uin
+                purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/citizen-self-service"]}
+              disclosureProfile: citizen-link
+    processingDescriptions:
+      - {id: death-consultation, operationRefs: [lookup:death-by-uin], purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, boolean-status-disclosure, minimum-disclosure, value-free-audit]}
+      - {id: citizen-link-consultation, operationRefs: [lookup:citizen-link-by-uin], purpose: "https://id.registrystack.org/solmara/purpose/citizen-self-service", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, minimum-disclosure, value-free-audit]}
+metadataVisibility: {service: public, resources: operation-bound, semantics: operation-bound, classifications: operator-only, processing: operation-bound}

@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [payment_status]
+properties: { payment_status: { type: string, minLength: 1, maxLength: 32 } }

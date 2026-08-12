@@ -42,7 +42,7 @@ describe('problem-code assembly', () => {
     expect(ids).toContain('malformed_request');
   });
 
-  it('uses the current Registry Evidence problem type URI', () => {
+  it('uses the current Evidence problem type URI', () => {
     const pdp = codes.find((code) => code.code === 'not_authorized');
     expect(pdp?.typeUri).toBe('https://registrystack.org/problems/evidence/not_authorized');
     expect(pdp?.problemJson.status).toBe(403);

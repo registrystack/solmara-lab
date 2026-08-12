@@ -16,12 +16,13 @@ describe('home data adapters', () => {
     expect(services).toContain('static-metadata');
   });
 
-  it('reads the exact source commit and local Evidence image names', async () => {
+  it('publishes the exact Registry Stack release identity', async () => {
     const versions = await readVersions();
-    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('main');
+    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('v0.20.1');
     expect(versions.REGISTRY_STACK_SOURCE_COMMIT).toMatch(/^[0-9a-f]{40}$/);
-    expect(versions.SOLMARA_EVIDENCE_IMAGE).toContain(':source');
-    expect(versions.SOLMARA_MINT_IMAGE).toContain(':source');
+    expect(versions.REGISTRY_RELAY_IMAGE).toMatch(/@sha256:[0-9a-f]{64}$/);
+    expect(versions.SOLMARA_EVIDENCE_IMAGE).toContain(':v0.20.1');
+    expect(versions.SOLMARA_MINT_IMAGE).toContain(':v0.20.1');
   });
 
   it('keeps compose-internal health probes out of visitor links', async () => {
@@ -29,7 +30,7 @@ describe('home data adapters', () => {
       return new Response('{}', { status: String(url).includes('/health') ? 200 : 503 });
     });
     const runner = status.find((item) => item.id === 'scenario-runner');
-    const metadata = status.find((item) => item.id === 'metadata');
+    const metadata = status.find((item) => item.id === 'deterministic-publisher');
     expect(runner?.status).toBe('up');
     expect(runner?.href).toBeUndefined();
     expect(metadata?.href).toBe('/.well-known/api-catalog');

@@ -20,7 +20,7 @@
       <h1>Run the country, inspect every boundary</h1>
       <p class="lede">
         This is the complete technical surface behind the guided homepage: a clean-checkout journey,
-        published metadata, source configuration, synthetic demo credentials, and runnable requests.
+        published metadata, source configuration, credential boundaries, and runnable requests.
       </p>
       <nav class="anchor-nav" aria-label="Developer references">
         <a href="/explorer">Metadata explorer</a>
@@ -33,7 +33,6 @@
   </section>
 
   <EngineerDoor
-    tokens={home.publishedTokens}
     curls={home.curlExamples}
     versions={home.versions}
     repoUrl={home.repoUrl}

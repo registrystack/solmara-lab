@@ -1,6 +1,0 @@
-type: object
-additionalProperties: false
-required: [uin, duplicate_flag]
-properties:
-  uin: { type: string, minLength: 10, maxLength: 10 }
-  duplicate_flag: { type: boolean }

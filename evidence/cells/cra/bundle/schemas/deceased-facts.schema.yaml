@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [deceased]
+properties: { deceased: { type: boolean } }

@@ -1,0 +1,9 @@
+apiVersion: relay.registrystack.org/classification-review/v1
+kind: ClassificationReview
+registryIdentifier: https://id.registrystack.org/solmara/registry/mosd-programme-mis
+classificationInventoryDigest: sha256:d29a17afa121721d11c569168dba9e4561c0ee802a10c2435076a1edba97b2e2
+method: manual
+reviewer: did:web:id.registrystack.org:solmara:authority:mosd-programme-mis
+reviewDate: 2026-08-12
+status: reviewed
+rationaleRef: governance/classification-review-rationale.md

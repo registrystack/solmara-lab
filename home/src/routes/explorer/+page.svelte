@@ -9,11 +9,11 @@
   $: apiItems = ((metadata.apiCatalog?.linkset as any[])?.[0]?.item ?? []) as { href: string; title: string; type: string }[];
   $: offeringsByAuthority = groupOfferings(metadata.offerings);
   $: policies = (metadata.policies ?? []) as any[];
-  $: entityCount = metadata.catalog.datasets.reduce((total, dataset) => total + dataset.entities.length, 0);
+  $: sourceTypes = new Set(metadata.offerings.map((offering) => offering.access?.source_type).filter(Boolean)).size;
   $: facts = metadata.available
     ? [
         { value: apiItems.length, label: 'catalog links' },
-        { value: entityCount, label: 'registry entities' },
+        { value: sourceTypes, label: 'source patterns' },
         { value: metadata.offerings.length, label: 'evidence offerings' },
         { value: policies.length, label: 'published policies' }
       ]
@@ -55,14 +55,14 @@
 
 <svelte:head>
   <title>Explorer · Solmara Lab</title>
-  <meta name="description" content="The whole published Solmara metadata surface: catalog, datasets, services, evidence offerings, and policies." />
+  <meta name="description" content="The whole published Solmara metadata surface: catalog, services, evidence offerings, and policies." />
 </svelte:head>
 
 <main class="reference-surface explorer-page">
   <ReferenceHero
     eyebrow="Metadata explorer"
     title="Inspect what Solmara actually publishes"
-    description="Follow the machine-readable path from catalog discovery to datasets, public services, evidence offerings, and the policies that constrain them. Every item below comes from the published bundle, never a hand-maintained copy."
+    description="Follow the machine-readable path from catalog discovery to public services, authority Evidence offerings, and the policies that constrain them. Every item below comes from the published bundle, never a hand-maintained copy."
     active="explorer"
     {facts}
   />
@@ -76,7 +76,6 @@
       <nav class="section-index" aria-label="Metadata sections">
         <span>On this page</span>
         <a href="#api-catalog">Catalog</a>
-        <a href="#datasets">Datasets</a>
         <a href="#services">Public services</a>
         <a href="#offerings">Evidence offerings</a>
         <a href="#policies">Policies</a>
@@ -89,39 +88,6 @@
         <div class="artifact-list">
           {#each apiItems as item}
             <a href={item.href}>{item.title}<span>{item.type}</span></a>
-          {/each}
-        </div>
-      </section>
-
-      <section class="explorer-block" id="datasets">
-        <h2>Datasets (DCAT)</h2>
-        <p class="block-note">Each authority's dataset and the entities it exposes, with the purposes that may read them.</p>
-        <div class="entity-grid">
-          {#each metadata.catalog.datasets as dataset}
-            <article class="entity">
-              <div class="entity-head">
-                <div>
-                  <h3>{dataset.title}</h3>
-                  <p class="muted">{dataset.description}</p>
-                  {#if dataset.authority}<p class="attribution">{dataset.authority.name}</p>{/if}
-                </div>
-                <CopyButton text={curl('/metadata/dcat.jsonld')} label="Copy as curl" />
-              </div>
-              {#each dataset.entities as entity}
-                <div class="entity-detail">
-                  <strong>{entity.title}</strong>
-                  {#if entity.semantics?.concepts?.length}
-                    <p class="semantics">Semantics: {entity.semantics.concepts.join(', ')}</p>
-                  {/if}
-                  <div class="chip-row">
-                    {#each entity.purposes as purpose}
-                      <a class="chip" href={`/purposes#${slug(purpose)}`}>{slug(purpose)}</a>
-                    {/each}
-                  </div>
-                </div>
-              {/each}
-              <a class="raw-link" href="/metadata/dcat.jsonld">Raw DCAT artifact</a>
-            </article>
           {/each}
         </div>
       </section>

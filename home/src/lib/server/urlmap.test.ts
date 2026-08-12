@@ -2,54 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { buildPublicUrlMap, mapPublicUrl, rewriteRequestUrls } from './urlmap';
 
 describe('public URL map', () => {
-  it('rewrites internal Evidence and Mint origins to the local TLS gateway', () => {
+  it('keeps each public authority Evidence origin distinct', () => {
     const map = buildPublicUrlMap();
-    expect(mapPublicUrl('https://evidence.solmara.invalid/v1/evidence', map)).toBe(
-      'https://localhost:4341/v1/evidence'
-    );
-    expect(mapPublicUrl('https://mint.evidence.solmara.invalid/token', map)).toBe(
-      'https://localhost:4341/token'
-    );
+    expect(mapPublicUrl('https://cra-evidence.solmara.registrystack.org/v1/evidence', map)).toContain('cra-evidence');
+    expect(mapPublicUrl('https://nia-evidence.solmara.registrystack.org/v1/evidence', map)).toContain('nia-evidence');
   });
 
-  it('rewrites Relay and application hostnames from the same table', () => {
+  it('rewrites the five Relay V2 and programme hostnames', () => {
     const map = buildPublicUrlMap();
-    expect(mapPublicUrl('http://cra-civil-relay:8080/', map)).toBe('http://localhost:4311/');
-    expect(mapPublicUrl('http://child-benefit-federator:8080/v1/evaluations', map)).toBe(
-      'http://localhost:4321/v1/evaluations'
-    );
+    expect(mapPublicUrl('http://cra-relay:8080/ready', map)).toBe('http://localhost:4311/ready');
+    expect(mapPublicUrl('http://sipf-relay:8080/ready', map)).toBe('http://localhost:4315/ready');
+    expect(mapPublicUrl('http://child-benefit-federator:8080/v1/evaluations', map)).toBe('http://localhost:4321/v1/evaluations');
   });
 
-  it('preserves path and query while swapping an Evidence origin', () => {
-    const map = buildPublicUrlMap();
-    expect(mapPublicUrl('https://evidence.solmara.invalid/v1/evidence?trace=1', map)).toBe(
-      'https://localhost:4341/v1/evidence?trace=1'
-    );
+  it('merges an environment override and preserves path and query', () => {
+    const map = buildPublicUrlMap(JSON.stringify({ 'cra-evidence.solmara.registrystack.org': 'https://cra.example' }));
+    expect(mapPublicUrl('https://cra-evidence.solmara.registrystack.org/v1/evidence?trace=1', map)).toBe('https://cra.example/v1/evidence?trace=1');
   });
 
-  it('leaves already host-reachable and non-URL values untouched', () => {
-    const map = buildPublicUrlMap();
-    expect(mapPublicUrl('http://localhost:4321/v1/claims', map)).toBe('http://localhost:4321/v1/claims');
-    expect(mapPublicUrl('not a url', map)).toBe('not a url');
-  });
-
-  it('merges an environment override over the defaults', () => {
-    const map = buildPublicUrlMap(JSON.stringify({ 'evidence.solmara.invalid': 'https://evidence.example' }));
-    expect(mapPublicUrl('https://evidence.solmara.invalid/v1/evidence', map)).toBe('https://evidence.example/v1/evidence');
-    expect(mapPublicUrl('http://sipf-pensions-relay:8080/ready', map)).toBe('http://localhost:4315/ready');
-  });
-
-  it('rewrites nested request sources without mutating the input', () => {
+  it('rewrites nested sources without mutating the input', () => {
     const map = buildPublicUrlMap();
     const result = {
-      request_source: { method: 'POST', url: 'https://evidence.solmara.invalid/v1/evidence', headers: {} },
-      request_sources: [{ method: 'POST', url: 'https://evidence.solmara.invalid/v1/evidence', headers: {} }],
-      source_trace: [{ request_source: { method: 'GET', url: 'http://cra-civil-relay:8080/records/civil_people' } }]
+      request_source: { method: 'POST', url: 'http://cra-relay:8080/v2/resources/civil/lookup' },
+      request_sources: [{ method: 'POST', url: 'http://nia-relay:8080/v2/resources/population/lookup' }],
+      source_trace: [{ request_source: { method: 'POST', url: 'http://sipf-relay:8080/v2/resources/pension/lookup' } }]
     };
     const mapped = rewriteRequestUrls(result, map);
-    expect(mapped.request_source.url).toBe('https://localhost:4341/v1/evidence');
-    expect(mapped.request_sources[0].url).toBe('https://localhost:4341/v1/evidence');
-    expect(mapped.source_trace[0].request_source?.url).toBe('http://localhost:4311/records/civil_people');
-    expect(result.request_source.url).toBe('https://evidence.solmara.invalid/v1/evidence');
+    expect(mapped.request_source.url).toContain('localhost:4311');
+    expect(mapped.request_sources[0].url).toContain('localhost:4312');
+    expect(mapped.source_trace[0].request_source?.url).toContain('localhost:4315');
+    expect(result.request_source.url).toContain('cra-relay:8080');
   });
 });

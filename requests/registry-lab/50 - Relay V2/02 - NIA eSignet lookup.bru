@@ -1,0 +1,20 @@
+meta {
+  name: 02 - NIA eSignet lookup
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{nia_relay_url}}/v2/resources/population-person/lookups/esignet-userinfo?fields=individualId,givenName,familyName,gender,birthdate,active
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{NIA_ESIGNET_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"uin":"2300010248"}}
+}

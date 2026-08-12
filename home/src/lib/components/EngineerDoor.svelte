@@ -1,8 +1,7 @@
 <script lang="ts">
-  import type { CurlExample, PublishedToken } from '$lib/types';
+  import type { CurlExample } from '$lib/types';
   import CopyButton from '$lib/components/CopyButton.svelte';
 
-  export let tokens: PublishedToken[] = [];
   export let curls: CurlExample[] = [];
   export let versions: Record<string, string> = {};
   export let repoUrl = 'https://github.com/registrystack/solmara-lab';
@@ -32,34 +31,19 @@
           <a href="https://docs.registrystack.org">Product docs and OpenAPI</a>
         </div>
 
-        <h3>Pinned source builds</h3>
-        <p class="pin"><span>Registry Stack main</span> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT ?? 'missing'}</code></p>
+        <h3>Pinned release artifacts</h3>
+        <p class="pin"><span>Registry Stack v0.20.1</span> <code>{versions.REGISTRY_STACK_SOURCE_COMMIT || 'missing'}</code></p>
         <p class="pin"><span>Evidence</span> <code>{versions.SOLMARA_EVIDENCE_IMAGE ?? 'missing'}</code></p>
         <p class="pin"><span>Mint</span> <code>{versions.SOLMARA_MINT_IMAGE ?? 'missing'}</code></p>
       </div>
 
       <div class="engineer-col">
-        <h3>Published demo tokens</h3>
+        <h3>Credentials stay server-side</h3>
         <p class="token-disclaimer">
-          These are synthetic lab tokens, deliberately published. They only unlock the synthetic data
-          on this lab and are safe to copy. Do not reuse this pattern for real credentials.
+          Mint issues short-lived credentials to the programme and each authority service. The visitor
+          center never publishes them. Curl examples use shell placeholders for your local credentials,
+          nonce, and synthetic subject identifier.
         </p>
-        {#if tokens.length === 0}
-          <p class="empty">No demo tokens are published on this deployment.</p>
-        {:else}
-          <div class="token-list">
-            {#each tokens as token}
-              <div class="token">
-                <div class="token-head">
-                  <strong>{token.name}</strong>
-                  <CopyButton text={token.token} label="Copy token" />
-                </div>
-                <p class="token-note">{token.note}</p>
-                <code class="token-value">{token.token}</code>
-              </div>
-            {/each}
-          </div>
-        {/if}
 
         <h3>Copy-as-curl</h3>
         <div class="curl-list">

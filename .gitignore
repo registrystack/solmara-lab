@@ -7,6 +7,10 @@ output/*
 !output/smoke/
 output/smoke/*
 !output/smoke/.gitkeep
+relays/*/package/
+relays/*/.package.*/
+runtime/evidence-cells/
+runtime/local-transit-signers/
 static-metadata/*
 !static-metadata/.gitkeep
 node_modules/

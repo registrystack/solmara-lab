@@ -1,0 +1,50 @@
+apiVersion: relay.registrystack.org/v2alpha1
+kind: RegistryContract
+metadata: {id: solmara-mosd-relay, version: "2026-08-12", title: MoSD beneficiary enrolment consultation}
+registry:
+  registryIdentifier: https://id.registrystack.org/solmara/registry/mosd-programme-mis
+  name: Ministry of Social Development Programme MIS Relay
+  authority: {identifier: "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis", name: Ministry of Social Development Programme MIS}
+  authoritativeScope: Current beneficiary enrolment facts held by the MoSD Programme MIS
+  baseUri: https://mosd.gov.solmara.example/registry/
+  identifierLifecyclePolicyRef: governance/identifier-lifecycle.yaml
+  alignmentTargets: [{name: govstack-digital-registries, version: 3.0.0-alpha.2, status: directional}]
+governance: {controller: "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis", publisher: "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis", auditOwner: "did:web:id.registrystack.org:solmara:authority:mosd-programme-mis"}
+semantics: {localVocabulary: https://id.registrystack.org/solmara/vocabulary/mosd/}
+classifications:
+  privacy: {scheme: https://w3id.org/dpv, version: "2.3"}
+  institutional: {scheme: https://id.registrystack.org/solmara/classification/mosd, version: "1"}
+  handling: {scheme: https://id.registrystack.org/vocab/handling, version: "1"}
+  provenanceRef: governance/classification-review.yaml
+sources:
+  mosd: {kind: sqlite, profile: live-read-only, expectedSchemaFingerprint: "sha256:c7d2a7b176222fe8784fcb74adca48ffb3260afbcd0489f227621b446873e833"}
+resources:
+  - id: beneficiary-enrolment
+    title: Beneficiary enrolment
+    description: Minimum duplicate-enrolment fact for child-benefit review.
+    semanticClass: local:BeneficiaryEnrolment
+    source: {source: mosd, view: relay_beneficiary_enrolment}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications: {record_id: {privacy: identifying}, record_revision: {privacy: non-personal}, lifecycle_state: {privacy: personal}, recorded_at: {privacy: personal-context}, uin: {privacy: identifying}, duplicate_flag: {privacy: sensitive-personal}}
+    recordContext:
+      recordIdentifier: {sourceColumn: record_id}
+      revisionIdentifier: {sourceColumn: record_revision}
+      lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}
+      recordedAt: {sourceColumn: recorded_at}
+    properties:
+      duplicateEnrolment: {sourceColumn: duplicate_flag, type: boolean, sourceRequired: true, semanticTerm: local:duplicateEnrolment, label: Duplicate enrolment, description: Whether the person has a duplicate programme enrolment, classification: {privacy: sensitive-personal}}
+    disclosureProfiles: {child-benefit-evidence: {properties: [duplicateEnrolment]}}
+    operations:
+      lookups:
+        - id: by-uin
+          requestBody: {maximumBytes: 96, selectors: {uin: {sourceColumn: uin, type: string, minimumBytes: 10, maximumBytes: 10}}}
+          defaultAccessProfile: child-benefit-evidence
+          accessProfiles:
+            child-benefit-evidence:
+              access:
+                scope: solmara:relay:mosd:by-uin
+                purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/child-benefit-review"]}
+              disclosureProfile: child-benefit-evidence
+    processingDescriptions:
+      - {id: child-benefit-review, operationRefs: [lookup:by-uin], purpose: "https://id.registrystack.org/solmara/purpose/child-benefit-review", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, minimum-disclosure, value-free-audit]}
+metadataVisibility: {service: public, resources: operation-bound, semantics: operation-bound, classifications: operator-only, processing: operation-bound}

@@ -12,12 +12,12 @@ post {
 
 headers {
   x-api-key: {{CHILD_BENEFIT_FEDERATOR_TOKEN}}
-  Data-Purpose: {{child_benefit_purpose}}
   Accept: application/json
 }
 
 body:json {
   {
+    "purpose": "child-benefit-review",
     "target": {
       "type": "Person",
       "identifiers": [

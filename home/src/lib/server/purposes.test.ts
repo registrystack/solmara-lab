@@ -8,8 +8,8 @@ const SAMPLE = `# Solmara Purpose Catalogue
 
 | Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
 |---|---|---|---|---|
-| \`child-benefit-review\` | CRA, NIA | Registry Evidence | Birth to child benefit | \`not_authorized\` |
-| \`voucher-eligibility-review\` | NAgDI | Registry Evidence | Farmer climate-smart voucher | \`not_authorized\` |
+| \`child-benefit-review\` | CRA, NIA | Authority Evidence cells | Birth to child benefit | \`not_authorized\` |
+| \`voucher-eligibility-review\` | NAgDI | Authority Evidence cells | Farmer climate-smart voucher | \`not_authorized\` |
 
 ## Purpose Rules
 
@@ -41,7 +41,7 @@ function scenario(id: string, title: string, steps: { id: string; label: string;
       prompt: '',
       button: '',
       request_summary: '',
-      request_preview: { method: 'POST', url: 'http://x/v1/evaluations', headers: { 'Data-Purpose': step.purpose } }
+      request_preview: { method: 'POST', url: 'http://x/v1/evaluations', body: { purpose: step.purpose } }
     })),
     receipt: []
   };
@@ -55,7 +55,7 @@ describe('purposes parser', () => {
     expect(child.iri).toBe('child-benefit-review');
     expect(child.slug).toBe('child-benefit-review');
     expect(child.advertisedBy).toBe('CRA, NIA');
-    expect(child.enforcedBy).toBe('Registry Evidence');
+    expect(child.enforcedBy).toBe('Authority Evidence cells');
     expect(child.story).toBe('Birth to child benefit');
     expect(child.denialCodes).toEqual(['not_authorized']);
     expect(child.plainLanguage).toContain('permits evidence needed to determine whether a child');

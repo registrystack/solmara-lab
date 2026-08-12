@@ -11,8 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCAN_DIRS = [
     "ministries",
     "metadata",
-    "projects",
-    "runtime/registry-projects",
+    "relays",
     "evidence",
     "config/hosted-relay-bundles",
     "compose.yaml",
@@ -27,6 +26,7 @@ ALLOWED = (
     "private_jwk_env:",
     "hash_secret_env:",
     "secret:file/",
+    "secret:env/",
     "POSTGRES_PASSWORD:",
 )
 WORKLOAD_TOKEN_VOLUME = re.compile(

@@ -1,0 +1,9 @@
+version: 1
+bundleDirectory: /etc/registry-evidence/sro/bundle
+listener: { bindHost: 172.29.1.23, port: 8080, tlsTermination: operator-controlled-upstream, trustProxyIdentityHeaders: false, maximumRequestBytes: 65536, maximumConcurrentRequests: 64, requestTimeoutMilliseconds: 10000, shutdownGraceMilliseconds: 30000 }
+secretProviders: { file: { root: /run/secrets/registry-evidence/sro } }
+signer: { kind: transit, unixSocketPath: /run/registry-evidence/sro/transit-proxy.sock, mount: transit, keyName: solmara-evidence-sro, keyVersion: 1, timeoutMilliseconds: 2000 }
+auditStorage: { path: /var/lib/registry-evidence/sro/audit/evidence.jsonl, maximumFileBytes: 1073741824 }
+outboundTls: { systemRoots: true, trustProfiles: {} }
+sourceExtracts:
+  sro-poverty-extract: { path: /var/lib/registry-evidence/sro/extracts/sro-poverty-20260704T090000Z.sqlite }

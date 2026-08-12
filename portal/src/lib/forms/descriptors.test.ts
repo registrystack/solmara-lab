@@ -26,11 +26,11 @@ describe('service form descriptors', () => {
     }
   });
 
-  it('every verify/fetch/decision field names a notary and a claim', () => {
+  it('every verify/fetch/decision field names an authority and a claim', () => {
     for (const form of FORMS) {
       for (const field of form.fields) {
         if (field.kind !== 'self') {
-          expect(field.notary, `${field.id} notary`).toBeDefined();
+          expect(field.authority, `${field.id} authority`).toBeDefined();
           expect(field.claim, `${field.id} claim`).toBeDefined();
         }
       }

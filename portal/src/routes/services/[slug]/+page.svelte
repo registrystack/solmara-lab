@@ -20,11 +20,11 @@
   let guardianVerified = $state(false);
 
   function inFlight(field: Field): ClaimResult {
-    return { state: 'in_flight', display: '', authority: field.notary, traceId: '' };
+    return { state: 'in_flight', display: '', authority: field.authority, traceId: '' };
   }
 
   function errored(field: Field): ClaimResult {
-    return { state: 'error', display: '', authority: field.notary, traceId: '' };
+    return { state: 'error', display: '', authority: field.authority, traceId: '' };
   }
 
   function sleep(ms: number): Promise<void> {
@@ -56,7 +56,7 @@
     id: 'guardian-link-verified',
     label: 'Guardian link verified',
     kind: 'verify',
-    notary: 'social'
+    authority: 'social'
   };
 
   const identityResult = $derived<ClaimResult>({

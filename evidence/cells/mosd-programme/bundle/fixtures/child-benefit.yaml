@@ -1,0 +1,34 @@
+fixture: registry.evidence.reference.solmara.mosd-child-benefit/v1
+synthetic_only: true
+common:
+  observed_at: '2026-07-14T00:00:00Z'
+  selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000007' } } }
+  derivationSelectorInputs: {}
+  expectedRequestParts: { query: [{ name: fields, value: duplicateEnrolment }], body: { selectors: { uin: '1000000007' } } }
+  expectedTransport: { path: /v2/resources/beneficiary-enrolment/lookups/by-uin, fixedHeaders: [{ name: Accept, value: application/json }] }
+cases:
+  - id: positive
+    response: { data: { domainData: { duplicateEnrolment: false } } }
+    expected: { lookup: match, derivationRuns: true, signed: true, facts: { duplicate_flag: false }, value: true }
+  - id: negative-duplicate
+    response: { data: { domainData: { duplicateEnrolment: true } } }
+    expected: { lookup: match, derivationRuns: true, signed: true, value: false }
+  - id: boundary-not-duplicate
+    response: { data: { domainData: { duplicateEnrolment: false } } }
+    expected: { lookup: match, derivationRuns: true, signed: true, value: true }
+  - id: missing-fact
+    response: { data: { domainData: {} } }
+    expected: { publicProblem: source.unavailable, derivationRuns: false, signed: false }
+  - id: no-match
+    declaredUnresolved: true
+    expected: { publicProblem: evidence.unavailable, derivationRuns: false, signed: false, sourceRequestCount: 1 }
+  - id: ambiguous-relay-collapse
+    declaredUnresolved: true
+    expected: { publicProblem: evidence.unavailable, derivationRuns: false, signed: false, sourceRequestCount: 1 }
+  - id: source-failure
+    sourceFailure: timeout
+    expected: { publicProblem: source.unavailable, signed: false }
+  - id: anti-reconstruction
+    bundleMutation: duplicate-disclosure-family
+    expected: { bundle: rejected }
+privacyExpectation: { evidenceContains: [https://id.registrystack.org/solmara/concept/not-already-enrolled], evidenceExcludes: [duplicate_flag, '1000000007'], diagnosticsExclude: ['1000000007'] }

@@ -5,32 +5,27 @@ meta {
 }
 
 post {
-  url: {{nagdi_notary_url}}/v1/evaluations
+  url: {{nagdi_evidence_url}}/v1/evidence
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{NAGDI_NOTARY_TOKEN}}
-  Data-Purpose: {{voucher_purpose}}
-  Accept: application/vnd.registry-notary.claim-result+json
+  Authorization: Bearer {{EVIDENCE_ACCESS_TOKEN}}
+  Accept: application/jose+json
 }
 
 body:json {
   {
-    "target": {
-      "type": "Person",
-      "identifiers": [
-        {
-          "scheme": "farmer_id",
-          "value": "FR-1001"
-        }
-      ]
-    },
-    "claims": [
-      "eligible-for-climate-smart-input-voucher"
-    ],
-    "disclosure": "predicate",
-    "format": "application/vnd.registry-notary.claim-result+json"
+    "requestNonce": "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+    "requirement": "https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1",
+    "purpose": "voucher-eligibility-review",
+    "subjects": [{
+      "role": "subject",
+      "selector": {
+        "profile": "farmer-reference-v1",
+        "values": {"farmer_id": "FR-1001"}
+      }
+    }]
   }
 }

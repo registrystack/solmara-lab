@@ -1,0 +1,1 @@
+NAgDI reviewed separate voucher and livestock movement disclosures. Each operation releases only the closed predicate set required for its evidence decision. The farmer selector is not a property, and neither operation can select the other operation's disclosure profile.

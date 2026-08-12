@@ -1,0 +1,41 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+    "discovery_url": "https://cra-evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://cra-evidence.solmara.registrystack.org/v1/evidence",
+    "kind": "evidence-verification-api",
+    "source_type": "Relay lookup"
+  },
+  "dataset": "cra-civil",
+  "description": "An independently signed Relay lookup assertion issued by Civil Registration Authority.",
+  "entity": "civil_person",
+  "evidence_type": "civil-record-linked-v1",
+  "id": "cra-citizen-record-v1-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/cra-citizen-record-v1-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "cra",
+    "iri": "did:web:id.registrystack.org:solmara:authority:cra",
+    "name": "Civil Registration Authority",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "uin"
+  ],
+  "policy": "cra-citizen-record-v1-offering-policy",
+  "public_services": [
+    "citizen-self-service"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/concept/civil-record-linked"
+    ]
+  },
+  "title": "Civil Registration Authority Civil record linked v1"
+}

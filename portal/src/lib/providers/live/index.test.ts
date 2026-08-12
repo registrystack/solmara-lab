@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PURPOSES } from '$lib/forms/descriptors';
 import { LiveEvidenceProvider } from './index';
 
 const ctx = { subject: '2300018263', delegatedTarget: '2300010248' };
@@ -15,7 +14,12 @@ function envelope(results: Array<{ claim_id: string; satisfied: boolean; value?:
             signed_evidence: [{ protected: 'e30', payload: 'e30', signature: 'c2ln' }]
           }
         },
-        source_trace: [{ authority: 'Source authority', service_id: 'registry-evidence', status: 200 }],
+        presentation: {
+          authority: 'National Agricultural Data Institute',
+          issuer: 'did:web:id.registrystack.org:solmara:authority:nagdi',
+          provider: 'https://nagdi-evidence.solmara.registrystack.org',
+          source: 'Relay lookup'
+        },
         ...extra
       }
     }),
@@ -24,7 +28,7 @@ function envelope(results: Array<{ claim_id: string; satisfied: boolean; value?:
 }
 
 describe('LiveEvidenceProvider', () => {
-  it('routes reviewed fields through the scenario runner with an Evidence purpose code', async () => {
+  it('routes reviewed fields through the scenario runner without overriding its purpose', async () => {
     const fetcher = vi.fn(async () => envelope([{ claim_id: 'farmer-registered', satisfied: true }])) as unknown as typeof fetch;
     const provider = new LiveEvidenceProvider({ SCENARIO_RUNNER_URL: 'http://scenario-runner:8080' }, fetcher);
     const evaluation = await provider.evaluateDetailed(
@@ -35,9 +39,9 @@ describe('LiveEvidenceProvider', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = vi.mocked(fetcher).mock.calls[0];
     expect(String(url)).toContain('/v1/scenarios/farmer-climate-smart-voucher/steps/positive/run');
-    expect(JSON.parse(String(init?.body))).toEqual({ config: { purpose_override: PURPOSES.voucherEligibilityReview } });
+    expect(JSON.parse(String(init?.body))).toEqual({});
     expect(evaluation.result.state).toBe('verified');
-    expect(evaluation.proof.crypto.algorithm).toBe('Flattened JWS, EdDSA');
+    expect(evaluation.proof.crypto.algorithm).toBe('Verified Evidence assertion');
     expect(JSON.stringify(evaluation)).not.toContain('x-api-key');
   });
 

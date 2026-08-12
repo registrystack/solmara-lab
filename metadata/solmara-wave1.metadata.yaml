@@ -1,11 +1,11 @@
 schema_version: registry-manifest/v1
 catalog:
-  id: solmara-wave1-multi-authority
+  id: solmara-authority-cells
   base_url: https://metadata.solmara.registrystack.org
   title:
-    en: Solmara Lab Wave 1 Service Catalogue
+    en: Solmara authority-owned Evidence catalogue
   description:
-    en: One merged CPSV-AP metadata publish for Solmara Wave 1 registry and evidence services.
+    en: Six authority-owned Evidence cells, five governed Relay V2 services, and the programme applications that compose signed assertions.
   publisher:
     name: Solmara Interoperability Metadata Publisher
     iri: did:web:id.registrystack.org:solmara:authority:metadata
@@ -50,385 +50,280 @@ authorities:
     authority_type: eli:PublicAuthority
     spatial: https://id.registrystack.org/solmara/jurisdiction/XS
 requirements:
-  - id: child-benefit-review-requirement
-    iri: https://id.registrystack.org/solmara/requirements/child-benefit-review
-    title:
-      en: Child benefit eligibility review
-    description:
-      en: Confirm registered birth, under-five age, household poverty status, and duplicate enrollment status.
+  - id: cra-child-benefit-v1
+    iri: https://id.registrystack.org/solmara/requirement/cra-child-benefit/v1
+    title: {en: CRA child benefit evidence}
+    description: {en: Confirm registered birth and age under five from CRA's immutable birth extract.}
     evidence_type_lists:
-      - id: child-benefit-wave1-evidence
-        title:
-          en: Child benefit registry evidence
-        evidence_types:
-          - birth-registration-evidence
-          - population-status-evidence
-          - household-poverty-evidence
-          - beneficiary-enrollment-evidence
-  - id: pension-survivor-review-requirement
-    iri: https://id.registrystack.org/solmara/requirements/pension-survivor-review
-    title:
-      en: Pension stop and survivor benefit review
-    description:
-      en: Confirm death registration, active pension payment state, and survivor eligibility.
+      - id: cra-child-benefit-list
+        title: {en: CRA child benefit evidence}
+        evidence_types: [cra-child-benefit-v1]
+  - id: cra-pension-death-v1
+    iri: https://id.registrystack.org/solmara/requirement/cra-pension-death/v1
+    title: {en: CRA pension death status}
+    description: {en: Confirm death registration through CRA's governed Relay lookup.}
     evidence_type_lists:
-      - id: pension-wave1-evidence
-        title:
-          en: Pension and survivor registry evidence
-        evidence_types:
-          - death-registration-evidence
-          - pension-case-evidence
-  - id: nagdi-voucher-requirement
-    iri: https://id.registrystack.org/solmara/requirements/nagdi-voucher
-    title:
-      en: Farmer climate-smart voucher review
-    description:
-      en: Confirm farmer registration, data-use authorization, parcel, crop, climate-risk, and redemption predicates.
+      - id: cra-pension-death-list
+        title: {en: CRA death-status evidence}
+        evidence_types: [cra-death-status-v1]
+  - id: cra-citizen-record-v1
+    iri: https://id.registrystack.org/solmara/requirement/cra-citizen-record/v1
+    title: {en: CRA citizen record link}
+    description: {en: Confirm a linked civil record through CRA's governed Relay lookup.}
     evidence_type_lists:
-      - id: nagdi-voucher-evidence
-        title:
-          en: Farmer voucher evidence
-        evidence_types:
-          - farmer-voucher-evidence
-  - id: livestock-movement-requirement
-    iri: https://id.registrystack.org/solmara/requirements/livestock-movement
-    title:
-      en: Livestock movement control review
-    description:
-      en: Confirm herd registration, vaccination, species-aware quarantine, destination, and open permit predicates.
+      - id: cra-citizen-record-list
+        title: {en: CRA civil-record evidence}
+        evidence_types: [civil-record-linked-v1]
+  - id: nia-child-benefit-v1
+    iri: https://id.registrystack.org/solmara/requirement/nia-child-benefit/v1
+    title: {en: NIA child benefit population status}
+    description: {en: Confirm active population status from NIA's immutable population extract.}
     evidence_type_lists:
-      - id: livestock-movement-evidence-list
-        title:
-          en: Livestock movement evidence
-        evidence_types:
-          - livestock-movement-evidence
+      - id: nia-child-benefit-list
+        title: {en: NIA population evidence}
+        evidence_types: [population-active-v1]
+  - id: nia-citizen-status-v1
+    iri: https://id.registrystack.org/solmara/requirement/nia-citizen-status/v1
+    title: {en: NIA citizen population status}
+    description: {en: Confirm active citizen population status from NIA's immutable population extract.}
+    evidence_type_lists:
+      - id: nia-citizen-status-list
+        title: {en: NIA citizen-status evidence}
+        evidence_types: [citizen-population-active-v1]
+  - id: sro-child-benefit-v1
+    iri: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
+    title: {en: SRO poverty priority}
+    description: {en: Confirm household poverty priority from SRO's immutable poverty extract.}
+    evidence_type_lists:
+      - id: sro-child-benefit-list
+        title: {en: SRO poverty evidence}
+        evidence_types: [poverty-priority-v1]
+  - id: mosd-child-benefit-v1
+    iri: https://id.registrystack.org/solmara/requirement/mosd-child-benefit/v1
+    title: {en: MoSD programme enrolment status}
+    description: {en: Confirm that the person is not already enrolled through MoSD's governed Relay lookup.}
+    evidence_type_lists:
+      - id: mosd-child-benefit-list
+        title: {en: MoSD enrolment evidence}
+        evidence_types: [not-enrolled-v1]
+  - id: sipf-pension-payment-v1
+    iri: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1
+    title: {en: SIPF pension payment status}
+    description: {en: Confirm active pension payment through SIPF's governed Relay lookup.}
+    evidence_type_lists:
+      - id: sipf-pension-payment-list
+        title: {en: SIPF pension payment evidence}
+        evidence_types: [pension-payment-active-v1]
+  - id: sipf-survivor-benefit-v1
+    iri: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1
+    title: {en: SIPF survivor eligibility}
+    description: {en: Confirm survivor eligibility through SIPF's governed Relay lookup.}
+    evidence_type_lists:
+      - id: sipf-survivor-benefit-list
+        title: {en: SIPF survivor evidence}
+        evidence_types: [survivor-benefit-v1]
+  - id: nagdi-voucher-v1
+    iri: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1
+    title: {en: NAgDI climate-smart voucher}
+    description: {en: Confirm climate-smart voucher eligibility through NAgDI's governed Relay lookup.}
+    evidence_type_lists:
+      - id: nagdi-voucher-list
+        title: {en: NAgDI voucher evidence}
+        evidence_types: [climate-smart-voucher-v1]
+  - id: nagdi-livestock-v1
+    iri: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1
+    title: {en: NAgDI livestock movement}
+    description: {en: Confirm livestock movement eligibility through NAgDI's governed Relay lookup.}
+    evidence_type_lists:
+      - id: nagdi-livestock-list
+        title: {en: NAgDI livestock evidence}
+        evidence_types: [livestock-movement-v1]
 evidence_types:
-  - id: birth-registration-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/birth-registration
-    title:
-      en: Birth registration evidence
-    proves:
-      - child-benefit-review-requirement
+  - id: cra-child-benefit-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/cra-child-benefit/v1
+    title: {en: CRA child benefit assertion}
+    proves: [cra-child-benefit-v1]
     information_concepts:
-      - ps:crvs/Birth
-  - id: population-status-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/population-status
-    title:
-      en: Population status evidence
-    proves:
-      - child-benefit-review-requirement
+      - https://id.registrystack.org/solmara/concept/birth-is-registered
+      - https://id.registrystack.org/solmara/concept/child-age-under-5
+  - id: cra-death-status-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/cra-death-status/v1
+    title: {en: CRA death-status assertion}
+    proves: [cra-pension-death-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/person-is-deceased]
+  - id: civil-record-linked-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/civil-record-linked/v1
+    title: {en: CRA civil-record assertion}
+    proves: [cra-citizen-record-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/civil-record-linked]
+  - id: population-active-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/population-active/v1
+    title: {en: NIA active-population assertion}
+    proves: [nia-child-benefit-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/population-record-active]
+  - id: citizen-population-active-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/citizen-population-active/v1
+    title: {en: NIA active-citizen assertion}
+    proves: [nia-citizen-status-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/citizen-population-record-active]
+  - id: poverty-priority-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/poverty-priority/v1
+    title: {en: SRO poverty-priority assertion}
+    proves: [sro-child-benefit-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/household-below-poverty-threshold]
+  - id: not-enrolled-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/not-enrolled/v1
+    title: {en: MoSD not-enrolled assertion}
+    proves: [mosd-child-benefit-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/not-already-enrolled]
+  - id: pension-payment-active-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/pension-payment-active/v1
+    title: {en: SIPF active-payment assertion}
+    proves: [sipf-pension-payment-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/pension-payment-active]
+  - id: survivor-benefit-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/survivor-benefit/v1
+    title: {en: SIPF survivor-benefit assertion}
+    proves: [sipf-survivor-benefit-v1]
+    information_concepts: [https://id.registrystack.org/solmara/concept/survivor-is-eligible]
+  - id: climate-smart-voucher-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/climate-smart-voucher/v1
+    title: {en: NAgDI climate-smart voucher assertion}
+    proves: [nagdi-voucher-v1]
     information_concepts:
-      - ps:Person
-  - id: household-poverty-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/household-poverty
-    title:
-      en: Household poverty evidence
-    proves:
-      - child-benefit-review-requirement
+      - https://id.registrystack.org/solmara/concept/farmer-registered
+      - https://id.registrystack.org/solmara/concept/data-use-authorized-for-purpose
+      - https://id.registrystack.org/solmara/concept/eligible-for-climate-smart-input-voucher
+  - id: livestock-movement-v1
+    iri: https://id.registrystack.org/solmara/evidence-type/livestock-movement/v1
+    title: {en: NAgDI livestock movement assertion}
+    proves: [nagdi-livestock-v1]
     information_concepts:
-      - ps:Household
-      - ps:SocioEconomicProfile
-  - id: beneficiary-enrollment-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/beneficiary-enrollment
-    title:
-      en: Beneficiary enrollment evidence
-    proves:
-      - child-benefit-review-requirement
-    information_concepts:
-      - ps:sp/Enrollment
-  - id: child-benefit-authority-predicate-collection-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/child-benefit-authority-predicate-collection
-    title:
-      en: Child benefit authority predicate collection
-    description:
-      en: A transient collection of source-owned child benefit predicates with no copied source rows or eligibility decision.
-    proves:
-      - child-benefit-review-requirement
-    information_concepts:
-      - ps:Person
-  - id: death-registration-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/death-registration
-    title:
-      en: Death registration evidence
-    proves:
-      - pension-survivor-review-requirement
-    information_concepts:
-      - ps:crvs/Death
-  - id: pension-case-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/pension-case
-    title:
-      en: Pension case evidence
-    proves:
-      - pension-survivor-review-requirement
-  - id: farmer-voucher-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/farmer-voucher
-    title:
-      en: Farmer voucher evidence
-    proves:
-      - nagdi-voucher-requirement
-    information_concepts:
-      - ps:Farm
-  - id: livestock-movement-evidence
-    iri: https://id.registrystack.org/solmara/evidence-types/livestock-movement
-    title:
-      en: Livestock movement evidence
-    proves:
-      - livestock-movement-requirement
+      - https://id.registrystack.org/solmara/concept/registered-herd
+      - https://id.registrystack.org/solmara/concept/origin-district-not-quarantined-for-species
+      - https://id.registrystack.org/solmara/concept/eligible-for-livestock-movement-permit
 public_services:
   - id: child-benefit-review
     iri: https://id.registrystack.org/solmara/services/child-benefit-review
-    title:
-      en: Child benefit eligibility review
-    description:
-      en: MoSD review of child benefit eligibility using minimized registry evidence.
+    title: {en: Child benefit eligibility review}
+    description: {en: The programme composes four independently signed authority assertions into five reviewed concepts.}
     competent_authority: mosd-programme-mis
     jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
-    holds_requirements:
-      - child-benefit-review-requirement
-    data_services:
-      - child-benefit-evidence-collector-api
-      - cra-notary-api
-      - nia-notary-api
-      - sro-notary-api
-      - programme-notary-api
+    holds_requirements: [cra-child-benefit-v1, nia-child-benefit-v1, sro-child-benefit-v1, mosd-child-benefit-v1]
+    data_services: [cra-evidence-api, nia-evidence-api, sro-evidence-api, mosd-programme-evidence-api]
   - id: pension-survivor-review
     iri: https://id.registrystack.org/solmara/services/pension-survivor-review
-    title:
-      en: Pension stop and survivor benefit review
-    description:
-      en: SIPF review for pension payment stop and survivor benefit eligibility.
+    title: {en: Pension stop and survivor benefit review}
+    description: {en: The programme composes CRA and SIPF signed assertions without exposing unrelated civil data.}
     competent_authority: sipf
     jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
-    holds_requirements:
-      - pension-survivor-review-requirement
-    data_services:
-      - cra-notary-api
-      - sipf-notary-api
-  - id: nagdi-voucher-review
-    iri: https://id.registrystack.org/solmara/services/nagdi-voucher-review
-    title:
-      en: Farmer climate-smart voucher review
-    description:
-      en: NAgDI review of farmer eligibility for climate-smart input support.
+    holds_requirements: [cra-pension-death-v1, sipf-pension-payment-v1, sipf-survivor-benefit-v1]
+    data_services: [cra-evidence-api, sipf-evidence-api]
+  - id: citizen-self-service
+    iri: https://id.registrystack.org/solmara/services/citizen-self-service
+    title: {en: Citizen self-service}
+    description: {en: The application composes separately signed CRA and NIA citizen assertions.}
+    competent_authority: nia
+    jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
+    holds_requirements: [cra-citizen-record-v1, nia-citizen-status-v1]
+    data_services: [cra-evidence-api, nia-evidence-api]
+  - id: agriculture-review
+    iri: https://id.registrystack.org/solmara/services/agriculture-review
+    title: {en: Agriculture voucher and livestock review}
+    description: {en: NAgDI applications consume independently signed voucher and livestock assertions.}
     competent_authority: nagdi
     jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
-    holds_requirements:
-      - nagdi-voucher-requirement
-    data_services:
-      - nagdi-notary-api
-  - id: livestock-movement-control
-    iri: https://id.registrystack.org/solmara/services/livestock-movement-control
-    title:
-      en: Livestock movement control
-    description:
-      en: NAgDI review of livestock movement permit eligibility and quarantine controls.
-    competent_authority: nagdi
-    jurisdiction: https://id.registrystack.org/solmara/jurisdiction/XS
-    holds_requirements:
-      - livestock-movement-requirement
-    data_services:
-      - nagdi-notary-api
+    holds_requirements: [nagdi-voucher-v1, nagdi-livestock-v1]
+    data_services: [nagdi-evidence-api]
 data_services:
-  - id: child-benefit-evidence-collector-api
-    iri: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
-    title:
-      en: Child benefit authority predicate collection API
-    description:
-      en: Returns application/json collections assembled from source-Notary predicates without composing an eligibility decision.
-    endpoint_url: https://child-benefit-federator.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://child-benefit-federator.solmara.registrystack.org/v1/claims
-    conforms_to: https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1
-  - id: cra-notary-api
-    iri: https://cra-notary.solmara.registrystack.org/v1/evaluations
-    title:
-      en: CRA evidence API
-    endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://cra-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: nia-notary-api
-    iri: https://nia-notary.solmara.registrystack.org/v1/evaluations
-    title:
-      en: NIA evidence API
-    endpoint_url: https://nia-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://nia-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: sro-notary-api
-    iri: https://sro-notary.solmara.registrystack.org/v1/evaluations
-    title:
-      en: SRO evidence API
-    endpoint_url: https://sro-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://sro-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: programme-notary-api
-    iri: https://programme-notary.solmara.registrystack.org/v1/evaluations
-    title:
-      en: Programme MIS evidence API
-    endpoint_url: https://programme-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://programme-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: sipf-notary-api
-    iri: https://sipf-notary.solmara.registrystack.org/v1/evaluations
-    title:
-      en: SIPF evidence API
-    endpoint_url: https://sipf-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://sipf-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
-  - id: nagdi-notary-api
-    iri: https://nagdi-notary.solmara.registrystack.org/v1/evaluations
-    title:
-      en: NAgDI evidence API
-    endpoint_url: https://nagdi-notary.solmara.registrystack.org/v1/evaluations
-    endpoint_description: https://nagdi-notary.solmara.registrystack.org/openapi.json
-    conforms_to: https://id.registrystack.org/spec/registry-notary/evidence/v1
+  - id: cra-evidence-api
+    iri: https://cra-evidence.solmara.registrystack.org/v1/evidence
+    title: {en: CRA Evidence cell}
+    endpoint_url: https://cra-evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://cra-evidence.solmara.registrystack.org/v1/evidence-definitions
+    conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
+  - id: nia-evidence-api
+    iri: https://nia-evidence.solmara.registrystack.org/v1/evidence
+    title: {en: NIA Evidence cell}
+    endpoint_url: https://nia-evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://nia-evidence.solmara.registrystack.org/v1/evidence-definitions
+    conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
+  - id: sro-evidence-api
+    iri: https://sro-evidence.solmara.registrystack.org/v1/evidence
+    title: {en: SRO Evidence cell}
+    endpoint_url: https://sro-evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://sro-evidence.solmara.registrystack.org/v1/evidence-definitions
+    conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
+  - id: mosd-programme-evidence-api
+    iri: https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence
+    title: {en: MoSD Programme Evidence cell}
+    endpoint_url: https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence-definitions
+    conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
+  - id: sipf-evidence-api
+    iri: https://sipf-evidence.solmara.registrystack.org/v1/evidence
+    title: {en: SIPF Evidence cell}
+    endpoint_url: https://sipf-evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://sipf-evidence.solmara.registrystack.org/v1/evidence-definitions
+    conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
+  - id: nagdi-evidence-api
+    iri: https://nagdi-evidence.solmara.registrystack.org/v1/evidence
+    title: {en: NAgDI Evidence cell}
+    endpoint_url: https://nagdi-evidence.solmara.registrystack.org/v1/evidence
+    endpoint_description: https://nagdi-evidence.solmara.registrystack.org/v1/evidence-definitions
+    conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
 datasets:
   - id: cra-civil
-    title:
-      en: Civil registration
+    title: {en: CRA civil registration publication}
+    description: {en: CRA-owned immutable birth extract and governed civil-person Relay source.}
     access_rights: restricted
     entities:
       - name: civil_person
-        title:
-          en: Civil person
-        identifiers:
-          - name: uin
-            kind: uin
-        fields:
-          - name: uin
-            type: string
-            required: false
-            concepts:
-              - ps:Person.identifier
-          - name: birth_brn
-            type: string
-            required: false
-            concepts:
-              - ps:crvs/Birth.registrationNumber
-          - name: death_drn
-            type: string
-            required: false
-            concepts:
-              - ps:crvs/Death.registrationNumber
-          - name: deceased
-            type: boolean
-            required: true
-    evidence_offerings:
-      - id: cra-birth-registration-offering
-        iri: https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration
-        title:
-          en: CRA birth registration evidence offering
-        evidence_type: birth-registration-evidence
-        issuing_authority:
-          id: cra
-          iri: did:web:id.registrystack.org:solmara:authority:cra
-          name: Civil Registration Authority
-          country: XS
-        entity: civil_person
-        lookup_keys:
-          - uin
-        procedure_contexts:
-          - child-benefit-review
-        access:
-          kind: evidence-verification-api
-          conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
-          discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
-          ruleset: birth-is-registered
-        policy:
-          purpose:
-            - https://id.registrystack.org/solmara/purpose/child-benefit-review
-      - id: cra-death-registration-offering
-        iri: https://id.registrystack.org/solmara/evidence-offerings/cra-death-registration
-        title:
-          en: CRA death registration evidence offering
-        evidence_type: death-registration-evidence
-        issuing_authority:
-          id: cra
-          iri: did:web:id.registrystack.org:solmara:authority:cra
-          name: Civil Registration Authority
-          country: XS
-        entity: civil_person
-        lookup_keys:
-          - uin
-        procedure_contexts:
-          - pension-survivor-review
-        access:
-          kind: evidence-verification-api
-          conforms_to: https://spec.openapis.org/oas/v3.1.0
-          endpoint_url: https://cra-notary.solmara.registrystack.org/v1/evaluations
-          discovery_url: https://cra-notary.solmara.registrystack.org/.well-known/evidence-service
-          ruleset: person-is-deceased
-        policy:
-          purpose:
-            - https://id.registrystack.org/solmara/purpose/pension-payment-review
+        identifiers: [{name: uin, kind: uin}]
+        fields: [{name: uin, type: string, required: true}]
   - id: nia-population
-    title:
-      en: Population register
+    title: {en: NIA population publication}
+    description: {en: NIA-owned immutable population extract and governed eSignet Relay source.}
     access_rights: restricted
     entities:
-      - name: person
+      - name: population_person
+        identifiers: [{name: uin, kind: uin}]
+        fields: [{name: uin, type: string, required: true}]
   - id: sro-social
-    title:
-      en: Social registry
+    title: {en: SRO poverty extract}
+    description: {en: SRO-owned immutable poverty publication.}
     access_rights: restricted
     entities:
-      - name: household
+      - name: poverty_record
+        identifiers: [{name: uin, kind: uin}]
+        fields: [{name: uin, type: string, required: true}]
   - id: mosd-programme
-    title:
-      en: Integrated beneficiary registry
+    title: {en: MoSD programme enrolment publication}
+    description: {en: MoSD-owned mutable SQLite source consulted through Relay V2.}
     access_rights: restricted
     entities:
-      - name: enrollment
+      - name: beneficiary_enrolment
+        identifiers: [{name: uin, kind: uin}]
+        fields: [{name: uin, type: string, required: true}]
   - id: sipf-pensions
-    title:
-      en: Pensions and social insurance
+    title: {en: SIPF pension and survivor publication}
+    description: {en: SIPF-owned mutable SQLite source consulted through Relay V2.}
     access_rights: restricted
     entities:
-      - name: pension_case
+      - name: pension_payment
+        identifiers: [{name: pensioner_uin, kind: uin}]
+        fields: [{name: pensioner_uin, type: string, required: true}]
+      - name: survivor_case
+        identifiers: [{name: spouse_uin, kind: uin}]
+        fields: [{name: spouse_uin, type: string, required: true}]
   - id: nagdi-agriculture
-    title:
-      en: Farmer and livestock registries
+    title: {en: NAgDI agriculture publication}
+    description: {en: NAgDI-owned mutable SQLite source consulted through Relay V2.}
     access_rights: restricted
     entities:
       - name: farmer_voucher
+        identifiers: [{name: farmer_id, kind: local}]
+        fields: [{name: farmer_id, type: string, required: true}]
       - name: livestock_movement
-evaluation_profiles:
-  - id: birth-is-registered
-    ruleset: birth-is-registered-v1
-    claim_id: birth-is-registered
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: population-record-active
-    ruleset: population-record-active-v1
-    claim_id: population-record-active
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: child-age-under-5
-    ruleset: child-age-under-5-v1
-    claim_id: child-age-under-5
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: household-below-poverty-threshold
-    ruleset: household-below-poverty-threshold-v1
-    claim_id: household-below-poverty-threshold
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: not-already-enrolled
-    ruleset: not-already-enrolled-v1
-    claim_id: not-already-enrolled
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: survivor-benefit-eligibility
-    ruleset: survivor-benefit-eligibility-v1
-    claim_id: survivor-is-eligible
-    subject_id_type: uin
-    max_source_observed_age_seconds: 86400
-  - id: climate-smart-voucher-eligibility
-    ruleset: climate-smart-voucher-eligibility-v1
-    claim_id: eligible-for-climate-smart-input-voucher
-    subject_id_type: farmer_id
-    max_source_observed_age_seconds: 86400
-  - id: livestock-movement-permit
-    ruleset: livestock-movement-permit-v1
-    claim_id: eligible-for-livestock-movement-permit
-    subject_id_type: farmer_id
-    max_source_observed_age_seconds: 86400
+        identifiers: [{name: farmer_id, kind: local}]
+        fields: [{name: farmer_id, type: string, required: true}]

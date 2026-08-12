@@ -1,5 +1,4 @@
-// POST /api/evaluate : proxy a single field's claim to its Notary (Phase 0: the
-// MockEvidenceProvider).
+// POST /api/evaluate: request one reviewed Evidence field through the provider.
 //
 // Body: { slug, fieldId, scenarioKey?, delegated? }
 //   - slug / fieldId identify a field in the server-side form catalogue.
@@ -101,7 +100,7 @@ function resolveAllowedField(
       id: fieldId,
       label: 'Guardian link verified',
       kind: 'verify',
-      notary: 'social'
+      authority: 'social'
     };
   }
 
@@ -110,7 +109,7 @@ function resolveAllowedField(
       id: fieldId,
       label: 'Cross-person denial',
       kind: 'verify',
-      notary: 'civil'
+      authority: 'civil'
     };
   }
 

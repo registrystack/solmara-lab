@@ -10,7 +10,7 @@
   export let country: any;
   export let portalUrl = 'http://127.0.0.1:4300';
 
-  $: liveRegistries = metadata.catalog.datasets;
+  $: evidenceOfferings = metadata.offerings;
   $: grayRegistries = metadata.catalog.gray_registries;
   $: shownPersonas = featuredPersonas(personas);
 </script>
@@ -19,15 +19,15 @@
   <div class="content nation-grid">
     <div>
       <p class="eyebrow">The Nation</p>
-      <h2>One island, six live authorities, ten future registries in view</h2>
+      <h2>One island, six live authorities, and future registries in view</h2>
       <SolmaraMap {districts} {provinces} {country} />
     </div>
     <div class="registry-grid">
-      {#each liveRegistries as registry}
+      {#each evidenceOfferings as offering}
         <article class="registry live">
-          <h3>{registry.title}</h3>
-          <p>{registry.authority?.name}</p>
-          <small>{registry.entities.length} entities, {registry.purposes.length} purposes</small>
+          <h3>{offering.title}</h3>
+          <p>{offering.issuing_authority?.name}</p>
+          <small>{offering.access?.source_type ?? 'Evidence'} · {offering.purposes.length} purpose</small>
         </article>
       {/each}
       {#each grayRegistries as registry}

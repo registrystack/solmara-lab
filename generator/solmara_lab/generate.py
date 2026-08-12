@@ -7,7 +7,7 @@ import json
 import random
 import shutil
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 OBSERVED_AT = "2026-07-04T09:00:00Z"
