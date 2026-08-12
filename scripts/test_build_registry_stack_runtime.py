@@ -112,6 +112,7 @@ shutil.copyfile(os.environ["FAKE_RELAYCTL_SOURCE"], output)
                 for component, digest in self.digests.items()
             },
         }
+        self.environment.pop("REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_FILE", None)
 
     def tearDown(self) -> None:
         self.directory.cleanup()
