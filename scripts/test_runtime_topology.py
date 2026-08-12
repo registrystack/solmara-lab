@@ -295,6 +295,9 @@ class RuntimeTopologyTests(unittest.TestCase):
         for provider in ("mint", "cra", "nia", "sro", "mosd-programme", "sipf", "nagdi"):
             signer = compose["services"][f"{provider}-signer"]
             self.assertEqual(signer["user"], "0:0")
+            self.assertEqual(signer["cap_drop"], ["ALL"])
+            self.assertEqual(signer["cap_add"], ["DAC_OVERRIDE"])
+            self.assertEqual(signer["network_mode"], "none")
             self.assertIn("--allow-root-bind-owner", signer["command"])
             self.assertTrue(any(volume.endswith("signing.jwk:ro") for volume in signer["volumes"]))
 

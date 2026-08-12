@@ -35,6 +35,10 @@ x-transit-signer: &transit-signer
   user: "0:0"
   read_only: true
   cap_drop: [ALL]
+  # Linux CI bind mounts retain the runner's ownership on the mode-0600 key.
+  # Grant only the capability needed to read that one read-only bind. Hosted
+  # signers stage operator-owned keys and do not use this local exception.
+  cap_add: [DAC_OVERRIDE]
   security_opt: [no-new-privileges:true]
   network_mode: none
   healthcheck:
