@@ -18,6 +18,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / "config" / "evidence" / "local" / "cells"
 GENERIC_ERROR = "hosted provisioner image smoke failed"
+MINT_ORIGIN = "https://mint-authority-cells.solmara.registrystack.org"
+CRA_RELAY_ORIGIN = "https://cra-relay-authority-cells.solmara.registrystack.org"
 
 
 def _build_cells_module():
@@ -109,6 +111,10 @@ def smoke(image: str, state_root: Path) -> None:
         "/provisioned/extracts",
         "--bind-host",
         "172.29.1.21",
+        "--mint-origin",
+        MINT_ORIGIN,
+        "--relay-origin",
+        CRA_RELAY_ORIGIN,
     ]
     _run(image, cra_arguments, cra_mounts)
     _run(image, cra_arguments, cra_mounts)
@@ -165,6 +171,8 @@ def smoke(image: str, state_root: Path) -> None:
         "/provisioned/secrets",
         "--bind-host",
         "172.29.1.20",
+        "--mint-origin",
+        MINT_ORIGIN,
     ]
     _run(image, mint_arguments, mint_mounts)
     _run(image, mint_arguments, mint_mounts)

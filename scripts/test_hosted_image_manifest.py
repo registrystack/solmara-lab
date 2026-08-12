@@ -299,6 +299,12 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertIn("--network none --read-only", provisioner_smoke)
         self.assertIn('test "$status" -eq 1', provisioner_smoke)
         self.assertIn("hosted target provisioning failed", provisioner_smoke)
+        self.assertEqual(
+            provisioner_smoke.count(
+                "--mint-origin https://mint-authority-cells.solmara.registrystack.org"
+            ),
+            2,
+        )
 
         signer_smoke = next(
             step

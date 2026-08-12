@@ -208,7 +208,8 @@ jobs:
               --assets /opt/solmara-hosted-assets \
               --secrets /run/secrets/solmara-provisioning \
               --runtime-output /provisioned/runtime \
-              --source-output /provisioned/source
+              --source-output /provisioned/source \
+              --mint-origin https://mint-authority-cells.solmara.registrystack.org
           done
           python3 - "$state" <<'PY'
           import sqlite3
@@ -233,7 +234,9 @@ jobs:
             --assets /opt/solmara-hosted-assets \
             --secrets /run/secrets/solmara-provisioning \
             --runtime-output /provisioned/runtime \
-            --source-output /provisioned/source >"$stdout" 2>"$stderr"
+            --source-output /provisioned/source \
+            --mint-origin https://mint-authority-cells.solmara.registrystack.org \
+            >"$stdout" 2>"$stderr"
           status=$?
           set -e
           test "$status" -eq 1
