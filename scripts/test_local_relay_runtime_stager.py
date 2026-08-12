@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 import os
-import shutil
 import stat
 import sys
 import tempfile
@@ -24,9 +25,28 @@ AUTHORITIES = ("cra", "nia", "mosd", "sipf", "nagdi")
 
 def isolated_source(root: Path, authority: str) -> Path:
     source = root / "source"
-    source.mkdir(parents=True)
-    shutil.copy2(ROOT / "relays" / authority / "runtime.yaml", source / "runtime.yaml")
-    shutil.copytree(ROOT / "relays" / authority / "package", source / "package")
+    generated = source / "package" / "generated"
+    generated.mkdir(parents=True)
+    (source / "runtime.yaml").write_text(
+        f"packagePath: /etc/relay/{authority}/package\n",
+        encoding="utf-8",
+    )
+    payload = b'{"fixture":"sealed"}\n'
+    artifact = generated / "artifact.json"
+    artifact.write_bytes(payload)
+    manifest = {
+        "files": [
+            {
+                "path": "generated/artifact.json",
+                "size": len(payload),
+                "sha256": f"sha256:{hashlib.sha256(payload).hexdigest()}",
+            }
+        ]
+    }
+    (source / "package" / "relay-package.json").write_text(
+        json.dumps(manifest, sort_keys=True),
+        encoding="utf-8",
+    )
     return source
 
 
