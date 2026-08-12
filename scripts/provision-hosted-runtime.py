@@ -10,11 +10,13 @@ import importlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import sqlite3
 import stat
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 import yaml
@@ -81,6 +83,10 @@ MINT_CLIENTS = {
         "https://id.registrystack.org/solmara/purpose/esignet-identity-verification",
     ),
 }
+ROLLBACK_RUNTIME = re.compile(
+    r"^runtime\.rollback-(?:cra-birth|nia-population|sro-poverty)-"
+    r"[0-9]{8}T[0-9]{6}(?:[0-9]{6})?Z\.yaml$"
+)
 
 
 class ProvisionError(RuntimeError):
@@ -148,6 +154,27 @@ def _hmac_secret(root: Path, name: str) -> bytes:
     ):
         raise ProvisionError("invalid secret")
     return value
+
+
+def _validate_secret_inventory(root: Path, expected: set[str]) -> None:
+    try:
+        if root.is_symlink() or not root.is_dir():
+            raise ProvisionError("invalid secret inventory")
+        observed: set[str] = set()
+        with os.scandir(root) as entries:
+            for entry in entries:
+                metadata = entry.stat(follow_symlinks=False)
+                if not stat.S_ISREG(metadata.st_mode) or entry.name not in expected:
+                    raise ProvisionError("invalid secret inventory")
+                observed.add(entry.name)
+        if observed != expected:
+            raise ProvisionError("invalid secret inventory")
+        for name in sorted(expected):
+            _read_secret(root, name)
+    except ProvisionError:
+        raise
+    except OSError:
+        raise ProvisionError("invalid secret inventory") from None
 
 
 def _b64decode(value: str) -> bytes:
@@ -268,12 +295,38 @@ def _tree_digest(root: Path) -> dict[str, tuple[str, int]]:
     for path in sorted(root.rglob("*")):
         if path.is_symlink():
             raise ProvisionError("invalid existing output")
-        if path.is_file():
+        if path.is_dir():
+            result[path.relative_to(root).as_posix()] = (
+                "directory",
+                stat.S_IMODE(path.stat().st_mode),
+            )
+        elif path.is_file():
             result[path.relative_to(root).as_posix()] = (
                 _digest(path),
                 stat.S_IMODE(path.stat().st_mode),
             )
+        else:
+            raise ProvisionError("invalid existing output")
     return result
+
+
+def _check_install_tree(
+    staged: Path,
+    destination: Path,
+    *,
+    preserve: Callable[[str, tuple[str, int]], bool] | None = None,
+) -> None:
+    if destination.is_symlink():
+        raise ProvisionError("invalid existing output")
+    expected = _tree_digest(staged)
+    current = _tree_digest(destination)
+    active = {
+        relative: value
+        for relative, value in current.items()
+        if preserve is None or not preserve(relative, value)
+    }
+    if active and active != expected:
+        raise ProvisionError("existing output mismatch")
 
 
 def _install_tree(
@@ -282,15 +335,10 @@ def _install_tree(
     *,
     root_mode: int,
     owner: tuple[int, int] | None = None,
+    preserve: Callable[[str, tuple[str, int]], bool] | None = None,
 ) -> None:
+    _check_install_tree(staged, destination, preserve=preserve)
     expected = _tree_digest(staged)
-    current = _tree_digest(destination)
-    if current:
-        if any(
-            relative not in expected or expected[relative] != value
-            for relative, value in current.items()
-        ):
-            raise ProvisionError("existing output mismatch")
     destination.mkdir(parents=True, exist_ok=True)
     for source in sorted(staged.rglob("*")):
         relative = source.relative_to(staged)
@@ -322,8 +370,22 @@ def _install_tree(
         for target in sorted(destination.rglob("*"), reverse=True):
             os.chown(target, uid, gid, follow_symlinks=False)
         os.chown(destination, uid, gid, follow_symlinks=False)
-    if _tree_digest(destination) != expected:
+    observed = {
+        relative: value
+        for relative, value in _tree_digest(destination).items()
+        if preserve is None or not preserve(relative, value)
+    }
+    if observed != expected:
         raise ProvisionError("output verification failed")
+
+
+def _preserve_extract_rollback(relative: str, value: tuple[str, int]) -> bool:
+    return (
+        "/" not in relative
+        and ROLLBACK_RUNTIME.fullmatch(relative) is not None
+        and value[0] != "directory"
+        and value[1] == 0o444
+    )
 
 
 def _copy_tree(source: Path, destination: Path) -> None:
@@ -361,8 +423,9 @@ def _stage_relay(assets: Path, authority: str, runtime: Path, source: Path) -> N
     _write(
         source / f"{authority}.sqlite",
         (relay / "source" / f"{authority}.sqlite").read_bytes(),
-        0o644,
+        0o444,
     )
+    _freeze_tree(source)
     _freeze_tree(runtime)
 
 
@@ -420,12 +483,19 @@ def _publication_time(
             return metadata.published_at
         except ProvisionError:
             raise
-        except (OSError, ValueError, TypeError, AttributeError):
+        except Exception:  # noqa: BLE001 - dependency errors become one refusal.
             raise ProvisionError("invalid existing extract") from None
     try:
+        if runtime_file.is_symlink() or not runtime_file.is_file():
+            raise ProvisionError("invalid existing extract")
         config = yaml.safe_load(runtime_file.read_text(encoding="utf-8"))
-        profile = next(iter(config["sourceExtracts"]))
-        extract_name = Path(config["sourceExtracts"][profile]["path"]).name
+        profile = DIRECT[cell][0]
+        if set(config["sourceExtracts"]) != {profile}:
+            raise ProvisionError("invalid existing extract")
+        bound_path = Path(config["sourceExtracts"][profile]["path"])
+        if bound_path.parent != Path(f"/var/lib/registry-evidence/{cell}/extracts"):
+            raise ProvisionError("invalid existing extract")
+        extract_name = bound_path.name
         existing = extract_output / extract_name
         with sqlite3.connect(f"file:{existing}?mode=ro", uri=True) as connection:
             rows = connection.execute(
@@ -447,7 +517,7 @@ def _publication_time(
         return published_at
     except ProvisionError:
         raise
-    except (OSError, sqlite3.Error, TypeError, KeyError, StopIteration, yaml.YAMLError):
+    except Exception:  # noqa: BLE001 - dependency errors become one refusal.
         raise ProvisionError("invalid existing extract") from None
 
 
@@ -480,7 +550,8 @@ def _replace_extract_binding(
     try:
         if runtime_file.is_symlink() or not runtime_file.is_file():
             raise ProvisionError("invalid existing runtime")
-        config = yaml.safe_load(runtime_file.read_text(encoding="utf-8"))
+        original = runtime_file.read_bytes()
+        config = yaml.safe_load(original.decode("utf-8"))
         if config["listener"]["bindHost"] != EXPECTED_BIND_HOST[cell]:
             raise ProvisionError("invalid existing runtime")
         if set(config["sourceExtracts"]) != {DIRECT[cell][0]}:
@@ -494,6 +565,24 @@ def _replace_extract_binding(
         binding["path"] = str(current.with_name(replacement_name))
         rendered = yaml.safe_dump(config, sort_keys=False).encode()
         runtime_output.chmod(0o755)
+        rollback = runtime_output / f"runtime.rollback-{Path(previous_name).stem}.yaml"
+        if rollback.exists():
+            if (
+                rollback.is_symlink()
+                or not rollback.is_file()
+                or rollback.read_bytes() != original
+                or stat.S_IMODE(rollback.stat().st_mode) != 0o444
+            ):
+                raise ProvisionError("invalid existing runtime")
+        else:
+            rollback_descriptor = os.open(
+                rollback, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444
+            )
+            with os.fdopen(rollback_descriptor, "wb") as output:
+                output.write(original)
+                output.flush()
+                os.fsync(output.fileno())
+            rollback.chmod(0o444)
         descriptor, temporary_name = tempfile.mkstemp(
             prefix=".runtime-", suffix=".yaml", dir=runtime_output
         )
@@ -505,6 +594,11 @@ def _replace_extract_binding(
                 os.fsync(output.fileno())
             temporary.chmod(0o444)
             os.replace(temporary, runtime_file)
+            directory_descriptor = os.open(runtime_output, os.O_RDONLY)
+            try:
+                os.fsync(directory_descriptor)
+            finally:
+                os.close(directory_descriptor)
         finally:
             temporary.unlink(missing_ok=True)
     except ProvisionError:
@@ -675,7 +769,9 @@ def provision(args: argparse.Namespace) -> None:
             ):
                 raise ProvisionError("invalid target")
             _stage_relay(assets, authority, runtime, source)
-            _install_tree(source, args.source_output.resolve(), root_mode=0o755)
+            _check_install_tree(source, args.source_output.resolve())
+            _check_install_tree(runtime, args.runtime_output.resolve())
+            _install_tree(source, args.source_output.resolve(), root_mode=0o555)
         elif target == "mint":
             if (
                 args.secret_output is None
@@ -684,11 +780,20 @@ def provision(args: argparse.Namespace) -> None:
                 or args.extract_output
             ):
                 raise ProvisionError("invalid target")
+            if args.bind_host != EXPECTED_BIND_HOST["mint"]:
+                raise ProvisionError("invalid bind host")
+            mint_secrets = {
+                "signing-public.jwk",
+                "audit-hmac-key",
+                "solmara-demo-client-public.jwk",
+                *(f"{client}-public.jwk" for client in MINT_CLIENTS),
+            }
+            _validate_secret_inventory(args.secrets.resolve(), mint_secrets)
             _stage_mint(
                 assets, args.secrets.resolve(), runtime, secret_output, args.bind_host
             )
-            if args.bind_host != EXPECTED_BIND_HOST["mint"]:
-                raise ProvisionError("invalid bind host")
+            _check_install_tree(secret_output, args.secret_output.resolve())
+            _check_install_tree(runtime, args.runtime_output.resolve())
             _install_tree(
                 secret_output,
                 args.secret_output.resolve(),
@@ -708,6 +813,13 @@ def provision(args: argparse.Namespace) -> None:
                 raise ProvisionError("invalid target")
             if args.bind_host != EXPECTED_BIND_HOST[cell]:
                 raise ProvisionError("invalid bind host")
+            cell_secrets = {
+                "signing-public.jwk",
+                "audit-hmac-key",
+                "subject-binding-hmac-key",
+                *(f"{client}-client-key" for client in CELL_CLIENTS[cell]),
+            }
+            _validate_secret_inventory(args.secrets.resolve(), cell_secrets)
             published_at = (
                 _publication_time(
                     assets,
@@ -730,6 +842,13 @@ def provision(args: argparse.Namespace) -> None:
                 published_at,
                 now,
             )
+            runtime_preserve = _preserve_extract_rollback if cell in DIRECT else None
+            _check_install_tree(secret_output, args.secret_output.resolve())
+            if cell in DIRECT:
+                _check_install_tree(extracts, args.extract_output.resolve())
+            _check_install_tree(
+                runtime, args.runtime_output.resolve(), preserve=runtime_preserve
+            )
             _install_tree(
                 secret_output,
                 args.secret_output.resolve(),
@@ -740,7 +859,17 @@ def provision(args: argparse.Namespace) -> None:
                 _install_tree(extracts, args.extract_output.resolve(), root_mode=0o555)
         else:
             raise ProvisionError("invalid target")
-        _install_tree(runtime, args.runtime_output.resolve(), root_mode=0o555)
+        _install_tree(
+            runtime,
+            args.runtime_output.resolve(),
+            root_mode=0o555,
+            preserve=(
+                _preserve_extract_rollback
+                if target.endswith("-evidence")
+                and target.removesuffix("-evidence") in DIRECT
+                else None
+            ),
+        )
 
 
 def init_audit(destinations: list[Path], uid: int, gid: int) -> None:
@@ -789,7 +918,7 @@ def main(argv: list[str] | None = None) -> int:
             publish_extract(args)
         else:
             init_audit(args.destination, args.uid, args.gid)
-    except (ProvisionError, OSError, ValueError, TypeError, KeyError, yaml.YAMLError):
+    except Exception:  # noqa: BLE001 - the command boundary is deliberately value-free.
         print(GENERIC_ERROR, file=sys.stderr)
         return 1
     print(SUCCESS)

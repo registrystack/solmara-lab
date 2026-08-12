@@ -410,7 +410,7 @@ def build(root: Path, output: Path, relayctl: Path) -> None:
         staging = Path(temporary) / "assets"
         staging.mkdir()
 
-        published = publisher.publish_relay_sources(staging)
+        published = publisher.publish_relay_sources(Path(temporary) / "published")
         for authority in AUTHORITIES:
             project = Path(temporary) / "projects" / authority
             _copy_exact_tree(

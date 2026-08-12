@@ -43,7 +43,11 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv export --frozen --no-dev --no-hashes -o /requirements.txt && \
     pip install --no-cache-dir -r /requirements.txt && rm /requirements.txt
+RUN install -d -o 65532 -g 65532 -m 0755 \
+      /provisioned/runtime /provisioned/source /provisioned/extracts && \
+    install -d -o 65532 -g 65532 -m 0700 /provisioned/secrets
 COPY --from=assets /opt/solmara-hosted-assets /opt/solmara-hosted-assets
 COPY scripts/hosted-runtime-assets.py /app/scripts/hosted-runtime-assets.py
 COPY scripts/provision-hosted-runtime.py /app/scripts/provision-hosted-runtime.py
+USER 65532:65532
 ENTRYPOINT ["python", "/app/scripts/provision-hosted-runtime.py"]

@@ -98,6 +98,19 @@ output.mkdir(parents=True)
                 result[path.relative_to(root).as_posix()] = MODULE._digest(path)
         return result
 
+    def _assert_no_path_leakage(self, root: Path) -> None:
+        forbidden = (
+            str(self.root).encode(),
+            str(root).encode(),
+            str(Path(self.temporary.name)).encode(),
+            b"solmara-hosted-assets-",
+        )
+        for path in root.rglob("*"):
+            if path.is_file():
+                content = path.read_bytes()
+                for value in forbidden:
+                    self.assertNotIn(value, content, path)
+
     def test_build_contains_only_closed_runtime_assets(self) -> None:
         output = Path(self.temporary.name) / "assets"
         MODULE.build(self.root, output, self.relayctl)
@@ -105,36 +118,39 @@ output.mkdir(parents=True)
 
         manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
         files = set(manifest["files"])
+        expected_files = set()
         for authority in MODULE.AUTHORITIES:
             prefix = f"relays/{authority}"
-            self.assertIn(f"{prefix}/runtime.yaml", files)
-            self.assertIn(f"{prefix}/package/relay-package.json", files)
-            self.assertIn(f"{prefix}/source/{authority}.sqlite", files)
+            expected_files.update(
+                {
+                    f"{prefix}/runtime.yaml",
+                    f"{prefix}/package/relay-package.json",
+                    f"{prefix}/source/{authority}.sqlite",
+                }
+            )
         for cell in MODULE.EVIDENCE_CELLS:
-            expected = {
+            expected_files.update(
                 f"evidence/cells/{cell}/{relative}"
                 for relative in MODULE.EVIDENCE_FILES[cell]
-            }
-            self.assertTrue(expected.issubset(files))
-        self.assertIn("mint/mint.yaml", files)
-        self.assertEqual(
-            {
-                path.removeprefix("generator/solmara_lab/")
-                for path in files
-                if path.startswith("generator/solmara_lab/")
-            },
-            set(MODULE.GENERATOR_FILES),
+            )
+        expected_files.add("mint/mint.yaml")
+        expected_files.update(
+            f"generator/solmara_lab/{relative}" for relative in MODULE.GENERATOR_FILES
         )
+        self.assertEqual(files, expected_files)
         self.assertFalse(any(path.endswith(".pyc") for path in files))
         self.assertFalse(any("/secrets/" in f"/{path}/" for path in files))
+        self._assert_no_path_leakage(output)
 
     def test_unexpected_secret_symlink_and_bytecode_are_refused(self) -> None:
         injections = (
+            ("relays/cra/unexpected.yaml", b"UNEXPECTED-CANARY"),
             ("evidence/cells/cra/bundle/signing.jwk", b"PRIVATE-JWK-CANARY"),
             ("evidence/cells/nia/bundle/audit/events.jsonl", b"AUDIT-CANARY"),
+            ("evidence/cells/sro/bundle/extracts/source.sqlite", b"EXTRACT-CANARY"),
             ("generator/solmara_lab/__pycache__/publisher.pyc", b"PYC-CANARY"),
         )
-        for index, (relative, content) in enumerate(injections):
+        for relative, content in injections:
             with self.subTest(relative=relative):
                 path = self.root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -180,6 +196,8 @@ output.mkdir(parents=True)
         manifest.write_text(json.dumps(json.loads(canonical)) + "\n", encoding="utf-8")
         with self.assertRaisesRegex(MODULE.AssetBuildError, "verification"):
             MODULE.verify_manifest(output)
+        with self.assertRaisesRegex(PROVISIONER.ProvisionError, "invalid assets"):
+            PROVISIONER.verify_assets(output)
 
     def test_two_builds_are_byte_for_byte_deterministic(self) -> None:
         first = Path(self.temporary.name) / "first"
@@ -217,7 +235,9 @@ output.mkdir(parents=True)
         self.assertEqual(completed.returncode, 1)
         self.assertEqual(completed.stdout, "")
         self.assertEqual(completed.stderr.strip(), "hosted runtime asset build failed")
-        self.assertNotIn(canary, completed.stdout + completed.stderr)
+        combined = completed.stdout + completed.stderr
+        for forbidden in (canary, str(self.root), str(output), str(failing)):
+            self.assertNotIn(forbidden, combined)
         self.assertFalse(output.exists())
 
 
