@@ -60,6 +60,10 @@ def _run(
         "ALL",
         "--cap-add",
         "CHOWN",
+        "--cap-add",
+        "DAC_READ_SEARCH",
+        "--cap-add",
+        "FOWNER",
         "--tmpfs",
         "/tmp",
     ]

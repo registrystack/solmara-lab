@@ -298,7 +298,8 @@ class HostedImageManifestTests(unittest.TestCase):
         )["run"]
         self.assertEqual(provisioner_smoke.count("--platform linux/amd64"), 2)
         self.assertEqual(provisioner_smoke.count("--user 0:0"), 2)
-        self.assertEqual(provisioner_smoke.count("--cap-add CHOWN"), 2)
+        for capability in ("CHOWN", "DAC_READ_SEARCH", "FOWNER"):
+            self.assertEqual(provisioner_smoke.count(f"--cap-add {capability}"), 2)
         self.assertIn("org.registrystack.release.revision", label_verification)
 
         provisioner_smoke = next(

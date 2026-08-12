@@ -154,7 +154,9 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             self.assertEqual(service["network_mode"], "none")
             self.assertTrue(service["read_only"])
             self.assertEqual(service["cap_drop"], ["ALL"])
-            self.assertEqual(service["cap_add"], ["CHOWN"])
+            self.assertEqual(
+                set(service["cap_add"]), {"CHOWN", "DAC_READ_SEARCH", "FOWNER"}
+            )
             self.assertEqual(service["security_opt"], ["no-new-privileges:true"])
 
     def test_provisioners_receive_closed_permanent_dependency_origins(self) -> None:

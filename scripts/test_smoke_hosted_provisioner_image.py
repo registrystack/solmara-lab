@@ -29,7 +29,12 @@ class HostedProvisionerImageSmokeTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[command.index("--user") + 1], "0:0")
         self.assertEqual(command[command.index("--cap-drop") + 1], "ALL")
-        self.assertEqual(command[command.index("--cap-add") + 1], "CHOWN")
+        capabilities = {
+            command[index + 1]
+            for index, argument in enumerate(command)
+            if argument == "--cap-add"
+        }
+        self.assertEqual(capabilities, {"CHOWN", "DAC_READ_SEARCH", "FOWNER"})
         self.assertIn("none", command)
         self.assertIn("--read-only", command)
 
