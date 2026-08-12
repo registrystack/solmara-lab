@@ -77,10 +77,19 @@ build_relayctl() {
 
   relayctl_context=$(mktemp -d)
   trap 'rm -rf -- "$relayctl_context"' EXIT HUP INT TERM
-  curl --fail --location --silent --show-error \
-    --retry 5 --retry-all-errors --connect-timeout 30 \
-    --output "$relayctl_context/relayctl" \
-    "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL"
+  relayctl_asset_file=${REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_FILE:-}
+  if [ -n "$relayctl_asset_file" ]; then
+    if [ -L "$relayctl_asset_file" ] || [ ! -f "$relayctl_asset_file" ]; then
+      echo "provided Relayctl asset must be a regular file" >&2
+      exit 1
+    fi
+    cp -- "$relayctl_asset_file" "$relayctl_context/relayctl"
+  else
+    curl --fail --location --silent --show-error \
+      --retry 5 --retry-all-errors --connect-timeout 30 \
+      --output "$relayctl_context/relayctl" \
+      "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL"
+  fi
   if [ -L "$relayctl_context/relayctl" ] || [ ! -f "$relayctl_context/relayctl" ]; then
     echo "downloaded Relayctl asset must be a regular file" >&2
     exit 1

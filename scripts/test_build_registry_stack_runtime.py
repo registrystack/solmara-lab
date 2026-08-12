@@ -93,6 +93,8 @@ import os
 import shutil
 import sys
 
+if os.environ.get("FAIL_IF_CURL") == "1":
+    raise SystemExit("curl must not run when a verified asset file is supplied")
 arguments = sys.argv[1:]
 output = arguments[arguments.index("--output") + 1]
 shutil.copyfile(os.environ["FAKE_RELAYCTL_SOURCE"], output)
@@ -159,3 +161,14 @@ shutil.copyfile(os.environ["FAKE_RELAYCTL_SOURCE"], output)
         self.assertIn("--target relayctl", calls)
         self.assertNotIn("REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL", calls)
         self.assertNotIn("REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256", calls)
+
+    def test_preverified_relayctl_file_avoids_a_second_network_download(self) -> None:
+        self.environment["FORCE_RELAYCTL_BUILD"] = "1"
+        self.environment["FAIL_IF_CURL"] = "1"
+        self.environment["REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_FILE"] = str(
+            self.relayctl_asset
+        )
+
+        result = self.run_builder()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
