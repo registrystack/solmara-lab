@@ -4,8 +4,7 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 relayctl_image=${REGISTRY_RELAYCTL_IMAGE:-solmara-lab-relayctl:source}
 
-cd "$root/generator"
-uv run python -c 'from pathlib import Path; from solmara_lab.publisher import publish_relay_sources; publish_relay_sources(Path(".."))'
+"$root/scripts/publish-relay-sources.sh"
 
 cd "$root"
 uv run scripts/publish-runtime-extracts.py

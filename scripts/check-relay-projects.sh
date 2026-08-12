@@ -6,8 +6,7 @@ set -a
 . "$root/versions.env"
 set +a
 
-cd "$root/generator"
-uv run python -c 'from pathlib import Path; from solmara_lab.publisher import publish_relay_sources; publish_relay_sources(Path(".."))'
+"$root/scripts/publish-relay-sources.sh"
 
 temporary_root=$(mktemp -d "$root/output/relay-check.XXXXXX")
 cleanup() {

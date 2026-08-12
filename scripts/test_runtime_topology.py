@@ -15,11 +15,25 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RuntimeTopologyTests(unittest.TestCase):
+    def test_relay_publication_uses_pinned_linux_sqlite_runtime(self) -> None:
+        script = SCRIPT.with_name("publish-relay-sources.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("python:3.12-slim-trixie@sha256:", script)
+        self.assertIn("--platform linux/amd64", script)
+        self.assertIn("--network none", script)
+        self.assertIn("--read-only", script)
+        self.assertNotIn("uv run", script)
+
     def test_retired_surfaces_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "compose.yaml"
-            path.write_text("services:\n  old:\n    image: postgres:16\n", encoding="utf-8")
-            self.assertEqual(MODULE.failures([path]), ["compose.yaml:3: retired database"])
+            path.write_text(
+                "services:\n  old:\n    image: postgres:16\n", encoding="utf-8"
+            )
+            self.assertEqual(
+                MODULE.failures([path]), ["compose.yaml:3: retired database"]
+            )
 
     def test_current_active_topology_is_closed(self) -> None:
         self.assertEqual(MODULE.failures(), [])
@@ -83,7 +97,10 @@ class RuntimeTopologyTests(unittest.TestCase):
             )
             for other in {"cra", "nia", "mosd", "sipf", "nagdi"} - {authority}:
                 self.assertFalse(
-                    any(f"{other}-relay-source:" in volume for volume in publisher_volumes),
+                    any(
+                        f"{other}-relay-source:" in volume
+                        for volume in publisher_volumes
+                    ),
                     (authority, other),
                 )
 
@@ -139,11 +156,15 @@ class RuntimeTopologyTests(unittest.TestCase):
         }
         for service_name, address in expected.items():
             self.assertEqual(
-                compose["services"][service_name]["networks"]["runtime"]["ipv4_address"],
+                compose["services"][service_name]["networks"]["runtime"][
+                    "ipv4_address"
+                ],
                 address,
             )
 
-        caddy = (SCRIPT.parents[1] / "config/evidence/Caddyfile").read_text(encoding="utf-8")
+        caddy = (SCRIPT.parents[1] / "config/evidence/Caddyfile").read_text(
+            encoding="utf-8"
+        )
         evidence_routes = {
             "cra": "172.29.1.21",
             "nia": "172.29.1.22",
@@ -277,7 +298,9 @@ class RuntimeTopologyTests(unittest.TestCase):
                 volumes,
             )
 
-    def test_hosted_programme_services_receive_only_their_application_secrets(self) -> None:
+    def test_hosted_programme_services_receive_only_their_application_secrets(
+        self,
+    ) -> None:
         compose_path = SCRIPT.parents[1] / "compose.coolify.yaml"
         compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
         services = compose["services"]
@@ -321,11 +344,15 @@ class RuntimeTopologyTests(unittest.TestCase):
             "https://child-benefit.solmara.registrystack.org",
         )
         self.assertEqual(
-            services["child-benefit-federator"]["environment"]["CHILD_BENEFIT_FEDERATOR_HOST"],
+            services["child-benefit-federator"]["environment"][
+                "CHILD_BENEFIT_FEDERATOR_HOST"
+            ],
             "0.0.0.0",
         )
         self.assertEqual(
-            services["child-benefit-federator"]["environment"]["CHILD_BENEFIT_FEDERATOR_PORT"],
+            services["child-benefit-federator"]["environment"][
+                "CHILD_BENEFIT_FEDERATOR_PORT"
+            ],
             "8080",
         )
 
@@ -336,7 +363,9 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertNotIn("SOLMARA_EVIDENCE_CLIENT_KEY", environment, service_name)
             self.assertNotIn("CHILD_BENEFIT_FEDERATOR_TOKEN", environment, service_name)
 
-    def test_hosted_esignet_overlay_wires_the_main_portal_with_a_separate_key(self) -> None:
+    def test_hosted_esignet_overlay_wires_the_main_portal_with_a_separate_key(
+        self,
+    ) -> None:
         overlay_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
         overlay = yaml.safe_load(overlay_path.read_text(encoding="utf-8"))
         services = overlay["services"]
@@ -364,7 +393,9 @@ class RuntimeTopologyTests(unittest.TestCase):
             {
                 service_name
                 for service_name, service in services.items()
-                if service.get("environment", {}).get("PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64")
+                if service.get("environment", {}).get(
+                    "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64"
+                )
                 == private_key_value
             },
             {"portal"},
