@@ -118,7 +118,8 @@ jobs:
           project_name="$(python3 scripts/compose_project_name.py)"
           docker compose --env-file versions.env --env-file .env --project-name "$project_name" -f compose.yaml ps --all
           docker compose --env-file versions.env --env-file .env --project-name "$project_name" -f compose.yaml logs --no-color \
-            authority-audit-init mint evidence-gateway relay-issuer-readiness
+            authority-audit-init mint evidence-gateway relay-issuer-readiness \
+            cra-relay nia-relay mosd-relay sipf-relay nagdi-relay
       - name: Record recoverable rollout phases
         run: |
           just rollout side-by-side
