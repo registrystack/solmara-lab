@@ -185,37 +185,37 @@ services:
 
   mint-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-mint"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-mint", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/mint/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "mint-transit:/transit"]
 
   cra-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-cra"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-cra", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/cra/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "cra-transit:/transit"]
 
   nia-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-nia"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-nia", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/nia/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "nia-transit:/transit"]
 
   sro-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-sro"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-sro", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/sro/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "sro-transit:/transit"]
 
   mosd-programme-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-mosd-programme"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-mosd-programme", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/mosd-programme/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "mosd-programme-transit:/transit"]
 
   sipf-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-sipf"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-sipf", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/sipf/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "sipf-transit:/transit"]
 
   nagdi-signer:
     <<: *transit-signer
-    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-nagdi"]
+    command: ["python", "/app/local-transit-proxy.py", "--private-jwk", "/run/secrets/signing.jwk", "--socket", "/transit/transit-proxy.sock", "--key-name", "solmara-evidence-nagdi", "--allow-root-bind-owner"]
     volumes: ["./scripts/local-transit-proxy.py:/app/local-transit-proxy.py:ro", "./config/evidence/local/cells/nagdi/secrets/signing.jwk:/run/secrets/signing.jwk:ro", "nagdi-transit:/transit"]
 
   static-metadata:

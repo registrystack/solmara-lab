@@ -289,6 +289,15 @@ class RuntimeTopologyTests(unittest.TestCase):
                 service_name,
             )
 
+    def test_local_root_signers_explicitly_accept_read_only_host_bind_owners(self) -> None:
+        compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
+
+        for provider in ("mint", "cra", "nia", "sro", "mosd-programme", "sipf", "nagdi"):
+            signer = compose["services"][f"{provider}-signer"]
+            self.assertEqual(signer["user"], "0:0")
+            self.assertIn("--allow-root-bind-owner", signer["command"])
+            self.assertTrue(any(volume.endswith("signing.jwk:ro") for volume in signer["volumes"]))
+
     def test_local_transit_signers_are_one_key_one_socket_sidecars(self) -> None:
         compose_path = SCRIPT.parents[1] / "compose.yaml"
         compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
@@ -311,7 +320,8 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertEqual(signer["user"], "0:0")
             self.assertEqual(signer["cap_drop"], ["ALL"])
             self.assertIn("no-new-privileges:true", signer["security_opt"])
-            self.assertEqual(signer["command"][-1], key_name)
+            key_name_index = signer["command"].index("--key-name")
+            self.assertEqual(signer["command"][key_name_index + 1], key_name)
             signer_volumes = set(signer["volumes"])
             self.assertIn(
                 f"./config/evidence/local/cells/{provider}/secrets/signing.jwk:/run/secrets/signing.jwk:ro",

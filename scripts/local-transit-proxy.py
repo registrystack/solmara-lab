@@ -64,7 +64,9 @@ def _decode_base64url(value: Any) -> bytes:
     return decoded
 
 
-def _read_private_jwk(path: Path) -> tuple[ec.EllipticCurvePrivateKey, str]:
+def _read_private_jwk(
+    path: Path, *, allow_root_bind_owner: bool = False
+) -> tuple[ec.EllipticCurvePrivateKey, str]:
     if not path.is_absolute():
         raise ProxyError("invalid key")
     flags = os.O_RDONLY
@@ -80,7 +82,10 @@ def _read_private_jwk(path: Path) -> tuple[ec.EllipticCurvePrivateKey, str]:
         metadata = os.fstat(descriptor)
         if (
             not stat.S_ISREG(metadata.st_mode)
-            or metadata.st_uid != os.geteuid()
+            or (
+                metadata.st_uid != os.geteuid()
+                and not (allow_root_bind_owner and os.geteuid() == 0)
+            )
             or metadata.st_mode & 0o077
             or metadata.st_size <= 0
             or metadata.st_size > MAX_KEY_BYTES
@@ -157,10 +162,14 @@ def _validate_socket_path(path: Path) -> None:
 
 
 class TransitApplication:
-    def __init__(self, private_jwk: Path, key_name: str) -> None:
+    def __init__(
+        self, private_jwk: Path, key_name: str, *, allow_root_bind_owner: bool = False
+    ) -> None:
         if not KEY_NAME.fullmatch(key_name):
             raise ProxyError("invalid key")
-        self._private_key, public_pem = _read_private_jwk(private_jwk)
+        self._private_key, public_pem = _read_private_jwk(
+            private_jwk, allow_root_bind_owner=allow_root_bind_owner
+        )
         self._metadata = json.dumps(
             {
                 "data": {
@@ -385,8 +394,19 @@ class TransitServer(socketserver.UnixStreamServer):
             self._socket_path.unlink()
 
 
-def build_server(private_jwk: Path, socket_path: Path, key_name: str) -> TransitServer:
-    return TransitServer(socket_path, TransitApplication(private_jwk, key_name))
+def build_server(
+    private_jwk: Path,
+    socket_path: Path,
+    key_name: str,
+    *,
+    allow_root_bind_owner: bool = False,
+) -> TransitServer:
+    return TransitServer(
+        socket_path,
+        TransitApplication(
+            private_jwk, key_name, allow_root_bind_owner=allow_root_bind_owner
+        ),
+    )
 
 
 def main() -> int:
@@ -396,9 +416,15 @@ def main() -> int:
     parser.add_argument("--private-jwk", required=True, type=Path)
     parser.add_argument("--socket", required=True, type=Path)
     parser.add_argument("--key-name", required=True)
+    parser.add_argument("--allow-root-bind-owner", action="store_true")
     arguments = parser.parse_args()
     try:
-        server = build_server(arguments.private_jwk, arguments.socket, arguments.key_name)
+        server = build_server(
+            arguments.private_jwk,
+            arguments.socket,
+            arguments.key_name,
+            allow_root_bind_owner=arguments.allow_root_bind_owner,
+        )
     except (OSError, ProxyError, ValueError):
         print("local Transit proxy could not start", file=os.sys.stderr)
         return 1
