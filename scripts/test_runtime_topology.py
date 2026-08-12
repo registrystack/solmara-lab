@@ -301,6 +301,31 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertIn("--allow-root-bind-owner", signer["command"])
             self.assertTrue(any(volume.endswith("signing.jwk:ro") for volume in signer["volumes"]))
 
+    def test_local_authority_runtimes_can_read_only_their_bound_secret_trees(self) -> None:
+        compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
+
+        for service_name in (
+            "mint",
+            "cra-evidence",
+            "nia-evidence",
+            "sro-evidence",
+            "mosd-programme-evidence",
+            "sipf-evidence",
+            "nagdi-evidence",
+        ):
+            service = compose["services"][service_name]
+            self.assertEqual(service["user"], "0:0")
+            self.assertEqual(service["cap_drop"], ["ALL"])
+            self.assertEqual(service["cap_add"], ["DAC_OVERRIDE"])
+            self.assertTrue(service["read_only"])
+            secret_mounts = [
+                volume
+                for volume in service["volumes"]
+                if "/run/secrets/" in volume
+            ]
+            self.assertEqual(len(secret_mounts), 1, service_name)
+            self.assertTrue(secret_mounts[0].endswith(":ro"), service_name)
+
     def test_local_transit_signers_are_one_key_one_socket_sidecars(self) -> None:
         compose_path = SCRIPT.parents[1] / "compose.yaml"
         compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))

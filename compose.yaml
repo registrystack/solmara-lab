@@ -21,6 +21,9 @@ x-evidence: &evidence
   user: "0:0"
   read_only: true
   cap_drop: [ALL]
+  # Generated local secrets remain mode 0400 and owned by the host user.
+  # Linux containers need this one capability to read their own RO bind.
+  cap_add: [DAC_OVERRIDE]
   security_opt: [no-new-privileges:true]
   tmpfs: [/tmp]
   environment: {SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt}
@@ -283,6 +286,8 @@ services:
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
+    # See x-evidence: this local runtime receives only Mint's RO secret tree.
+    cap_add: [DAC_OVERRIDE]
     security_opt: [no-new-privileges:true]
     tmpfs: [/tmp]
     volumes:
