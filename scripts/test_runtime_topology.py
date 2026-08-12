@@ -184,6 +184,8 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertIn("metadata.st_nlink != 1", audit_init)
         self.assertIn("audit\\.jsonl\\.\\d{8}", audit_init)
         self.assertIn("follow_symlinks=False", audit_init)
+        self.assertIn("os.chown(path, 0, 0)", audit_init)
+        self.assertIn("os.chown(path, 65532, 65532)", audit_init)
         for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
             self.assertIn(
                 f"{authority}-relay-audit:/audit/{authority}",
@@ -325,6 +327,40 @@ class RuntimeTopologyTests(unittest.TestCase):
             ]
             self.assertEqual(len(secret_mounts), 1, service_name)
             self.assertTrue(secret_mounts[0].endswith(":ro"), service_name)
+            self.assertEqual(
+                service["depends_on"]["authority-audit-init"]["condition"],
+                "service_completed_successfully",
+            )
+
+    def test_local_authority_audit_initializer_is_metadata_only_and_isolated(self) -> None:
+        compose = yaml.safe_load((SCRIPT.parents[1] / "compose.yaml").read_text())
+        initializer = compose["services"]["authority-audit-init"]
+
+        self.assertEqual(initializer["network_mode"], "none")
+        self.assertEqual(initializer["user"], "0:0")
+        self.assertEqual(initializer["cap_drop"], ["ALL"])
+        self.assertEqual(set(initializer["cap_add"]), {"CHOWN", "FOWNER"})
+        self.assertIn("no-new-privileges:true", initializer["security_opt"])
+        self.assertEqual(
+            set(initializer["volumes"]),
+            {
+                "mint-v2-audit:/audit/mint",
+                "cra-evidence-audit:/audit/cra",
+                "nia-evidence-audit:/audit/nia",
+                "sro-evidence-audit:/audit/sro",
+                "mosd-evidence-audit:/audit/mosd-programme",
+                "sipf-evidence-audit:/audit/sipf",
+                "nagdi-evidence-audit:/audit/nagdi",
+            },
+        )
+        command = initializer["command"][2]
+        self.assertIn("os.lstat(path)", command)
+        self.assertIn("stat.S_ISDIR", command)
+        self.assertIn("os.chown(path, 0, 0)", command)
+        self.assertIn("mint_chain = '/audit/mint/audit'", command)
+        self.assertIn("os.mkdir(mint_chain, 0o700)", command)
+        self.assertIn("os.lstat(mint_chain)", command)
+        self.assertNotIn("os.scandir", command)
 
     def test_local_transit_signers_are_one_key_one_socket_sidecars(self) -> None:
         compose_path = SCRIPT.parents[1] / "compose.yaml"

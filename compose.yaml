@@ -121,6 +121,8 @@ services:
 
         paths = ['/audit/cra', '/audit/nia', '/audit/mosd', '/audit/sipf', '/audit/nagdi']
         for path in paths:
+            # Reclaim the directory long enough to validate existing metadata.
+            # The final chown returns it to Relay before this process exits.
             os.chown(path, 0, 0)
             os.chmod(path, 0o700)
             for entry in os.scandir(path):
@@ -145,6 +147,48 @@ services:
       - mosd-relay-audit:/audit/mosd
       - sipf-relay-audit:/audit/sipf
       - nagdi-relay-audit:/audit/nagdi
+
+  authority-audit-init:
+    image: ${PYTHON_STATIC_IMAGE:?versions.env must pin the static server image}
+    command:
+      - python
+      - -c
+      - |-
+        import os
+        import stat
+
+        paths = ['/audit/mint', '/audit/cra', '/audit/nia', '/audit/sro', '/audit/mosd-programme', '/audit/sipf', '/audit/nagdi']
+        for path in paths:
+            metadata = os.lstat(path)
+            if not stat.S_ISDIR(metadata.st_mode):
+                raise RuntimeError('audit sink has unsafe metadata')
+            os.chown(path, 0, 0)
+            os.chmod(path, 0o700)
+        mint_chain = '/audit/mint/audit'
+        try:
+            os.mkdir(mint_chain, 0o700)
+        except FileExistsError:
+            pass
+        metadata = os.lstat(mint_chain)
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise RuntimeError('audit sink has unsafe metadata')
+        os.chown(mint_chain, 0, 0)
+        os.chmod(mint_chain, 0o700)
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    restart: "no"
+    volumes:
+      - mint-v2-audit:/audit/mint
+      - cra-evidence-audit:/audit/cra
+      - nia-evidence-audit:/audit/nia
+      - sro-evidence-audit:/audit/sro
+      - mosd-evidence-audit:/audit/mosd-programme
+      - sipf-evidence-audit:/audit/sipf
+      - nagdi-evidence-audit:/audit/nagdi
 
   # A fresh Relay can create its audit chain before OIDC discovery completes.
   # If discovery then fails, the interrupted empty chain makes every later
@@ -297,49 +341,49 @@ services:
       - mint-v2-audit:/var/lib/registry-mint
     networks:
       runtime: {ipv4_address: 172.29.1.20}
-    depends_on: {mint-signer: {condition: service_healthy}}
+    depends_on: {mint-signer: {condition: service_healthy}, authority-audit-init: {condition: service_completed_successfully}}
 
   cra-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/cra/runtime.yaml", "serve"]
     volumes: ["./runtime/evidence-cells/cells/cra:/etc/registry-evidence/cra:ro", "./runtime/evidence-cells/secrets/cra:/run/secrets/registry-evidence/cra:ro", "cra-transit:/run/registry-evidence/cra:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/cra/extracts:ro", "cra-evidence-audit:/var/lib/registry-evidence/cra/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.21}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, cra-signer: {condition: service_healthy}, cra-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, cra-signer: {condition: service_healthy}, cra-relay: {condition: service_healthy}}
 
   nia-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/nia/runtime.yaml", "serve"]
     volumes: ["./runtime/evidence-cells/cells/nia:/etc/registry-evidence/nia:ro", "./runtime/evidence-cells/secrets/nia:/run/secrets/registry-evidence/nia:ro", "nia-transit:/run/registry-evidence/nia:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/nia/extracts:ro", "nia-evidence-audit:/var/lib/registry-evidence/nia/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.22}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, nia-signer: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, nia-signer: {condition: service_healthy}}
 
   sro-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/sro/runtime.yaml", "serve"]
     volumes: ["./runtime/evidence-cells/cells/sro:/etc/registry-evidence/sro:ro", "./runtime/evidence-cells/secrets/sro:/run/secrets/registry-evidence/sro:ro", "sro-transit:/run/registry-evidence/sro:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "./output/sqlite/evidence:/var/lib/registry-evidence/sro/extracts:ro", "sro-evidence-audit:/var/lib/registry-evidence/sro/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.23}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, sro-signer: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, sro-signer: {condition: service_healthy}}
 
   mosd-programme-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/mosd-programme/runtime.yaml", "serve"]
     volumes: ["./runtime/evidence-cells/cells/mosd-programme:/etc/registry-evidence/mosd-programme:ro", "./runtime/evidence-cells/secrets/mosd-programme:/run/secrets/registry-evidence/mosd-programme:ro", "mosd-programme-transit:/run/registry-evidence/mosd-programme:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "mosd-evidence-audit:/var/lib/registry-evidence/mosd-programme/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.24}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, mosd-programme-signer: {condition: service_healthy}, mosd-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, mosd-programme-signer: {condition: service_healthy}, mosd-relay: {condition: service_healthy}}
 
   sipf-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/sipf/runtime.yaml", "serve"]
     volumes: ["./runtime/evidence-cells/cells/sipf:/etc/registry-evidence/sipf:ro", "./runtime/evidence-cells/secrets/sipf:/run/secrets/registry-evidence/sipf:ro", "sipf-transit:/run/registry-evidence/sipf:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "sipf-evidence-audit:/var/lib/registry-evidence/sipf/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.25}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, sipf-signer: {condition: service_healthy}, sipf-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, sipf-signer: {condition: service_healthy}, sipf-relay: {condition: service_healthy}}
 
   nagdi-evidence:
     <<: *evidence
     command: ["--runtime", "/etc/registry-evidence/nagdi/runtime.yaml", "serve"]
     volumes: ["./runtime/evidence-cells/cells/nagdi:/etc/registry-evidence/nagdi:ro", "./runtime/evidence-cells/secrets/nagdi:/run/secrets/registry-evidence/nagdi:ro", "nagdi-transit:/run/registry-evidence/nagdi:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nagdi-evidence-audit:/var/lib/registry-evidence/nagdi/audit"]
     networks: {runtime: {ipv4_address: 172.29.1.26}, issuer-validation: {}}
-    depends_on: {mint: {condition: service_started}, nagdi-signer: {condition: service_healthy}, nagdi-relay: {condition: service_healthy}}
+    depends_on: {mint: {condition: service_started}, authority-audit-init: {condition: service_completed_successfully}, nagdi-signer: {condition: service_healthy}, nagdi-relay: {condition: service_healthy}}
 
   evidence-gateway:
     image: ${EVIDENCE_GATEWAY_IMAGE:?versions.env must pin Caddy}
