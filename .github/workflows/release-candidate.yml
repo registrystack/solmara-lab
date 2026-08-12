@@ -280,10 +280,53 @@ jobs:
           set -euo pipefail
           image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-transit-signer@${{ steps.transit_signer.outputs.digest }}"
           docker run --rm --network none --read-only --entrypoint python "$image" -c 'import cryptography'
+          state="$RUNNER_TEMP/solmara-transit-signer-state"
+          install -d -m 0700 "$state/secrets" "$state/transit"
+          sudo chown 65532:65532 "$state/secrets" "$state/transit"
+          sudo install -o 65532 -g 65532 -m 0400 \
+            config/evidence/local/cells/cra/secrets/signing.jwk \
+            "$state/secrets/signing.jwk"
+          sudo install -o 65532 -g 65532 -m 0400 \
+            runtime/evidence-cells/cells/cra/bundle/public-keys/*.jwk.json \
+            "$state/secrets/signing-public.jwk"
+          name="solmara-transit-signer-${GITHUB_RUN_ID}"
+          trap 'docker rm --force "$name" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --name "$name" --network none --read-only --tmpfs /tmp \
+            --mount "type=bind,source=$state/secrets/signing.jwk,target=/run/secrets/signing.jwk,readonly" \
+            --mount "type=bind,source=$state/secrets/signing-public.jwk,target=/run/secrets/signing-public.jwk,readonly" \
+            --mount "type=bind,source=$state/transit,target=/transit" \
+            "$image" \
+            --private-jwk /run/secrets/signing.jwk \
+            --public-jwk /run/secrets/signing-public.jwk \
+            --socket /transit/transit-proxy.sock \
+            --key-name solmara-evidence-cra
+          for _ in $(seq 1 50); do
+            test -S "$state/transit/transit-proxy.sock" && break
+            sleep 0.1
+          done
+          test -S "$state/transit/transit-proxy.sock"
+          curl --fail --silent --show-error \
+            --unix-socket "$state/transit/transit-proxy.sock" \
+            -H 'X-Vault-Request: true' \
+            http://localhost/v1/transit/keys/solmara-evidence-cra >/dev/null
+          docker rm --force "$name" >/dev/null
+          trap - EXIT
+
+          sudo install -o 65532 -g 65532 -m 0400 \
+            runtime/evidence-cells/cells/nia/bundle/public-keys/*.jwk.json \
+            "$state/secrets/signing-public.jwk"
           stdout="$RUNNER_TEMP/solmara-transit-signer.stdout"
           stderr="$RUNNER_TEMP/solmara-transit-signer.stderr"
           set +e
-          docker run --rm --network none --read-only "$image" >"$stdout" 2>"$stderr"
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --mount "type=bind,source=$state/secrets/signing.jwk,target=/run/secrets/signing.jwk,readonly" \
+            --mount "type=bind,source=$state/secrets/signing-public.jwk,target=/run/secrets/signing-public.jwk,readonly" \
+            --mount "type=bind,source=$state/transit,target=/transit" \
+            "$image" \
+            --private-jwk /run/secrets/signing.jwk \
+            --public-jwk /run/secrets/signing-public.jwk \
+            --socket /transit/transit-proxy.sock \
+            --key-name solmara-evidence-cra >"$stdout" 2>"$stderr"
           status=$?
           set -e
           test "$status" -eq 1

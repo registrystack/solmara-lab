@@ -78,7 +78,9 @@ class HostedImageManifestTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.directory.cleanup()
 
-    def invoke(self, *arguments: str, environment: dict[str, str] | None = None) -> tuple[int, str]:
+    def invoke(
+        self, *arguments: str, environment: dict[str, str] | None = None
+    ) -> tuple[int, str]:
         stderr = io.StringIO()
         with (
             mock.patch.dict(os.environ, environment or {}, clear=True),
@@ -190,7 +192,9 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("must be required variables", stderr)
 
-    def test_release_workflow_generates_validates_and_uploads_the_manifest(self) -> None:
+    def test_release_workflow_generates_validates_and_uploads_the_manifest(
+        self,
+    ) -> None:
         workflow_path = ROOT / ".github" / "workflows" / "release-candidate.yml"
         workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["verify-and-publish"]["steps"]
@@ -201,7 +205,9 @@ class HostedImageManifestTests(unittest.TestCase):
         upload_index = names.index("Upload Coolify image manifest")
         self.assertLess(provisioner_index, generate_index)
         self.assertLess(signer_index, generate_index)
-        self.assertGreater(generate_index, names.index("Build and push eSignet seed image"))
+        self.assertGreater(
+            generate_index, names.index("Build and push eSignet seed image")
+        )
         self.assertGreater(upload_index, generate_index)
 
         provisioner = steps[provisioner_index]
@@ -229,7 +235,10 @@ class HostedImageManifestTests(unittest.TestCase):
         )
         self.assertIn("/solmara-lab-transit-signer:", signer["with"]["tags"])
         for step in (provisioner, signer):
-            self.assertIn("org.opencontainers.image.revision=${{ github.sha }}", step["with"]["labels"])
+            self.assertIn(
+                "org.opencontainers.image.revision=${{ github.sha }}",
+                step["with"]["labels"],
+            )
             self.assertIn(
                 "org.opencontainers.image.source=https://github.com/registrystack/solmara-lab",
                 step["with"]["labels"],
@@ -263,11 +272,16 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertIn("steps.transit_signer.outputs.digest", signer_smoke)
         self.assertIn("--network none --read-only --entrypoint python", signer_smoke)
         self.assertIn("import cryptography", signer_smoke)
+        self.assertIn("--public-jwk /run/secrets/signing-public.jwk", signer_smoke)
+        self.assertIn("v1/transit/keys/solmara-evidence-cra", signer_smoke)
+        self.assertIn("cells/nia/bundle/public-keys", signer_smoke)
         self.assertIn('test "$status" -eq 1', signer_smoke)
         self.assertIn("hosted Transit signer could not start", signer_smoke)
 
         packages = next(
-            step for step in steps if step.get("name") == "Require pre-provisioned public Solmara packages"
+            step
+            for step in steps
+            if step.get("name") == "Require pre-provisioned public Solmara packages"
         )["run"]
         self.assertIn("solmara-lab-authority-provisioner", packages)
         self.assertIn("solmara-lab-transit-signer", packages)
