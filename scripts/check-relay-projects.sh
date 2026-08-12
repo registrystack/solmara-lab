@@ -21,6 +21,7 @@ run_relayctl() {
   database=$2
   stage=$3
   shift 3
+  report="$temporary_root/$authority-$stage.json"
   if ! docker run --rm \
     --platform linux/amd64 \
     --user "$(id -u):$(id -g)" \
@@ -28,8 +29,11 @@ run_relayctl() {
     --volume "$database:/var/lib/relay/source/$authority.sqlite:ro" \
     --workdir /workspace \
     "$REGISTRY_RELAYCTL_IMAGE" \
-    --json "$@" >/dev/null; then
+    --json "$@" >"$report"; then
     printf 'relay-check: %s %s failed\n' "$authority" "$stage" >&2
+    # relayctl diagnostics contain governed contract paths and error codes, not
+    # selectors or source values. Preserve them so CI failures are actionable.
+    cat "$report" >&2
     return 1
   fi
 }
