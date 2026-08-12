@@ -38,7 +38,7 @@ services:
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/sro/runtime.yaml, serve]
     volumes: [sro-evidence-runtime:/etc/registry-evidence/sro:ro, sro-evidence-secrets:/run/secrets/registry-evidence/sro:ro, sro-evidence-transit:/run/registry-evidence/sro:ro, sro-evidence-extracts:/var/lib/registry-evidence/sro/extracts:ro, sro-evidence-audit:/var/lib/registry-evidence/sro/audit]
-    networks: {runtime: {ipv4_address: 172.29.1.23}}
+    networks: {runtime: {ipv4_address: 172.29.3.23}}
     labels: {solmara.lab.host: sro-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   mosd-programme-evidence:
@@ -46,7 +46,7 @@ services:
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/mosd-programme/runtime.yaml, serve]
     volumes: [mosd-evidence-runtime:/etc/registry-evidence/mosd-programme:ro, mosd-evidence-secrets:/run/secrets/registry-evidence/mosd-programme:ro, mosd-evidence-transit:/run/registry-evidence/mosd-programme:ro, mosd-evidence-audit:/var/lib/registry-evidence/mosd-programme/audit]
-    networks: {runtime: {ipv4_address: 172.29.1.24}}
+    networks: {runtime: {ipv4_address: 172.29.3.24}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       mosd-relay: {condition: service_started}
@@ -70,4 +70,4 @@ volumes:
 networks:
   runtime:
     ipam:
-      config: [{subnet: 172.29.1.0/24}]
+      config: [{subnet: 172.29.3.0/24}]

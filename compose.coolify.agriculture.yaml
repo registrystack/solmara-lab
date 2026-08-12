@@ -38,7 +38,7 @@ services:
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/nagdi/runtime.yaml, serve]
     volumes: [nagdi-evidence-runtime:/etc/registry-evidence/nagdi:ro, nagdi-evidence-secrets:/run/secrets/registry-evidence/nagdi:ro, nagdi-evidence-transit:/run/registry-evidence/nagdi:ro, nagdi-evidence-audit:/var/lib/registry-evidence/nagdi/audit]
-    networks: {runtime: {ipv4_address: 172.29.1.26}}
+    networks: {runtime: {ipv4_address: 172.29.5.26}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       nagdi-relay: {condition: service_started}
@@ -57,4 +57,4 @@ volumes:
 networks:
   runtime:
     ipam:
-      config: [{subnet: 172.29.1.0/24}]
+      config: [{subnet: 172.29.5.0/24}]

@@ -46,7 +46,7 @@ services:
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/cra/runtime.yaml, serve]
     volumes: [cra-evidence-runtime:/etc/registry-evidence/cra:ro, cra-evidence-secrets:/run/secrets/registry-evidence/cra:ro, cra-evidence-transit:/run/registry-evidence/cra:ro, cra-evidence-extracts:/var/lib/registry-evidence/cra/extracts:ro, cra-evidence-audit:/var/lib/registry-evidence/cra/audit]
-    networks: {runtime: {ipv4_address: 172.29.1.21}}
+    networks: {runtime: {ipv4_address: 172.29.2.21}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       cra-relay: {condition: service_started}
@@ -57,7 +57,7 @@ services:
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/nia/runtime.yaml, serve]
     volumes: [nia-evidence-runtime:/etc/registry-evidence/nia:ro, nia-evidence-secrets:/run/secrets/registry-evidence/nia:ro, nia-evidence-transit:/run/registry-evidence/nia:ro, nia-evidence-extracts:/var/lib/registry-evidence/nia/extracts:ro, nia-evidence-audit:/var/lib/registry-evidence/nia/audit]
-    networks: {runtime: {ipv4_address: 172.29.1.22}}
+    networks: {runtime: {ipv4_address: 172.29.2.22}}
     labels: {solmara.lab.host: nia-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
 volumes:
@@ -82,4 +82,4 @@ volumes:
 networks:
   runtime:
     ipam:
-      config: [{subnet: 172.29.1.0/24}]
+      config: [{subnet: 172.29.2.0/24}]

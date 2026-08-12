@@ -38,7 +38,7 @@ services:
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/sipf/runtime.yaml, serve]
     volumes: [sipf-evidence-runtime:/etc/registry-evidence/sipf:ro, sipf-evidence-secrets:/run/secrets/registry-evidence/sipf:ro, sipf-evidence-transit:/run/registry-evidence/sipf:ro, sipf-evidence-audit:/var/lib/registry-evidence/sipf/audit]
-    networks: {runtime: {ipv4_address: 172.29.1.25}}
+    networks: {runtime: {ipv4_address: 172.29.4.25}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       sipf-relay: {condition: service_started}
@@ -57,4 +57,4 @@ volumes:
 networks:
   runtime:
     ipam:
-      config: [{subnet: 172.29.1.0/24}]
+      config: [{subnet: 172.29.4.0/24}]
