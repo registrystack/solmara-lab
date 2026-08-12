@@ -202,7 +202,7 @@ jobs:
           for _ in 1 2; do
             docker run --rm --platform linux/amd64 --network none --read-only --tmpfs /tmp \
               --user 0:0 --cap-drop ALL \
-              --cap-add CHOWN --cap-add DAC_READ_SEARCH --cap-add FOWNER \
+              --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
               --mount "type=bind,source=$state/runtime,target=/provisioned/runtime" \
               --mount "type=bind,source=$state/source,target=/provisioned/source" \
               "$image" provision \
@@ -230,7 +230,7 @@ jobs:
           set +e
           docker run --rm --platform linux/amd64 --network none --read-only --tmpfs /tmp \
             --user 0:0 --cap-drop ALL \
-            --cap-add CHOWN --cap-add DAC_READ_SEARCH --cap-add FOWNER \
+            --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
             --mount "type=bind,source=$state/runtime,target=/provisioned/runtime" \
             --mount "type=bind,source=$state/source,target=/provisioned/source" \
             "$image" provision \

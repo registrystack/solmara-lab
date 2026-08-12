@@ -34,7 +34,7 @@ class HostedProvisionerImageSmokeTests(unittest.TestCase):
             for index, argument in enumerate(command)
             if argument == "--cap-add"
         }
-        self.assertEqual(capabilities, {"CHOWN", "DAC_READ_SEARCH", "FOWNER"})
+        self.assertEqual(capabilities, {"CHOWN", "DAC_OVERRIDE", "FOWNER"})
         self.assertIn("none", command)
         self.assertIn("--read-only", command)
 

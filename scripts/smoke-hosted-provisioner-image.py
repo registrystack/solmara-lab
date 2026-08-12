@@ -61,7 +61,7 @@ def _run(
         "--cap-add",
         "CHOWN",
         "--cap-add",
-        "DAC_READ_SEARCH",
+        "DAC_OVERRIDE",
         "--cap-add",
         "FOWNER",
         "--tmpfs",

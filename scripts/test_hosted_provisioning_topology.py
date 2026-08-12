@@ -155,7 +155,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             self.assertTrue(service["read_only"])
             self.assertEqual(service["cap_drop"], ["ALL"])
             self.assertEqual(
-                set(service["cap_add"]), {"CHOWN", "DAC_READ_SEARCH", "FOWNER"}
+                set(service["cap_add"]), {"CHOWN", "DAC_OVERRIDE", "FOWNER"}
             )
             self.assertEqual(service["security_opt"], ["no-new-privileges:true"])
 

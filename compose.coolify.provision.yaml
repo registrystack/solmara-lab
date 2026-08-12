@@ -14,7 +14,7 @@ x-provisioner: &provisioner
   tmpfs: [/tmp]
   network_mode: none
   cap_drop: [ALL]
-  cap_add: [CHOWN, DAC_READ_SEARCH, FOWNER]
+  cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
   security_opt: [no-new-privileges:true]
 
 x-transit-init: &transit-init
