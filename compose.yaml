@@ -3,10 +3,7 @@ name: ${COMPOSE_PROJECT_NAME:-solmara-lab}
 x-relay: &relay
   image: ${REGISTRY_RELAY_IMAGE:?versions.env must name the digest-pinned Relay V2 image}
   platform: linux/amd64
-  # Relay validates that its bind-mounted runtime is owned by root or its
-  # effective UID. Match the generated workspace owner for this local-only
-  # topology; hosted runtimes use authority-provisioned volumes and UID 65532.
-  user: "${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}:${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}"
+  user: "65532:65532"
   restart: unless-stopped
   read_only: true
   cap_drop: [ALL]
@@ -152,6 +149,22 @@ x-relay-source-publisher: &relay-source-publisher
   tmpfs: [/tmp]
   restart: "no"
 
+# Native Linux preserves host ownership on bind mounts, while Relay accepts a
+# runtime only when every path component is owned by root or its effective UID.
+# Stage each authority's public runtime and sealed package into a dedicated
+# volume so the official image can keep its fixed unprivileged identity.
+x-relay-runtime-stager: &relay-runtime-stager
+  image: ${PYTHON_STATIC_IMAGE:?versions.env must pin the static server image}
+  entrypoint: ["python", "/app/local-relay-runtime-stager.py"]
+  user: "0:0"
+  read_only: true
+  cap_drop: [ALL]
+  cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+  security_opt: [no-new-privileges:true]
+  network_mode: none
+  tmpfs: [/tmp]
+  restart: "no"
+
 x-evidence-client-environment: &evidence-client-environment
   SOLMARA_MINT_URL: https://mint.solmara.registrystack.org
   SOLMARA_MINT_ASSERTION_AUDIENCE: https://mint.solmara.registrystack.org/token
@@ -232,6 +245,31 @@ services:
     command: ["ensure-seeded"]
     volumes: ["./scripts/local-relay-source-publisher.py:/app/local-relay-source-publisher.py:ro", "./generator/solmara_lab:/app/solmara_lab:ro", "./output/sqlite/relay/nagdi.sqlite:/seed/nagdi.sqlite:ro", "nagdi-relay-source:/var/lib/relay/source"]
 
+  cra-relay-runtime-stager:
+    <<: *relay-runtime-stager
+    command: ["--authority", "cra", "--source", "/source", "--destination", "/staged", "stage"]
+    volumes: ["./scripts/local-relay-runtime-stager.py:/app/local-relay-runtime-stager.py:ro", "./relays/cra/runtime.yaml:/source/runtime.yaml:ro", "./relays/cra/package:/source/package:ro", "cra-relay-runtime:/staged"]
+
+  nia-relay-runtime-stager:
+    <<: *relay-runtime-stager
+    command: ["--authority", "nia", "--source", "/source", "--destination", "/staged", "stage"]
+    volumes: ["./scripts/local-relay-runtime-stager.py:/app/local-relay-runtime-stager.py:ro", "./relays/nia/runtime.yaml:/source/runtime.yaml:ro", "./relays/nia/package:/source/package:ro", "nia-relay-runtime:/staged"]
+
+  mosd-relay-runtime-stager:
+    <<: *relay-runtime-stager
+    command: ["--authority", "mosd", "--source", "/source", "--destination", "/staged", "stage"]
+    volumes: ["./scripts/local-relay-runtime-stager.py:/app/local-relay-runtime-stager.py:ro", "./relays/mosd/runtime.yaml:/source/runtime.yaml:ro", "./relays/mosd/package:/source/package:ro", "mosd-relay-runtime:/staged"]
+
+  sipf-relay-runtime-stager:
+    <<: *relay-runtime-stager
+    command: ["--authority", "sipf", "--source", "/source", "--destination", "/staged", "stage"]
+    volumes: ["./scripts/local-relay-runtime-stager.py:/app/local-relay-runtime-stager.py:ro", "./relays/sipf/runtime.yaml:/source/runtime.yaml:ro", "./relays/sipf/package:/source/package:ro", "sipf-relay-runtime:/staged"]
+
+  nagdi-relay-runtime-stager:
+    <<: *relay-runtime-stager
+    command: ["--authority", "nagdi", "--source", "/source", "--destination", "/staged", "stage"]
+    volumes: ["./scripts/local-relay-runtime-stager.py:/app/local-relay-runtime-stager.py:ro", "./relays/nagdi/runtime.yaml:/source/runtime.yaml:ro", "./relays/nagdi/package:/source/package:ro", "nagdi-relay-runtime:/staged"]
+
   relay-audit-init:
     image: ${PYTHON_STATIC_IMAGE:?versions.env must pin the static server image}
     command:
@@ -242,14 +280,8 @@ services:
         import re
         import stat
 
-        uid_value = os.environ['SOLMARA_LOCAL_RUNTIME_UID']
-        gid_value = os.environ['SOLMARA_LOCAL_RUNTIME_GID']
-        if not uid_value.isascii() or not uid_value.isdecimal() or not gid_value.isascii() or not gid_value.isdecimal():
-            raise RuntimeError('runtime identity is invalid')
-        target_uid = int(uid_value)
-        target_gid = int(gid_value)
-        if target_uid == 0 or target_gid == 0 or target_uid > 4294967294 or target_gid > 4294967294:
-            raise RuntimeError('runtime identity is invalid')
+        target_uid = 65532
+        target_gid = 65532
         paths = ['/audit/cra', '/audit/nia', '/audit/mosd', '/audit/sipf', '/audit/nagdi']
         for path in paths:
             # Reclaim the directory long enough to validate existing metadata.
@@ -265,9 +297,6 @@ services:
                 os.chown(entry.path, target_uid, target_gid, follow_symlinks=False)
                 os.chmod(entry.path, 0o600, follow_symlinks=False)
             os.chown(path, target_uid, target_gid)
-    environment:
-      SOLMARA_LOCAL_RUNTIME_UID: ${SOLMARA_LOCAL_RUNTIME_UID:?run just gen-secrets}
-      SOLMARA_LOCAL_RUNTIME_GID: ${SOLMARA_LOCAL_RUNTIME_GID:?run just gen-secrets}
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
@@ -434,24 +463,24 @@ services:
     <<: *relay
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${CRA_RELAY_AUDIT_KEY:?run just gen-secrets}", SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt}
     command: ["serve", "--runtime", "/etc/relay/cra/runtime.yaml"]
-    volumes: ["./relays/cra/runtime.yaml:/etc/relay/cra/runtime.yaml:ro", "./relays/cra/package:/etc/relay/cra/package:ro", "cra-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "cra-relay-audit:/var/lib/relay/audit"]
-    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, cra-source-publisher: {condition: service_completed_successfully}}
+    volumes: ["cra-relay-runtime:/etc/relay/cra:ro", "cra-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "cra-relay-audit:/var/lib/relay/audit"]
+    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, cra-source-publisher: {condition: service_completed_successfully}, cra-relay-runtime-stager: {condition: service_completed_successfully}}
     ports: ["${SOLMARA_CRA_RELAY_PORT:-4311}:8080"]
 
   nia-relay:
     <<: *relay
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${NIA_RELAY_AUDIT_KEY:?run just gen-secrets}", SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt}
     command: ["serve", "--runtime", "/etc/relay/nia/runtime.yaml"]
-    volumes: ["./relays/nia/runtime.yaml:/etc/relay/nia/runtime.yaml:ro", "./relays/nia/package:/etc/relay/nia/package:ro", "nia-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nia-relay-audit:/var/lib/relay/audit"]
-    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, nia-source-publisher: {condition: service_completed_successfully}}
+    volumes: ["nia-relay-runtime:/etc/relay/nia:ro", "nia-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nia-relay-audit:/var/lib/relay/audit"]
+    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, nia-source-publisher: {condition: service_completed_successfully}, nia-relay-runtime-stager: {condition: service_completed_successfully}}
     ports: ["${SOLMARA_NIA_RELAY_PORT:-4312}:8080"]
 
   mosd-relay:
     <<: *relay
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${MOSD_RELAY_AUDIT_KEY:?run just gen-secrets}", SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt}
     command: ["serve", "--runtime", "/etc/relay/mosd/runtime.yaml"]
-    volumes: ["./relays/mosd/runtime.yaml:/etc/relay/mosd/runtime.yaml:ro", "./relays/mosd/package:/etc/relay/mosd/package:ro", "mosd-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "mosd-relay-audit:/var/lib/relay/audit"]
-    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, mosd-source-publisher: {condition: service_completed_successfully}}
+    volumes: ["mosd-relay-runtime:/etc/relay/mosd:ro", "mosd-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "mosd-relay-audit:/var/lib/relay/audit"]
+    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, mosd-source-publisher: {condition: service_completed_successfully}, mosd-relay-runtime-stager: {condition: service_completed_successfully}}
     ports: ["${SOLMARA_MOSD_RELAY_PORT:-4314}:8080"]
 
   sipf-relay:
@@ -461,8 +490,8 @@ services:
       SOLMARA_RELAY_CURSOR_KEY: ${SIPF_RELAY_CURSOR_KEY:?run just gen-secrets}
       SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt
     command: ["serve", "--runtime", "/etc/relay/sipf/runtime.yaml"]
-    volumes: ["./relays/sipf/runtime.yaml:/etc/relay/sipf/runtime.yaml:ro", "./relays/sipf/package:/etc/relay/sipf/package:ro", "sipf-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "sipf-relay-audit:/var/lib/relay/audit"]
-    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, sipf-source-publisher: {condition: service_completed_successfully}}
+    volumes: ["sipf-relay-runtime:/etc/relay/sipf:ro", "sipf-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "sipf-relay-audit:/var/lib/relay/audit"]
+    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, sipf-source-publisher: {condition: service_completed_successfully}, sipf-relay-runtime-stager: {condition: service_completed_successfully}}
     ports: ["${SOLMARA_SIPF_RELAY_PORT:-4315}:8080"]
 
   nagdi-relay:
@@ -472,8 +501,8 @@ services:
       SOLMARA_RELAY_CURSOR_KEY: ${NAGDI_RELAY_CURSOR_KEY:?run just gen-secrets}
       SSL_CERT_FILE: /etc/solmara-evidence/tls/ca.crt
     command: ["serve", "--runtime", "/etc/relay/nagdi/runtime.yaml"]
-    volumes: ["./relays/nagdi/runtime.yaml:/etc/relay/nagdi/runtime.yaml:ro", "./relays/nagdi/package:/etc/relay/nagdi/package:ro", "nagdi-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nagdi-relay-audit:/var/lib/relay/audit"]
-    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, nagdi-source-publisher: {condition: service_completed_successfully}}
+    volumes: ["nagdi-relay-runtime:/etc/relay/nagdi:ro", "nagdi-relay-source:/var/lib/relay/source:ro", "./config/evidence/local/tls/ca.crt:/etc/solmara-evidence/tls/ca.crt:ro", "nagdi-relay-audit:/var/lib/relay/audit"]
+    depends_on: {relay-audit-init: {condition: service_completed_successfully}, relay-issuer-readiness: {condition: service_completed_successfully}, nagdi-source-publisher: {condition: service_completed_successfully}, nagdi-relay-runtime-stager: {condition: service_completed_successfully}}
     ports: ["${SOLMARA_NAGDI_RELAY_PORT:-4316}:8080"]
 
   mint:
@@ -637,6 +666,11 @@ volumes:
   mosd-programme-evidence-runtime-secrets:
   sipf-evidence-runtime-secrets:
   nagdi-evidence-runtime-secrets:
+  cra-relay-runtime:
+  nia-relay-runtime:
+  mosd-relay-runtime:
+  sipf-relay-runtime:
+  nagdi-relay-runtime:
   cra-relay-source:
   nia-relay-source:
   mosd-relay-source:

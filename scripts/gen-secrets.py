@@ -9,7 +9,6 @@ import json
 import secrets
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 from typing import Callable
 
@@ -122,26 +121,9 @@ def create_environment_value(
     return factory()
 
 
-def local_runtime_identity() -> tuple[int, int]:
-    """Return the UID/GID that can trust a local Relay runtime bind."""
-
-    # Docker Desktop presents bind-mounted files as root-owned inside its Linux
-    # VM. Keep the upstream non-root image identity there. Native Linux
-    # preserves the checkout owner, which Relay must match to trust the file.
-    if sys.platform == "darwin":
-        return (65532, 65532)
-    runtime = ROOT / "relays" / "cra" / "runtime.yaml"
-    metadata = runtime.stat()
-    if metadata.st_uid == 0:
-        return (65532, 65532)
-    runtime_gid = metadata.st_gid if metadata.st_gid != 0 else 65532
-    return (metadata.st_uid, runtime_gid)
-
-
 def compose_environment_values(
     existing: dict[str, str], operator_values: dict[str, str]
 ) -> dict[str, str]:
-    runtime_uid, runtime_gid = local_runtime_identity()
     values = {
         key: create_environment_value(existing, key, raw_key)
         for key in RANDOM_ENV_KEYS
@@ -152,11 +134,6 @@ def compose_environment_values(
     values.update(
         {
             "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
-            # Relay validates the complete Unix ownership chain of its
-            # bind-mounted runtime. Match the local workspace owner on Linux;
-            # hosted deployments use provisioned volumes and the image UID.
-            "SOLMARA_LOCAL_RUNTIME_UID": str(runtime_uid),
-            "SOLMARA_LOCAL_RUNTIME_GID": str(runtime_gid),
             "PORTAL_AUTH_PROVIDER": "mock",
             "PORTAL_ESIGNET_CLIENT_ID": "solmara-portal",
             "PORTAL_ESIGNET_CLIENT_KEY_ID": "solmara-portal-key-1",
