@@ -56,9 +56,7 @@ class HostedTransitSignerTests(unittest.TestCase):
 
     def test_only_root_owned_sticky_writable_parent_is_confined(self) -> None:
         def directory(mode: int, uid: int = 0) -> os.stat_result:
-            return os.stat_result(
-                [stat.S_IFDIR | mode, 1, 0, 1, uid, 0, 0, 0, 0, 0]
-            )
+            return os.stat_result([stat.S_IFDIR | mode, 1, 0, 1, uid, 0, 0, 0, 0, 0])
 
         self.assertTrue(MODULE._directory_is_confined(directory(0o755)))
         self.assertTrue(MODULE._directory_is_confined(directory(0o1777)))
@@ -252,6 +250,9 @@ class HostedTransitSignerTests(unittest.TestCase):
         exact_socket.chmod(0o600)
 
         replacement = socket.socket(socket.AF_UNIX)
+        replacement_path = socket_directory / "replacement.sock"
+        replacement.bind(str(replacement_path))
+        replacement_path.chmod(0o600)
 
         original = MODULE._socket_identity
 
@@ -260,9 +261,7 @@ class HostedTransitSignerTests(unittest.TestCase):
             if replace_before_recheck.calls == 0:
                 replace_before_recheck.calls += 1
                 return identity
-            path.unlink()
-            replacement.bind(str(path))
-            path.chmod(0o600)
+            os.replace(replacement_path, path)
             return original(path)
 
         replace_before_recheck.calls = 0
