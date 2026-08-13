@@ -208,7 +208,6 @@ jobs:
               "$image" provision \
               --target cra-relay \
               --assets /opt/solmara-hosted-assets \
-              --secrets /run/secrets/solmara-provisioning \
               --runtime-output /provisioned/runtime \
               --source-output /provisioned/source \
               --mint-origin https://mint-authority-cells.solmara.registrystack.org
@@ -240,7 +239,6 @@ jobs:
             "$image" provision \
             --target cra-relay \
             --assets /opt/solmara-hosted-assets \
-            --secrets /run/secrets/solmara-provisioning \
             --runtime-output /provisioned/runtime \
             --source-output /provisioned/source \
             --mint-origin https://mint-authority-cells.solmara.registrystack.org \

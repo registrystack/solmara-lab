@@ -310,6 +310,7 @@ class HostedImageManifestTests(unittest.TestCase):
         )["run"]
         self.assertIn("steps.authority_provisioner.outputs.digest", provisioner_smoke)
         self.assertIn("--network none --read-only", provisioner_smoke)
+        self.assertNotIn("--secrets", provisioner_smoke)
         self.assertIn('test "$status" -eq 1', provisioner_smoke)
         self.assertIn("hosted target provisioning failed", provisioner_smoke)
         self.assertNotIn('chmod u+w "$state/runtime/runtime.yaml"', provisioner_smoke)
