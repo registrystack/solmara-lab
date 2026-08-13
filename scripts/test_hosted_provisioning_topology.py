@@ -393,6 +393,10 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertTrue(readiness["read_only"])
         self.assertNotIn("secrets", readiness)
         self.assertIn("172.29.1.20:8081/health", readiness["command"][0])
+        self.assertEqual(
+            core["scenario-runner"]["depends_on"],
+            {"mint-readiness": {"condition": "service_completed_successfully"}},
+        )
 
 
 if __name__ == "__main__":

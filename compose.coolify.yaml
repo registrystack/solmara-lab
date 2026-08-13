@@ -70,6 +70,8 @@ services:
     secrets:
       - source: solmara-demo-client-key
         target: solmara-evidence-client.jwk
+    depends_on:
+      mint-readiness: {condition: service_completed_successfully}
     labels: {solmara.lab.host: "${SOLMARA_SCENARIO_RUNNER_PUBLIC_HOST:-scenarios.solmara.registrystack.org}"}
   child-benefit-federator:
     image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set a digest-pinned Solmara scenario runner image}
