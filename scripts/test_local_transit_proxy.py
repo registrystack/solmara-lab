@@ -133,6 +133,7 @@ class LocalTransitProxyTests(unittest.TestCase):
 
     def test_metadata_and_prehashed_signature_match_the_transit_contract(self) -> None:
         self.start()
+        self.assertTrue(self.key_path.exists())
         status, _, body = self.request("GET", "/v1/transit/keys/solmara-test-key")
         self.assertEqual(status, 200)
         data = json.loads(body)["data"]
@@ -172,14 +173,61 @@ class LocalTransitProxyTests(unittest.TestCase):
             ec.ECDSA(utils.Prehashed(hashes.SHA256())),
         )
 
+    def test_opt_in_consumes_the_hosted_staged_key_and_private_directory(self) -> None:
+        with tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="solmara-transit-"
+        ) as staged_name:
+            staged_directory = Path(staged_name)
+            staged_directory.chmod(0o700)
+            staged_key = staged_directory / "signing.jwk"
+            staged_key.write_text(
+                json.dumps(self.jwk, separators=(",", ":"), sort_keys=True),
+                encoding="utf-8",
+            )
+            staged_key.chmod(0o600)
+
+            application = MODULE.TransitApplication(
+                staged_key,
+                "solmara-test-key",
+                consume_private_jwk=True,
+            )
+
+            self.assertFalse(staged_key.exists())
+            self.assertFalse(staged_directory.exists())
+            self.assertEqual(
+                application.metadata_path,
+                "/v1/transit/keys/solmara-test-key",
+            )
+
+    def test_opt_in_refuses_nonstaged_or_invalid_keys_without_unlinking(self) -> None:
+        with self.assertRaisesRegex(MODULE.ProxyError, "invalid key"):
+            MODULE.TransitApplication(
+                self.key_path,
+                "solmara-test-key",
+                consume_private_jwk=True,
+            )
+        self.assertTrue(self.key_path.exists())
+
+        with tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="solmara-transit-"
+        ) as staged_name:
+            staged_key = Path(staged_name) / "signing.jwk"
+            staged_key.write_text("{}", encoding="utf-8")
+            staged_key.chmod(0o600)
+            with self.assertRaisesRegex(MODULE.ProxyError, "invalid key"):
+                MODULE.TransitApplication(
+                    staged_key,
+                    "solmara-test-key",
+                    consume_private_jwk=True,
+                )
+            self.assertTrue(staged_key.exists())
+
     def test_wrong_path_header_and_key_are_generically_refused(self) -> None:
         self.start()
         cases = [
             self.request("GET", "/v1/transit/keys/another-key"),
             self.request("GET", "/v1/other/keys/solmara-test-key"),
-            self.request(
-                "GET", "/v1/transit/keys/solmara-test-key", vault_header=None
-            ),
+            self.request("GET", "/v1/transit/keys/solmara-test-key", vault_header=None),
             self.request(
                 "GET", "/v1/transit/keys/solmara-test-key", vault_header="false"
             ),
@@ -206,7 +254,9 @@ class LocalTransitProxyTests(unittest.TestCase):
                 )
                 self.assertEqual(status, 400)
                 self.assertEqual(response, MODULE.ERROR_DOCUMENT)
-        status, _, response = self.request("POST", path, body=self.sign_body(b"payload"))
+        status, _, response = self.request(
+            "POST", path, body=self.sign_body(b"payload")
+        )
         self.assertEqual((status, response), (400, MODULE.ERROR_DOCUMENT))
 
     def test_request_and_header_bounds_fail_closed(self) -> None:

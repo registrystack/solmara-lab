@@ -169,13 +169,25 @@ def _hmac_secret(root: Path, name: str) -> bytes:
 
 def _validate_secret_inventory(root: Path, expected: set[str]) -> None:
     try:
-        if root.is_symlink() or not root.is_dir():
+        root_metadata = root.lstat()
+        if (
+            not stat.S_ISDIR(root_metadata.st_mode)
+            or stat.S_IMODE(root_metadata.st_mode) != 0o700
+            or root_metadata.st_uid != os.geteuid()
+            or root_metadata.st_gid != os.getegid()
+        ):
             raise ProvisionError("invalid secret inventory")
         observed: set[str] = set()
         with os.scandir(root) as entries:
             for entry in entries:
                 metadata = entry.stat(follow_symlinks=False)
-                if not stat.S_ISREG(metadata.st_mode) or entry.name not in expected:
+                if (
+                    not stat.S_ISREG(metadata.st_mode)
+                    or stat.S_IMODE(metadata.st_mode) != 0o400
+                    or metadata.st_uid != os.geteuid()
+                    or metadata.st_gid != os.getegid()
+                    or entry.name not in expected
+                ):
                     raise ProvisionError("invalid secret inventory")
                 observed.add(entry.name)
         if observed != expected:
@@ -186,6 +198,109 @@ def _validate_secret_inventory(root: Path, expected: set[str]) -> None:
         raise
     except OSError:
         raise ProvisionError("invalid secret inventory") from None
+
+
+def _confine_secret_inventory(root: Path) -> None:
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(
+            root,
+            os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+        )
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or stat.S_IMODE(metadata.st_mode) != 0o755
+            or metadata.st_uid != os.geteuid()
+            or metadata.st_gid != os.getegid()
+        ):
+            raise ProvisionError("invalid secret inventory")
+        os.fchmod(descriptor, 0o700)
+    except ProvisionError:
+        raise
+    except OSError:
+        raise ProvisionError("invalid secret inventory") from None
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                raise ProvisionError("invalid secret inventory") from None
+
+
+def _provision_secret_inventory(target: str) -> set[str] | None:
+    if target.endswith("-relay") and target.removesuffix("-relay") in RELAYS:
+        return None
+    if target == "mint":
+        return {
+            "signing-public.jwk",
+            "audit-hmac-key",
+            "solmara-demo-client-public.jwk",
+            *(f"{client}-public.jwk" for client in MINT_CLIENTS),
+        }
+    if target.endswith("-evidence"):
+        cell = target.removesuffix("-evidence")
+        if cell in CELLS:
+            return {
+                "signing-public.jwk",
+                "audit-hmac-key",
+                "subject-binding-hmac-key",
+                *(f"{client}-client-key" for client in CELL_CLIENTS[cell]),
+            }
+    raise ProvisionError("invalid target")
+
+
+def _consume_secret_inventory(root: Path, expected: set[str]) -> None:
+    """Remove only the closed injected input inventory, never output material."""
+    descriptor: int | None = None
+    valid = True
+    observed: set[str] = set()
+    try:
+        descriptor = os.open(
+            root,
+            os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+        )
+        root_metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISDIR(root_metadata.st_mode)
+            or stat.S_IMODE(root_metadata.st_mode) != 0o700
+            or root_metadata.st_uid != os.geteuid()
+            or root_metadata.st_gid != os.getegid()
+        ):
+            valid = False
+        observed = set(os.listdir(descriptor))
+        if observed != expected:
+            valid = False
+        for name in sorted(observed & expected):
+            try:
+                metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+                if (
+                    not stat.S_ISREG(metadata.st_mode)
+                    or stat.S_IMODE(metadata.st_mode) != 0o400
+                    or metadata.st_uid != os.geteuid()
+                    or metadata.st_gid != os.getegid()
+                ):
+                    valid = False
+                os.unlink(name, dir_fd=descriptor)
+            except OSError:
+                valid = False
+        if observed - expected:
+            valid = False
+    except OSError:
+        valid = False
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                valid = False
+    if not observed - expected:
+        try:
+            root.rmdir()
+        except OSError:
+            valid = False
+    if not valid:
+        raise ProvisionError("secret cleanup failed")
 
 
 def _b64decode(value: str) -> bytes:
@@ -843,7 +958,7 @@ def _stage_mint(
             directory.chmod(0o700)
 
 
-def provision(args: argparse.Namespace) -> None:
+def _provision_target(args: argparse.Namespace) -> None:
     assets, target = args.assets.resolve(), args.target
     verify_assets(assets)
     mint_origin = _validated_origin(args.mint_origin, MINT_ORIGIN)
@@ -880,16 +995,13 @@ def provision(args: argparse.Namespace) -> None:
                 raise ProvisionError("invalid target")
             if args.bind_host != EXPECTED_BIND_HOST["mint"]:
                 raise ProvisionError("invalid bind host")
-            mint_secrets = {
-                "signing-public.jwk",
-                "audit-hmac-key",
-                "solmara-demo-client-public.jwk",
-                *(f"{client}-public.jwk" for client in MINT_CLIENTS),
-            }
-            _validate_secret_inventory(args.secrets.resolve(), mint_secrets)
+            mint_secrets = _provision_secret_inventory(target)
+            if mint_secrets is None:
+                raise ProvisionError("invalid target")
+            _validate_secret_inventory(args.secrets.absolute(), mint_secrets)
             _stage_mint(
                 assets,
-                args.secrets.resolve(),
+                args.secrets.absolute(),
                 runtime,
                 secret_output,
                 args.bind_host,
@@ -924,13 +1036,10 @@ def provision(args: argparse.Namespace) -> None:
             )
             if args.bind_host != EXPECTED_BIND_HOST[cell]:
                 raise ProvisionError("invalid bind host")
-            cell_secrets = {
-                "signing-public.jwk",
-                "audit-hmac-key",
-                "subject-binding-hmac-key",
-                *(f"{client}-client-key" for client in CELL_CLIENTS[cell]),
-            }
-            _validate_secret_inventory(args.secrets.resolve(), cell_secrets)
+            cell_secrets = _provision_secret_inventory(target)
+            if cell_secrets is None:
+                raise ProvisionError("invalid target")
+            _validate_secret_inventory(args.secrets.absolute(), cell_secrets)
             published_at = (
                 _publication_time(
                     assets,
@@ -945,7 +1054,7 @@ def provision(args: argparse.Namespace) -> None:
             _stage_evidence(
                 assets,
                 cell,
-                args.secrets.resolve(),
+                args.secrets.absolute(),
                 runtime,
                 secret_output,
                 extracts if cell in DIRECT else None,
@@ -985,6 +1094,23 @@ def provision(args: argparse.Namespace) -> None:
         )
 
 
+def provision(args: argparse.Namespace) -> None:
+    expected = _provision_secret_inventory(args.target)
+    if expected is None:
+        if args.secrets is not None:
+            raise ProvisionError("invalid target")
+        _provision_target(args)
+        return
+    if args.secrets is None:
+        raise ProvisionError("invalid target")
+    secret_root = args.secrets.absolute()
+    try:
+        _confine_secret_inventory(secret_root)
+        _provision_target(args)
+    finally:
+        _consume_secret_inventory(secret_root, expected)
+
+
 def init_audit(destinations: list[Path], uid: int, gid: int) -> None:
     if not destinations or uid != 65532 or gid != 65532:
         raise ProvisionError("invalid audit target")
@@ -1003,7 +1129,7 @@ def parser() -> argparse.ArgumentParser:
     ready = sub.add_parser("provision", add_help=False)
     ready.add_argument("--target", required=True)
     ready.add_argument("--assets", required=True, type=Path)
-    ready.add_argument("--secrets", required=True, type=Path)
+    ready.add_argument("--secrets", type=Path)
     ready.add_argument("--runtime-output", required=True, type=Path)
     ready.add_argument("--source-output", type=Path)
     ready.add_argument("--secret-output", type=Path)
@@ -1020,6 +1146,7 @@ def parser() -> argparse.ArgumentParser:
     audit.add_argument("--destination", action="append", required=True, type=Path)
     audit.add_argument("--uid", required=True, type=int)
     audit.add_argument("--gid", required=True, type=int)
+    sub.add_parser("ready", add_help=False)
     return result
 
 
@@ -1031,7 +1158,7 @@ def main(argv: list[str] | None = None) -> int:
             provision(args)
         elif args.command == "publish-extract":
             publish_extract(args)
-        else:
+        elif args.command == "init-audit":
             init_audit(args.destination, args.uid, args.gid)
     except Exception:  # noqa: BLE001 - the command boundary is deliberately value-free.
         print(GENERIC_ERROR, file=sys.stderr)

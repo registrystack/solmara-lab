@@ -20,11 +20,25 @@ RUNTIME_COMPOSES = (
 )
 PROVIDERS = ("mint", "cra", "nia", "sro", "mosd", "sipf", "nagdi")
 RELAYS = ("cra", "nia", "mosd", "sipf", "nagdi")
+EVIDENCE_CLIENTS = {
+    "cra": {"cra-pension-evidence", "cra-citizen-evidence"},
+    "nia": set(),
+    "sro": set(),
+    "mosd": {"mosd-child-benefit-evidence"},
+    "sipf": {"sipf-pension-evidence", "sipf-survivor-evidence"},
+    "nagdi": {"nagdi-voucher-evidence", "nagdi-livestock-evidence"},
+}
+MINT_CLIENTS = {
+    *(client for clients in EVIDENCE_CLIENTS.values() for client in clients),
+    "nia-esignet",
+}
+TARGET_PROVISIONERS = {
+    *(f"{authority}-relay-provisioner" for authority in RELAYS),
+    *(f"{provider}-evidence-provisioner" for provider in PROVIDERS[1:]),
+    "mint-provisioner",
+}
 INTERPOLATION = re.compile(r"^\$\{([A-Z][A-Z0-9_]*):\?[^}]+\}$")
-FIXTURE_IMAGE = (
-    "ghcr.io/registrystack/solmara-test@sha256:"
-    + "a" * 64
-)
+FIXTURE_IMAGE = "ghcr.io/registrystack/solmara-test@sha256:" + "a" * 64
 FIXTURE_PRIVATE_JWK_MEMBERS = {
     "kty": "EC",
     "crv": "P-384",
@@ -93,8 +107,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
 
     def test_provisioning_application_contains_only_target_provisioners(self) -> None:
         services = self.provision["services"]
-        self.assertEqual(len(services), 12)
-        self.assertTrue(all(name.endswith("-provisioner") for name in services))
+        self.assertEqual(set(services), {*TARGET_PROVISIONERS, "provisioning-ready"})
         self.assertNotIn("SOLMARA_TRANSIT_SIGNER_IMAGE", PROVISION.read_text())
         self.assertNotIn("--private-jwk", PROVISION.read_text())
         private_signing_secrets = {
@@ -147,17 +160,20 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             signer = services[f"{provider}-signer"]
             secrets = {item["target"]: item["source"] for item in signer["secrets"]}
             self.assertEqual(len(secrets), 2)
-            self.assertEqual(secrets["signing.jwk"], f"{prefix}-signing-jwk")
             self.assertEqual(
-                secrets["signing-public.jwk"], f"{prefix}-signing-public-jwk"
+                secrets["/tmp/solmara-signing.jwk"], f"{prefix}-signing-jwk"
+            )
+            self.assertEqual(
+                secrets["/tmp/solmara-signing-public.jwk"],
+                f"{prefix}-signing-public-jwk",
             )
             self.assertEqual(
                 signer["command"][0:4],
                 [
                     "--private-jwk",
-                    "/run/secrets/signing.jwk",
+                    "/tmp/solmara-signing.jwk",
                     "--public-jwk",
-                    "/run/secrets/signing-public.jwk",
+                    "/tmp/solmara-signing-public.jwk",
                 ],
             )
 
@@ -175,8 +191,10 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             "nia-esignet",
         )
         for client in clients:
-            self.assertIn(f"solmara-provisioning/{client}-public.jwk", targets)
-        self.assertIn("solmara-provisioning/solmara-demo-client-public.jwk", targets)
+            self.assertIn(f"/tmp/solmara-provisioning/{client}-public.jwk", targets)
+        self.assertIn(
+            "/tmp/solmara-provisioning/solmara-demo-client-public.jwk", targets
+        )
 
     def test_each_evidence_provisioner_receives_only_its_public_signing_key(
         self,
@@ -195,10 +213,50 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 (provider, sources),
             )
 
+    def test_provisioner_secret_inventory_is_exact(self) -> None:
+        consumed_sources: set[str] = set()
+        for provider in PROVIDERS[1:]:
+            service = self.provision["services"][f"{provider}-evidence-provisioner"]
+            targets = {
+                Path(item["target"]).name: item["source"] for item in service["secrets"]
+            }
+            expected = {
+                "signing-public.jwk": f"{provider}-evidence-signing-public-jwk",
+                "audit-hmac-key": f"{provider}-evidence-audit-hmac-key",
+                "subject-binding-hmac-key": (
+                    f"{provider}-evidence-subject-binding-hmac-key"
+                ),
+                **{
+                    f"{client}-client-key": f"{client}-client-key"
+                    for client in EVIDENCE_CLIENTS[provider]
+                },
+            }
+            self.assertEqual(targets, expected)
+            consumed_sources.update(targets.values())
+
+        mint = self.provision["services"]["mint-provisioner"]
+        mint_targets = {
+            Path(item["target"]).name: item["source"] for item in mint["secrets"]
+        }
+        expected_mint = {
+            "signing-public.jwk": "mint-signing-public-jwk",
+            "audit-hmac-key": "mint-audit-hmac-key",
+            "solmara-demo-client-public.jwk": "solmara-demo-client-public-jwk",
+            **{
+                f"{client}-public.jwk": f"{client}-client-public-jwk"
+                for client in MINT_CLIENTS
+            },
+        }
+        self.assertEqual(mint_targets, expected_mint)
+        consumed_sources.update(mint_targets.values())
+        self.assertEqual(set(self.provision["secrets"]), consumed_sources)
+
     def test_relay_provisioners_receive_no_secret(self) -> None:
         services = self.provision["services"]
         for authority in RELAYS:
-            self.assertNotIn("secrets", services[f"{authority}-relay-provisioner"])
+            relay = services[f"{authority}-relay-provisioner"]
+            self.assertNotIn("secrets", relay)
+            self.assertNotIn("--secrets", relay["command"])
 
     def test_provisioners_only_elevate_for_authority_volume_initialization(
         self,
@@ -215,10 +273,40 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             self.assertEqual(service["security_opt"], ["no-new-privileges:true"])
             if service.get("secrets"):
                 self.assertFalse(service["read_only"])
-                self.assertEqual(set(service["tmpfs"]), {"/tmp", "/run/secrets"})
+                self.assertEqual(service["tmpfs"], [])
+                self.assertEqual(
+                    service["command"][service["command"].index("--secrets") + 1],
+                    "/tmp/solmara-provisioning",
+                )
+                for secret in service["secrets"]:
+                    self.assertTrue(
+                        secret["target"].startswith("/tmp/solmara-provisioning/")
+                    )
+                    self.assertEqual(secret["uid"], "0")
+                    self.assertEqual(secret["gid"], "0")
+                    self.assertEqual(secret["mode"], 0o400)
             else:
                 self.assertTrue(service["read_only"])
                 self.assertEqual(service["tmpfs"], ["/tmp"])
+
+    def test_provisioning_readiness_requires_all_targets_to_complete(self) -> None:
+        readiness = self.provision["services"]["provisioning-ready"]
+        self.assertEqual(
+            readiness["depends_on"],
+            {
+                target: {"condition": "service_completed_successfully"}
+                for target in TARGET_PROVISIONERS
+            },
+        )
+        self.assertEqual(readiness["command"], ["ready"])
+        self.assertEqual(readiness["user"], "65532:65532")
+        self.assertEqual(readiness["network_mode"], "none")
+        self.assertTrue(readiness["read_only"])
+        self.assertEqual(readiness["tmpfs"], ["/tmp"])
+        self.assertEqual(readiness["cap_drop"], ["ALL"])
+        self.assertNotIn("cap_add", readiness)
+        self.assertNotIn("secrets", readiness)
+        self.assertNotIn("volumes", readiness)
 
     def test_provisioners_receive_closed_permanent_dependency_origins(self) -> None:
         services = self.provision["services"]
@@ -283,7 +371,8 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertEqual(set(self.signers["volumes"]), expected_volumes)
         self.assertTrue(
             all(
-                value == {
+                value
+                == {
                     "external": True,
                     "name": f"solmara-authority-cells-{key}",
                 }
@@ -330,15 +419,13 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             self.assertTrue(initializer["read_only"])
             self.assertEqual(initializer["cap_drop"], ["ALL"])
             self.assertEqual(set(initializer["cap_add"]), {"CHOWN", "FOWNER"})
-            self.assertEqual(
-                initializer["security_opt"], ["no-new-privileges:true"]
-            )
+            self.assertEqual(initializer["security_opt"], ["no-new-privileges:true"])
 
             signer = services[f"{provider}-signer"]
             self.assertEqual(signer["user"], "65532:65532")
             self.assertEqual(signer["network_mode"], "none")
             self.assertFalse(signer["read_only"])
-            self.assertEqual(set(signer["tmpfs"]), {"/tmp", "/run/secrets"})
+            self.assertNotIn("tmpfs", signer)
             self.assertEqual(signer["cap_drop"], ["ALL"])
             self.assertNotIn("cap_add", signer)
             self.assertEqual(signer["security_opt"], ["no-new-privileges:true"])

@@ -54,6 +54,20 @@ class HostedTransitSignerTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(staged.parent.stat().st_mode), 0o700)
         self.assertEqual(staged.stat().st_uid, os.geteuid())
 
+    def test_consumed_secret_is_unlinked_only_when_its_digest_still_matches(
+        self,
+    ) -> None:
+        digest = hashlib.sha256(self.canary).digest()
+        MODULE._consume_secret(self.secret, digest)
+        self.assertFalse(self.secret.exists())
+
+        replacement = self.secret_directory / "replacement.jwk"
+        replacement.write_bytes(self.canary)
+        replacement.chmod(0o400)
+        with self.assertRaisesRegex(MODULE.SignerError, "invalid secret"):
+            MODULE._consume_secret(replacement, hashlib.sha256(b"other").digest())
+        self.assertTrue(replacement.exists())
+
     def test_only_root_owned_sticky_writable_parent_is_confined(self) -> None:
         def directory(mode: int, uid: int = 0) -> os.stat_result:
             return os.stat_result([stat.S_IFDIR | mode, 1, 0, 1, uid, 0, 0, 0, 0, 0])
@@ -286,6 +300,8 @@ class HostedTransitSignerTests(unittest.TestCase):
         proxy.chmod(0o500)
         key_name = "solmara-evidence-cra"
         stage_secret = MODULE._stage_secret
+        private_digest = hashlib.sha256(self.canary).digest()
+        public_digest = hashlib.sha256(b"{}").digest()
 
         with (
             mock.patch.object(MODULE, "SECRET_PATH", self.secret),
@@ -295,9 +311,15 @@ class HostedTransitSignerTests(unittest.TestCase):
             mock.patch.object(
                 MODULE,
                 "_stage_secret",
-                side_effect=lambda source: stage_secret(source, self.staging),
+                side_effect=lambda source, **kwargs: stage_secret(
+                    source, self.staging, **kwargs
+                ),
             ),
-            mock.patch.object(MODULE, "_verify_public_match"),
+            mock.patch.object(
+                MODULE,
+                "_verify_public_match",
+                return_value=(private_digest, public_digest),
+            ),
             mock.patch.object(
                 MODULE.os, "execve", side_effect=RuntimeError("exec captured")
             ) as execute,
@@ -314,10 +336,56 @@ class HostedTransitSignerTests(unittest.TestCase):
         staged = Path(arguments[3])
         self.assertNotEqual(staged, self.secret)
         self.assertEqual(staged.read_bytes(), self.canary)
+        self.assertIn("--consume-private-jwk", arguments)
+        self.assertFalse(self.secret.exists())
+        self.assertFalse(self.public.exists())
         self.assertNotIn(self.canary.decode("ascii"), repr(execute.call_args))
         self.assertEqual(
             set(environment), {"LANG", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED"}
         )
+
+    def test_failed_exec_removes_the_private_staging_file_and_directory(self) -> None:
+        socket_directory = self.socket_root / "transit"
+        socket_directory.mkdir(mode=0o700)
+        socket_path = socket_directory / "transit-proxy.sock"
+        proxy = self.root / "local-transit-proxy.py"
+        proxy.write_text("# fixed proxy\n", encoding="ascii")
+        proxy.chmod(0o500)
+        private_digest = hashlib.sha256(self.canary).digest()
+        public_digest = hashlib.sha256(b"{}").digest()
+        stage_secret = MODULE._stage_secret
+
+        with (
+            mock.patch.object(MODULE, "SECRET_PATH", self.secret),
+            mock.patch.object(MODULE, "PUBLIC_PATH", self.public),
+            mock.patch.object(MODULE, "SOCKET_PATH", socket_path),
+            mock.patch.object(MODULE, "STAGING_ROOT", self.staging),
+            mock.patch.object(
+                MODULE,
+                "_stage_secret",
+                side_effect=lambda source, **kwargs: stage_secret(
+                    source, self.staging, **kwargs
+                ),
+            ),
+            mock.patch.object(
+                MODULE,
+                "_verify_public_match",
+                return_value=(private_digest, public_digest),
+            ),
+            mock.patch.object(MODULE.os, "execve", side_effect=OSError("refused")),
+            self.assertRaises(OSError),
+        ):
+            MODULE.exec_signer(
+                self.secret,
+                self.public,
+                socket_path,
+                "solmara-evidence-cra",
+                proxy,
+            )
+
+        self.assertEqual(list(self.staging.iterdir()), [])
+        self.assertFalse(self.secret.exists())
+        self.assertFalse(self.public.exists())
 
     def test_unlisted_key_and_noncanonical_secret_fail_before_staging(self) -> None:
         with mock.patch.object(MODULE, "_stage_secret") as stage:

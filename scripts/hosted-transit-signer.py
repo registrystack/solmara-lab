@@ -18,8 +18,8 @@ from pathlib import Path
 from cryptography.hazmat.primitives.asymmetric import ec
 
 MAX_SECRET_BYTES = 16 * 1024
-SECRET_PATH = Path("/run/secrets/signing.jwk")
-PUBLIC_PATH = Path("/run/secrets/signing-public.jwk")
+SECRET_PATH = Path("/tmp/solmara-signing.jwk")
+PUBLIC_PATH = Path("/tmp/solmara-signing-public.jwk")
 SOCKET_PATH = Path("/transit/transit-proxy.sock")
 STAGING_ROOT = Path("/tmp")
 ALLOWED_KEY_NAMES = frozenset(
@@ -79,65 +79,97 @@ def _directory_is_confined(metadata: os.stat_result) -> bool:
     return metadata.st_uid == 0 and metadata.st_mode & stat.S_ISVTX != 0
 
 
-def _open_confined_secret(path: Path) -> int:
-    """Open an absolute secret without following any path component."""
-
-    if not path.is_absolute() or path.name in {"", ".", ".."}:
+def _open_confined_directory(path: Path) -> int:
+    if not path.is_absolute():
         raise SignerError("invalid secret")
     components = path.parts[1:]
-    if not components or any(component in {"", ".", ".."} for component in components):
+    if any(component in {"", ".", ".."} for component in components):
         raise SignerError("invalid secret")
-
     directory = os.open("/", _directory_flags())
     try:
-        for component in components[:-1]:
+        root_metadata = os.fstat(directory)
+        if not _directory_is_confined(root_metadata):
+            raise SignerError("invalid secret")
+        for component in components:
             next_directory = os.open(component, _directory_flags(), dir_fd=directory)
             os.close(directory)
             directory = next_directory
             metadata = os.fstat(directory)
             if not _directory_is_confined(metadata):
                 raise SignerError("invalid secret")
-        return os.open(components[-1], _file_flags(), dir_fd=directory)
+        return directory
+    except OSError as error:
+        os.close(directory)
+        raise SignerError("invalid secret") from error
+    except SignerError:
+        os.close(directory)
+        raise
+
+
+def _open_confined_secret(path: Path) -> int:
+    """Open an absolute secret without following any path component."""
+
+    if not path.is_absolute() or path.name in {"", ".", ".."}:
+        raise SignerError("invalid secret")
+    directory = _open_confined_directory(path.parent)
+    try:
+        return os.open(path.name, _file_flags(), dir_fd=directory)
     except OSError as error:
         raise SignerError("invalid secret") from error
     finally:
         os.close(directory)
 
 
+def _secret_metadata_is_confined(metadata: os.stat_result) -> bool:
+    return (
+        stat.S_ISREG(metadata.st_mode)
+        and metadata.st_uid in {0, os.geteuid()}
+        and metadata.st_mode & 0o022 == 0
+        and metadata.st_nlink == 1
+        and 0 < metadata.st_size <= MAX_SECRET_BYTES
+    )
+
+
+def _read_secret_descriptor(descriptor: int) -> tuple[bytearray, os.stat_result]:
+    before = os.fstat(descriptor)
+    if not _secret_metadata_is_confined(before):
+        raise SignerError("invalid secret")
+
+    value = bytearray()
+    while len(value) <= MAX_SECRET_BYTES:
+        chunk = os.read(descriptor, min(4096, MAX_SECRET_BYTES + 1 - len(value)))
+        if not chunk:
+            break
+        value.extend(chunk)
+    after = os.fstat(descriptor)
+    if (
+        len(value) > MAX_SECRET_BYTES
+        or len(value) != before.st_size
+        or (
+            before.st_dev,
+            before.st_ino,
+            before.st_uid,
+            before.st_mode,
+            before.st_size,
+            before.st_nlink,
+        )
+        != (
+            after.st_dev,
+            after.st_ino,
+            after.st_uid,
+            after.st_mode,
+            after.st_size,
+            after.st_nlink,
+        )
+    ):
+        raise SignerError("invalid secret")
+    return value, before
+
+
 def _read_secret(path: Path) -> bytearray:
     descriptor = _open_confined_secret(path)
     try:
-        before = os.fstat(descriptor)
-        if (
-            not stat.S_ISREG(before.st_mode)
-            or before.st_uid not in {0, os.geteuid()}
-            or before.st_mode & 0o022
-            or before.st_nlink != 1
-            or before.st_size <= 0
-            or before.st_size > MAX_SECRET_BYTES
-        ):
-            raise SignerError("invalid secret")
-
-        value = bytearray()
-        while len(value) <= MAX_SECRET_BYTES:
-            chunk = os.read(descriptor, min(4096, MAX_SECRET_BYTES + 1 - len(value)))
-            if not chunk:
-                break
-            value.extend(chunk)
-        after = os.fstat(descriptor)
-        if (
-            len(value) > MAX_SECRET_BYTES
-            or len(value) != before.st_size
-            or (
-                before.st_dev,
-                before.st_ino,
-                before.st_uid,
-                before.st_mode,
-                before.st_size,
-            )
-            != (after.st_dev, after.st_ino, after.st_uid, after.st_mode, after.st_size)
-        ):
-            raise SignerError("invalid secret")
+        value, _ = _read_secret_descriptor(descriptor)
         return value
     except OSError as error:
         raise SignerError("invalid secret") from error
@@ -145,9 +177,19 @@ def _read_secret(path: Path) -> bytearray:
         os.close(descriptor)
 
 
-def _stage_secret(source: Path, staging_root: Path = STAGING_ROOT) -> Path:
+def _stage_secret(
+    source: Path,
+    staging_root: Path = STAGING_ROOT,
+    *,
+    expected_digest: bytes | None = None,
+) -> Path:
     value = _read_secret(source)
     try:
+        if (
+            expected_digest is not None
+            and hashlib.sha256(value).digest() != expected_digest
+        ):
+            raise SignerError("invalid secret")
         directory = Path(tempfile.mkdtemp(prefix="solmara-transit-", dir=staging_root))
         directory.chmod(0o700)
         metadata = directory.lstat()
@@ -187,6 +229,64 @@ def _stage_secret(source: Path, staging_root: Path = STAGING_ROOT) -> Path:
         value[:] = b"\0" * len(value)
 
 
+def _consume_secret(path: Path, expected_digest: bytes) -> None:
+    descriptor = _open_confined_secret(path)
+    value = bytearray()
+    directory = -1
+    try:
+        value, opened = _read_secret_descriptor(descriptor)
+        if hashlib.sha256(value).digest() != expected_digest:
+            raise SignerError("invalid secret")
+        directory = _open_confined_directory(path.parent)
+        current = os.stat(path.name, dir_fd=directory, follow_symlinks=False)
+
+        def identity(metadata: os.stat_result) -> tuple[int, int, int, int, int, int]:
+            return (
+                metadata.st_dev,
+                metadata.st_ino,
+                metadata.st_uid,
+                metadata.st_mode,
+                metadata.st_size,
+                metadata.st_nlink,
+            )
+
+        if identity(current) != identity(opened):
+            raise SignerError("invalid secret")
+        os.unlink(path.name, dir_fd=directory)
+    except OSError as error:
+        raise SignerError("invalid secret") from error
+    finally:
+        if directory >= 0:
+            os.close(directory)
+        value[:] = b"\0" * len(value)
+        os.close(descriptor)
+
+
+def _remove_empty_staging_directory(
+    path: Path, staging_root: Path = STAGING_ROOT
+) -> None:
+    directory = path.parent
+    try:
+        metadata = directory.lstat()
+        if (
+            directory.parent != staging_root
+            or not directory.name.startswith("solmara-transit-")
+            or not stat.S_ISDIR(metadata.st_mode)
+            or stat.S_ISLNK(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or stat.S_IMODE(metadata.st_mode) != 0o700
+        ):
+            raise SignerError("invalid staging area")
+        directory.rmdir()
+    except OSError as error:
+        raise SignerError("invalid staging area") from error
+
+
+def _discard_staged_secret(path: Path, expected_digest: bytes) -> None:
+    _consume_secret(path, expected_digest)
+    _remove_empty_staging_directory(path, path.parent.parent)
+
+
 def _b64url(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
@@ -195,7 +295,7 @@ def _b64decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
-def _verify_public_match(private_path: Path, public_path: Path) -> None:
+def _verify_public_match(private_path: Path, public_path: Path) -> tuple[bytes, bytes]:
     private_bytes = _read_secret(private_path)
     public_bytes = _read_secret(public_path)
     try:
@@ -232,6 +332,10 @@ def _verify_public_match(private_path: Path, public_path: Path) -> None:
         )
         if public != expected or any(private[key] != expected[key] for key in expected):
             raise SignerError("invalid key pair")
+        return (
+            hashlib.sha256(private_bytes).digest(),
+            hashlib.sha256(public_bytes).digest(),
+        )
     except SignerError:
         raise
     except (UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
@@ -326,15 +430,22 @@ def exec_signer(
         or key_name not in ALLOWED_KEY_NAMES
     ):
         raise SignerError("invalid signer configuration")
-    _verify_public_match(private_jwk, public_jwk)
+    private_digest, public_digest = _verify_public_match(private_jwk, public_jwk)
     _validate_socket(socket_path)
     _validate_proxy(proxy)
-    staged = _stage_secret(private_jwk)
+    staged = _stage_secret(private_jwk, expected_digest=private_digest)
+    try:
+        _consume_secret(private_jwk, private_digest)
+        _consume_secret(public_jwk, public_digest)
+    except SignerError:
+        _discard_staged_secret(staged, private_digest)
+        raise
     arguments = [
         sys.executable,
         str(proxy),
         "--private-jwk",
         str(staged),
+        "--consume-private-jwk",
         "--socket",
         str(socket_path),
         "--key-name",
@@ -345,7 +456,11 @@ def exec_signer(
         "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONUNBUFFERED": "1",
     }
-    os.execve(sys.executable, arguments, environment)
+    try:
+        os.execve(sys.executable, arguments, environment)
+    except OSError:
+        _discard_staged_secret(staged, private_digest)
+        raise
 
 
 def main() -> int:

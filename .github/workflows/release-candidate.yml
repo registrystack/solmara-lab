@@ -258,49 +258,73 @@ jobs:
           set -euo pipefail
           image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-transit-signer@${{ steps.transit_signer.outputs.digest }}"
           docker run --rm --network none --read-only --entrypoint python "$image" -c 'import cryptography'
-          state="$RUNNER_TEMP/solmara-transit-signer-state"
-          install -d -m 0700 "$state/secrets"
-          sudo chown 65532:65532 "$state/secrets"
-          sudo install -o 65532 -g 65532 -m 0400 \
-            config/evidence/local/cells/cra/secrets/signing.jwk \
-            "$state/secrets/signing.jwk"
-          sudo install -o 65532 -g 65532 -m 0400 \
-            runtime/evidence-cells/cells/cra/bundle/public-keys/*.jwk.json \
-            "$state/secrets/signing-public.jwk"
-          name="solmara-transit-signer-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          volume="solmara-transit-signer-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          docker volume create "$volume" >/dev/null
+          export SIGNER_IMAGE="$image"
+          export SIGNING_PRIVATE_JWK
+          SIGNING_PRIVATE_JWK="$(cat config/evidence/local/cells/cra/secrets/signing.jwk)"
+          export SIGNING_PUBLIC_JWK
+          SIGNING_PUBLIC_JWK="$(cat runtime/evidence-cells/cells/cra/bundle/public-keys/*.jwk.json)"
+          project="solmara-transit-signer-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          compose="$RUNNER_TEMP/solmara-transit-signer.compose.yaml"
+          cat >"$compose" <<'YAML'
+          services:
+            transit-init:
+              image: ${SIGNER_IMAGE:?required}
+              entrypoint: [/usr/local/bin/python, -c]
+              command: ["import os; os.chown('/transit', 65532, 65532); os.chmod('/transit', 0o700)"]
+              restart: "no"
+              user: "0:0"
+              read_only: true
+              tmpfs: [/tmp]
+              network_mode: none
+              cap_drop: [ALL]
+              cap_add: [CHOWN, FOWNER]
+              security_opt: [no-new-privileges:true]
+              volumes: [transit:/transit]
+            signer:
+              image: ${SIGNER_IMAGE:?required}
+              command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-cra]
+              restart: "no"
+              user: "65532:65532"
+              read_only: false
+              network_mode: none
+              cap_drop: [ALL]
+              security_opt: [no-new-privileges:true]
+              volumes: [transit:/transit]
+              secrets:
+                - {source: signing-private, target: /tmp/solmara-signing.jwk, uid: "65532", gid: "65532", mode: 0400}
+                - {source: signing-public, target: /tmp/solmara-signing-public.jwk, uid: "65532", gid: "65532", mode: 0400}
+              healthcheck:
+                test: [CMD, /usr/local/bin/python, -c, "import socket; s=socket.socket(socket.AF_UNIX); s.connect('/transit/transit-proxy.sock'); s.close()"]
+                interval: 1s
+                timeout: 1s
+                retries: 30
+                start_period: 1s
+              depends_on:
+                transit-init: {condition: service_completed_successfully}
+          secrets:
+            signing-private: {environment: SIGNING_PRIVATE_JWK}
+            signing-public: {environment: SIGNING_PUBLIC_JWK}
+          volumes:
+            transit: {}
+          YAML
+          chmod 0600 "$compose"
           cleanup() {
-            docker rm --force "$name" >/dev/null 2>&1 || true
-            docker volume rm --force "$volume" >/dev/null 2>&1 || true
+            docker compose -p "$project" -f "$compose" down -v >/dev/null 2>&1 || true
+            unset SIGNING_PRIVATE_JWK SIGNING_PUBLIC_JWK
           }
           trap cleanup EXIT
-          docker run --rm --network none --read-only --tmpfs /tmp \
-            --user 0:0 --cap-drop ALL --cap-add CHOWN --entrypoint python \
-            --mount "type=volume,source=$volume,target=/transit" \
-            "$image" -c \
-            'import os; os.chmod("/transit", 0o700); os.chown("/transit", 65532, 65532)'
-          docker run --detach --name "$name" --network none --read-only --tmpfs /tmp \
-            --mount "type=bind,source=$state/secrets/signing.jwk,target=/run/secrets/signing.jwk,readonly" \
-            --mount "type=bind,source=$state/secrets/signing-public.jwk,target=/run/secrets/signing-public.jwk,readonly" \
-            --mount "type=volume,source=$volume,target=/transit" \
-            "$image" \
-            --private-jwk /run/secrets/signing.jwk \
-            --public-jwk /run/secrets/signing-public.jwk \
-            --socket /transit/transit-proxy.sock \
-            --key-name solmara-evidence-cra
-          for _ in $(seq 1 200); do
-            docker exec "$name" python -c \
-              'from pathlib import Path; raise SystemExit(0 if Path("/transit/transit-proxy.sock").is_socket() else 1)' \
-              && break
-            sleep 0.1
-          done
-          docker exec "$name" python -c \
-            'from pathlib import Path; raise SystemExit(0 if Path("/transit/transit-proxy.sock").is_socket() else 1)'
-          docker run --rm --network none --read-only --tmpfs /tmp \
-            --user 65532:65532 --entrypoint python \
-            --mount "type=volume,source=$volume,target=/transit,readonly" \
-            "$image" -c '
+          docker compose -p "$project" -f "$compose" up -d --wait --wait-timeout 60
+          docker compose -p "$project" -f "$compose" exec -T signer python -c '
+          import glob
+          import os
+          from pathlib import Path
+          assert os.geteuid() == 65532
+          assert not Path("/tmp/solmara-signing.jwk").exists()
+          assert not Path("/tmp/solmara-signing-public.jwk").exists()
+          assert not glob.glob("/tmp/solmara-transit-*")
+          assert Path("/transit/transit-proxy.sock").is_socket()
+          '
+          docker compose -p "$project" -f "$compose" exec -T signer python -c '
           import socket
           client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
           client.settimeout(5)
@@ -315,28 +339,6 @@ jobs:
           client.close()
           raise SystemExit(0 if response.startswith(b"HTTP/1.1 200 ") else 1)
           '
-          docker rm --force "$name" >/dev/null
-
-          sudo install -o 65532 -g 65532 -m 0400 \
-            runtime/evidence-cells/cells/nia/bundle/public-keys/*.jwk.json \
-            "$state/secrets/signing-public.jwk"
-          stdout="$RUNNER_TEMP/solmara-transit-signer.stdout"
-          stderr="$RUNNER_TEMP/solmara-transit-signer.stderr"
-          set +e
-          docker run --rm --network none --read-only --tmpfs /tmp \
-            --mount "type=bind,source=$state/secrets/signing.jwk,target=/run/secrets/signing.jwk,readonly" \
-            --mount "type=bind,source=$state/secrets/signing-public.jwk,target=/run/secrets/signing-public.jwk,readonly" \
-            --mount "type=volume,source=$volume,target=/transit" \
-            "$image" \
-            --private-jwk /run/secrets/signing.jwk \
-            --public-jwk /run/secrets/signing-public.jwk \
-            --socket /transit/transit-proxy.sock \
-            --key-name solmara-evidence-cra >"$stdout" 2>"$stderr"
-          status=$?
-          set -e
-          test "$status" -eq 1
-          test ! -s "$stdout"
-          test "$(cat "$stderr")" = "hosted Transit signer could not start"
           cleanup
           trap - EXIT
       - name: Build and push static metadata

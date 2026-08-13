@@ -19,12 +19,10 @@ x-signer: &signer
   image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
   restart: unless-stopped
   user: "65532:65532"
-  # Docker Compose copies environment-backed secrets after container creation,
-  # so the secret-consuming signer cannot use a read-only root filesystem.
-  # The key files live in tmpfs, and the non-root process remains networkless
-  # with every capability dropped.
+  # Docker Compose copies environment-backed secrets into the container rootfs
+  # before start, so this process cannot use a read-only root filesystem. The
+  # non-root wrapper consumes and unlinks those owner-only inputs before exec.
   read_only: false
-  tmpfs: [/tmp, /run/secrets]
   network_mode: none
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
@@ -34,6 +32,18 @@ x-signer: &signer
     timeout: 1s
     retries: 30
     start_period: 2s
+
+x-private-secret-target: &private-secret-target
+  target: /tmp/solmara-signing.jwk
+  uid: "65532"
+  gid: "65532"
+  mode: 0400
+
+x-public-secret-target: &public-secret-target
+  target: /tmp/solmara-signing-public.jwk
+  uid: "65532"
+  gid: "65532"
+  mode: 0400
 
 services:
   mint-transit-init:
@@ -60,51 +70,65 @@ services:
 
   mint-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-mint]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-mint]
     volumes: [mint-transit:/transit]
-    secrets: [{source: mint-signing-jwk, target: signing.jwk}, {source: mint-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: mint-signing-jwk, <<: *private-secret-target}
+      - {source: mint-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       mint-transit-init: {condition: service_completed_successfully}
   cra-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-cra]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-cra]
     volumes: [cra-evidence-transit:/transit]
-    secrets: [{source: cra-evidence-signing-jwk, target: signing.jwk}, {source: cra-evidence-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: cra-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: cra-evidence-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       cra-transit-init: {condition: service_completed_successfully}
   nia-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nia]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nia]
     volumes: [nia-evidence-transit:/transit]
-    secrets: [{source: nia-evidence-signing-jwk, target: signing.jwk}, {source: nia-evidence-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: nia-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: nia-evidence-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       nia-transit-init: {condition: service_completed_successfully}
   sro-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sro]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sro]
     volumes: [sro-evidence-transit:/transit]
-    secrets: [{source: sro-evidence-signing-jwk, target: signing.jwk}, {source: sro-evidence-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: sro-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: sro-evidence-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       sro-transit-init: {condition: service_completed_successfully}
   mosd-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-mosd-programme]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-mosd-programme]
     volumes: [mosd-evidence-transit:/transit]
-    secrets: [{source: mosd-evidence-signing-jwk, target: signing.jwk}, {source: mosd-evidence-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: mosd-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: mosd-evidence-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       mosd-transit-init: {condition: service_completed_successfully}
   sipf-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sipf]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sipf]
     volumes: [sipf-evidence-transit:/transit]
-    secrets: [{source: sipf-evidence-signing-jwk, target: signing.jwk}, {source: sipf-evidence-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: sipf-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: sipf-evidence-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       sipf-transit-init: {condition: service_completed_successfully}
   nagdi-signer:
     <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nagdi]
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nagdi]
     volumes: [nagdi-evidence-transit:/transit]
-    secrets: [{source: nagdi-evidence-signing-jwk, target: signing.jwk}, {source: nagdi-evidence-signing-public-jwk, target: signing-public.jwk}]
+    secrets:
+      - {source: nagdi-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: nagdi-evidence-signing-public-jwk, <<: *public-secret-target}
     depends_on:
       nagdi-transit-init: {condition: service_completed_successfully}
 

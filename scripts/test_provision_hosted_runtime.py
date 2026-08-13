@@ -375,12 +375,94 @@ class HostedProvisionerTests(unittest.TestCase):
             root = Path(temporary)
             write_secret(root, "signing-public.jwk", b"public")
             write_secret(root, "audit-hmac-key", b"a" * 32)
+            root.chmod(0o700)
             expected = {"signing-public.jwk", "audit-hmac-key"}
             provisioner._validate_secret_inventory(root, expected)
 
             write_secret(root, "another-authority-client-key", b"private")
             with self.assertRaises(provisioner.ProvisionError):
                 provisioner._validate_secret_inventory(root, expected)
+
+    def test_injected_secret_root_is_exact_and_confined_before_reading(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            inputs = parent / "inputs"
+            inputs.mkdir(mode=0o755)
+            provisioner._confine_secret_inventory(inputs)
+            self.assertEqual(stat.S_IMODE(inputs.stat().st_mode), 0o700)
+
+            wrong_mode = parent / "wrong-mode"
+            wrong_mode.mkdir(mode=0o700)
+            with self.assertRaises(provisioner.ProvisionError):
+                provisioner._confine_secret_inventory(wrong_mode)
+
+            symlink = parent / "link"
+            symlink.symlink_to(inputs, target_is_directory=True)
+            with self.assertRaises(provisioner.ProvisionError):
+                provisioner._confine_secret_inventory(symlink)
+
+    def test_injected_secret_inventory_is_consumed_on_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = root / "inputs"
+            outputs = root / "generated-output-secrets"
+            outputs.mkdir()
+            generated = outputs / "audit-hmac-key"
+            generated.write_bytes(b"generated-canary")
+            expected = provisioner._provision_secret_inventory("mint")
+            assert expected is not None
+            for name in expected:
+                write_secret(inputs, name, b"input-canary")
+            arguments = SimpleNamespace(target="mint", secrets=inputs)
+
+            with mock.patch.object(provisioner, "_provision_target") as target:
+                provisioner.provision(arguments)
+
+            target.assert_called_once_with(arguments)
+            self.assertFalse(inputs.exists())
+            self.assertEqual(generated.read_bytes(), b"generated-canary")
+
+    def test_injected_secret_inventory_is_consumed_on_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            inputs = Path(temporary) / "inputs"
+            expected = provisioner._provision_secret_inventory("sipf-evidence")
+            assert expected is not None
+            for name in expected:
+                write_secret(inputs, name, b"input-canary")
+            arguments = SimpleNamespace(target="sipf-evidence", secrets=inputs)
+
+            with (
+                mock.patch.object(
+                    provisioner,
+                    "_provision_target",
+                    side_effect=RuntimeError("failure-canary"),
+                ),
+                self.assertRaisesRegex(RuntimeError, "failure-canary"),
+            ):
+                provisioner.provision(arguments)
+
+            self.assertFalse(inputs.exists())
+
+    def test_cleanup_never_removes_an_undeclared_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            inputs = Path(temporary) / "inputs"
+            write_secret(inputs, "declared", b"declared-canary")
+            write_secret(inputs, "undeclared", b"undeclared-canary")
+
+            with self.assertRaisesRegex(
+                provisioner.ProvisionError, "secret cleanup failed"
+            ):
+                provisioner._consume_secret_inventory(inputs, {"declared"})
+
+            self.assertFalse((inputs / "declared").exists())
+            self.assertEqual((inputs / "undeclared").read_bytes(), b"undeclared-canary")
+
+    def test_ready_command_has_no_inputs_and_succeeds(self) -> None:
+        stdout = StringIO()
+        with contextlib.redirect_stdout(stdout):
+            result = provisioner.main(["ready"])
+        self.assertEqual(result, 0)
+        self.assertEqual(stdout.getvalue(), f"{provisioner.SUCCESS}\n")
 
     def test_evidence_output_contains_only_its_public_signer_and_own_secrets(
         self,
@@ -571,8 +653,6 @@ class HostedProvisionerTests(unittest.TestCase):
                     "cra-relay",
                     "--assets",
                     str(assets),
-                    "--secrets",
-                    str(secrets),
                     "--runtime-output",
                     str(runtime),
                     "--source-output",
@@ -640,6 +720,8 @@ class HostedProvisionerTests(unittest.TestCase):
             with (
                 mock.patch.object(provisioner, "verify_assets"),
                 mock.patch.object(provisioner, "_validate_secret_inventory"),
+                mock.patch.object(provisioner, "_confine_secret_inventory"),
+                mock.patch.object(provisioner, "_consume_secret_inventory"),
                 mock.patch.object(provisioner, "_stage_mint", side_effect=stage),
                 self.assertRaises(provisioner.ProvisionError),
             ):
@@ -678,8 +760,6 @@ class HostedProvisionerTests(unittest.TestCase):
                     "cra-relay",
                     "--assets",
                     str(assets),
-                    "--secrets",
-                    str(root / "unused"),
                     "--runtime-output",
                     str(runtime),
                     "--source-output",
@@ -713,8 +793,6 @@ class HostedProvisionerTests(unittest.TestCase):
                     "cra-relay",
                     "--assets",
                     str(assets),
-                    "--secrets",
-                    str(root / "unused"),
                     "--runtime-output",
                     str(runtime),
                     "--source-output",
@@ -943,6 +1021,8 @@ class HostedProvisionerTests(unittest.TestCase):
             )
             with (
                 mock.patch.object(provisioner, "verify_assets"),
+                mock.patch.object(provisioner, "_confine_secret_inventory"),
+                mock.patch.object(provisioner, "_consume_secret_inventory"),
                 mock.patch.object(provisioner, "_stage_evidence") as stage,
                 self.assertRaises(provisioner.ProvisionError),
             ):

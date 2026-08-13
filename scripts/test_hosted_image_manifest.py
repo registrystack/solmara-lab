@@ -330,18 +330,23 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertIn("steps.transit_signer.outputs.digest", signer_smoke)
         self.assertIn("--network none --read-only --entrypoint python", signer_smoke)
         self.assertIn("import cryptography", signer_smoke)
-        self.assertIn("--public-jwk /run/secrets/signing-public.jwk", signer_smoke)
+        self.assertIn("--public-jwk, /tmp/solmara-signing-public.jwk", signer_smoke)
         self.assertIn("v1/transit/keys/solmara-evidence-cra", signer_smoke)
-        self.assertIn("seq 1 200", signer_smoke)
-        self.assertIn("docker volume create", signer_smoke)
-        self.assertIn("type=volume,source=$volume,target=/transit", signer_smoke)
-        self.assertIn("target=/transit,readonly", signer_smoke)
+        self.assertIn(
+            "signing-private: {environment: SIGNING_PRIVATE_JWK}", signer_smoke
+        )
+        self.assertIn("target: /tmp/solmara-signing.jwk", signer_smoke)
+        self.assertIn(
+            "transit-init: {condition: service_completed_successfully}", signer_smoke
+        )
+        self.assertIn('docker compose -p "$project"', signer_smoke)
+        self.assertIn("up -d --wait --wait-timeout 60", signer_smoke)
+        self.assertIn('not Path("/tmp/solmara-signing.jwk").exists()', signer_smoke)
+        self.assertIn('not glob.glob("/tmp/solmara-transit-*")', signer_smoke)
         self.assertIn('client.connect("/transit/transit-proxy.sock")', signer_smoke)
         self.assertNotIn("--unix-socket", signer_smoke)
         self.assertNotIn("$state/transit", signer_smoke)
-        self.assertIn("cells/nia/bundle/public-keys", signer_smoke)
-        self.assertIn('test "$status" -eq 1', signer_smoke)
-        self.assertIn("hosted Transit signer could not start", signer_smoke)
+        self.assertNotIn("type=bind", signer_smoke)
 
         packages = next(
             step
