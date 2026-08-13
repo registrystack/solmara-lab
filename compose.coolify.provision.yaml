@@ -17,35 +17,6 @@ x-provisioner: &provisioner
   cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
   security_opt: [no-new-privileges:true]
 
-x-transit-init: &transit-init
-  image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
-  entrypoint: [/usr/local/bin/python, -c]
-  command: ["import os,stat,sys; p='/transit'; s=os.lstat(p); ok=stat.S_ISDIR(s.st_mode) and not stat.S_ISLNK(s.st_mode); not ok and sys.exit(1); os.chown(p,65532,65532); os.chmod(p,0o700)"]
-  restart: "no"
-  user: "0:0"
-  read_only: true
-  tmpfs: [/tmp]
-  network_mode: none
-  cap_drop: [ALL]
-  cap_add: [CHOWN, FOWNER]
-  security_opt: [no-new-privileges:true]
-
-x-signer: &signer
-  image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
-  restart: unless-stopped
-  user: "65532:65532"
-  read_only: true
-  tmpfs: [/tmp]
-  network_mode: none
-  cap_drop: [ALL]
-  security_opt: [no-new-privileges:true]
-  healthcheck:
-    test: [CMD, /usr/local/bin/python, -c, "import socket; s=socket.socket(socket.AF_UNIX); s.connect('/transit/transit-proxy.sock'); s.close()"]
-    interval: 2s
-    timeout: 1s
-    retries: 30
-    start_period: 2s
-
 services:
   cra-relay-provisioner:
     <<: *provisioner
@@ -150,103 +121,24 @@ services:
       - {source: nia-esignet-client-public-jwk, target: solmara-provisioning/nia-esignet-public.jwk}
       - {source: solmara-demo-client-public-jwk, target: solmara-provisioning/solmara-demo-client-public.jwk}
 
-  mint-transit-init:
-    <<: *transit-init
-    volumes: [mint-transit:/transit]
-  cra-transit-init:
-    <<: *transit-init
-    volumes: [cra-evidence-transit:/transit]
-  nia-transit-init:
-    <<: *transit-init
-    volumes: [nia-evidence-transit:/transit]
-  sro-transit-init:
-    <<: *transit-init
-    volumes: [sro-evidence-transit:/transit]
-  mosd-transit-init:
-    <<: *transit-init
-    volumes: [mosd-evidence-transit:/transit]
-  sipf-transit-init:
-    <<: *transit-init
-    volumes: [sipf-evidence-transit:/transit]
-  nagdi-transit-init:
-    <<: *transit-init
-    volumes: [nagdi-evidence-transit:/transit]
-
-  mint-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-mint]
-    volumes: [mint-transit:/transit]
-    secrets: [{source: mint-signing-jwk, target: signing.jwk}, {source: mint-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      mint-transit-init: {condition: service_completed_successfully}
-  cra-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-cra]
-    volumes: [cra-evidence-transit:/transit]
-    secrets: [{source: cra-evidence-signing-jwk, target: signing.jwk}, {source: cra-evidence-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      cra-transit-init: {condition: service_completed_successfully}
-  nia-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nia]
-    volumes: [nia-evidence-transit:/transit]
-    secrets: [{source: nia-evidence-signing-jwk, target: signing.jwk}, {source: nia-evidence-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      nia-transit-init: {condition: service_completed_successfully}
-  sro-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sro]
-    volumes: [sro-evidence-transit:/transit]
-    secrets: [{source: sro-evidence-signing-jwk, target: signing.jwk}, {source: sro-evidence-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      sro-transit-init: {condition: service_completed_successfully}
-  mosd-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-mosd-programme]
-    volumes: [mosd-evidence-transit:/transit]
-    secrets: [{source: mosd-evidence-signing-jwk, target: signing.jwk}, {source: mosd-evidence-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      mosd-transit-init: {condition: service_completed_successfully}
-  sipf-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sipf]
-    volumes: [sipf-evidence-transit:/transit]
-    secrets: [{source: sipf-evidence-signing-jwk, target: signing.jwk}, {source: sipf-evidence-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      sipf-transit-init: {condition: service_completed_successfully}
-  nagdi-signer:
-    <<: *signer
-    command: [--private-jwk, /run/secrets/signing.jwk, --public-jwk, /run/secrets/signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nagdi]
-    volumes: [nagdi-evidence-transit:/transit]
-    secrets: [{source: nagdi-evidence-signing-jwk, target: signing.jwk}, {source: nagdi-evidence-signing-public-jwk, target: signing-public.jwk}]
-    depends_on:
-      nagdi-transit-init: {condition: service_completed_successfully}
-
 secrets:
-  mint-signing-jwk: {environment: MINT_SIGNING_JWK}
   mint-signing-public-jwk: {environment: MINT_SIGNING_PUBLIC_JWK}
   mint-audit-hmac-key: {environment: MINT_AUDIT_HMAC_KEY}
-  cra-evidence-signing-jwk: {environment: CRA_EVIDENCE_SIGNING_JWK}
   cra-evidence-signing-public-jwk: {environment: CRA_EVIDENCE_SIGNING_PUBLIC_JWK}
   cra-evidence-audit-hmac-key: {environment: CRA_EVIDENCE_AUDIT_HMAC_KEY}
   cra-evidence-subject-binding-hmac-key: {environment: CRA_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
-  nia-evidence-signing-jwk: {environment: NIA_EVIDENCE_SIGNING_JWK}
   nia-evidence-signing-public-jwk: {environment: NIA_EVIDENCE_SIGNING_PUBLIC_JWK}
   nia-evidence-audit-hmac-key: {environment: NIA_EVIDENCE_AUDIT_HMAC_KEY}
   nia-evidence-subject-binding-hmac-key: {environment: NIA_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
-  sro-evidence-signing-jwk: {environment: SRO_EVIDENCE_SIGNING_JWK}
   sro-evidence-signing-public-jwk: {environment: SRO_EVIDENCE_SIGNING_PUBLIC_JWK}
   sro-evidence-audit-hmac-key: {environment: SRO_EVIDENCE_AUDIT_HMAC_KEY}
   sro-evidence-subject-binding-hmac-key: {environment: SRO_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
-  mosd-evidence-signing-jwk: {environment: MOSD_EVIDENCE_SIGNING_JWK}
   mosd-evidence-signing-public-jwk: {environment: MOSD_EVIDENCE_SIGNING_PUBLIC_JWK}
   mosd-evidence-audit-hmac-key: {environment: MOSD_EVIDENCE_AUDIT_HMAC_KEY}
   mosd-evidence-subject-binding-hmac-key: {environment: MOSD_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
-  sipf-evidence-signing-jwk: {environment: SIPF_EVIDENCE_SIGNING_JWK}
   sipf-evidence-signing-public-jwk: {environment: SIPF_EVIDENCE_SIGNING_PUBLIC_JWK}
   sipf-evidence-audit-hmac-key: {environment: SIPF_EVIDENCE_AUDIT_HMAC_KEY}
   sipf-evidence-subject-binding-hmac-key: {environment: SIPF_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
-  nagdi-evidence-signing-jwk: {environment: NAGDI_EVIDENCE_SIGNING_JWK}
   nagdi-evidence-signing-public-jwk: {environment: NAGDI_EVIDENCE_SIGNING_PUBLIC_JWK}
   nagdi-evidence-audit-hmac-key: {environment: NAGDI_EVIDENCE_AUDIT_HMAC_KEY}
   nagdi-evidence-subject-binding-hmac-key: {environment: NAGDI_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}

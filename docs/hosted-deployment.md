@@ -53,7 +53,8 @@ Evidence hosts are:
 - `nagdi-evidence.solmara.registrystack.org`
 
 `compose.coolify.provision.yaml` is a dedicated operator-only application. It
-owns 34 fixed-name active volumes:
+owns 34 fixed-name active volumes and runs only the one-shot target
+provisioners:
 
 | Owner | Volumes | Contents |
 |---|---:|---|
@@ -61,11 +62,14 @@ owns 34 fixed-name active volumes:
 | Five Relays | 10 | One runtime and one mutable source volume per authority |
 | Six Evidence cells | 21 | Runtime, secrets, and Transit socket per cell, plus the CRA, NIA, and SRO immutable-extract volumes |
 
-The same application runs seven isolated signers: one for Mint and one for each
-Evidence cell. Runtime applications attach the fixed-name runtime, source,
-secret, extract, and Transit volumes as external read-only volumes. Each runtime
-application owns the writable audit volumes for its services and initializes
-their permissions without reading or replacing existing audit records.
+`compose.coolify.signers.yaml` is a separate operator-only application. It
+attaches only the seven fixed Transit volumes as external volumes and runs one
+isolated signer for Mint and one for each Evidence cell. The provision
+application never receives a private issuer signing key. Runtime applications
+attach the fixed-name runtime, source, secret, extract, and Transit volumes as
+external read-only volumes. Each runtime application owns the writable audit
+volumes for its services and initializes their permissions without reading or
+replacing existing audit records.
 
 ## Mint clients
 
@@ -141,20 +145,22 @@ Deploy the reset alongside the existing deployment in this order:
 1. Record the old deployment's exact image references, routes, and retained
    volume names. Do not attach an old writer to a new source volume.
 2. Deploy `compose.coolify.provision.yaml`. Require every one-shot provisioner
+   to complete successfully.
+3. Deploy `compose.coolify.signers.yaml`. Require all seven Transit initializers
    to complete successfully and all seven signers to become healthy.
-3. Deploy the authority runtime applications from
+4. Deploy the authority runtime applications from
    `compose.coolify.interior.yaml`,
    `compose.coolify.social-development.yaml`,
    `compose.coolify.labour-pensions.yaml`, and
    `compose.coolify.agriculture.yaml`. Confirm all five Relays and all six
    Evidence cells are ready on the private routes.
-4. Deploy the shared Mint, programme services, portal, Visitor Center, and
+5. Deploy the shared Mint, programme services, portal, Visitor Center, and
    static metadata from `compose.coolify.yaml`.
-5. Run the hosted programme, denial, JWKS, source-label, redaction, and UI smoke
+6. Run the hosted programme, denial, JWKS, source-label, redaction, and UI smoke
    against the new routes before changing public routing.
-6. If required for this deployment, add `compose.coolify.esignet.yaml` and run
+7. If required for this deployment, add `compose.coolify.esignet.yaml` and run
    the citizen-login smoke through the NIA Relay V2 lookup.
-7. Switch programme authority URLs and public metadata routing only after every
+8. Switch programme authority URLs and public metadata routing only after every
    required smoke passes. Disable the superseded services, but retain their
    volumes and exact deployment references for recovery.
 

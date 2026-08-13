@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 import unittest
 from pathlib import Path
 
@@ -8,6 +10,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PROVISION = ROOT / "compose.coolify.provision.yaml"
+SIGNERS = ROOT / "compose.coolify.signers.yaml"
 RUNTIME_COMPOSES = (
     ROOT / "compose.coolify.yaml",
     ROOT / "compose.coolify.interior.yaml",
@@ -17,6 +20,25 @@ RUNTIME_COMPOSES = (
 )
 PROVIDERS = ("mint", "cra", "nia", "sro", "mosd", "sipf", "nagdi")
 RELAYS = ("cra", "nia", "mosd", "sipf", "nagdi")
+INTERPOLATION = re.compile(r"^\$\{([A-Z][A-Z0-9_]*):\?[^}]+\}$")
+FIXTURE_IMAGE = (
+    "ghcr.io/registrystack/solmara-test@sha256:"
+    + "a" * 64
+)
+FIXTURE_PRIVATE_JWK_MEMBERS = {
+    "kty": "EC",
+    "crv": "P-384",
+    "x": "A" * 64,
+    "y": "B" * 64,
+    "d": "C" * 64,
+    "kid": "solmara-test",
+    "alg": "ES384",
+}
+FIXTURE_PRIVATE_JWK = json.dumps(FIXTURE_PRIVATE_JWK_MEMBERS, separators=(",", ":"))
+FIXTURE_PUBLIC_JWK = json.dumps(
+    {key: value for key, value in FIXTURE_PRIVATE_JWK_MEMBERS.items() if key != "d"},
+    separators=(",", ":"),
+)
 MINT_ORIGIN = "https://mint-authority-cells.solmara.registrystack.org"
 RELAY_ORIGINS = {
     "cra": "https://cra-relay-authority-cells.solmara.registrystack.org",
@@ -26,10 +48,31 @@ RELAY_ORIGINS = {
 }
 
 
+def fixture_render(value):
+    if isinstance(value, dict):
+        return {key: fixture_render(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [fixture_render(item) for item in value]
+    if not isinstance(value, str):
+        return value
+    match = INTERPOLATION.fullmatch(value)
+    if match is None:
+        return value
+    variable = match.group(1)
+    if variable.endswith("_IMAGE"):
+        return FIXTURE_IMAGE
+    if variable.endswith("_PUBLIC_JWK"):
+        return FIXTURE_PUBLIC_JWK
+    if variable.endswith("_PRIVATE_JWK") or variable.endswith("_SIGNING_JWK"):
+        return FIXTURE_PRIVATE_JWK
+    return "fixture-value"
+
+
 class HostedProvisioningTopologyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.provision = yaml.safe_load(PROVISION.read_text(encoding="utf-8"))
+        cls.signers = yaml.safe_load(SIGNERS.read_text(encoding="utf-8"))
         cls.runtime = {
             path.name: yaml.safe_load(path.read_text(encoding="utf-8"))
             for path in RUNTIME_COMPOSES
@@ -47,6 +90,18 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 for value in volumes.values()
             )
         )
+
+    def test_provisioning_application_contains_only_target_provisioners(self) -> None:
+        services = self.provision["services"]
+        self.assertEqual(len(services), 12)
+        self.assertTrue(all(name.endswith("-provisioner") for name in services))
+        self.assertNotIn("SOLMARA_TRANSIT_SIGNER_IMAGE", PROVISION.read_text())
+        self.assertNotIn("--private-jwk", PROVISION.read_text())
+        private_signing_secrets = {
+            "mint-signing-jwk",
+            *(f"{provider}-evidence-signing-jwk" for provider in PROVIDERS[1:]),
+        }
+        self.assertTrue(private_signing_secrets.isdisjoint(self.provision["secrets"]))
 
     def test_runtime_applications_attach_active_volumes_read_only_by_fixed_name(
         self,
@@ -67,7 +122,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertEqual(attached, provisioned)
 
     def test_private_signing_keys_are_mounted_only_into_matching_signers(self) -> None:
-        services = self.provision["services"]
+        services = self.signers["services"]
         for provider in PROVIDERS:
             secret = (
                 "mint-signing-jwk"
@@ -80,17 +135,18 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 if any(item["source"] == secret for item in service.get("secrets", []))
             }
             self.assertEqual(consumers, {f"{provider}-signer"})
-        for name, service in services.items():
+        for name, service in self.provision["services"].items():
             if name.endswith("provisioner"):
                 targets = {item["target"] for item in service.get("secrets", [])}
                 self.assertNotIn("solmara-provisioning/signing.jwk", targets)
 
     def test_each_signer_requires_its_matching_public_projection(self) -> None:
-        services = self.provision["services"]
+        services = self.signers["services"]
         for provider in PROVIDERS:
             prefix = "mint" if provider == "mint" else f"{provider}-evidence"
             signer = services[f"{provider}-signer"]
             secrets = {item["target"]: item["source"] for item in signer["secrets"]}
+            self.assertEqual(len(secrets), 2)
             self.assertEqual(secrets["signing.jwk"], f"{prefix}-signing-jwk")
             self.assertEqual(
                 secrets["signing-public.jwk"], f"{prefix}-signing-public-jwk"
@@ -181,7 +237,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     def test_each_signer_and_transit_initializer_mount_only_its_matching_volume(
         self,
     ) -> None:
-        services = self.provision["services"]
+        services = self.signers["services"]
         for provider in PROVIDERS:
             volume = (
                 "mint-transit" if provider == "mint" else f"{provider}-evidence-transit"
@@ -199,6 +255,75 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                     }
                 },
             )
+
+    def test_signer_application_has_exact_services_secrets_and_external_volumes(
+        self,
+    ) -> None:
+        expected_services = {
+            *(f"{provider}-transit-init" for provider in PROVIDERS),
+            *(f"{provider}-signer" for provider in PROVIDERS),
+        }
+        self.assertEqual(set(self.signers["services"]), expected_services)
+
+        expected_secrets: set[str] = set()
+        expected_volumes: set[str] = set()
+        for provider in PROVIDERS:
+            prefix = "mint" if provider == "mint" else f"{provider}-evidence"
+            expected_secrets.update(
+                {f"{prefix}-signing-jwk", f"{prefix}-signing-public-jwk"}
+            )
+            expected_volumes.add(f"{prefix}-transit")
+        self.assertEqual(set(self.signers["secrets"]), expected_secrets)
+        self.assertEqual(set(self.signers["volumes"]), expected_volumes)
+        self.assertTrue(
+            all(
+                value == {
+                    "external": True,
+                    "name": f"solmara-authority-cells-{key}",
+                }
+                for key, value in self.signers["volumes"].items()
+            )
+        )
+
+        self.assertEqual(
+            {service["image"] for service in self.signers["services"].values()},
+            {
+                "${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}"
+            },
+        )
+
+    def test_rendered_operator_applications_fit_coolify_payload_limit(self) -> None:
+        for path, compose in (
+            (PROVISION, self.provision),
+            (SIGNERS, self.signers),
+        ):
+            with self.subTest(compose=path.name):
+                rendered = yaml.safe_dump(
+                    fixture_render(compose), sort_keys=False
+                ).encode("utf-8")
+                self.assertLess(len(rendered), 65_536)
+
+    def test_signer_application_preserves_process_confinement(self) -> None:
+        services = self.signers["services"]
+        for provider in PROVIDERS:
+            initializer = services[f"{provider}-transit-init"]
+            self.assertEqual(initializer["user"], "0:0")
+            self.assertEqual(initializer["network_mode"], "none")
+            self.assertTrue(initializer["read_only"])
+            self.assertEqual(initializer["cap_drop"], ["ALL"])
+            self.assertEqual(set(initializer["cap_add"]), {"CHOWN", "FOWNER"})
+            self.assertEqual(
+                initializer["security_opt"], ["no-new-privileges:true"]
+            )
+
+            signer = services[f"{provider}-signer"]
+            self.assertEqual(signer["user"], "65532:65532")
+            self.assertEqual(signer["network_mode"], "none")
+            self.assertTrue(signer["read_only"])
+            self.assertEqual(signer["cap_drop"], ["ALL"])
+            self.assertNotIn("cap_add", signer)
+            self.assertEqual(signer["security_opt"], ["no-new-privileges:true"])
+            self.assertEqual(signer["healthcheck"]["retries"], 30)
 
     def test_relay_runtime_secrets_are_authority_scoped(self) -> None:
         services = {}
