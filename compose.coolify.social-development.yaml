@@ -39,7 +39,7 @@ services:
     command: [--runtime, /etc/registry-evidence/sro/runtime.yaml, serve]
     volumes: [sro-evidence-runtime:/etc/registry-evidence/sro:ro, sro-evidence-secrets:/run/secrets/registry-evidence/sro:ro, sro-evidence-transit:/run/registry-evidence/sro:ro, sro-evidence-extracts:/var/lib/registry-evidence/sro/extracts:ro, sro-evidence-audit:/var/lib/registry-evidence/sro/audit]
     networks: {runtime: {ipv4_address: 172.29.3.23}}
-    labels: {solmara.lab.host: sro-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_SRO_EVIDENCE_PUBLIC_HOST:-sro-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
   mosd-programme-evidence:
     <<: *runtime
@@ -50,7 +50,7 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       mosd-relay: {condition: service_started}
-    labels: {solmara.lab.host: mosd-programme-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_HOST:-mosd-programme-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
   mosd-relay-runtime: {external: true, name: solmara-authority-cells-mosd-relay-runtime}

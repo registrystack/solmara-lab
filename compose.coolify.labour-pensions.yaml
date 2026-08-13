@@ -42,7 +42,7 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       sipf-relay: {condition: service_started}
-    labels: {solmara.lab.host: sipf-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_SIPF_EVIDENCE_PUBLIC_HOST:-sipf-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
   sipf-relay-runtime: {external: true, name: solmara-authority-cells-sipf-relay-runtime}

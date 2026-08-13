@@ -42,7 +42,7 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       nagdi-relay: {condition: service_started}
-    labels: {solmara.lab.host: nagdi-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_NAGDI_EVIDENCE_PUBLIC_HOST:-nagdi-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
   nagdi-relay-runtime: {external: true, name: solmara-authority-cells-nagdi-relay-runtime}

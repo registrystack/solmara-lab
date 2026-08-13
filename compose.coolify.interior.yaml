@@ -50,7 +50,7 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       cra-relay: {condition: service_started}
-    labels: {solmara.lab.host: cra-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_CRA_EVIDENCE_PUBLIC_HOST:-cra-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
   nia-evidence:
     <<: *runtime
@@ -58,7 +58,7 @@ services:
     command: [--runtime, /etc/registry-evidence/nia/runtime.yaml, serve]
     volumes: [nia-evidence-runtime:/etc/registry-evidence/nia:ro, nia-evidence-secrets:/run/secrets/registry-evidence/nia:ro, nia-evidence-transit:/run/registry-evidence/nia:ro, nia-evidence-extracts:/var/lib/registry-evidence/nia/extracts:ro, nia-evidence-audit:/var/lib/registry-evidence/nia/audit]
     networks: {runtime: {ipv4_address: 172.29.2.22}}
-    labels: {solmara.lab.host: nia-evidence.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_NIA_EVIDENCE_PUBLIC_HOST:-nia-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
   cra-relay-runtime: {external: true, name: solmara-authority-cells-cra-relay-runtime}
