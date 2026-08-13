@@ -77,7 +77,9 @@ Relay provisioners and Transit initializers remain read-only. The one-shot
 Evidence and Mint provisioners and the non-root signer processes instead mount
 `/run/secrets` as tmpfs. They remain networkless with no new privileges; signer
 processes also run with every Linux capability dropped. Secret values are not
-placed in container environment variables or persistent runtime volumes.
+placed in container environment variables. The provisioner copies only the
+required non-signing runtime secrets into each authority's isolated secret
+volume; private issuer signing keys remain confined to signer tmpfs.
 
 ## Mint clients
 
