@@ -20,23 +20,31 @@ class HostedProvisionerImageSmokeTests(unittest.TestCase):
     def test_container_uses_the_same_bounded_volume_initializer_identity_as_hosted(
         self,
     ) -> None:
-        with mock.patch.object(MODULE.subprocess, "run") as run:
-            MODULE._run(
-                "image@sha256:" + "a" * 64,
-                ["provision"],
-                [(Path("/state"), "/provisioned/runtime", False)],
-            )
-        command = run.call_args.args[0]
-        self.assertEqual(command[command.index("--user") + 1], "0:0")
-        self.assertEqual(command[command.index("--cap-drop") + 1], "ALL")
-        capabilities = {
-            command[index + 1]
-            for index, argument in enumerate(command)
-            if argument == "--cap-add"
-        }
-        self.assertEqual(capabilities, {"CHOWN", "DAC_OVERRIDE", "FOWNER"})
-        self.assertIn("none", command)
-        self.assertIn("--read-only", command)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            (inputs / "secret").write_text("value", encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            with mock.patch.object(MODULE.subprocess, "run") as run:
+                MODULE._run(
+                    "image@sha256:" + "a" * 64,
+                    ["provision"],
+                    [
+                        (inputs, "/tmp/solmara-provisioning", True),
+                        (output, "/provisioned/runtime", False),
+                    ],
+                )
+        self.assertEqual(run.call_count, 2)
+        up = run.call_args_list[0]
+        self.assertIn("compose", up.args[0])
+        self.assertIn("--exit-code-from", up.args[0])
+        self.assertNotIn("value", " ".join(up.args[0]))
+        self.assertEqual(up.kwargs["env"]["SOLMARA_SMOKE_SECRET_0"], "value")
+        down = run.call_args_list[1]
+        self.assertIn("down", down.args[0])
+        self.assertIn("--volumes", down.args[0])
 
     def test_success_is_sanitized(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

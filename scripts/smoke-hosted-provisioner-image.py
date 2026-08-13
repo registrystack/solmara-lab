@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 import yaml
@@ -45,40 +46,101 @@ def _copy_secret(source: Path, destination: Path) -> None:
 def _run(
     image: str, arguments: list[str], mounts: list[tuple[Path, str, bool]]
 ) -> None:
-    command = [
-        "docker",
-        "run",
-        "--rm",
-        "--platform",
-        "linux/amd64",
-        "--network",
-        "none",
-        "--read-only",
-        "--user",
-        "0:0",
-        "--cap-drop",
-        "ALL",
-        "--cap-add",
-        "CHOWN",
-        "--cap-add",
-        "DAC_OVERRIDE",
-        "--cap-add",
-        "FOWNER",
-        "--tmpfs",
-        "/tmp",
+    secret_mounts = [
+        mount for mount in mounts if mount[1] == "/tmp/solmara-provisioning"
     ]
-    for source, target, readonly in mounts:
-        specification = f"type=bind,source={source},target={target}"
-        if readonly:
-            specification += ",readonly"
-        command.extend(["--mount", specification])
-    command.extend([image, *arguments])
-    subprocess.run(
-        command,
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    if len(secret_mounts) != 1 or not secret_mounts[0][2]:
+        raise RuntimeError("invalid secret mount")
+    secret_root = secret_mounts[0][0]
+    secret_paths = sorted(secret_root.iterdir())
+    if not secret_paths:
+        raise RuntimeError("missing secrets")
+    environment = os.environ.copy()
+    secrets: dict[str, dict[str, str]] = {}
+    service_secrets: list[dict[str, object]] = []
+    for index, path in enumerate(secret_paths):
+        if not path.is_file() or path.is_symlink():
+            raise RuntimeError("invalid secret")
+        secret_name = f"input-{index}"
+        environment_name = f"SOLMARA_SMOKE_SECRET_{index}"
+        environment[environment_name] = path.read_text(encoding="utf-8")
+        secrets[secret_name] = {"environment": environment_name}
+        service_secrets.append(
+            {
+                "source": secret_name,
+                "target": f"/tmp/solmara-provisioning/{path.name}",
+                "uid": "0",
+                "gid": "0",
+                "mode": 0o400,
+            }
+        )
+    volumes = [
+        {
+            "type": "bind",
+            "source": str(source),
+            "target": target,
+            "read_only": readonly,
+        }
+        for source, target, readonly in mounts
+        if target != "/tmp/solmara-provisioning"
+    ]
+    compose = {
+        "services": {
+            "provision": {
+                "image": image,
+                "platform": "linux/amd64",
+                "pull_policy": "never",
+                "network_mode": "none",
+                "read_only": False,
+                "user": "0:0",
+                "cap_drop": ["ALL"],
+                "cap_add": ["CHOWN", "DAC_OVERRIDE", "FOWNER"],
+                "security_opt": ["no-new-privileges:true"],
+                "volumes": volumes,
+                "secrets": service_secrets,
+                "command": arguments,
+            }
+        },
+        "secrets": secrets,
+    }
+    project = f"solmara-provisioner-smoke-{uuid.uuid4().hex}"
+    with tempfile.TemporaryDirectory(
+        prefix="solmara-provisioner-compose-"
+    ) as temporary:
+        compose_file = Path(temporary) / "compose.yaml"
+        compose_file.write_text(
+            yaml.safe_dump(compose, sort_keys=True), encoding="utf-8"
+        )
+        command = [
+            "docker",
+            "compose",
+            "--project-name",
+            project,
+            "--file",
+            str(compose_file),
+        ]
+        try:
+            subprocess.run(
+                [
+                    *command,
+                    "up",
+                    "--abort-on-container-exit",
+                    "--exit-code-from",
+                    "provision",
+                ],
+                check=True,
+                env=environment,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        finally:
+            subprocess.run(
+                [*command, "down", "--volumes", "--remove-orphans"],
+                check=False,
+                env=environment,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
 
 def smoke(image: str, state_root: Path) -> None:
@@ -100,7 +162,7 @@ def smoke(image: str, state_root: Path) -> None:
     for name in ("runtime", "secrets", "extracts"):
         (cra / name).mkdir(parents=True)
     cra_mounts = [
-        (cra_input, "/run/secrets/solmara-provisioning", True),
+        (cra_input, "/tmp/solmara-provisioning", True),
         (cra / "runtime", "/provisioned/runtime", False),
         (cra / "secrets", "/provisioned/secrets", False),
         (cra / "extracts", "/provisioned/extracts", False),
@@ -112,7 +174,7 @@ def smoke(image: str, state_root: Path) -> None:
         "--assets",
         "/opt/solmara-hosted-assets",
         "--secrets",
-        "/run/secrets/solmara-provisioning",
+        "/tmp/solmara-provisioning",
         "--runtime-output",
         "/provisioned/runtime",
         "--secret-output",
@@ -163,7 +225,7 @@ def smoke(image: str, state_root: Path) -> None:
     for name in ("runtime", "secrets"):
         (mint / name).mkdir(parents=True)
     mint_mounts = [
-        (mint_input, "/run/secrets/solmara-provisioning", True),
+        (mint_input, "/tmp/solmara-provisioning", True),
         (mint / "runtime", "/provisioned/runtime", False),
         (mint / "secrets", "/provisioned/secrets", False),
     ]
@@ -174,7 +236,7 @@ def smoke(image: str, state_root: Path) -> None:
         "--assets",
         "/opt/solmara-hosted-assets",
         "--secrets",
-        "/run/secrets/solmara-provisioning",
+        "/tmp/solmara-provisioning",
         "--runtime-output",
         "/provisioned/runtime",
         "--secret-output",
