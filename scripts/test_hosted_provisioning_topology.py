@@ -267,6 +267,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         expected_services = {
             *(f"{provider}-transit-init" for provider in PROVIDERS),
             *(f"{provider}-signer" for provider in PROVIDERS),
+            "signers-ready",
         }
         self.assertEqual(set(self.signers["services"]), expected_services)
 
@@ -289,6 +290,18 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 for key, value in self.signers["volumes"].items()
             )
         )
+
+        readiness = self.signers["services"]["signers-ready"]
+        self.assertEqual(
+            readiness["depends_on"],
+            {
+                f"{provider}-signer": {"condition": "service_healthy"}
+                for provider in PROVIDERS
+            },
+        )
+        self.assertEqual(readiness["network_mode"], "none")
+        self.assertTrue(readiness["read_only"])
+        self.assertEqual(readiness["cap_drop"], ["ALL"])
 
         self.assertEqual(
             {service["image"] for service in self.signers["services"].values()},
@@ -355,6 +368,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             for name, service in services.items():
                 if name in {
                     "audit-permissions",
+                    "mint-readiness",
                     "static-metadata",
                     "scenario-runner",
                     "child-benefit-federator",
@@ -367,6 +381,18 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                     {"condition": "service_completed_successfully"},
                     name,
                 )
+
+    def test_core_deployment_waits_for_private_mint_health(self) -> None:
+        core = self.runtime["compose.coolify.yaml"]["services"]
+        readiness = core["mint-readiness"]
+        self.assertEqual(
+            readiness["depends_on"], {"mint": {"condition": "service_started"}}
+        )
+        self.assertEqual(readiness["networks"], ["runtime"])
+        self.assertEqual(readiness["cap_drop"], ["ALL"])
+        self.assertTrue(readiness["read_only"])
+        self.assertNotIn("secrets", readiness)
+        self.assertIn("172.29.1.20:8081/health", readiness["command"][0])
 
 
 if __name__ == "__main__":

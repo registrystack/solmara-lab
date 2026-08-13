@@ -37,6 +37,24 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
     labels: {solmara.lab.host: mint-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+  mint-readiness:
+    image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
+    entrypoint: [python, -c]
+    command:
+      - >-
+        import sys,time,urllib.request;
+        ok=False;
+        exec("for _ in range(60):\n try:\n  with urllib.request.urlopen('http://172.29.1.20:8081/health', timeout=1) as response:\n   if response.status == 200:\n    ok=True; break\n except Exception:\n  pass\n time.sleep(1)");
+        sys.exit(0 if ok else 'mint readiness failed')
+    restart: "no"
+    user: "65532:65532"
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [runtime]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      mint: {condition: service_started}
   static-metadata:
     image: ${SOLMARA_STATIC_METADATA_IMAGE:?set a digest-pinned Solmara static metadata image}
     restart: unless-stopped

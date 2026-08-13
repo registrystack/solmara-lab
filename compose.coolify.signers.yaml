@@ -108,6 +108,26 @@ services:
     depends_on:
       nagdi-transit-init: {condition: service_completed_successfully}
 
+  signers-ready:
+    image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
+    entrypoint: [/usr/local/bin/python, -c]
+    command: ["print('authority signers ready')"]
+    restart: "no"
+    user: "65532:65532"
+    read_only: true
+    tmpfs: [/tmp]
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      mint-signer: {condition: service_healthy}
+      cra-signer: {condition: service_healthy}
+      nia-signer: {condition: service_healthy}
+      sro-signer: {condition: service_healthy}
+      mosd-signer: {condition: service_healthy}
+      sipf-signer: {condition: service_healthy}
+      nagdi-signer: {condition: service_healthy}
+
 secrets:
   mint-signing-jwk: {environment: MINT_SIGNING_JWK}
   mint-signing-public-jwk: {environment: MINT_SIGNING_PUBLIC_JWK}
