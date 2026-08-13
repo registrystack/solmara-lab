@@ -158,14 +158,16 @@ Deploy the reset alongside the existing deployment in this order:
    to complete successfully.
 3. Deploy `compose.coolify.signers.yaml`. Require all seven Transit initializers
    to complete successfully and all seven signers to become healthy.
-4. Deploy the authority runtime applications from
+4. Deploy the shared Mint, programme services, portal, Visitor Center, and
+   static metadata from `compose.coolify.yaml`. Require Mint health, discovery,
+   and JWKS to pass before starting a Relay, because every Relay validates the
+   permanent Mint issuer during startup. Do not send programme requests yet.
+5. Deploy the authority runtime applications from
    `compose.coolify.interior.yaml`,
    `compose.coolify.social-development.yaml`,
    `compose.coolify.labour-pensions.yaml`, and
    `compose.coolify.agriculture.yaml`. Confirm all five Relays and all six
    Evidence cells are ready on the private routes.
-5. Deploy the shared Mint, programme services, portal, Visitor Center, and
-   static metadata from `compose.coolify.yaml`.
 6. Run the hosted programme, denial, JWKS, source-label, redaction, and UI smoke
    against the new routes before changing public routing.
 7. If required for this deployment, add `compose.coolify.esignet.yaml` and run
