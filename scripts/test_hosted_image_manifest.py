@@ -296,10 +296,11 @@ class HostedImageManifestTests(unittest.TestCase):
             for step in steps
             if step.get("name") == "Smoke hosted authority provisioner image"
         )["run"]
-        self.assertEqual(provisioner_smoke.count("--platform linux/amd64"), 2)
-        self.assertEqual(provisioner_smoke.count("--user 0:0"), 2)
-        for capability in ("CHOWN", "DAC_OVERRIDE", "FOWNER"):
-            self.assertEqual(provisioner_smoke.count(f"--cap-add {capability}"), 2)
+        self.assertEqual(provisioner_smoke.count("--platform linux/amd64"), 3)
+        self.assertEqual(provisioner_smoke.count("--user 0:0"), 3)
+        expected_capability_uses = {"CHOWN": 2, "DAC_OVERRIDE": 3, "FOWNER": 3}
+        for capability, uses in expected_capability_uses.items():
+            self.assertEqual(provisioner_smoke.count(f"--cap-add {capability}"), uses)
         self.assertIn("org.registrystack.release.revision", label_verification)
 
         provisioner_smoke = next(
@@ -311,6 +312,9 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertIn("--network none --read-only", provisioner_smoke)
         self.assertIn('test "$status" -eq 1', provisioner_smoke)
         self.assertIn("hosted target provisioning failed", provisioner_smoke)
+        self.assertNotIn('chmod u+w "$state/runtime/runtime.yaml"', provisioner_smoke)
+        self.assertIn("--entrypoint python", provisioner_smoke)
+        self.assertIn("--cap-add DAC_OVERRIDE --cap-add FOWNER", provisioner_smoke)
         self.assertEqual(
             provisioner_smoke.count(
                 "--mint-origin https://mint-authority-cells.solmara.registrystack.org"
