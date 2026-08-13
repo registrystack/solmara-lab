@@ -332,6 +332,7 @@ class HostedImageManifestTests(unittest.TestCase):
         self.assertIn("import cryptography", signer_smoke)
         self.assertIn("--public-jwk /run/secrets/signing-public.jwk", signer_smoke)
         self.assertIn("v1/transit/keys/solmara-evidence-cra", signer_smoke)
+        self.assertIn("seq 1 200", signer_smoke)
         self.assertIn("cells/nia/bundle/public-keys", signer_smoke)
         self.assertIn('test "$status" -eq 1', signer_smoke)
         self.assertIn("hosted Transit signer could not start", signer_smoke)

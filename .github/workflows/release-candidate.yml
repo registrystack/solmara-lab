@@ -278,7 +278,7 @@ jobs:
             --public-jwk /run/secrets/signing-public.jwk \
             --socket /transit/transit-proxy.sock \
             --key-name solmara-evidence-cra
-          for _ in $(seq 1 50); do
+          for _ in $(seq 1 200); do
             test -S "$state/transit/transit-proxy.sock" && break
             sleep 0.1
           done
