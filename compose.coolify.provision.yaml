@@ -3,19 +3,22 @@ name: solmara-authority-cells
 # This operator-only application owns every active runtime volume. Runtime
 # applications attach them by fixed external name and never receive write
 # access to authored contracts, source publications, extracts, or secrets.
-x-provisioner: &provisioner
+x-provisioner-common: &provisioner-common
   image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
   restart: "no"
   # Each one-shot service is confined to one target's volumes and needs root
   # only to initialize Docker-owned volume roots and hand private runtime
   # material to UID 65532. It has no network or writable container root.
   user: "0:0"
-  read_only: true
-  tmpfs: [/tmp]
   network_mode: none
   cap_drop: [ALL]
   cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
   security_opt: [no-new-privileges:true]
+
+x-provisioner: &provisioner
+  <<: *provisioner-common
+  read_only: true
+  tmpfs: /tmp
 
 # Docker Compose copies environment-backed secrets before starting a container.
 # Keep those inputs on the one-shot container's ephemeral root filesystem so a
@@ -23,9 +26,8 @@ x-provisioner: &provisioner
 # The provisioner removes the closed input inventory on every exit. Relay
 # provisioners remain fully read-only and receive no secret path.
 x-secret-provisioner: &secret-provisioner
-  <<: *provisioner
+  <<: *provisioner-common
   read_only: false
-  tmpfs: []
 
 services:
   cra-relay-provisioner:
@@ -137,7 +139,7 @@ services:
     restart: "no"
     user: "65532:65532"
     read_only: true
-    tmpfs: [/tmp]
+    tmpfs: /tmp
     network_mode: none
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

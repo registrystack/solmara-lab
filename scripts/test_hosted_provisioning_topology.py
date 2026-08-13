@@ -273,7 +273,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             self.assertEqual(service["security_opt"], ["no-new-privileges:true"])
             if service.get("secrets"):
                 self.assertFalse(service["read_only"])
-                self.assertEqual(service["tmpfs"], [])
+                self.assertNotIn("tmpfs", service)
                 self.assertEqual(
                     service["command"][service["command"].index("--secrets") + 1],
                     "/tmp/solmara-provisioning",
@@ -287,7 +287,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                     self.assertEqual(secret["mode"], 0o400)
             else:
                 self.assertTrue(service["read_only"])
-                self.assertEqual(service["tmpfs"], ["/tmp"])
+                self.assertEqual(service["tmpfs"], "/tmp")
 
     def test_provisioning_readiness_requires_all_targets_to_complete(self) -> None:
         readiness = self.provision["services"]["provisioning-ready"]
@@ -302,7 +302,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertEqual(readiness["user"], "65532:65532")
         self.assertEqual(readiness["network_mode"], "none")
         self.assertTrue(readiness["read_only"])
-        self.assertEqual(readiness["tmpfs"], ["/tmp"])
+        self.assertEqual(readiness["tmpfs"], "/tmp")
         self.assertEqual(readiness["cap_drop"], ["ALL"])
         self.assertNotIn("cap_add", readiness)
         self.assertNotIn("secrets", readiness)
