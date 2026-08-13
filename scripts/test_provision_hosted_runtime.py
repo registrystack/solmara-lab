@@ -917,7 +917,7 @@ class HostedProvisionerTests(unittest.TestCase):
             (runtime / "runtime.yaml").write_text(
                 yaml.safe_dump(
                     {
-                        "listener": {"bindHost": "172.29.1.23"},
+                        "listener": {"bindHost": provisioner.EXPECTED_BIND_HOST["sro"]},
                         "sourceExtracts": {
                             "sro-poverty-extract": {
                                 "path": f"/var/lib/registry-evidence/sro/extracts/{previous_name}"

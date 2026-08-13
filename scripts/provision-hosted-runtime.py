@@ -45,12 +45,12 @@ DIRECT = {
 }
 EXPECTED_BIND_HOST = {
     "mint": "172.29.1.20",
-    "cra": "172.29.1.21",
-    "nia": "172.29.1.22",
-    "sro": "172.29.1.23",
-    "mosd-programme": "172.29.1.24",
-    "sipf": "172.29.1.25",
-    "nagdi": "172.29.1.26",
+    "cra": "172.29.2.21",
+    "nia": "172.29.2.22",
+    "sro": "172.29.3.23",
+    "mosd-programme": "172.29.3.24",
+    "sipf": "172.29.4.25",
+    "nagdi": "172.29.5.26",
 }
 CELL_CLIENTS = {
     "cra": ("cra-pension-evidence", "cra-citizen-evidence"),
