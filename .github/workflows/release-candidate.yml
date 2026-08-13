@@ -259,36 +259,63 @@ jobs:
           image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-transit-signer@${{ steps.transit_signer.outputs.digest }}"
           docker run --rm --network none --read-only --entrypoint python "$image" -c 'import cryptography'
           state="$RUNNER_TEMP/solmara-transit-signer-state"
-          install -d -m 0700 "$state/secrets" "$state/transit"
-          sudo chown 65532:65532 "$state/secrets" "$state/transit"
+          install -d -m 0700 "$state/secrets"
+          sudo chown 65532:65532 "$state/secrets"
           sudo install -o 65532 -g 65532 -m 0400 \
             config/evidence/local/cells/cra/secrets/signing.jwk \
             "$state/secrets/signing.jwk"
           sudo install -o 65532 -g 65532 -m 0400 \
             runtime/evidence-cells/cells/cra/bundle/public-keys/*.jwk.json \
             "$state/secrets/signing-public.jwk"
-          name="solmara-transit-signer-${GITHUB_RUN_ID}"
-          trap 'docker rm --force "$name" >/dev/null 2>&1 || true' EXIT
+          name="solmara-transit-signer-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          volume="solmara-transit-signer-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker volume create "$volume" >/dev/null
+          cleanup() {
+            docker rm --force "$name" >/dev/null 2>&1 || true
+            docker volume rm --force "$volume" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --user 0:0 --cap-drop ALL --cap-add CHOWN --entrypoint python \
+            --mount "type=volume,source=$volume,target=/transit" \
+            "$image" -c \
+            'import os; os.chmod("/transit", 0o700); os.chown("/transit", 65532, 65532)'
           docker run --detach --name "$name" --network none --read-only --tmpfs /tmp \
             --mount "type=bind,source=$state/secrets/signing.jwk,target=/run/secrets/signing.jwk,readonly" \
             --mount "type=bind,source=$state/secrets/signing-public.jwk,target=/run/secrets/signing-public.jwk,readonly" \
-            --mount "type=bind,source=$state/transit,target=/transit" \
+            --mount "type=volume,source=$volume,target=/transit" \
             "$image" \
             --private-jwk /run/secrets/signing.jwk \
             --public-jwk /run/secrets/signing-public.jwk \
             --socket /transit/transit-proxy.sock \
             --key-name solmara-evidence-cra
           for _ in $(seq 1 200); do
-            test -S "$state/transit/transit-proxy.sock" && break
+            docker exec "$name" python -c \
+              'from pathlib import Path; raise SystemExit(0 if Path("/transit/transit-proxy.sock").is_socket() else 1)' \
+              && break
             sleep 0.1
           done
-          test -S "$state/transit/transit-proxy.sock"
-          curl --fail --silent --show-error \
-            --unix-socket "$state/transit/transit-proxy.sock" \
-            -H 'X-Vault-Request: true' \
-            http://localhost/v1/transit/keys/solmara-evidence-cra >/dev/null
+          docker exec "$name" python -c \
+            'from pathlib import Path; raise SystemExit(0 if Path("/transit/transit-proxy.sock").is_socket() else 1)'
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --user 65532:65532 --entrypoint python \
+            --mount "type=volume,source=$volume,target=/transit,readonly" \
+            "$image" -c '
+          import socket
+          client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+          client.settimeout(5)
+          client.connect("/transit/transit-proxy.sock")
+          client.sendall(b"GET /v1/transit/keys/solmara-evidence-cra HTTP/1.1\r\nHost: localhost\r\nX-Vault-Request: true\r\nConnection: close\r\n\r\n")
+          response = bytearray()
+          while True:
+              chunk = client.recv(65536)
+              if not chunk:
+                  break
+              response.extend(chunk)
+          client.close()
+          raise SystemExit(0 if response.startswith(b"HTTP/1.1 200 ") else 1)
+          '
           docker rm --force "$name" >/dev/null
-          trap - EXIT
 
           sudo install -o 65532 -g 65532 -m 0400 \
             runtime/evidence-cells/cells/nia/bundle/public-keys/*.jwk.json \
@@ -299,7 +326,7 @@ jobs:
           docker run --rm --network none --read-only --tmpfs /tmp \
             --mount "type=bind,source=$state/secrets/signing.jwk,target=/run/secrets/signing.jwk,readonly" \
             --mount "type=bind,source=$state/secrets/signing-public.jwk,target=/run/secrets/signing-public.jwk,readonly" \
-            --mount "type=bind,source=$state/transit,target=/transit" \
+            --mount "type=volume,source=$volume,target=/transit" \
             "$image" \
             --private-jwk /run/secrets/signing.jwk \
             --public-jwk /run/secrets/signing-public.jwk \
@@ -310,6 +337,8 @@ jobs:
           test "$status" -eq 1
           test ! -s "$stdout"
           test "$(cat "$stderr")" = "hosted Transit signer could not start"
+          cleanup
+          trap - EXIT
       - name: Build and push static metadata
         id: static_metadata
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
