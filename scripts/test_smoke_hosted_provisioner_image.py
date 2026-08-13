@@ -17,6 +17,11 @@ SPEC.loader.exec_module(MODULE)
 
 
 class HostedProvisionerImageSmokeTests(unittest.TestCase):
+    def test_smoke_uses_the_provisioner_owned_bind_hosts(self) -> None:
+        provisioner = MODULE._provisioner_module()
+        self.assertEqual(provisioner.EXPECTED_BIND_HOST["cra"], "172.29.2.21")
+        self.assertEqual(provisioner.EXPECTED_BIND_HOST["mint"], "172.29.1.20")
+
     def test_container_uses_the_same_bounded_volume_initializer_identity_as_hosted(
         self,
     ) -> None:

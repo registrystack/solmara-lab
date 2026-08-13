@@ -33,6 +33,17 @@ def _build_cells_module():
     return module
 
 
+def _provisioner_module():
+    path = ROOT / "scripts" / "provision-hosted-runtime.py"
+    spec = importlib.util.spec_from_file_location("provision_hosted_runtime", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unavailable helper")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def _write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, sort_keys=True), encoding="utf-8")
     path.chmod(0o400)
@@ -145,6 +156,7 @@ def _run(
 
 def smoke(image: str, state_root: Path) -> None:
     helper = _build_cells_module()
+    provisioner = _provisioner_module()
     cra_input = state_root / "cra-input"
     cra_input.mkdir(parents=True)
     _write_json(
@@ -182,7 +194,7 @@ def smoke(image: str, state_root: Path) -> None:
         "--extract-output",
         "/provisioned/extracts",
         "--bind-host",
-        "172.29.1.21",
+        provisioner.EXPECTED_BIND_HOST["cra"],
         "--mint-origin",
         MINT_ORIGIN,
         "--relay-origin",
@@ -242,7 +254,7 @@ def smoke(image: str, state_root: Path) -> None:
         "--secret-output",
         "/provisioned/secrets",
         "--bind-host",
-        "172.29.1.20",
+        provisioner.EXPECTED_BIND_HOST["mint"],
         "--mint-origin",
         MINT_ORIGIN,
     ]
