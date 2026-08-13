@@ -455,6 +455,33 @@ def _check_install_tree(
         raise ProvisionError("existing output mismatch")
 
 
+def _legacy_secret_tree(staged: Path, destination: Path) -> bool:
+    if destination.is_symlink():
+        raise ProvisionError("invalid existing output")
+    expected = _tree_digest(staged)
+    current = _tree_digest(destination)
+    if current:
+        for path in destination.rglob("*"):
+            metadata = path.lstat()
+            if path.is_file() and (
+                not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1
+            ):
+                raise ProvisionError("invalid existing output")
+    if not current or current == expected:
+        return False
+    legacy = {
+        relative: (digest, 0o400 if digest != "directory" and mode == 0o600 else mode)
+        for relative, (digest, mode) in expected.items()
+    }
+    if current != legacy:
+        raise ProvisionError("existing output mismatch")
+    return True
+
+
+def _check_secret_install_tree(staged: Path, destination: Path) -> None:
+    _legacy_secret_tree(staged, destination)
+
+
 def _install_tree(
     staged: Path,
     destination: Path,
@@ -503,6 +530,19 @@ def _install_tree(
     }
     if observed != expected:
         raise ProvisionError("output verification failed")
+
+
+def _install_secret_tree(staged: Path, destination: Path) -> None:
+    if _legacy_secret_tree(staged, destination):
+        for path in destination.rglob("*"):
+            if path.is_file():
+                path.chmod(0o600)
+    _install_tree(
+        staged,
+        destination,
+        root_mode=0o700,
+        owner=(65532, 65532),
+    )
 
 
 def _preserve_extract_rollback(relative: str, value: tuple[str, int]) -> bool:
@@ -882,18 +922,18 @@ def _stage_evidence(
     _patch_runtime(runtime_file, bind_host, extract_name)
     runtime_file.chmod(0o444)
     _write(
-        secret_output / "audit-hmac-key", _hmac_secret(secrets, "audit-hmac-key"), 0o400
+        secret_output / "audit-hmac-key", _hmac_secret(secrets, "audit-hmac-key"), 0o600
     )
     _write(
         secret_output / "subject-binding-hmac-key",
         _hmac_secret(secrets, "subject-binding-hmac-key"),
-        0o400,
+        0o600,
     )
     for client in CELL_CLIENTS[cell]:
         value = _read_secret(secrets, f"{client}-client-key")
         _private_client_jwk(value)
-        _write(secret_output / f"{client}-client-key", value, 0o400)
-        _write(secret_output / f"{client}-client-id", client.encode(), 0o400)
+        _write(secret_output / f"{client}-client-key", value, 0o600)
+        _write(secret_output / f"{client}-client-id", client.encode(), 0o600)
     _freeze_tree(runtime)
     for directory in [secret_output, *secret_output.rglob("*")]:
         if directory.is_dir():
@@ -950,7 +990,7 @@ def _stage_mint(
         0o444,
     )
     _write(
-        secret_output / "audit-hmac-key", _hmac_secret(secrets, "audit-hmac-key"), 0o400
+        secret_output / "audit-hmac-key", _hmac_secret(secrets, "audit-hmac-key"), 0o600
     )
     _freeze_tree(runtime)
     for directory in [secret_output, *secret_output.rglob("*")]:
@@ -1007,14 +1047,9 @@ def _provision_target(args: argparse.Namespace) -> None:
                 args.bind_host,
                 mint_origin,
             )
-            _check_install_tree(secret_output, args.secret_output.resolve())
+            _check_secret_install_tree(secret_output, args.secret_output.resolve())
             _check_install_tree(runtime, args.runtime_output.resolve())
-            _install_tree(
-                secret_output,
-                args.secret_output.resolve(),
-                root_mode=0o700,
-                owner=(65532, 65532),
-            )
+            _install_secret_tree(secret_output, args.secret_output.resolve())
         elif target.endswith("-evidence"):
             cell = target.removesuffix("-evidence")
             if (
@@ -1065,18 +1100,13 @@ def _provision_target(args: argparse.Namespace) -> None:
                 relay_origin,
             )
             runtime_preserve = _preserve_extract_rollback if cell in DIRECT else None
-            _check_install_tree(secret_output, args.secret_output.resolve())
+            _check_secret_install_tree(secret_output, args.secret_output.resolve())
             if cell in DIRECT:
                 _check_install_tree(extracts, args.extract_output.resolve())
             _check_install_tree(
                 runtime, args.runtime_output.resolve(), preserve=runtime_preserve
             )
-            _install_tree(
-                secret_output,
-                args.secret_output.resolve(),
-                root_mode=0o700,
-                owner=(65532, 65532),
-            )
+            _install_secret_tree(secret_output, args.secret_output.resolve())
             if cell in DIRECT:
                 _install_tree(extracts, args.extract_output.resolve(), root_mode=0o555)
         else:

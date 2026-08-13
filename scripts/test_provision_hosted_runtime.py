@@ -533,6 +533,8 @@ class HostedProvisionerTests(unittest.TestCase):
             self.assertNotIn(
                 "signing", " ".join(path.name for path in output_secrets.iterdir())
             )
+            for secret in output_secrets.iterdir():
+                self.assertEqual(stat.S_IMODE(secret.stat().st_mode), 0o600)
             public_file = (
                 runtime / "bundle" / "public-keys" / f"{signing_public['kid']}.jwk.json"
             )
@@ -591,6 +593,10 @@ class HostedProvisionerTests(unittest.TestCase):
             )
             self.assertEqual(
                 {path.name for path in output_secrets.iterdir()}, {"audit-hmac-key"}
+            )
+            self.assertEqual(
+                stat.S_IMODE((output_secrets / "audit-hmac-key").stat().st_mode),
+                0o600,
             )
             emitted = "\n".join(
                 path.read_text() for path in runtime.rglob("*") if path.is_file()
@@ -693,6 +699,7 @@ class HostedProvisionerTests(unittest.TestCase):
             runtime_output.mkdir()
             provisioner._write(runtime_output / "runtime.yaml", b"active", 0o444)
             secret_output = root / "secret-output"
+            provisioner._write(secret_output / "audit-hmac-key", b"a" * 32, 0o400)
             arguments = provisioner.parser().parse_args(
                 [
                     "provision",
@@ -715,7 +722,7 @@ class HostedProvisionerTests(unittest.TestCase):
 
             def stage(_assets, _inputs, runtime, secrets, _bind, _mint_origin):
                 provisioner._write(runtime / "runtime.yaml", b"replacement", 0o444)
-                provisioner._write(secrets / "audit-hmac-key", b"a" * 32, 0o400)
+                provisioner._write(secrets / "audit-hmac-key", b"a" * 32, 0o600)
 
             with (
                 mock.patch.object(provisioner, "verify_assets"),
@@ -726,8 +733,46 @@ class HostedProvisionerTests(unittest.TestCase):
                 self.assertRaises(provisioner.ProvisionError),
             ):
                 provisioner.provision(arguments)
-            self.assertFalse(secret_output.exists())
+            self.assertEqual(
+                stat.S_IMODE((secret_output / "audit-hmac-key").stat().st_mode),
+                0o400,
+            )
             self.assertEqual((runtime_output / "runtime.yaml").read_bytes(), b"active")
+
+    def test_generated_secret_mode_upgrade_is_preflighted_and_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            staged = root / "staged"
+            destination = root / "destination"
+            provisioner._write(staged / "audit-hmac-key", b"a" * 32, 0o600)
+            provisioner._write(destination / "audit-hmac-key", b"a" * 32, 0o400)
+
+            provisioner._check_secret_install_tree(staged, destination)
+            self.assertEqual(
+                stat.S_IMODE((destination / "audit-hmac-key").stat().st_mode),
+                0o400,
+            )
+            with mock.patch.object(provisioner.os, "chown"):
+                provisioner._install_secret_tree(staged, destination)
+            self.assertEqual(
+                stat.S_IMODE((destination / "audit-hmac-key").stat().st_mode),
+                0o600,
+            )
+
+            (destination / "audit-hmac-key").write_bytes(b"mismatch")
+            (destination / "audit-hmac-key").chmod(0o400)
+            with self.assertRaises(provisioner.ProvisionError):
+                provisioner._check_secret_install_tree(staged, destination)
+
+            hardlink_destination = root / "hardlink-destination"
+            provisioner._write(
+                hardlink_destination / "audit-hmac-key", b"a" * 32, 0o600
+            )
+            os.link(
+                hardlink_destination / "audit-hmac-key", root / "external-hard-link"
+            )
+            with self.assertRaises(provisioner.ProvisionError):
+                provisioner._check_secret_install_tree(staged, hardlink_destination)
 
     def test_relay_cli_loads_manifest_verifier_directly(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
