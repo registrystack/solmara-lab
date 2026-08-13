@@ -17,6 +17,15 @@ x-provisioner: &provisioner
   cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
   security_opt: [no-new-privileges:true]
 
+# Docker Compose injects environment-backed secrets after creating a
+# container, which it refuses to do through a read-only root filesystem. Keep
+# the injected files in tmpfs and relax only the one-shot targets that consume
+# bootstrap secrets. Relay provisioners remain fully read-only.
+x-secret-provisioner: &secret-provisioner
+  <<: *provisioner
+  read_only: false
+  tmpfs: [/tmp, /run/secrets]
+
 services:
   cra-relay-provisioner:
     <<: *provisioner
@@ -44,7 +53,7 @@ services:
     volumes: [nagdi-relay-runtime:/provisioned/runtime, nagdi-relay-source:/provisioned/source]
 
   cra-evidence-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, cra-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.2.21, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://cra-relay-authority-cells.solmara.registrystack.org]
     volumes: [cra-evidence-runtime:/provisioned/runtime, cra-evidence-secrets:/provisioned/secrets, cra-evidence-extracts:/provisioned/extracts]
     secrets:
@@ -55,7 +64,7 @@ services:
       - {source: cra-citizen-evidence-client-key, target: solmara-provisioning/cra-citizen-evidence-client-key}
 
   nia-evidence-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, nia-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.2.22, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
     volumes: [nia-evidence-runtime:/provisioned/runtime, nia-evidence-secrets:/provisioned/secrets, nia-evidence-extracts:/provisioned/extracts]
     secrets:
@@ -64,7 +73,7 @@ services:
       - {source: nia-evidence-subject-binding-hmac-key, target: solmara-provisioning/subject-binding-hmac-key}
 
   sro-evidence-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, sro-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.3.23, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
     volumes: [sro-evidence-runtime:/provisioned/runtime, sro-evidence-secrets:/provisioned/secrets, sro-evidence-extracts:/provisioned/extracts]
     secrets:
@@ -73,7 +82,7 @@ services:
       - {source: sro-evidence-subject-binding-hmac-key, target: solmara-provisioning/subject-binding-hmac-key}
 
   mosd-evidence-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, mosd-programme-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.3.24, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://mosd-programme-relay-authority-cells.solmara.registrystack.org]
     volumes: [mosd-evidence-runtime:/provisioned/runtime, mosd-evidence-secrets:/provisioned/secrets]
     secrets:
@@ -83,7 +92,7 @@ services:
       - {source: mosd-child-benefit-evidence-client-key, target: solmara-provisioning/mosd-child-benefit-evidence-client-key}
 
   sipf-evidence-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, sipf-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.4.25, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://sipf-relay-authority-cells.solmara.registrystack.org]
     volumes: [sipf-evidence-runtime:/provisioned/runtime, sipf-evidence-secrets:/provisioned/secrets]
     secrets:
@@ -94,7 +103,7 @@ services:
       - {source: sipf-survivor-evidence-client-key, target: solmara-provisioning/sipf-survivor-evidence-client-key}
 
   nagdi-evidence-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, nagdi-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.5.26, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://nagdi-relay-authority-cells.solmara.registrystack.org]
     volumes: [nagdi-evidence-runtime:/provisioned/runtime, nagdi-evidence-secrets:/provisioned/secrets]
     secrets:
@@ -105,7 +114,7 @@ services:
       - {source: nagdi-livestock-evidence-client-key, target: solmara-provisioning/nagdi-livestock-evidence-client-key}
 
   mint-provisioner:
-    <<: *provisioner
+    <<: *secret-provisioner
     command: [provision, --target, mint, --assets, /opt/solmara-hosted-assets, --secrets, /run/secrets/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.1.20, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
     volumes: [mint-runtime:/provisioned/runtime, mint-secrets:/provisioned/secrets]
     secrets:

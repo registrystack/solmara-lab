@@ -208,12 +208,17 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 continue
             self.assertEqual(service["user"], "0:0")
             self.assertEqual(service["network_mode"], "none")
-            self.assertTrue(service["read_only"])
             self.assertEqual(service["cap_drop"], ["ALL"])
             self.assertEqual(
                 set(service["cap_add"]), {"CHOWN", "DAC_OVERRIDE", "FOWNER"}
             )
             self.assertEqual(service["security_opt"], ["no-new-privileges:true"])
+            if service.get("secrets"):
+                self.assertFalse(service["read_only"])
+                self.assertEqual(set(service["tmpfs"]), {"/tmp", "/run/secrets"})
+            else:
+                self.assertTrue(service["read_only"])
+                self.assertEqual(service["tmpfs"], ["/tmp"])
 
     def test_provisioners_receive_closed_permanent_dependency_origins(self) -> None:
         services = self.provision["services"]
@@ -319,7 +324,8 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             signer = services[f"{provider}-signer"]
             self.assertEqual(signer["user"], "65532:65532")
             self.assertEqual(signer["network_mode"], "none")
-            self.assertTrue(signer["read_only"])
+            self.assertFalse(signer["read_only"])
+            self.assertEqual(set(signer["tmpfs"]), {"/tmp", "/run/secrets"})
             self.assertEqual(signer["cap_drop"], ["ALL"])
             self.assertNotIn("cap_add", signer)
             self.assertEqual(signer["security_opt"], ["no-new-privileges:true"])

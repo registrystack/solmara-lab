@@ -71,6 +71,14 @@ external read-only volumes. Each runtime application owns the writable audit
 volumes for its services and initializes their permissions without reading or
 replacing existing audit records.
 
+Docker Compose injects an environment-backed secret after creating its target
+container and rejects that operation when the root filesystem is read-only.
+Relay provisioners and Transit initializers remain read-only. The one-shot
+Evidence and Mint provisioners and the non-root signer processes instead mount
+`/run/secrets` as tmpfs. They remain networkless with no new privileges; signer
+processes also run with every Linux capability dropped. Secret values are not
+placed in container environment variables or persistent runtime volumes.
+
 ## Mint clients
 
 The shared Mint registers nine clients under the common lab audience. Eight are

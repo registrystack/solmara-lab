@@ -19,8 +19,12 @@ x-signer: &signer
   image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
   restart: unless-stopped
   user: "65532:65532"
-  read_only: true
-  tmpfs: [/tmp]
+  # Docker Compose copies environment-backed secrets after container creation,
+  # so the secret-consuming signer cannot use a read-only root filesystem.
+  # The key files live in tmpfs, and the non-root process remains networkless
+  # with every capability dropped.
+  read_only: false
+  tmpfs: [/tmp, /run/secrets]
   network_mode: none
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
