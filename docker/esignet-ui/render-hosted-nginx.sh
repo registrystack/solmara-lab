@@ -25,6 +25,13 @@ validate_host() {
   '
 }
 
+# Only the hosted template carries host placeholders. The local template binds
+# loopback ports instead, so it renders unchanged and needs no public hosts.
+if ! grep -q '__ESIGNET_' "$template"; then
+  cat "$template" >"$output"
+  exit 0
+fi
+
 if ! validate_host "${SOLMARA_ESIGNET_PUBLIC_HOST:-}" ||
    ! validate_host "${SOLMARA_ESIGNET_UI_PUBLIC_HOST:-}"; then
   echo "eSignet hosted nginx host configuration is invalid" >&2

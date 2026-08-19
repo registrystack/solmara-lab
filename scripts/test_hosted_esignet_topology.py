@@ -14,6 +14,8 @@ COMPOSE_PATH = ROOT / "compose.coolify.esignet.yaml"
 CORE_COMPOSE_PATH = ROOT / "compose.coolify.yaml"
 RENDERER = ROOT / "docker" / "esignet-ui" / "render-hosted-nginx.sh"
 TEMPLATE = ROOT / "config" / "esignet" / "nginx-hosted.conf"
+LOCAL_COMPOSE_PATH = ROOT / "compose.esignet.yaml"
+LOCAL_TEMPLATE = ROOT / "config" / "esignet" / "nginx.conf"
 
 
 class HostedEsignetTopologyTests(unittest.TestCase):
@@ -124,6 +126,63 @@ class HostedEsignetTopologyTests(unittest.TestCase):
                     "eSignet hosted nginx host configuration is invalid\n",
                 )
                 self.assertNotIn(invalid_host, result.stderr)
+
+    def test_renderer_passes_through_a_template_without_host_placeholders(self) -> None:
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key
+            not in ("SOLMARA_ESIGNET_PUBLIC_HOST", "SOLMARA_ESIGNET_UI_PUBLIC_HOST")
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "nginx.conf"
+            result = subprocess.run(
+                [str(RENDERER), str(LOCAL_TEMPLATE), str(output)],
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                output.read_text(encoding="utf-8"),
+                LOCAL_TEMPLATE.read_text(encoding="utf-8"),
+            )
+
+    def test_renderer_rejects_absent_hosts_when_the_template_has_placeholders(
+        self,
+    ) -> None:
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key
+            not in ("SOLMARA_ESIGNET_PUBLIC_HOST", "SOLMARA_ESIGNET_UI_PUBLIC_HOST")
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            result = subprocess.run(
+                [
+                    str(RENDERER),
+                    str(TEMPLATE),
+                    str(Path(temporary_directory) / "nginx.conf"),
+                ],
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 78)
+            self.assertEqual(
+                result.stderr,
+                "eSignet hosted nginx host configuration is invalid\n",
+            )
+
+    def test_local_esignet_ui_services_build_a_placeholder_free_template(self) -> None:
+        compose = yaml.safe_load(LOCAL_COMPOSE_PATH.read_text(encoding="utf-8"))
+        services = compose["services"]
+        for name in ("esignet-ui", "esignet-edge"):
+            with self.subTest(service=name):
+                template = ROOT / services[name]["build"]["args"]["ESIGNET_NGINX_CONF"]
+                self.assertNotIn(
+                    "__ESIGNET_", template.read_text(encoding="utf-8")
+                )
 
 
 if __name__ == "__main__":
