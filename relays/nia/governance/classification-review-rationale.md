@@ -1,0 +1,1 @@
+NIA reviewed the eSignet disclosure inventory. Every UserInfo property is restricted and identifying or sensitive personal data. The eSignet caller must project the user-consented subset through `fields`; legacy identifiers and identity-status source columns are not disclosable properties.

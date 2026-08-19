@@ -1,17 +1,14 @@
 <script lang="ts">
-  import type { Purpose, Scenario, StepRunEnvelope, StepRunResult } from '$lib/types';
-  import { toCurl } from '$lib/curl';
+  import type { Scenario, StepRunEnvelope, StepRunResult } from '$lib/types';
   import {
     claimResults,
     explicitProblemCode,
     hasExpectedSuccessfulClaims,
     hopsFromResult,
-    isExpectedProblemDenial
+    responseStatus
   } from '$lib/runresult';
-  import CopyButton from './CopyButton.svelte';
 
   export let scenarios: Scenario[] = [];
-  export let purposes: Purpose[] = [];
 
   const minimumJourneyDuration = 1_200;
   const evidenceQuestions = [
@@ -35,25 +32,16 @@
   let running = false;
   let reasking = false;
   let runFailed = false;
-  let selectedPurpose = '';
 
   $: defaultScenario = scenarios.find((scenario) => scenario.id === 'birth-to-child-benefit') ?? scenarios[0];
-  $: permittedPurpose = defaultScenario?.requester.purpose ?? '';
-  $: wrongPurpose =
-    purposes.find((purpose) => purpose.slug === 'pension-payment-review')?.iri ??
-    purposes.find((purpose) => purpose.iri !== permittedPurpose)?.iri ??
-    '';
-  $: if (!selectedPurpose && wrongPurpose) selectedPurpose = wrongPurpose;
-  $: selectedPurposeView = purposes.find((purpose) => purpose.iri === selectedPurpose);
-  $: positivePreview = defaultScenario?.steps.find((step) => step.id === 'positive')?.request_preview;
 
   $: trace = hopsFromResult(firstResult);
   $: authorities = trace.map((hop) => hop.split(':')[0]).filter((authority, index, list) => list.indexOf(authority) === index);
   $: disclosed = claimResults(firstResult).filter((claim) => claim.satisfied !== false);
   $: firstRunSucceeded = hasExpectedSuccessfulClaims(firstResult, expectedEvidenceIds);
   $: flipCode = explicitProblemCode(flipResult);
-  $: flipDenied = isExpectedProblemDenial(flipResult, 'pdp.purpose_not_permitted');
   $: flipSucceeded = hasExpectedSuccessfulClaims(flipResult, expectedEvidenceIds);
+  $: flipDenied = responseStatus(flipResult) === 403 && !flipSucceeded;
   $: journeyStatus = running
     ? 'Checking the four government offices.'
     : firstRunSucceeded
@@ -62,19 +50,13 @@
         ? 'The live check needs attention before any answers can be used.'
       : 'Ready to run the check without sharing records.';
 
-  $: flipHeaders = (selectedPurpose ? { 'Data-Purpose': selectedPurpose } : {}) as Record<string, string>;
-  $: flipPreviewLine = positivePreview
-    ? `${positivePreview.method} ${positivePreview.url}\nData-Purpose: ${selectedPurpose}`
-    : '';
-  $: flipCurl = positivePreview ? toCurl(positivePreview, flipHeaders) : '';
-
-  async function runStep(step: string, body: Record<string, unknown>): Promise<StepRunResult | null> {
+  async function runStep(step: string): Promise<StepRunResult | null> {
     if (!defaultScenario) return null;
     try {
       const response = await fetch(`/api/scenarios/${defaultScenario.id}/steps/${step}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: '{}'
       });
       const envelope = (await response.json()) as StepRunEnvelope;
       return envelope.result ?? null;
@@ -88,7 +70,7 @@
     runFailed = false;
     firstResult = null;
     flipResult = null;
-    const resultPromise = runStep('positive', {});
+    const resultPromise = runStep('positive');
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!prefersReducedMotion) {
       await Promise.all([
@@ -101,17 +83,11 @@
     running = false;
   }
 
-  async function askUnderPurpose(purpose: string) {
-    if (!purpose) return;
+  async function tryWrongPurpose() {
     reasking = true;
     flipResult = null;
-    flipResult = await runStep('positive', { purpose });
+    flipResult = await runStep('purpose-denial');
     reasking = false;
-  }
-
-  async function tryWrongPurpose() {
-    selectedPurpose = wrongPurpose;
-    await askUnderPurpose(wrongPurpose);
   }
 </script>
 
@@ -255,7 +231,7 @@
             No. This request is allowed only for Mateo's child-benefit review. Try to reuse it for
             a pension review and the same services must refuse.
           </p>
-          <button class="primary" on:click={tryWrongPurpose} disabled={reasking || !wrongPurpose}>
+          <button class="primary" on:click={tryWrongPurpose} disabled={reasking}>
             {reasking ? 'Testing the safeguard…' : 'Test the safeguard'}
           </button>
         </div>
@@ -298,34 +274,9 @@
           {/if}
         </div>
 
-        <details class="advanced-request">
-          <summary>Explore other purposes or inspect the technical request</summary>
-          <div class="advanced-request-grid">
-            <div class="purpose-picker">
-              <label for="alternate-purpose">
-                Alternate purpose
-                <select id="alternate-purpose" bind:value={selectedPurpose}>
-                  {#each purposes as purpose}
-                    <option value={purpose.iri}>{purpose.story}</option>
-                  {/each}
-                </select>
-              </label>
-              <p class="field-help">
-                The request will carry <code>{selectedPurposeView?.slug ?? 'no-purpose-selected'}</code>.
-              </p>
-              <button class="secondary-action" on:click={() => askUnderPurpose(selectedPurpose)} disabled={reasking || !positivePreview}>
-                Test this purpose
-              </button>
-            </div>
-            <details class="request-inspector">
-              <summary>View the request preview and curl</summary>
-              <pre>{flipPreviewLine}</pre>
-              {#if flipCurl}
-                <CopyButton text={flipCurl} label="Copy as curl" />
-              {/if}
-            </details>
-          </div>
-        </details>
+        <p class="quiet-caption">
+          This fixed scenario sends its reviewed pension purpose in the JSON body. The browser cannot override a scenario purpose.
+        </p>
       </div>
     {/if}
   </div>

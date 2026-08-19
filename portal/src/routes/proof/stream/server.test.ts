@@ -42,15 +42,8 @@ function trace(id: string): ProofTrace {
     notDisclosed: 'Not disclosed: any other civil record detail',
     status: 'ok',
     ts: '2026-06-22T12:00:00.000Z',
-    request: {
-      method: 'POST',
-      url: 'https://civil-notary.gov.solmara.example/v1/evaluations',
-      body: { claim: 'person-is-deceased' }
-    },
-    response: {
-      status: 200,
-      body: { result: true }
-    }
+    resultState: 'verified',
+    presentations: []
   };
 }
 

@@ -1,0 +1,9 @@
+apiVersion: relay.registrystack.org/classification-review/v1
+kind: ClassificationReview
+registryIdentifier: https://id.registrystack.org/solmara/registry/nagdi
+classificationInventoryDigest: sha256:533adfdf56fec71ce8805cc3ee4b2e4337352888e8f674941c02b5200a682d14
+method: manual
+reviewer: did:web:id.registrystack.org:solmara:authority:nagdi
+reviewDate: 2026-08-12
+status: reviewed
+rationaleRef: governance/classification-review-rationale.md

@@ -1,179 +1,164 @@
-name: solmara-lab-core
-
-# Core hosted Coolify compose. Keep this file and the per-authority
-# compose.coolify.*.yaml files free of custom Docker networks; Coolify owns the
-# proxy network and domains. Cross-authority calls use public TLS endpoints.
-
+name: solmara-lab
+x-hosted-evidence-environment: &hosted-evidence
+  SOLMARA_LAB_MODE: hosted
+  SOLMARA_MINT_URL: https://mint-authority-cells.solmara.registrystack.org
+  SOLMARA_MINT_ASSERTION_AUDIENCE: https://mint-authority-cells.solmara.registrystack.org/token
+  SOLMARA_EVIDENCE_CLIENT_ID: solmara-demo
+  SOLMARA_EVIDENCE_CLIENT_KEY: /run/secrets/solmara-evidence-client.jwk
+  SOLMARA_CRA_EVIDENCE_URL: ${SOLMARA_CRA_EVIDENCE_PUBLIC_BASE_URL:-https://cra-evidence.solmara.registrystack.org}
+  SOLMARA_NIA_EVIDENCE_URL: ${SOLMARA_NIA_EVIDENCE_PUBLIC_BASE_URL:-https://nia-evidence.solmara.registrystack.org}
+  SOLMARA_SRO_EVIDENCE_URL: ${SOLMARA_SRO_EVIDENCE_PUBLIC_BASE_URL:-https://sro-evidence.solmara.registrystack.org}
+  SOLMARA_MOSD_PROGRAMME_EVIDENCE_URL: ${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_BASE_URL:-https://mosd-programme-evidence.solmara.registrystack.org}
+  SOLMARA_SIPF_EVIDENCE_URL: ${SOLMARA_SIPF_EVIDENCE_PUBLIC_BASE_URL:-https://sipf-evidence.solmara.registrystack.org}
+  SOLMARA_NAGDI_EVIDENCE_URL: ${SOLMARA_NAGDI_EVIDENCE_PUBLIC_BASE_URL:-https://nagdi-evidence.solmara.registrystack.org}
+  CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN:?required}
 services:
+  audit-permissions:
+    image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
+    entrypoint: [python, /app/scripts/provision-hosted-runtime.py]
+    command: [init-audit, --destination, /audit/mint, --uid, "65532", --gid, "65532"]
+    restart: "no"
+    user: "0:0"
+    read_only: true
+    tmpfs: [/tmp]
+    network_mode: none
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: [no-new-privileges:true]
+    volumes: [mint-audit:/audit/mint]
+  mint:
+    image: ${SOLMARA_MINT_IMAGE:?set the digest-pinned official Registry Stack Mint image}
+    command: ["serve", "--config", "/etc/registry-mint/mint.yaml"]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    volumes: ["mint-runtime:/etc/registry-mint:ro", "mint-secrets:/run/secrets/registry-mint:ro", "mint-transit:/run/registry-mint:ro", "mint-audit:/var/lib/registry-mint"]
+    networks: {runtime: {ipv4_address: 172.29.1.20}}
+    depends_on:
+      audit-permissions: {condition: service_completed_successfully}
+    labels: {solmara.lab.host: mint-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+  mint-readiness:
+    image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
+    entrypoint: [python, -c]
+    command:
+      - >-
+        import sys,time,urllib.request;
+        ok=False;
+        exec("for _ in range(60):\n try:\n  with urllib.request.urlopen('http://172.29.1.20:8081/health', timeout=1) as response:\n   if response.status == 200:\n    ok=True; break\n except Exception:\n  pass\n time.sleep(1)");
+        sys.exit(0 if ok else 'mint readiness failed')
+    restart: "no"
+    user: "65532:65532"
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [runtime]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      mint: {condition: service_started}
   static-metadata:
-    image: ${SOLMARA_STATIC_METADATA_IMAGE:?set digest-pinned Solmara static metadata image}
-    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"]
-    labels:
-      solmara.lab.host: metadata.solmara.registrystack.org
-
-  workload-issuer:
-    image: ${SOLMARA_STATIC_METADATA_IMAGE:?set digest-pinned Solmara static metadata image}
-    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"]
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/.well-known/jwks.json"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    labels:
-      solmara.lab.host: workload-issuer.solmara.registrystack.org
-
+    image: ${SOLMARA_STATIC_METADATA_IMAGE:?set a digest-pinned Solmara static metadata image}
+    restart: unless-stopped
+    labels: {solmara.lab.host: "${SOLMARA_METADATA_PUBLIC_HOST:-metadata.solmara.registrystack.org}"}
   scenario-runner:
-    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set a digest-pinned Solmara scenario runner image}
+    restart: unless-stopped
     environment:
+      <<: *hosted-evidence
+      CHILD_BENEFIT_FEDERATOR_URL: ${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}
       SCENARIO_RUNNER_HOST: 0.0.0.0
-      SCENARIO_RUNNER_PORT: 8080
-      SOLMARA_LAB_MODE: hosted
-      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
-      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      CRA_PENSION_CLIENT_TOKEN: ${CRA_PENSION_CLIENT_TOKEN}
-      CRA_CITIZEN_CLIENT_TOKEN: ${CRA_CITIZEN_CLIENT_TOKEN}
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      NIA_CITIZEN_CLIENT_TOKEN: ${NIA_CITIZEN_CLIENT_TOKEN}
-      SIPF_NOTARY_URL: https://sipf-notary.solmara.registrystack.org
-      SIPF_PENSION_CLIENT_TOKEN: ${SIPF_PENSION_CLIENT_TOKEN}
-      NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
-      NAGDI_NOTARY_TOKEN: ${NAGDI_NOTARY_TOKEN}
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      SCENARIO_RUNNER_PORT: "8080"
+    secrets:
+      - source: solmara-demo-client-key
+        target: solmara-evidence-client.jwk
     depends_on:
-      child-benefit-federator:
-        condition: service_healthy
-    labels:
-      solmara.lab.visibility: internal
-
+      mint-readiness: {condition: service_completed_successfully}
+    labels: {solmara.lab.host: "${SOLMARA_SCENARIO_RUNNER_PUBLIC_HOST:-scenarios.solmara.registrystack.org}"}
   child-benefit-federator:
-    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
+    image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set a digest-pinned Solmara scenario runner image}
     command: ["python", "scenario-runner/child_benefit_federator.py"]
+    restart: unless-stopped
     environment:
+      <<: *hosted-evidence
       CHILD_BENEFIT_FEDERATOR_HOST: 0.0.0.0
-      CHILD_BENEFIT_FEDERATOR_PORT: 8080
-      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      CRA_CHILD_BENEFIT_CLIENT_TOKEN: ${CRA_CHILD_BENEFIT_CLIENT_TOKEN}
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      NIA_CHILD_BENEFIT_CLIENT_TOKEN: ${NIA_CHILD_BENEFIT_CLIENT_TOKEN}
-      SRO_NOTARY_URL: https://sro-notary.solmara.registrystack.org
-      SRO_CHILD_BENEFIT_CLIENT_TOKEN: ${SRO_CHILD_BENEFIT_CLIENT_TOKEN}
-      PROGRAMME_NOTARY_URL: https://programme-notary.solmara.registrystack.org
-      PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN: ${PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN}
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    labels:
-      solmara.lab.host: child-benefit-federator.solmara.registrystack.org
-
+      CHILD_BENEFIT_FEDERATOR_PORT: "8080"
+    secrets:
+      - source: solmara-demo-client-key
+        target: solmara-evidence-client.jwk
+    labels: {solmara.lab.host: "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_HOST:-child-benefit.solmara.registrystack.org}"}
   home:
-    image: ${SOLMARA_HOME_IMAGE:?set digest-pinned Solmara home image}
+    image: ${SOLMARA_HOME_IMAGE:?set a digest-pinned Solmara home image}
+    restart: unless-stopped
     environment:
-      HOST: 0.0.0.0
-      PORT: 4301
-      SOLMARA_LAB_ROOT: /app
-      REPO_URL: ${REPO_URL:-https://github.com/registrystack/solmara-lab}
-      PORTAL_URL: https://portal.solmara.registrystack.org
-      SCENARIO_RUNNER_URL: http://scenario-runner:8080
-      STATIC_METADATA_URL: http://static-metadata:8080
-      PORTAL_PROBE_URL: http://portal:4000
-      CRA_CIVIL_RELAY_URL: https://cra-relay.solmara.registrystack.org
-      NIA_POPULATION_RELAY_URL: https://nia-relay.solmara.registrystack.org
-      SRO_SOCIAL_RELAY_URL: https://sro-relay.solmara.registrystack.org
-      PROGRAMME_MIS_RELAY_URL: https://mosd-programme-relay.solmara.registrystack.org
-      SIPF_PENSIONS_RELAY_URL: https://sipf-relay.solmara.registrystack.org
-      NAGDI_AGRICULTURE_RELAY_URL: https://nagdi-relay.solmara.registrystack.org
-      CHILD_BENEFIT_FEDERATOR_URL: https://child-benefit-federator.solmara.registrystack.org
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      SRO_NOTARY_URL: https://sro-notary.solmara.registrystack.org
-      PROGRAMME_NOTARY_URL: https://programme-notary.solmara.registrystack.org
-      SIPF_NOTARY_URL: https://sipf-notary.solmara.registrystack.org
-      NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
-      HOME_PUBLISHED_TOKENS: >-
-        {"child-benefit-federator":"${CHILD_BENEFIT_FEDERATOR_TOKEN}",
-        "cra-pension-client":"${CRA_PENSION_CLIENT_TOKEN}",
-        "cra-citizen-client":"${CRA_CITIZEN_CLIENT_TOKEN}",
-        "nia-citizen-client":"${NIA_CITIZEN_CLIENT_TOKEN}",
-        "sipf-pension-client":"${SIPF_PENSION_CLIENT_TOKEN}",
-        "nagdi-notary":"${NAGDI_NOTARY_TOKEN}"}
+      PORTAL_URL: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}
+      STATIC_METADATA_URL: ${SOLMARA_METADATA_PUBLIC_BASE_URL:-https://metadata.solmara.registrystack.org}
+      CRA_CIVIL_RELAY_URL: https://cra-relay-authority-cells.solmara.registrystack.org
+      NIA_POPULATION_RELAY_URL: https://nia-relay-authority-cells.solmara.registrystack.org
+      MOSD_PROGRAMME_RELAY_URL: https://mosd-programme-relay-authority-cells.solmara.registrystack.org
+      SIPF_PENSIONS_RELAY_URL: https://sipf-relay-authority-cells.solmara.registrystack.org
+      NAGDI_AGRICULTURE_RELAY_URL: https://nagdi-relay-authority-cells.solmara.registrystack.org
+      SOLMARA_CRA_EVIDENCE_URL: ${SOLMARA_CRA_EVIDENCE_PUBLIC_BASE_URL:-https://cra-evidence.solmara.registrystack.org}
+      SOLMARA_NIA_EVIDENCE_URL: ${SOLMARA_NIA_EVIDENCE_PUBLIC_BASE_URL:-https://nia-evidence.solmara.registrystack.org}
+      SOLMARA_SRO_EVIDENCE_URL: ${SOLMARA_SRO_EVIDENCE_PUBLIC_BASE_URL:-https://sro-evidence.solmara.registrystack.org}
+      SOLMARA_MOSD_PROGRAMME_EVIDENCE_URL: ${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_BASE_URL:-https://mosd-programme-evidence.solmara.registrystack.org}
+      SOLMARA_SIPF_EVIDENCE_URL: ${SOLMARA_SIPF_EVIDENCE_PUBLIC_BASE_URL:-https://sipf-evidence.solmara.registrystack.org}
+      SOLMARA_NAGDI_EVIDENCE_URL: ${SOLMARA_NAGDI_EVIDENCE_PUBLIC_BASE_URL:-https://nagdi-evidence.solmara.registrystack.org}
+      MINT_URL: https://mint-authority-cells.solmara.registrystack.org
+      CHILD_BENEFIT_FEDERATOR_URL: ${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}
+      SCENARIO_RUNNER_URL: ${SOLMARA_SCENARIO_RUNNER_PUBLIC_BASE_URL:-https://scenarios.solmara.registrystack.org}
+      PORTAL_PROBE_URL: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}
       SOLMARA_PUBLIC_URL_MAP: >-
-        {"child-benefit-federator:8080":"https://child-benefit-federator.solmara.registrystack.org",
-        "cra-notary:8081":"https://cra-notary.solmara.registrystack.org",
-        "nia-notary:8081":"https://nia-notary.solmara.registrystack.org",
-        "sro-notary:8081":"https://sro-notary.solmara.registrystack.org",
-        "programme-notary:8081":"https://programme-notary.solmara.registrystack.org",
-        "sipf-notary:8081":"https://sipf-notary.solmara.registrystack.org",
-        "nagdi-notary:8081":"https://nagdi-notary.solmara.registrystack.org",
-        "cra-civil-relay:8080":"https://cra-relay.solmara.registrystack.org",
-        "nia-population-relay:8080":"https://nia-relay.solmara.registrystack.org",
-        "sro-social-relay:8080":"https://sro-relay.solmara.registrystack.org",
-        "programme-mis-relay:8080":"https://mosd-programme-relay.solmara.registrystack.org",
-        "sipf-pensions-relay:8080":"https://sipf-relay.solmara.registrystack.org",
-        "nagdi-agriculture-relay:8080":"https://nagdi-relay.solmara.registrystack.org",
-        "static-metadata:8080":"https://metadata.solmara.registrystack.org",
-        "portal:4000":"https://portal.solmara.registrystack.org"}
-      UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4301/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    depends_on:
-      static-metadata:
-        condition: service_started
-      scenario-runner:
-        condition: service_healthy
-    labels:
-      solmara.lab.host: solmara.registrystack.org
-
+        {"child-benefit-federator:8080":"${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}",
+        "deterministic-publisher:8080":"${SOLMARA_METADATA_PUBLIC_BASE_URL:-https://metadata.solmara.registrystack.org}",
+        "cra-evidence:8080":"${SOLMARA_CRA_EVIDENCE_PUBLIC_BASE_URL:-https://cra-evidence.solmara.registrystack.org}",
+        "nia-evidence:8080":"${SOLMARA_NIA_EVIDENCE_PUBLIC_BASE_URL:-https://nia-evidence.solmara.registrystack.org}",
+        "sro-evidence:8080":"${SOLMARA_SRO_EVIDENCE_PUBLIC_BASE_URL:-https://sro-evidence.solmara.registrystack.org}",
+        "mosd-programme-evidence:8080":"${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_BASE_URL:-https://mosd-programme-evidence.solmara.registrystack.org}",
+        "sipf-evidence:8080":"${SOLMARA_SIPF_EVIDENCE_PUBLIC_BASE_URL:-https://sipf-evidence.solmara.registrystack.org}",
+        "nagdi-evidence:8080":"${SOLMARA_NAGDI_EVIDENCE_PUBLIC_BASE_URL:-https://nagdi-evidence.solmara.registrystack.org}",
+        "mint:8081":"https://mint-authority-cells.solmara.registrystack.org",
+        "cra-relay:8080":"https://cra-relay-authority-cells.solmara.registrystack.org",
+        "nia-relay:8080":"https://nia-relay-authority-cells.solmara.registrystack.org",
+        "mosd-relay:8080":"https://mosd-programme-relay-authority-cells.solmara.registrystack.org",
+        "sipf-relay:8080":"https://sipf-relay-authority-cells.solmara.registrystack.org",
+        "nagdi-relay:8080":"https://nagdi-relay-authority-cells.solmara.registrystack.org",
+        "static-metadata:8080":"${SOLMARA_METADATA_PUBLIC_BASE_URL:-https://metadata.solmara.registrystack.org}",
+        "scenario-runner:8080":"${SOLMARA_SCENARIO_RUNNER_PUBLIC_BASE_URL:-https://scenarios.solmara.registrystack.org}",
+        "portal:4000":"${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}"}
+    labels: {solmara.lab.host: "${SOLMARA_HOME_PUBLIC_HOST:-solmara.registrystack.org}"}
   portal:
-    image: ${SOLMARA_PORTAL_IMAGE:?set digest-pinned Solmara portal image}
+    image: ${SOLMARA_PORTAL_IMAGE:?set a digest-pinned Solmara portal image}
+    restart: unless-stopped
     environment:
-      HOST: 0.0.0.0
-      PORT: 4000
+      <<: *hosted-evidence
       PORTAL_PROVIDER: live
-      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET}
-      PORTAL_AUTH_PROVIDER: esignet
+      PORTAL_AUTH_PROVIDER: ${PORTAL_AUTH_PROVIDER:-mock}
       PORTAL_SECURE_COOKIES: "true"
       PORTAL_ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
       PORTAL_ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
-      PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64}
-      PORTAL_ESIGNET_ISSUER: https://esignet.solmara.registrystack.org
-      PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT: https://esignet-ui.solmara.registrystack.org/authorize
-      PORTAL_ESIGNET_TOKEN_ENDPOINT: https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token
-      PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE: https://esignet.solmara.registrystack.org/v1/esignet/oauth/v2/token
-      PORTAL_ESIGNET_USERINFO_ENDPOINT: https://esignet.solmara.registrystack.org/v1/esignet/oidc/userinfo
-      PORTAL_ESIGNET_REDIRECT_URI: https://portal.solmara.registrystack.org/auth/callback
+      PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}
+      PORTAL_ESIGNET_ISSUER: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}
+      PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT: ${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize
+      PORTAL_ESIGNET_TOKEN_ENDPOINT: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token
+      PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token
+      PORTAL_ESIGNET_USERINFO_ENDPOINT: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oidc/userinfo
+      PORTAL_ESIGNET_REDIRECT_URI: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback
       PORTAL_ESIGNET_SCOPE: openid profile
-      PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
-      CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
-      CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN}
-      CRA_NOTARY_URL: https://cra-notary.solmara.registrystack.org
-      CRA_PENSION_CLIENT_TOKEN: ${CRA_PENSION_CLIENT_TOKEN}
-      CRA_CITIZEN_CLIENT_TOKEN: ${CRA_CITIZEN_CLIENT_TOKEN}
-      NIA_NOTARY_URL: https://nia-notary.solmara.registrystack.org
-      NIA_CITIZEN_CLIENT_TOKEN: ${NIA_CITIZEN_CLIENT_TOKEN}
-      SIPF_NOTARY_URL: https://sipf-notary.solmara.registrystack.org
-      SIPF_PENSION_CLIENT_TOKEN: ${SIPF_PENSION_CLIENT_TOKEN}
-      NAGDI_NOTARY_URL: https://nagdi-notary.solmara.registrystack.org
-      NAGDI_NOTARY_TOKEN: ${NAGDI_NOTARY_TOKEN}
-      SCENARIO_RUNNER_URL: http://scenario-runner:8080
-      STATIC_METADATA_URL: http://static-metadata:8080
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    depends_on:
-      scenario-runner:
-        condition: service_healthy
-    labels:
-      solmara.lab.host: portal.solmara.registrystack.org
+      PORTAL_ESIGNET_SUBJECT_CLAIM: sub
+      SCENARIO_RUNNER_URL: ${SOLMARA_SCENARIO_RUNNER_PUBLIC_BASE_URL:-https://scenarios.solmara.registrystack.org}
+      CHILD_BENEFIT_FEDERATOR_URL: ${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}
+    secrets:
+      - source: solmara-demo-client-key
+        target: solmara-evidence-client.jwk
+    labels: {solmara.lab.host: "${SOLMARA_PORTAL_PUBLIC_HOST:-portal.solmara.registrystack.org}"}
+secrets:
+  solmara-demo-client-key:
+    environment: SOLMARA_DEMO_CLIENT_PRIVATE_JWK
+volumes:
+  mint-runtime: {external: true, name: solmara-authority-cells-mint-runtime}
+  mint-secrets: {external: true, name: solmara-authority-cells-mint-secrets}
+  mint-transit: {external: true, name: solmara-authority-cells-mint-transit}
+  mint-audit:
+networks:
+  runtime:
+    ipam:
+      config: [{subnet: 172.29.1.0/24}]

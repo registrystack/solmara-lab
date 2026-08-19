@@ -20,7 +20,7 @@ export type ClaimResult = { id: string; satisfied: boolean | null; raw: Dict };
 /** Read the per-claim evaluation results defensively across possible field names. */
 export function claimResults(result: StepRunResult | null | undefined): ClaimResult[] {
   const body = responseBody(result);
-  const list = Array.isArray(body.results) ? body.results : [];
+  const list = Array.isArray(result?.results) ? result.results : Array.isArray(body.results) ? body.results : [];
   return list.filter((entry): entry is Dict => !!entry && typeof entry === 'object').map((entry) => ({
     id: String(entry.claim_id ?? entry.claim ?? entry.id ?? entry.name ?? 'claim'),
     satisfied: typeof entry.satisfied === 'boolean' ? entry.satisfied : null,
@@ -54,7 +54,8 @@ export function hasExpectedSuccessfulClaims(
  */
 export function explicitProblemCode(result: StepRunResult | null | undefined): string | null {
   const body = responseBody(result);
-  const direct = body.code ?? body.problem_code ?? body.error;
+  const responseCode = (result?.response_source as Record<string, unknown> | undefined)?.code;
+  const direct = responseCode ?? body.code ?? body.problem_code ?? body.error;
   if (typeof direct === 'string' && direct) return direct;
   if (typeof body.type === 'string' && body.type.includes('/')) {
     const tail = body.type.split(/[/#]/).filter(Boolean).pop();
@@ -64,7 +65,7 @@ export function explicitProblemCode(result: StepRunResult | null | undefined): s
 }
 
 /**
- * Extract the stable problem code from a denial response. Notary denials are
+ * Extract the stable problem code from an Evidence denial. Safe problems have
  * problem+json with a `code`; fall back to the trailing segment of a `type`
  * URI, then to a compatibility code for older error responses.
  */
@@ -73,7 +74,7 @@ export function problemCode(result: StepRunResult | null | undefined): string | 
   const explicit = explicitProblemCode(result);
   if (explicit) return explicit;
   // Only surface a synthesized code when the response actually denied.
-  if (status !== null && status >= 400) return 'pdp.purpose_not_permitted';
+  if (status !== null && status >= 400) return 'not_authorized';
   return null;
 }
 
@@ -90,10 +91,13 @@ export function isDenial(result: StepRunResult | null | undefined): boolean {
   return status !== null && status >= 400;
 }
 
-/** The purpose IRI actually sent, read from the redacted request headers. */
+/** The Evidence purpose code actually sent. */
 export function requestPurpose(result: StepRunResult | null | undefined): string | null {
-  const headers = result?.request_source?.headers ?? {};
-  return headers['Data-Purpose'] ?? headers['data-purpose'] ?? null;
+  const body = result?.request_source?.body;
+  const bodyPurpose = body && typeof body === 'object' && !Array.isArray(body)
+    ? (body as Record<string, unknown>).purpose
+    : undefined;
+  return result?.request_source?.purpose ?? (typeof bodyPurpose === 'string' ? bodyPurpose : undefined) ?? null;
 }
 
 /**
@@ -128,7 +132,7 @@ export function hopsFromResult(result: StepRunResult | null | undefined): string
     try {
       hops.push(`Question sent to ${new URL(url).host}`);
     } catch {
-      hops.push('Question sent to the Notary');
+      hops.push('Question sent to the authority Evidence service');
     }
   }
   const purpose = requestPurpose(result);

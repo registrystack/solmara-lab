@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 const NAV_LINKS = ['How it works', 'Stories', 'Citizen demo', 'Developers', 'Status'];
 
-const evaluationUrl = (configuredUrl: string | undefined, fallbackUrl: string) =>
-  `${(configuredUrl ?? fallbackUrl).replace('127.0.0.1', 'localhost').replace(/\/+$/, '')}/v1/evaluations`;
+const evidenceUrl = (configuredUrl: string | undefined, fallbackUrl: string) =>
+  `${(configuredUrl ?? fallbackUrl).replace('127.0.0.1', 'localhost').replace(/\/+$/, '')}/v1/evidence`;
 
 test('landing renders with header nav and every section in order', async ({ page }) => {
   const response = await page.goto('/');
@@ -126,14 +126,14 @@ test('country, developer, and status inventories have dedicated routes', async (
   await expect(page.locator('#nation .persona')).toHaveCount(12);
 
   await page.goto('/developers');
-  await expect(page.locator('#engineer-door .curl-example')).toHaveCount(4);
+  await expect(page.locator('#engineer-door .curl-example')).toHaveCount(5);
   await expect(page.locator('#engineer-door')).toContainText('pension-payment-review');
 
   await page.goto('/status');
-  await expect(page.locator('#status .status')).toHaveCount(17);
+  await expect(page.locator('#status .status')).toHaveCount(18);
 });
 
-test('non-developer page data excludes developer-only published tokens', async ({ request }) => {
+test('no page publishes runtime tokens', async ({ request }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE === 'live', 'uses the offline server token fixture');
 
   for (const path of ['/', '/country', '/status']) {
@@ -142,7 +142,7 @@ test('non-developer page data excludes developer-only published tokens', async (
   }
 
   const developerResponse = await request.get('/developers');
-  expect(await developerResponse.text()).toContain('route-scope-test-token');
+  expect(await developerResponse.text()).not.toContain('route-scope-test-token');
 });
 
 test('purposes page lists every purpose with plain language and working anchors', async ({ page }) => {
@@ -153,43 +153,37 @@ test('purposes page lists every purpose with plain language and working anchors'
   await expect(page.locator('#child-benefit-review .plain')).not.toBeEmpty();
   // Denial codes link to the problem-code reference.
   await expect(
-    page.locator('#child-benefit-review a[href="/problem-codes#pdp.purpose_not_permitted"]')
+    page.locator('#child-benefit-review a[href="/problem-codes#not_authorized"]')
   ).toBeVisible();
 });
 
-test('problem-codes anchors resolve, including pdp.purpose_not_permitted', async ({ page }) => {
-  await page.goto('/problem-codes#pdp.purpose_not_permitted');
-  await expect(page.locator('[id="pdp.purpose_not_permitted"]')).toBeVisible();
+test('problem-codes anchors resolve, including current Evidence authorization denials', async ({ page }) => {
+  await page.goto('/problem-codes#not_authorized');
+  await expect(page.locator('[id="not_authorized"]')).toBeVisible();
   // The raw-row refusal a skeptic hits is documented too.
-  await expect(page.locator('[id="request.invalid"]')).toBeVisible();
+  await expect(page.locator('[id="malformed_request"]')).toBeVisible();
 });
 
-test('anatomy lists every relay and notary with repo config links', async ({ page }) => {
+test('anatomy lists five Relay V2 projects and six authority Evidence cells with config links', async ({ page }) => {
   await page.goto('/anatomy');
-  await expect(page.locator('#relays .entity')).toHaveCount(6);
-  await expect(page.locator('#notaries .entity')).toHaveCount(6);
-  const craLinks = page.locator('#cra-civil-relay a.config-link');
-  await expect(craLinks.filter({ hasText: 'projects/cra-civil/registry-stack.yaml' })).toHaveAttribute(
-    'href',
-    /github\.com.*projects\/cra-civil\/registry-stack\.yaml/
-  );
-  await expect(
-    craLinks.filter({ hasText: 'runtime/registry-projects/local/cra-civil/relay/relay.yaml' })
-  ).toHaveAttribute('href', /github\.com.*relay\/relay\.yaml/);
-  await expect(craLinks.filter({ hasText: 'ministries/interior-civil' })).toHaveAttribute(
-    'href',
-    /github\.com.*ministries\/interior-civil/
-  );
+  await expect(page.locator('#relays .entity')).toHaveCount(5);
+  for (const id of ['cra-evidence', 'nia-evidence', 'sro-evidence', 'mosd-programme-evidence', 'sipf-evidence', 'nagdi-evidence']) {
+    await expect(page.locator(`#${id}`)).toBeVisible();
+  }
+  await expect(page.locator('#cra-relay a.config-link')).toHaveAttribute('href', /github\.com.*relays\/cra/);
+  await expect(page.locator('#cra-evidence a.config-link')).toHaveAttribute('href', /github\.com.*evidence\/cells\/cra/);
 });
 
 test('status grid shows the whole topology', async ({ page }) => {
   await page.goto('/status');
-  await expect(page.locator('#status .status')).toHaveCount(17);
+  await expect(page.locator('#status .status')).toHaveCount(18);
+  await expect(page.locator('#status .status.up')).toHaveCount(17);
+  await expect(page.locator('#status .status', { hasText: 'Optional eSignet' })).toContainText('down');
 });
 
 test('engineer door always shows the copy-as-curl examples', async ({ page }) => {
   await page.goto('/developers');
-  await expect(page.locator('#engineer-door .curl-example')).toHaveCount(4);
+  await expect(page.locator('#engineer-door .curl-example')).toHaveCount(5);
   // The skeptic wrong-purpose curl is one of them.
   await expect(page.locator('#engineer-door')).toContainText('pension-payment-review');
 });
@@ -215,22 +209,23 @@ test('the nation map renders district labels on the committed district geometry'
   await expect(page.locator('#solmara-preview .map .district-label', { hasText: 'Ketterin' })).toBeVisible();
 });
 
-test('explorer renders all five published artifact families from the live bundle', async ({ page }) => {
+test('explorer renders the published authority Evidence artifact families from the live bundle', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires the live static-metadata bundle');
   await page.goto('/explorer');
-  for (const id of ['api-catalog', 'datasets', 'services', 'offerings', 'policies']) {
+  for (const id of ['api-catalog', 'services', 'offerings', 'policies']) {
     await expect(page.locator(`#${id}`)).toBeVisible();
   }
+  await expect(page.locator('#datasets')).toHaveCount(0);
   await expect(page.locator('#offerings .entity').first()).toBeVisible();
   // Offerings cross-link to purposes.
   await expect(page.locator('#offerings a[href^="/purposes#"]').first()).toBeVisible();
 });
 
-test('engineer door publishes the synthetic demo tokens', async ({ page }) => {
-  test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'demo tokens come from the container allowlist env');
+test('engineer door never publishes runtime tokens', async ({ page }) => {
   await page.goto('/developers');
-  await expect(page.locator('#engineer-door .token').first()).toBeVisible();
-  await expect(page.locator('#engineer-door .token-disclaimer')).toContainText('synthetic');
+  await expect(page.locator('#engineer-door .token')).toHaveCount(0);
+  await expect(page.locator('#engineer-door .token-disclaimer')).toContainText('never publishes them');
+  await expect(page.locator('#engineer-door')).toContainText('$CRA_EVIDENCE_ACCESS_TOKEN');
 });
 
 test('landing fails closed when the scenario runner is unavailable', async ({ page }) => {
@@ -246,10 +241,10 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   await page.goto('/');
 
   await expect(
-    page.locator('#proof .proof-grid > div').filter({ hasText: 'live registries' }).locator('strong')
+    page.locator('#proof .proof-grid > div').filter({ hasText: 'authority Evidence cells' }).locator('strong')
   ).toHaveText('6');
   await expect(
-    page.locator('#solmara-preview .country-facts > div').filter({ hasText: 'Live registries' }).locator('dd')
+    page.locator('#solmara-preview .country-facts > div').filter({ hasText: 'Evidence cells' }).locator('dd')
   ).toHaveText('6');
 
   // The boundary challenge appears only after a successful live evidence run.
@@ -271,21 +266,11 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   });
   expect(requestDeadSpace).toBeLessThan(80);
 
-  // Alternate purposes and raw requests stay out of the primary flow. When the
-  // visitor opens them, the native select remains bounded by its card and uses
-  // readable story labels instead of long identifier-heavy option labels.
-  const advanced = page.locator('#purpose-limitation .advanced-request');
-  await expect(advanced).not.toHaveAttribute('open', '');
-  await advanced.locator(':scope > summary').click();
-  const purposeSelect = advanced.getByLabel('Alternate purpose');
-  await expect(purposeSelect).toBeVisible();
-  const selectFits = await purposeSelect.evaluate((select) => {
-    const selectRect = select.getBoundingClientRect();
-    const cardRect = select.closest('.purpose-picker')?.getBoundingClientRect();
-    return Boolean(cardRect && selectRect.width <= cardRect.width);
-  });
-  expect(selectFits).toBe(true);
-  await expect(advanced.locator('.request-inspector')).not.toHaveAttribute('open', '');
+  // Alternate-purpose controls were removed from the landing flow. The fixed
+  // challenge exercises the reviewed wrong-purpose path without selector or raw
+  // request exposure.
+  await expect(page.locator('#purpose-limitation .advanced-request')).toHaveCount(0);
+  await expect(page.locator('#purpose-limitation .request-inspector')).toHaveCount(0);
 
   // The default challenge reuses the evidence request for pension review.
   await page.getByRole('button', { name: 'Test the safeguard' }).click();
@@ -300,8 +285,7 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
 test('purpose lens: a needs-attention result never renders as successful evidence', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires live scenario metadata');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  await page.route('**/api/scenarios/birth-to-child-benefit/steps/positive/run', async (route) => {
+  await page.route(/\/api\/scenarios\/birth-to-child-benefit\/steps\/positive\/run$/, async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
@@ -326,6 +310,7 @@ test('purpose lens: a needs-attention result never renders as successful evidenc
       })
     });
   });
+  await page.goto('/');
 
   await page.getByRole('button', { name: 'Run the check without sharing records' }).click();
 
@@ -341,16 +326,12 @@ test('purpose lens: a needs-attention result never renders as successful evidenc
 test('purpose lens: an unexpected error never renders as a successful safeguard refusal', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires live scenario metadata');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Run the check without sharing records' }).click();
-  await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
-
-  await page.route('**/api/scenarios/birth-to-child-benefit/steps/positive/run', async (route) => {
+  await page.route(/\/api\/scenarios\/birth-to-child-benefit\/steps\/purpose-denial\/run$/, async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
         result: {
-          step_id: 'positive',
+          step_id: 'purpose-denial',
           friendly: {
             title: 'Request needs attention.',
             message: 'The downstream service could not complete the safeguard test.',
@@ -370,6 +351,10 @@ test('purpose lens: an unexpected error never renders as a successful safeguard 
       })
     });
   });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Run the check without sharing records' }).click();
+  await expect(page.locator('#purpose-limitation')).toBeVisible({ timeout: 30_000 });
+
   await page.getByRole('button', { name: 'Test the safeguard' }).click();
 
   const boundaryResult = page.locator('#purpose-limitation .boundary-result');
@@ -394,7 +379,8 @@ test('story page: stepper runs an evaluate step and a purpose-denial step with a
   // collector gathers source-owned predicates, but does not compose eligibility.
   await expect(page.locator('#credential .inspector')).toContainText('Evidence returned', { timeout: 30_000 });
   await expect(page.locator('#credential .inspector')).toContainText('child-benefit-federator');
-  await expect(page.locator('#credential .inspector')).toContainText('Source authorities4');
+  await expect(page.locator('#credential .inspector')).toContainText('Source authorities');
+  await expect(page.locator('#credential .inspector')).toContainText('4');
   await expect(page.locator('#credential .inspector')).toContainText('not_composed');
 
   // The purpose-denial step is first-class and renders the stable problem code linked to /problem-codes.
@@ -403,7 +389,7 @@ test('story page: stepper runs an evaluate step and a purpose-denial step with a
   await expect(denialLink).toBeVisible({ timeout: 30_000 });
 });
 
-test('citizen story renders runnable curls for each authority call', async ({ page }) => {
+test('citizen story renders sanitized curl skeletons for each authority call', async ({ page }) => {
   test.skip(process.env.SOLMARA_HOME_E2E_MODE !== 'live', 'requires a live scenario runner behind the stack');
   await page.goto('/stories/citizen-self-service');
 
@@ -414,14 +400,13 @@ test('citizen story renders runnable curls for each authority call', async ({ pa
 
   const authorityRequests = result.locator('.request-list .peer-call');
   await expect(authorityRequests).toHaveCount(2);
-  await expect(authorityRequests.getByRole('button', { name: 'Copy as curl' })).toHaveCount(2);
+  await expect(authorityRequests.getByRole('button', { name: 'Copy safe curl skeleton' })).toHaveCount(2);
   await expect(authorityRequests.nth(0)).toContainText(
-    evaluationUrl(process.env.CRA_NOTARY_URL, 'http://localhost:4325')
+    evidenceUrl(process.env.SOLMARA_CRA_EVIDENCE_URL, 'https://evidence.solmara.invalid/evidence/cra')
   );
   await expect(authorityRequests.nth(1)).toContainText(
-    evaluationUrl(process.env.NIA_NOTARY_URL, 'http://localhost:4326')
+    evidenceUrl(process.env.SOLMARA_NIA_EVIDENCE_URL, 'https://evidence.solmara.invalid/evidence/nia')
   );
-  await expect(result).not.toContainText('solmara://authority-notaries');
 });
 
 test('story page fits a mobile viewport without horizontal overflow', async ({ page }) => {

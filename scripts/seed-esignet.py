@@ -236,14 +236,9 @@ def main() -> int:
     seed_esignet(jwk, key_hash)
     clear_esignet_client_cache()
     account_source = os.environ.get("ESIGNET_ACCOUNT_SOURCE_LABEL", "NIA population Relay profile solmara-nia-userinfo")
-    demo_subject = os.environ.get("ESIGNET_DEMO_SUBJECT")
-    demo_otp = os.environ.get("ESIGNET_DEMO_OTP", "111111")
     print(f"Seeded eSignet client {CLIENT_ID}.")
     print(f"Relay-backed account source: {account_source}.")
-    if demo_subject:
-        print(f"Demo subject available through Relay: {demo_subject}. Local static OTP: {demo_otp}.")
-    else:
-        print(f"Local static OTP: {demo_otp}.")
+    print("Demo credentials are configured without being written to logs.")
     if os.environ.get("ESIGNET_SEED_STAY_READY") == "true":
         Path("/tmp/ready").write_text("ready\n", encoding="utf-8")
         while True:

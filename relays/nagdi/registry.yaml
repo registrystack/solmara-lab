@@ -1,0 +1,104 @@
+apiVersion: relay.registrystack.org/v2alpha1
+kind: RegistryContract
+metadata: {id: solmara-nagdi-relay, version: "2026-08-12", title: NAgDI agriculture consultations}
+registry:
+  registryIdentifier: https://id.registrystack.org/solmara/registry/nagdi
+  name: National Agricultural Data Institute Relay
+  authority: {identifier: "did:web:id.registrystack.org:solmara:authority:nagdi", name: National Agricultural Data Institute}
+  authoritativeScope: Current farmer voucher and livestock movement facts held by NAgDI
+  baseUri: https://nagdi.gov.solmara.example/registry/
+  identifierLifecyclePolicyRef: governance/identifier-lifecycle.yaml
+  alignmentTargets: [{name: govstack-digital-registries, version: 3.0.0-alpha.2, status: directional}]
+governance: {controller: "did:web:id.registrystack.org:solmara:authority:nagdi", publisher: "did:web:id.registrystack.org:solmara:authority:nagdi", auditOwner: "did:web:id.registrystack.org:solmara:authority:nagdi"}
+semantics: {localVocabulary: https://id.registrystack.org/solmara/vocabulary/nagdi/}
+classifications:
+  privacy: {scheme: https://w3id.org/dpv, version: "2.3"}
+  institutional: {scheme: https://id.registrystack.org/solmara/classification/nagdi, version: "1"}
+  handling: {scheme: https://id.registrystack.org/vocab/handling, version: "1"}
+  provenanceRef: governance/classification-review.yaml
+sources:
+  nagdi: {kind: sqlite, profile: live-read-only, expectedSchemaFingerprint: "sha256:f97ad1dbc22fbf9911228ea361c90babfaf1f2b46865e09a756a52fcf3e2d538"}
+resources:
+  - id: farmer
+    title: Farmer voucher eligibility
+    description: Minimum governed farmer voucher predicate facts.
+    semanticClass: local:FarmerVoucher
+    source: {source: nagdi, view: relay_farmer_voucher}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications:
+      record_id: {privacy: identifying}
+      record_revision: {privacy: non-personal}
+      lifecycle_state: {privacy: personal}
+      recorded_at: {privacy: personal-context}
+      farmer_id: {privacy: identifying}
+      farmer_registered: {privacy: sensitive-personal}
+      data_use_authorized: {privacy: sensitive-personal}
+      active_smallholder_farmer: {privacy: sensitive-personal}
+      active_farm_parcel: {privacy: sensitive-personal}
+      crop_declared_for_season: {privacy: sensitive-personal}
+      district_climate_risk_active: {privacy: sensitive-personal}
+      voucher_entitlement_current: {privacy: sensitive-personal}
+      voucher_not_redeemed: {privacy: sensitive-personal}
+    recordContext: {recordIdentifier: {sourceColumn: record_id}, revisionIdentifier: {sourceColumn: record_revision}, lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}, recordedAt: {sourceColumn: recorded_at}}
+    properties:
+      farmerRegistered: {sourceColumn: farmer_registered, type: boolean, sourceRequired: true, semanticTerm: local:farmerRegistered, label: Farmer registered, description: Farmer registration predicate, classification: {privacy: sensitive-personal}}
+      dataUseAuthorized: {sourceColumn: data_use_authorized, type: boolean, sourceRequired: true, semanticTerm: local:dataUseAuthorized, label: Data use authorized, description: Data-use authorization predicate, classification: {privacy: sensitive-personal}}
+      activeSmallholderFarmer: {sourceColumn: active_smallholder_farmer, type: boolean, sourceRequired: true, semanticTerm: local:activeSmallholderFarmer, label: Active smallholder farmer, description: Active smallholder predicate, classification: {privacy: sensitive-personal}}
+      activeFarmParcel: {sourceColumn: active_farm_parcel, type: boolean, sourceRequired: true, semanticTerm: local:activeFarmParcel, label: Active farm parcel, description: Active parcel predicate, classification: {privacy: sensitive-personal}}
+      cropDeclaredForSeason: {sourceColumn: crop_declared_for_season, type: boolean, sourceRequired: true, semanticTerm: local:cropDeclaredForSeason, label: Crop declared for season, description: Seasonal crop declaration predicate, classification: {privacy: sensitive-personal}}
+      districtClimateRiskActive: {sourceColumn: district_climate_risk_active, type: boolean, sourceRequired: true, semanticTerm: local:districtClimateRiskActive, label: District climate risk active, description: Climate-risk predicate, classification: {privacy: sensitive-personal}}
+      voucherEntitlementCurrent: {sourceColumn: voucher_entitlement_current, type: boolean, sourceRequired: true, semanticTerm: local:voucherEntitlementCurrent, label: Voucher entitlement current, description: Current entitlement predicate, classification: {privacy: sensitive-personal}}
+      voucherNotRedeemed: {sourceColumn: voucher_not_redeemed, type: boolean, sourceRequired: true, semanticTerm: local:voucherNotRedeemed, label: Voucher not redeemed, description: Voucher redemption predicate, classification: {privacy: sensitive-personal}}
+    disclosureProfiles:
+      voucher-evidence: {properties: [farmerRegistered, dataUseAuthorized, activeSmallholderFarmer, activeFarmParcel, cropDeclaredForSeason, districtClimateRiskActive, voucherEntitlementCurrent, voucherNotRedeemed]}
+    operations:
+      lookups:
+        - id: voucher-by-farmer-id
+          requestBody: {maximumBytes: 96, selectors: {farmerId: {sourceColumn: farmer_id, type: string, minimumBytes: 7, maximumBytes: 32}}}
+          defaultAccessProfile: voucher-evidence
+          accessProfiles:
+            voucher-evidence:
+              access: {scope: solmara:relay:nagdi:voucher-by-farmer-id, purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"]}}
+              disclosureProfile: voucher-evidence
+    processingDescriptions:
+      - {id: voucher-review, operationRefs: [lookup:voucher-by-farmer-id], purpose: "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, minimum-disclosure, value-free-audit]}
+  - id: livestock-herd
+    title: Livestock herd movement
+    description: Minimum governed livestock movement predicate facts.
+    semanticClass: local:LivestockHerd
+    source: {source: nagdi, view: relay_livestock_movement}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications:
+      record_id: {privacy: identifying}
+      record_revision: {privacy: non-personal}
+      lifecycle_state: {privacy: personal}
+      recorded_at: {privacy: personal-context}
+      herd_id: {privacy: identifying}
+      farmer_id: {privacy: identifying}
+      registered_herd: {privacy: sensitive-personal}
+      herd_vaccination_current: {privacy: sensitive-personal}
+      origin_district_not_quarantined_for_species: {privacy: sensitive-personal}
+      destination_district_open: {privacy: sensitive-personal}
+      no_conflicting_open_movement_permit: {privacy: sensitive-personal}
+    recordContext: {recordIdentifier: {sourceColumn: record_id}, revisionIdentifier: {sourceColumn: record_revision}, lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}, recordedAt: {sourceColumn: recorded_at}}
+    properties:
+      herdId: {sourceColumn: herd_id, type: string, sourceRequired: true, semanticTerm: local:herdId, label: Herd ID, description: Registered herd identifier, classification: {privacy: identifying}}
+      registeredHerd: {sourceColumn: registered_herd, type: boolean, sourceRequired: true, semanticTerm: local:registeredHerd, label: Registered herd, description: Herd registration predicate, classification: {privacy: sensitive-personal}}
+      herdVaccinationCurrent: {sourceColumn: herd_vaccination_current, type: boolean, sourceRequired: true, semanticTerm: local:herdVaccinationCurrent, label: Herd vaccination current, description: Vaccination predicate, classification: {privacy: sensitive-personal}}
+      originDistrictNotQuarantinedForSpecies: {sourceColumn: origin_district_not_quarantined_for_species, type: boolean, sourceRequired: true, semanticTerm: local:originDistrictNotQuarantinedForSpecies, label: Origin not quarantined, description: Species quarantine predicate, classification: {privacy: sensitive-personal}}
+      destinationDistrictOpen: {sourceColumn: destination_district_open, type: boolean, sourceRequired: true, semanticTerm: local:destinationDistrictOpen, label: Destination district open, description: Destination predicate, classification: {privacy: sensitive-personal}}
+      noConflictingOpenMovementPermit: {sourceColumn: no_conflicting_open_movement_permit, type: boolean, sourceRequired: true, semanticTerm: local:noConflictingOpenMovementPermit, label: No conflicting permit, description: Conflicting permit predicate, classification: {privacy: sensitive-personal}}
+    disclosureProfiles:
+      livestock-evidence: {properties: [herdId, registeredHerd, herdVaccinationCurrent, originDistrictNotQuarantinedForSpecies, destinationDistrictOpen, noConflictingOpenMovementPermit]}
+    operations:
+      lookups:
+        - id: movement-by-farmer-id
+          requestBody: {maximumBytes: 96, selectors: {farmerId: {sourceColumn: farmer_id, type: string, minimumBytes: 7, maximumBytes: 32}}}
+          defaultAccessProfile: livestock-evidence
+          accessProfiles:
+            livestock-evidence:
+              access: {scope: solmara:relay:nagdi:movement-by-farmer-id, purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/livestock-movement-control"]}}
+              disclosureProfile: livestock-evidence
+    processingDescriptions:
+      - {id: livestock-movement-review, operationRefs: [lookup:movement-by-farmer-id], purpose: "https://id.registrystack.org/solmara/purpose/livestock-movement-control", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, minimum-disclosure, value-free-audit]}
+metadataVisibility: {service: public, resources: operation-bound, semantics: operation-bound, classifications: operator-only, processing: operation-bound}

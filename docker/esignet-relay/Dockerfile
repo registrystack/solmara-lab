@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
-ARG ESIGNET_BASE_IMAGE=mosipid/esignet-with-plugins:1.8.0
+ARG ESIGNET_BASE_IMAGE=mosipid/esignet-with-plugins@sha256:47fffdb5a45198b29885a533841129877a7385a12bcb6020c0f6d4335477be39
+ARG ESIGNET_AUTHENTICATOR_JAR_URL
+ARG ESIGNET_AUTHENTICATOR_JAR_SHA256
 
-FROM maven:3.9.9-eclipse-temurin-21@sha256:3a4ab3276a087bf276f79cae96b1af04f53731bec53fb2e651aca79e4b10211e AS plugin-builder
-
-WORKDIR /workspace/esignet-relay-authenticator
-COPY --from=esignet_relay_authenticator_src . .
-
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -DskipTests clean package && \
-    mkdir -p /out && \
-    cp target/esignet-relay-authenticator-*.jar /out/esignet-relay-authenticator.jar
+FROM alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS authenticator
+ARG ESIGNET_AUTHENTICATOR_JAR_URL
+ARG ESIGNET_AUTHENTICATOR_JAR_SHA256
+RUN test -n "$ESIGNET_AUTHENTICATOR_JAR_URL" && \
+    test -n "$ESIGNET_AUTHENTICATOR_JAR_SHA256" && \
+    wget -q -O /esignet-relay-authenticator.jar "$ESIGNET_AUTHENTICATOR_JAR_URL" && \
+    printf '%s  %s\n' "$ESIGNET_AUTHENTICATOR_JAR_SHA256" /esignet-relay-authenticator.jar | sha256sum -c -
 
 FROM ${ESIGNET_BASE_IMAGE}
 
-COPY --from=plugin-builder /out/esignet-relay-authenticator.jar /home/mosip/plugins/esignet-relay-authenticator.jar
+COPY --from=authenticator /esignet-relay-authenticator.jar /home/mosip/plugins/esignet-relay-authenticator.jar
 COPY scripts/start-esignet-relay.sh /usr/local/bin/start-esignet-relay.sh
 
 USER root

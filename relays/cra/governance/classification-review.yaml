@@ -1,0 +1,9 @@
+apiVersion: relay.registrystack.org/classification-review/v1
+kind: ClassificationReview
+registryIdentifier: https://id.registrystack.org/solmara/registry/cra
+classificationInventoryDigest: sha256:e58edad27369a9f4607a73275a02dda59b090ad3df72ff97ff7ec7237b1b7adc
+method: manual
+reviewer: did:web:id.registrystack.org:solmara:authority:cra
+reviewDate: 2026-08-12
+status: reviewed
+rationaleRef: governance/classification-review-rationale.md

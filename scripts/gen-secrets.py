@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Generate local .env credentials for Solmara Lab."""
+"""Create ignored local operator keys and the Compose environment."""
 
 from __future__ import annotations
 
-import argparse
 import base64
 import hashlib
 import json
@@ -11,248 +10,228 @@ import secrets
 import shlex
 import subprocess
 from pathlib import Path
+from typing import Callable
+
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from compose_project_name import compose_project_name
 
 ROOT = Path(__file__).resolve().parents[1]
-POSTGRES_SSL_DIR = ROOT / "config" / "postgres" / "ssl"
-
-RAW_HASH_PAIRS = [
-    ("CRA_CHILD_BENEFIT_CLIENT_TOKEN", "CRA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
-    ("CRA_PENSION_CLIENT_TOKEN", "CRA_PENSION_CLIENT_TOKEN_HASH"),
-    ("CRA_CITIZEN_CLIENT_TOKEN", "CRA_CITIZEN_CLIENT_TOKEN_HASH"),
-    ("NIA_CHILD_BENEFIT_CLIENT_TOKEN", "NIA_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
-    ("NIA_CITIZEN_CLIENT_TOKEN", "NIA_CITIZEN_CLIENT_TOKEN_HASH"),
-    ("SRO_CHILD_BENEFIT_CLIENT_TOKEN", "SRO_CHILD_BENEFIT_CLIENT_TOKEN_HASH"),
-    (
-        "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN",
-        "PROGRAMME_CHILD_BENEFIT_CLIENT_TOKEN_HASH",
-    ),
-    ("SIPF_PENSION_CLIENT_TOKEN", "SIPF_PENSION_CLIENT_TOKEN_HASH"),
-    ("NAGDI_NOTARY_TOKEN", "NAGDI_CLIENT_TOKEN_HASH"),
-]
-
-JWK_KIDS = {
-    "CRA_RELAY_WORKLOAD_JWK": "solmara-cra-relay-workload-key-1",
-    "NIA_RELAY_WORKLOAD_JWK": "solmara-nia-relay-workload-key-1",
-    "NIA_ESIGNET_RELAY_WORKLOAD_JWK": "solmara-nia-esignet-relay-workload-key-1",
-    "SRO_RELAY_WORKLOAD_JWK": "solmara-sro-relay-workload-key-1",
-    "PROGRAMME_RELAY_WORKLOAD_JWK": "solmara-programme-relay-workload-key-1",
-    "SIPF_RELAY_WORKLOAD_JWK": "solmara-sipf-relay-workload-key-1",
-    "NAGDI_RELAY_WORKLOAD_JWK": "solmara-nagdi-relay-workload-key-1",
-    "NIA_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:nia#issuer-key-1",
-    "SIPF_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:sipf#issuer-key-1",
-    "NAGDI_NOTARY_ISSUER_JWK": "did:web:id.registrystack.org:solmara:authority:nagdi#issuer-key-1",
-}
-
-DIRECT_PROJECT_SECRET_NAMES = {
-    "SOLMARA_NIA_DATABASE_URL",
-    "SOLMARA_SIPF_DATABASE_URL",
-}
-
-
-def raw_key() -> str:
-    return secrets.token_urlsafe(32)
-
-
-def fingerprint(value: str) -> str:
-    return "sha256:" + hashlib.sha256(value.encode("ascii")).hexdigest()
+LOCAL = ROOT / "config/evidence/local"
+RANDOM_ENV_KEYS = (
+    "CRA_RELAY_AUDIT_KEY",
+    "NIA_RELAY_AUDIT_KEY",
+    "MOSD_RELAY_AUDIT_KEY",
+    "SIPF_RELAY_AUDIT_KEY",
+    "SIPF_RELAY_CURSOR_KEY",
+    "NAGDI_RELAY_AUDIT_KEY",
+    "NAGDI_RELAY_CURSOR_KEY",
+    "CHILD_BENEFIT_FEDERATOR_TOKEN",
+    "PORTAL_SESSION_SECRET",
+    "SOLMARA_ESIGNET_POSTGRES_PASSWORD",
+    "REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD",
+    "REGISTRY_ESIGNET_KYC_TOKEN_SECRET",
+    "REGISTRY_ESIGNET_PSUT_SECRET",
+)
 
 
 def b64url(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
-def local_ed25519_jwk(kid: str) -> str:
-    private_der = subprocess.run(
-        ["openssl", "genpkey", "-algorithm", "ED25519", "-outform", "DER"],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    ).stdout
-    public_der = subprocess.run(
-        ["openssl", "pkey", "-inform", "DER", "-pubout", "-outform", "DER"],
-        input=private_der,
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    ).stdout
-    private_seed = private_der[-32:]
-    public_key = public_der[-32:]
+def raw_key() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def p256_jwk() -> str:
+    private = ec.generate_private_key(ec.SECP256R1()).private_numbers()
+    public = private.public_numbers
     jwk = {
-        "kty": "OKP",
-        "crv": "Ed25519",
-        "kid": kid,
-        "alg": "EdDSA",
-        "x": b64url(public_key),
-        "d": b64url(private_seed),
+        "kty": "EC", "crv": "P-256", "alg": "ES256",
+        "x": b64url(public.x.to_bytes(32, "big")),
+        "y": b64url(public.y.to_bytes(32, "big")),
+        "d": b64url(private.private_value.to_bytes(32, "big")),
     }
+    thumbprint = {key: jwk[key] for key in ("crv", "kty", "x", "y")}
+    jwk["kid"] = b64url(hashlib.sha256(json.dumps(thumbprint, separators=(",", ":"), sort_keys=True).encode()).digest())
     return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
 
 
-def local_rsa_private_key_b64() -> str:
-    private_pem = subprocess.run(
-        ["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    ).stdout
-    return base64.b64encode(private_pem).decode("ascii")
+def rsa_jwk() -> str:
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048).private_numbers()
+    public = private.public_numbers
+
+    def encode(number: int) -> str:
+        return b64url(number.to_bytes((number.bit_length() + 7) // 8, "big"))
+
+    jwk = {
+        "kty": "RSA", "alg": "RS256", "n": encode(public.n), "e": encode(public.e),
+        "d": encode(private.d), "p": encode(private.p), "q": encode(private.q),
+        "dp": encode(private.dmp1), "dq": encode(private.dmq1), "qi": encode(private.iqmp),
+    }
+    thumbprint = {key: jwk[key] for key in ("e", "kty", "n")}
+    jwk["kid"] = b64url(hashlib.sha256(json.dumps(thumbprint, separators=(",", ":"), sort_keys=True).encode()).digest())
+    return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
 
 
-def ensure_postgres_tls() -> None:
-    POSTGRES_SSL_DIR.mkdir(parents=True, exist_ok=True)
-    key_path = POSTGRES_SSL_DIR / "server.key"
-    cert_path = POSTGRES_SSL_DIR / "server.crt"
-    for path in (key_path, cert_path):
-        path.unlink(missing_ok=True)
-    subprocess.run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-days",
-            "365",
-            "-subj",
-            "/CN=postgres",
-            "-addext",
-            "subjectAltName=DNS:postgres,IP:127.0.0.1",
-            "-keyout",
-            str(key_path),
-            "-out",
-            str(cert_path),
-        ],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+def write_private(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value.rstrip("\n") + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
+def create_once(path: Path, factory) -> None:
+    if not path.exists():
+        write_private(path, factory())
+
+
+def load_environment(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            raise ValueError("generated environment contains a malformed entry")
+        key, encoded = line.split("=", 1)
+        if key in values:
+            raise ValueError("generated environment contains a duplicate entry")
+        try:
+            parsed = shlex.split(encoded, posix=True)
+        except ValueError as exc:
+            raise ValueError(
+                "generated environment contains a malformed value"
+            ) from exc
+        if len(parsed) != 1 or not parsed[0]:
+            raise ValueError(f"generated environment value is invalid for {key}")
+        values[key] = parsed[0]
+    return values
+
+
+def create_environment_value(
+    existing: dict[str, str], key: str, factory: Callable[[], str]
+) -> str:
+    value = existing.get(key)
+    if value is not None:
+        if not value:
+            raise ValueError(f"generated environment value is invalid for {key}")
+        return value
+    return factory()
+
+
+def compose_environment_values(
+    existing: dict[str, str], operator_values: dict[str, str]
+) -> dict[str, str]:
+    values = {
+        key: create_environment_value(existing, key, raw_key)
+        for key in RANDOM_ENV_KEYS
+    }
+    values["PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64"] = create_environment_value(
+        existing, "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64", rsa_private_key_b64
     )
-    key_path.chmod(0o600)
-    cert_path.chmod(0o644)
+    values.update(
+        {
+            "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
+            "PORTAL_AUTH_PROVIDER": "mock",
+            "PORTAL_ESIGNET_CLIENT_ID": "solmara-portal",
+            "PORTAL_ESIGNET_CLIENT_KEY_ID": "solmara-portal-key-1",
+            **operator_values,
+        }
+    )
+    return values
 
 
-def env_line(key: str, value: str) -> str:
-    return f"{key}={shlex.quote(value)}"
+def ensure_client_identifier(path: Path, client_id: str) -> None:
+    """Write an exact public identifier while preserving unrelated material."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        current = path.read_text(encoding="utf-8")
+        if current == client_id:
+            path.chmod(0o600)
+            return
+        # Migrate the previous generator's single trailing newline only. Any
+        # other value is operator-owned divergence and must fail closed.
+        if current != f"{client_id}\n":
+            raise ValueError(f"client identifier does not match {path.name}")
+    path.write_text(client_id, encoding="utf-8")
+    path.chmod(0o600)
 
 
-def write_env_file(output: Path, values: dict[str, str], header: str) -> None:
-    lines = [header, *[env_line(key, values[key]) for key in sorted(values)]]
-    output.write_text("\n".join(lines) + "\n")
-    output.chmod(0o600)
+def ensure_operator_material() -> dict[str, str]:
+    cells = {
+        "cra": ("cra-pension-evidence", "cra-citizen-evidence"),
+        "nia": (), "sro": (),
+        "mosd-programme": ("mosd-child-benefit-evidence",),
+        "sipf": ("sipf-pension-evidence", "sipf-survivor-evidence"),
+        "nagdi": ("nagdi-voucher-evidence", "nagdi-livestock-evidence"),
+    }
+    for cell, clients in cells.items():
+        secret_root = LOCAL / "cells" / cell / "secrets"
+        (LOCAL / "cells" / cell / "transit").mkdir(parents=True, exist_ok=True)
+        create_once(secret_root / "signing.jwk", p256_jwk)
+        create_once(secret_root / "audit-hmac-key", raw_key)
+        create_once(secret_root / "subject-binding-hmac-key", raw_key)
+        for client in clients:
+            create_once(secret_root / f"{client}-client-key", p256_jwk)
+            ensure_client_identifier(secret_root / f"{client}-client-id", client)
 
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args(argv)
-
-    ensure_postgres_tls()
-    postgres_user = "solmara_registry"
-    postgres_password = raw_key()
-    postgres_db = "solmara_lab"
-    nia_source_password = raw_key()
-    sipf_source_password = raw_key()
-    values: dict[str, str] = {
-        "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
-        "CRA_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "CRA_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "CRA_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "CRA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "CRA_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "CRA_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "CRA_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "CRA_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "NIA_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "NIA_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "NIA_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "NIA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "NIA_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "NIA_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "NIA_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "NIA_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SRO_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "SRO_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "SRO_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SRO_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "SRO_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "SRO_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "SRO_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "SRO_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "PROGRAMME_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "PROGRAMME_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "PROGRAMME_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "PROGRAMME_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "PROGRAMME_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "PROGRAMME_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "PROGRAMME_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "PROGRAMME_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SIPF_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "SIPF_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "NAGDI_RELAY_AUDIT_HASH_SECRET": raw_key(),
-        "NAGDI_RELAY_AUDIT_PSEUDONYM_EPOCH_1": raw_key(),
-        "NAGDI_RELAY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "NAGDI_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD": raw_key(),
-        "NAGDI_RELAY_POSTGRES_KEYRING_READER_PASSWORD": raw_key(),
-        "NAGDI_NOTARY_AUDIT_HASH_SECRET": raw_key(),
-        "NAGDI_NOTARY_POSTGRES_MIGRATOR_PASSWORD": raw_key(),
-        "NAGDI_NOTARY_POSTGRES_RUNTIME_PASSWORD": raw_key(),
-        "SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS": "4102444800000",
-        "SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS": "2592000000",
-        "REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD": raw_key(),
-        "REGISTRY_ESIGNET_KYC_TOKEN_SECRET": raw_key(),
-        "REGISTRY_ESIGNET_PSUT_SECRET": raw_key(),
-        "PORTAL_SESSION_SECRET": raw_key(),
-        "PORTAL_AUTH_PROVIDER": "mock",
-        "PORTAL_ESIGNET_CLIENT_ID": "solmara-portal",
-        "PORTAL_ESIGNET_CLIENT_KEY_ID": "solmara-portal-key-1",
-        "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64": local_rsa_private_key_b64(),
-        "PORTAL_ESIGNET_ISSUER": "http://127.0.0.1:4308",
-        "PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT": "http://127.0.0.1:4309/authorize",
-        "PORTAL_ESIGNET_TOKEN_ENDPOINT": "http://esignet:8088/v1/esignet/oauth/v2/token",
-        "PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE": "http://127.0.0.1:4308/v1/esignet/oauth/v2/token",
-        "PORTAL_ESIGNET_USERINFO_ENDPOINT": "http://esignet:8088/v1/esignet/oidc/userinfo",
-        "PORTAL_ESIGNET_REDIRECT_URI": "http://127.0.0.1:4300/auth/callback",
-        "PORTAL_ESIGNET_SCOPE": "openid profile",
-        "PORTAL_ESIGNET_SUBJECT_CLAIM": "individual_id",
-        "SOLMARA_ESIGNET_PUBLIC_BASE_URL": "http://127.0.0.1:4308",
-        "SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL": "http://127.0.0.1:4309",
-        "SOLMARA_POSTGRES_USER": postgres_user,
-        "SOLMARA_POSTGRES_PASSWORD": postgres_password,
-        "SOLMARA_POSTGRES_DB": postgres_db,
-        "NIA_SOURCE_POSTGRES_READER_PASSWORD": nia_source_password,
-        "SIPF_SOURCE_POSTGRES_READER_PASSWORD": sipf_source_password,
-        "SOLMARA_NIA_DATABASE_URL": f"postgres://solmara_source_nia_reader:{nia_source_password}@postgres:5432/{postgres_db}?sslmode=require",
-        "SOLMARA_SIPF_DATABASE_URL": f"postgres://solmara_source_sipf_reader:{sipf_source_password}@postgres:5432/{postgres_db}?sslmode=require",
-        "SOLMARA_ESIGNET_POSTGRES_PASSWORD": raw_key(),
-        "CHILD_BENEFIT_FEDERATOR_TOKEN": raw_key(),
-        "CHILD_BENEFIT_FEDERATOR_URL": "http://127.0.0.1:4321",
-        "CRA_NOTARY_URL": "http://127.0.0.1:4325",
-        "NIA_NOTARY_URL": "http://127.0.0.1:4326",
-        "SRO_NOTARY_URL": "http://127.0.0.1:4327",
-        "PROGRAMME_NOTARY_URL": "http://127.0.0.1:4328",
-        "SIPF_NOTARY_URL": "http://127.0.0.1:4322",
-        "NAGDI_NOTARY_URL": "http://127.0.0.1:4323",
+    mint = LOCAL / "cells" / "mint"
+    for directory in (mint / "secrets", mint / "clients", mint / "transit"):
+        directory.mkdir(parents=True, exist_ok=True)
+    create_once(mint / "secrets/signing.jwk", p256_jwk)
+    create_once(mint / "secrets/audit-hmac-key", raw_key)
+    create_once(mint / "clients/nia-esignet-rsa-client-key", rsa_jwk)
+    create_once(mint / "clients/solmara-demo-client-key", p256_jwk)
+    return {
+        "NIA_ESIGNET_CLIENT_PRIVATE_JWK": (mint / "clients/nia-esignet-rsa-client-key").read_text().strip(),
+        "SOLMARA_EVIDENCE_CLIENT_KEY": str(mint / "clients/solmara-demo-client-key"),
     }
 
-    for raw_name, hash_name in RAW_HASH_PAIRS:
-        raw = raw_key()
-        values[raw_name] = raw
-        values[hash_name] = fingerprint(raw)
 
-    for name, kid in JWK_KIDS.items():
-        values[name] = local_ed25519_jwk(kid)
+def ensure_tls() -> None:
+    tls = LOCAL / "tls"
+    tls.mkdir(parents=True, exist_ok=True)
+    ca_key, ca_crt = tls / "ca.key", tls / "ca.crt"
+    key, crt, csr = tls / "gateway.key", tls / "gateway.crt", tls / "gateway.csr"
+    sans = [
+        "localhost", "mint.solmara.registrystack.org", "evidence.solmara.invalid",
+        "cra-relay.solmara.registrystack.org", "mosd-programme-relay.solmara.registrystack.org",
+        "sipf-relay.solmara.registrystack.org", "nagdi-relay.solmara.registrystack.org",
+    ]
+    if all(path.exists() for path in (ca_key, ca_crt, key, crt)):
+        certificate = subprocess.run(
+            ["openssl", "x509", "-in", str(crt), "-noout", "-ext", "subjectAltName"],
+            check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        ).stdout
+        if all(f"DNS:{name}" in certificate for name in sans):
+            return
+    for path in (ca_key, ca_crt, key, crt, csr, tls / "ca.srl"):
+        path.unlink(missing_ok=True)
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "3650", "-subj", "/CN=Solmara Lab CA", "-keyout", str(ca_key), "-out", str(ca_crt)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["openssl", "req", "-new", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=localhost", "-addext", "subjectAltName=" + ",".join(f"DNS:{name}" for name in sans), "-keyout", str(key), "-out", str(csr)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["openssl", "x509", "-req", "-in", str(csr), "-CA", str(ca_crt), "-CAkey", str(ca_key), "-CAcreateserial", "-days", "3650", "-copy_extensions", "copy", "-out", str(crt)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    csr.unlink()
+    (tls / "ca.srl").unlink(missing_ok=True)
+    ca_key.chmod(0o600)
+    key.chmod(0o600)
+    ca_crt.chmod(0o644)
+    crt.chmod(0o644)
 
+
+def rsa_private_key_b64() -> str:
+    return base64.b64encode(subprocess.run(["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"], check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout).decode()
+
+
+def main() -> int:
+    operator_values = ensure_operator_material()
+    ensure_tls()
     output = ROOT / ".env"
-    write_env_file(
-        output, values, "# Generated by scripts/gen-secrets.py. Do not commit."
-    )
+    values = compose_environment_values(load_environment(output), operator_values)
+    output.write_text("# Generated by scripts/gen-secrets.py. Do not commit.\n" + "\n".join(f"{key}={shlex.quote(value)}" for key, value in sorted(values.items())) + "\n", encoding="utf-8")
+    output.chmod(0o600)
     print(f"Wrote {output}")
     return 0
 

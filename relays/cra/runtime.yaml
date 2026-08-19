@@ -1,0 +1,15 @@
+apiVersion: relay.registrystack.org/v2alpha1
+kind: RelayRuntime
+server: {bind: "0.0.0.0:8080"}
+packagePath: /etc/relay/cra/package
+sources: {cra: {path: /var/lib/relay/source/cra.sqlite}}
+authentication:
+  issuer:
+    id: solmara-mint
+    discoveryUrl: https://mint.solmara.registrystack.org/.well-known/openid-configuration
+    audience: solmara-runtime
+    tokenTypes: [at+jwt]
+    algorithms: [ES256]
+audit: {sink: /var/lib/relay/audit/audit.jsonl, integrityKeyRef: secret:env/SOLMARA_RELAY_AUDIT_KEY}
+limits: {requestTimeoutMilliseconds: 1500, concurrentQueries: 8}
+quotas: {requestsPerMinute: 120, burst: 20}

@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [data]
+properties: { data: { type: object, additionalProperties: false, required: [domainData], properties: { domainData: { type: object, additionalProperties: false, required: [farmerRegistered, dataUseAuthorized, activeSmallholderFarmer, activeFarmParcel, cropDeclaredForSeason, districtClimateRiskActive, voucherEntitlementCurrent, voucherNotRedeemed], properties: { farmerRegistered: { type: boolean }, dataUseAuthorized: { type: boolean }, activeSmallholderFarmer: { type: boolean }, activeFarmParcel: { type: boolean }, cropDeclaredForSeason: { type: boolean }, districtClimateRiskActive: { type: boolean }, voucherEntitlementCurrent: { type: boolean }, voucherNotRedeemed: { type: boolean } } } } } }

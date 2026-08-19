@@ -1,0 +1,66 @@
+apiVersion: relay.registrystack.org/v2alpha1
+kind: RegistryContract
+metadata: {id: solmara-sipf-relay, version: "2026-08-12", title: SIPF pension consultations}
+registry:
+  registryIdentifier: https://id.registrystack.org/solmara/registry/sipf
+  name: Social Insurance and Pensions Fund Relay
+  authority: {identifier: "did:web:id.registrystack.org:solmara:authority:sipf", name: Social Insurance and Pensions Fund}
+  authoritativeScope: Current pension payment and survivor eligibility facts held by SIPF
+  baseUri: https://sipf.gov.solmara.example/registry/
+  identifierLifecyclePolicyRef: governance/identifier-lifecycle.yaml
+  alignmentTargets: [{name: govstack-digital-registries, version: 3.0.0-alpha.2, status: directional}]
+governance: {controller: "did:web:id.registrystack.org:solmara:authority:sipf", publisher: "did:web:id.registrystack.org:solmara:authority:sipf", auditOwner: "did:web:id.registrystack.org:solmara:authority:sipf"}
+semantics: {localVocabulary: https://id.registrystack.org/solmara/vocabulary/sipf/}
+classifications:
+  privacy: {scheme: https://w3id.org/dpv, version: "2.3"}
+  institutional: {scheme: https://id.registrystack.org/solmara/classification/sipf, version: "1"}
+  handling: {scheme: https://id.registrystack.org/vocab/handling, version: "1"}
+  provenanceRef: governance/classification-review.yaml
+sources:
+  sipf: {kind: sqlite, profile: live-read-only, expectedSchemaFingerprint: "sha256:4298f8a9efcca5c1a2f58942f4a947afa3dd51e8767f54d1c557c60fb466a350"}
+resources:
+  - id: pension-payment
+    title: Pension payment
+    description: Minimum pension payment status fact.
+    semanticClass: local:PensionPayment
+    source: {source: sipf, view: relay_pension_payment}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications: {record_id: {privacy: identifying}, record_revision: {privacy: non-personal}, lifecycle_state: {privacy: personal}, recorded_at: {privacy: personal-context}, pensioner_uin: {privacy: identifying}, payment_status: {privacy: sensitive-personal}}
+    recordContext: {recordIdentifier: {sourceColumn: record_id}, revisionIdentifier: {sourceColumn: record_revision}, lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}, recordedAt: {sourceColumn: recorded_at}}
+    properties:
+      paymentStatus: {sourceColumn: payment_status, type: controlled-code, codelist: codelists/payment-status.yaml, sourceRequired: true, semanticTerm: local:paymentStatus, label: Payment status, description: Current pension payment status, classification: {privacy: sensitive-personal}}
+    disclosureProfiles: {pension-evidence: {properties: [paymentStatus]}}
+    operations:
+      lookups:
+        - id: by-pensioner-uin
+          requestBody: {maximumBytes: 96, selectors: {pensionerUin: {sourceColumn: pensioner_uin, type: string, minimumBytes: 10, maximumBytes: 10}}}
+          defaultAccessProfile: pension-evidence
+          accessProfiles:
+            pension-evidence:
+              access: {scope: solmara:relay:sipf:by-pensioner-uin, purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/pension-payment-review"]}}
+              disclosureProfile: pension-evidence
+    processingDescriptions:
+      - {id: pension-payment-review, operationRefs: [lookup:by-pensioner-uin], purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, minimum-disclosure, value-free-audit]}
+  - id: survivor-case
+    title: Survivor case
+    description: Minimum survivor eligibility fact.
+    semanticClass: local:SurvivorCase
+    source: {source: sipf, view: relay_survivor_case}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications: {record_id: {privacy: identifying}, record_revision: {privacy: non-personal}, lifecycle_state: {privacy: personal}, recorded_at: {privacy: personal-context}, spouse_uin: {privacy: identifying}, survivor_eligible: {privacy: sensitive-personal}}
+    recordContext: {recordIdentifier: {sourceColumn: record_id}, revisionIdentifier: {sourceColumn: record_revision}, lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}, recordedAt: {sourceColumn: recorded_at}}
+    properties:
+      survivorEligible: {sourceColumn: survivor_eligible, type: boolean, sourceRequired: true, semanticTerm: local:survivorEligible, label: Survivor eligible, description: Current survivor benefit eligibility, classification: {privacy: sensitive-personal}}
+    disclosureProfiles: {survivor-evidence: {properties: [survivorEligible]}}
+    operations:
+      lookups:
+        - id: by-spouse-uin
+          requestBody: {maximumBytes: 96, selectors: {spouseUin: {sourceColumn: spouse_uin, type: string, minimumBytes: 10, maximumBytes: 10}}}
+          defaultAccessProfile: survivor-evidence
+          accessProfiles:
+            survivor-evidence:
+              access: {scope: solmara:relay:sipf:by-spouse-uin, purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"]}}
+              disclosureProfile: survivor-evidence
+    processingDescriptions:
+      - {id: survivor-benefit-review, operationRefs: [lookup:by-spouse-uin], purpose: "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination", recipientClass: authorized-evidence-service, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [exact-lookup, minimum-disclosure, value-free-audit]}
+metadataVisibility: {service: public, resources: operation-bound, semantics: operation-bound, classifications: operator-only, processing: operation-bound}

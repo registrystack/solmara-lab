@@ -5,7 +5,7 @@
       "id": "cra-civil",
       "properties": {
         "authority": "Civil Registration Authority",
-        "title": "Civil registration"
+        "title": "CRA civil registration publication"
       },
       "type": "Feature"
     },
@@ -14,7 +14,7 @@
       "id": "nia-population",
       "properties": {
         "authority": "National Identity Agency",
-        "title": "Population register"
+        "title": "NIA population publication"
       },
       "type": "Feature"
     },
@@ -23,7 +23,7 @@
       "id": "sro-social",
       "properties": {
         "authority": "Social Registry Office",
-        "title": "Social registry"
+        "title": "SRO poverty extract"
       },
       "type": "Feature"
     },
@@ -32,7 +32,7 @@
       "id": "mosd-programme",
       "properties": {
         "authority": "Ministry of Social Development Programme MIS",
-        "title": "Integrated beneficiary registry"
+        "title": "MoSD programme enrolment publication"
       },
       "type": "Feature"
     },
@@ -41,7 +41,7 @@
       "id": "sipf-pensions",
       "properties": {
         "authority": "Social Insurance and Pensions Fund",
-        "title": "Pensions and social insurance"
+        "title": "SIPF pension and survivor publication"
       },
       "type": "Feature"
     },
@@ -50,7 +50,7 @@
       "id": "nagdi-agriculture",
       "properties": {
         "authority": "National Agricultural Data Institute",
-        "title": "Farmer and livestock registries"
+        "title": "NAgDI agriculture publication"
       },
       "type": "Feature"
     }

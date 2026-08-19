@@ -7,7 +7,7 @@ import json
 import random
 import shutil
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 OBSERVED_AT = "2026-07-04T09:00:00Z"
@@ -467,6 +467,7 @@ def build_rows(root: Path) -> dict[str, list[dict[str, object]]]:
         instructions.append(add_meta({"instruction_id": f"SIPF-PI-{idx:06d}", "award_no": award_no, "beneficiary_uin": uins[key], "pay_period_month": "2026-07-01", "amount": "240.00", "currency": "XTS", "payment_status": "released" if key == "deceased_pensioner" else "scheduled", "hold_reason": "none", "released_at": "2026-07-01T10:00:00Z" if key == "deceased_pensioner" else ""}, "SIPF-CORE"))
         pol.append(add_meta({"check_id": f"SIPF-POL-{idx:06d}", "award_no": award_no, "beneficiary_uin": uins[key], "method": "civil_registry_crosscheck", "result": "deceased_found" if key == "deceased_pensioner" else "confirmed_alive", "checked_date": "2026-06-01", "next_due_date": "2026-06-01" if key == "survivor_waits" else "2026-12-01"}, "SIPF-CORE"))
     survivor.append(add_meta({"survivor_link_id": "SIPF-SL-000001", "deceased_uin": uins["deceased_pensioner"], "survivor_uin": uins["survivor_spouse"], "relationship": "spouse", "proof_mrn": "MRN-1970-0401-00001", "survivor_award_no": "", "link_status": "verified"}, "SIPF-CORE"))
+    survivor.append(add_meta({"survivor_link_id": "SIPF-SL-000002", "deceased_uin": uins["survivor_waits"], "survivor_uin": uins["divorced_head"], "relationship": "former_spouse", "proof_mrn": "MRN-2010-0302-00002", "survivor_award_no": "", "link_status": "dissolved"}, "SIPF-CORE"))
     nagdi = build_nagdi(uins, by_uin, household_ids)
     return {
         "population_person": [add_meta(p, "NIA-SOLMARAID") for p in people],
@@ -749,8 +750,33 @@ def generate(root: Path) -> None:
         write_csv(root / "ministries/interior-civil/fixtures" / f"{table}.csv", rows[table])
     for table in ["population_person", "identity_document", "consent_directive"]:
         write_csv(root / "ministries/interior-population/fixtures" / f"{table}.csv", rows[table])
-    write_text(root / "ministries/interior-population/fixtures/001-schema.sql", "create table population_person (uin text primary key, person_id text, legacy_nid text, given_name text, family_name text, birth_date date, sex text, district_code text, address_area text, settlement_type text, identity_status text, pending_merge_with_uin text, match_basis text, alive boolean, birth_brn text, updated_at timestamptz, observed_at timestamptz, source_system text);\n")
-    write_text(root / "ministries/interior-population/fixtures/002-load.sql", "copy population_person from '/docker-entrypoint-initdb.d/population_person.csv' with (format csv, header true);\n")
+    write_text(root / "ministries/interior-population/fixtures/001-schema.sql", "create table if not exists population_person (uin text primary key, person_id text, legacy_nid text, given_name text, family_name text, birth_date date, sex text, district_code text, address_area text, settlement_type text, identity_status text, pending_merge_with_uin text, match_basis text, alive boolean, birth_brn text, updated_at timestamptz, observed_at timestamptz, source_system text);\n")
+    write_text(root / "ministries/interior-population/fixtures/002-load.sql", """create temporary table population_person_fixture
+    (like population_person including defaults);
+
+copy population_person_fixture from '/docker-entrypoint-initdb.d/population_person.csv' with (format csv, header true);
+
+insert into population_person
+select * from population_person_fixture
+on conflict (uin) do update set
+    person_id = excluded.person_id,
+    legacy_nid = excluded.legacy_nid,
+    given_name = excluded.given_name,
+    family_name = excluded.family_name,
+    birth_date = excluded.birth_date,
+    sex = excluded.sex,
+    district_code = excluded.district_code,
+    address_area = excluded.address_area,
+    settlement_type = excluded.settlement_type,
+    identity_status = excluded.identity_status,
+    pending_merge_with_uin = excluded.pending_merge_with_uin,
+    match_basis = excluded.match_basis,
+    alive = excluded.alive,
+    birth_brn = excluded.birth_brn,
+    updated_at = excluded.updated_at,
+    observed_at = excluded.observed_at,
+    source_system = excluded.source_system;
+""")
     for table in ["household", "household_member", "socio_economic_profile", "scoring_event", "program", "eligibility_decision", "enrollment", "entitlement", "payment_event", "grievance", "social_registry_household", "child_benefit_household", "programme_mis_enrollment"]:
         write_csv(root / "ministries/social-development/fixtures" / f"{table}.csv", rows[table])
     for table in ["sipf_contribution_account", "sipf_contribution_period", "sipf_pension_award", "sipf_payment_instruction", "sipf_proof_of_life_check", "sipf_survivor_link", "pension_case"]:

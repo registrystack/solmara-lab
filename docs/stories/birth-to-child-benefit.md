@@ -1,92 +1,28 @@
-# Birth To Child Benefit
+# Birth to child benefit
 
-Status: normative for Solmara Lab wave 1 story 1.
+Purpose: `child-benefit-review`.
 
-## Purpose
+The programme requests four independently signed authority assertions and owns
+the final outcome:
 
-This story demonstrates a canonical CRVS-to-social-protection journey: a
-registered birth, a population identity, a household eligibility predicate, and
-a programme duplicate check are gathered as source-owned predicates without
-exposing raw registry rows. The programme policy layer, not the evidence
-collector, decides whether those predicates amount to child benefit
-eligibility.
+| Authority | Requirement | Source | Concepts |
+|---|---|---|---|
+| CRA | `cra-child-benefit/v1` | immutable birth extract | `birth-is-registered`, `child-age-under-5` |
+| NIA | `nia-child-benefit/v1` | immutable population extract | `population-record-active` |
+| SRO | `sro-child-benefit/v1` | immutable poverty extract | `household-below-poverty-threshold` |
+| MoSD | `mosd-child-benefit/v1` | Relay lookup | `not-already-enrolled` |
 
-## Authorities And Registries
+Mateo Santos, UIN `2300010248`, is the positive synthetic persona. All five
+concepts are true. The application may therefore show the positive child
+benefit outcome, while each source row remains with its authority.
 
-| Authority | Registry | Evidence role |
-|---|---|---|
-| Civil Registration Authority | Civil registration | Birth registration, child age, child life status |
-| National Identity Agency | Population register | UIN, identity status, BRN linkage |
-| Social Registry Office | Social registry | Household membership and poverty band predicate |
-| MoSD programme MIS | Integrated beneficiary registry | Duplicate enrollment predicate |
+Controls cover deceased or aged-out children, an above-threshold household, an
+unregistered birth, duplicate enrolment, and wrong purpose. An unregistered
+birth is a valid CRA record with no BRN and produces signed false, not an
+unresolved consultation. The mutable MoSD source changes on the next request;
+the three immutable sources change only after a reviewed replacement is bound
+and the owning cell is restarted.
 
-Purpose IRI:
-`https://id.registrystack.org/solmara/purpose/child-benefit-review`.
-
-Evidence offering: `solmara.child-benefit.authority-predicate-collection`.
-
-Evidence collector endpoint:
-`https://child-benefit-federator.solmara.registrystack.org/v1/evaluations`.
-
-Response media type: `application/json`.
-
-Credential `vct`: not issued by the child-benefit evidence collector.
-
-Offering name: Child Benefit Authority Predicate Collection.
-
-## Positive Path
-
-Persona: Mateo Santos, `2300010248`.
-
-Expected claims:
-
-| Claim | Expected result |
-|---|---|
-| `birth-is-registered` | Pass: Mateo has a registered BRN. |
-| `population-record-active` | Pass: Mateo's population record is active. |
-| `child-age-under-5` | Pass: Mateo is under 5 at the lab clock. |
-| `household-below-poverty-threshold` | Pass: household score band is eligible; raw score is not disclosed. |
-| `not-already-enrolled` | Pass: no active child support enrollment exists. |
-
-The child-benefit evidence collector calls the CRA, NIA, SRO, and Programme
-Notaries through their ordinary evidence APIs and returns the minimized
-predicate results to the programme review. Its `source_trace` identifies the
-authority service and response status without copying source rows or internal
-evaluation state. The collector does not return a composed eligibility
-decision.
-
-## Failure Cases
-
-| Persona | Case | Expected result |
-|---|---|---|
-| Esteban Cruz | Deceased control persona | Fails life-status check before enrollment eligibility. |
-| Hana Aquino | Household above threshold | Fails `household-below-poverty-threshold`; raw poverty score remains undisclosed. |
-| Karim Kone | Unregistered birth | Fails `birth-is-registered` and routes to "register the birth first" rather than a dead end. |
-| Tomas Bello | Duplicate enrollment | Fails `not-already-enrolled` because an active enrollment already exists. |
-
-## Purpose Denial
-
-The smoke must attempt a request for raw household poverty score or complete
-household profile under `child-benefit-review`. The response must deny access
-with problem code `pdp.purpose_not_permitted` and must not include the raw
-field.
-
-The smoke must also attempt a request with an unrelated purpose, such as
-`pension-payment-review`, against the child benefit offering. The response must
-deny access with `pdp.purpose_not_permitted`.
-
-## Smoke Expectations
-
-The story smoke asserts:
-
-1. Metadata discovery returns the child benefit offering and the purpose IRI
-   from `docs/purposes.md`.
-2. Mateo's positive evaluation passes all five source predicates.
-3. The response contains an authority `source_trace` and no
-   `eligible-for-child-benefit` composition from the collector.
-4. Each listed failure case returns a failed predicate with no raw protected
-   source row in the response.
-5. A raw household score/profile request returns `403`
-   `pdp.purpose_not_permitted` without reflecting a protected field.
-6. An unrelated-purpose request returns `pdp.purpose_not_permitted`.
-7. Message text is not asserted.
+The response surface contains safe authority, issuer, provider, source type,
+and verified concept values. It does not contain selectors, tokens, source
+rows, raw poverty measures, private audit output, or JWS bodies.

@@ -113,9 +113,9 @@ describe('isExpectedProblemDenial', () => {
         result({
           friendlyStatus: 'done',
           httpStatus: 403,
-          body: { code: 'pdp.purpose_not_permitted' }
+          body: { code: 'not_authorized' }
         }),
-        'pdp.purpose_not_permitted'
+        'not_authorized'
       )
     ).toBe(true);
   });
@@ -138,7 +138,7 @@ describe('isExpectedProblemDenial', () => {
         body: {}
       })
     ]) {
-      expect(isExpectedProblemDenial(candidate, 'pdp.purpose_not_permitted')).toBe(false);
+      expect(isExpectedProblemDenial(candidate, 'not_authorized')).toBe(false);
     }
   });
 });

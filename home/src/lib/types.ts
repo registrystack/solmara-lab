@@ -49,7 +49,7 @@ export type ConfigLink = {
 export type TopologyService = {
   id: string;
   label: string;
-  role: 'shared' | 'relay' | 'notary';
+  role: 'shared' | 'relay' | 'evidence';
   authority?: string;
   purpose?: string;
   blurb: string;
@@ -74,13 +74,6 @@ export type SeedSummary = {
   available: boolean;
   artifactCount?: number;
   observedAt?: string;
-};
-
-export type PublishedToken = {
-  name: string;
-  token: string;
-  purpose?: string;
-  note: string;
 };
 
 export type CurlExample = {
@@ -108,8 +101,15 @@ export type ScenarioStep = {
   request_preview?: {
     method: string;
     url: string;
-    headers: Record<string, string>;
+    headers?: Record<string, string>;
+    purpose?: string;
     body?: unknown;
+    requests?: Array<{
+      method: string;
+      url: string;
+      headers?: Record<string, string>;
+      body?: unknown;
+    }>;
   };
 };
 
@@ -130,8 +130,10 @@ export type Scenario = {
 export type RequestSource = {
   method: string;
   url: string;
-  headers: Record<string, string>;
+  headers?: Record<string, string>;
+  purpose?: string;
   body?: unknown;
+  requests?: RequestSource[];
 };
 
 export type ResponseSource = {
@@ -186,6 +188,20 @@ export type StepRunResult = {
   credential_source?: RequestSource;
   credential_response_source?: ResponseSource;
   credential?: CredentialSummary;
+  results?: Array<Record<string, unknown>>;
+  result_state?: string;
+  presentation?: EvidencePresentation;
+  presentations?: EvidencePresentation[];
+};
+
+export type EvidencePresentation = {
+  authority: string;
+  service_id?: string;
+  issuer: string;
+  provider?: string;
+  source: 'immutable extract' | 'Relay lookup';
+  status?: number;
+  claims?: string[];
 };
 
 export type StepRunEnvelope = {
@@ -196,6 +212,13 @@ export type StepRunEnvelope = {
 };
 
 export type MetadataAuthority = { id: string; name: string; iri?: string };
+export type MetadataDataService = {
+  id: string;
+  iri?: string;
+  endpoint_url?: string;
+  endpoint_description?: string;
+  title?: Record<string, string>;
+};
 export type MetadataPublicService = {
   id: string;
   iri?: string;
@@ -213,6 +236,7 @@ export type MetadataBundle = {
     datasets: MetadataDataset[];
     gray_registries: GrayRegistry[];
     authorities: MetadataAuthority[];
+    data_services: MetadataDataService[];
     public_services: MetadataPublicService[];
   };
   offerings: MetadataOffering[];
@@ -240,7 +264,7 @@ export type MetadataOffering = {
   public_services?: string[];
   lookup_keys?: string[];
   issuing_authority?: { id?: string; name?: string; iri?: string };
-  access?: { endpoint_url?: string; discovery_url?: string; kind?: string; ruleset?: string };
+  access?: { endpoint_url?: string; discovery_url?: string; kind?: string; ruleset?: string; source_type?: string };
   semantics?: { concepts?: string[]; application_profiles?: string[] };
   policy?: string;
 };
@@ -266,7 +290,6 @@ export type HomeData = {
   versions: Record<string, string>;
   smoke: SmokeEvidence;
   seed: SeedSummary;
-  publishedTokens: PublishedToken[];
   curlExamples: CurlExample[];
   changelogLatest: ChangelogEntry | null;
   repoUrl: string;

@@ -5,20 +5,19 @@
 import type { MockEvaluation } from '$lib/providers/mock';
 import type { ProofTrace, RailChannel, RailEvent } from '$lib/types';
 import { proofFeed, railFeed } from '$lib/providers/feeds.svelte';
-import { redactRequest, redactResponse, scrubString } from './redact';
+import { scrubString } from './redact';
 
 let traceSeq = 0;
 
 // Build a redacted ProofTrace from a full MockEvaluation. The depth-1 human copy
 // is allowlist-safe by construction (it never embeds a raw identifier; the mock
 // authors it). depth-2 bodies are run through the redactor. depth-3 crypto carries
-// no raw identifier (dids, audit ids, algorithm).
+// no raw identifier, internal event id, or cryptographic bytes.
 export function buildRedactedTrace(
   ev: MockEvaluation,
   opts?: { fieldId?: string }
 ): ProofTrace {
   const seq = ++traceSeq;
-  const redactedReq = redactRequest(ev.raw.request);
   const trace: ProofTrace = {
     id: ev.result.traceId,
     seq,
@@ -30,36 +29,35 @@ export function buildRedactedTrace(
     notDisclosed: scrubString(ev.proof.notDisclosed),
     status: ev.proof.status,
     ts: new Date().toISOString(),
-    // depth 2: redacted wire bodies (allowlist only).
-    request: redactedReq,
-    response: redactResponse({
-      status: ev.raw.response.status,
-      body: ev.raw.response.body as Record<string, unknown>
-    }),
-    // depth 3: crypto. Present for resolved AND denied traces (the denial is still
-    // a signed, audited evaluation result).
+    purpose: ev.proof.purpose,
+    resultState: ev.result.state,
+    presentations: ev.proof.presentations,
+    responseStatus: ev.raw.response.status,
     proof: ev.proof.crypto
   };
   return trace;
 }
 
-// Map a proof status to a rail channel + phase.
-function railFromStatus(ev: MockEvaluation): { channel: RailChannel; phase: RailEvent['phase'] } {
-  switch (ev.proof.status) {
-    case 'denied':
-      return { channel: 'denied', phase: 'denied' };
-    case 'error':
-      return { channel: 'denied', phase: 'denied' };
+// Rail behavior is derived from the stable result state, never from a request
+// body or upstream transport detail.
+export function railFromStatus(ev: MockEvaluation): { channel: RailChannel; phase: RailEvent['phase'] } {
+  switch (ev.result.state) {
+    case 'fetched':
+    case 'stale':
+      return { channel: 'fetch', phase: 'sealed' };
+    case 'verified':
     case 'false':
-      // a signed "no" is still a sealed verify, not a denial.
+    case 'recovered':
       return { channel: 'verify', phase: 'sealed' };
-    case 'ok': {
-      const disclosure = (ev.raw.request.body.disclosure ?? '') as string;
-      const channel: RailChannel = disclosure === 'predicate' || disclosure === 'decision' ? 'verify' : 'fetch';
-      return { channel, phase: 'sealed' };
-    }
-    default:
+    case 'error':
+    case 'ambiguous':
+      return { channel: 'denied', phase: 'denied' };
+    case 'in_flight':
+    case 'slow':
       return { channel: 'verify', phase: 'request' };
+    case 'idle':
+    case 'prefilled':
+      return { channel: 'verify', phase: 'sealed' };
   }
 }
 

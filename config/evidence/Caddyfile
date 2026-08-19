@@ -1,0 +1,58 @@
+{
+	auto_https off
+}
+
+(solmara_tls) {
+	tls /etc/solmara-evidence/tls/gateway.crt /etc/solmara-evidence/tls/gateway.key
+}
+
+https://cra-relay.solmara.registrystack.org {
+	import solmara_tls
+	reverse_proxy cra-relay:8080
+}
+
+https://mosd-programme-relay.solmara.registrystack.org {
+	import solmara_tls
+	reverse_proxy mosd-relay:8080
+}
+
+https://sipf-relay.solmara.registrystack.org {
+	import solmara_tls
+	reverse_proxy sipf-relay:8080
+}
+
+https://nagdi-relay.solmara.registrystack.org {
+	import solmara_tls
+	reverse_proxy nagdi-relay:8080
+}
+
+https://localhost, https://mint.solmara.registrystack.org, https://evidence.solmara.invalid {
+	import solmara_tls
+	handle_path /evidence/cra/* {
+		reverse_proxy 172.29.1.21:8080
+	}
+	handle_path /evidence/nia/* {
+		reverse_proxy 172.29.1.22:8080
+	}
+	handle_path /evidence/sro/* {
+		reverse_proxy 172.29.1.23:8080
+	}
+	handle_path /evidence/mosd-programme/* {
+		reverse_proxy 172.29.1.24:8080
+	}
+	handle_path /evidence/sipf/* {
+		reverse_proxy 172.29.1.25:8080
+	}
+	handle_path /evidence/nagdi/* {
+		reverse_proxy 172.29.1.26:8080
+	}
+	handle_path /child-benefit/* {
+		reverse_proxy child-benefit-federator:8080
+	}
+	handle /token* {
+		reverse_proxy 172.29.1.20:8081
+	}
+	handle /.well-known/* {
+		reverse_proxy 172.29.1.20:8081
+	}
+}

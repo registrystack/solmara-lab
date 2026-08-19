@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [uin, birth_date, birth_registered]
+properties: { uin: { type: string, minLength: 10, maxLength: 10 }, birth_date: { type: string, format: date }, birth_registered: { type: boolean } }

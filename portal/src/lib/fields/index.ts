@@ -10,6 +10,6 @@ export { presentationFor, stampsOnEntry } from './states';
 export type { Channel, StatusIcon as StatusIconName, StatePresentation } from './states';
 
 // Authority and reason-code lookups, the single source of truth for how a
-// NotaryId reads to a citizen and how a reason code maps to a human sentence.
+// authority id reads to a citizen and how a reason code maps to a human sentence.
 export { authorityName, AUTHORITY_NAMES } from './authorities';
 export { reasonSentence, REASON_CODES } from './reasonCodes';

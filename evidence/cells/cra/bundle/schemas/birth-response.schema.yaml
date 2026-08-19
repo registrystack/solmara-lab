@@ -1,0 +1,5 @@
+type: object
+additionalProperties: false
+required: [rows]
+properties:
+  rows: { type: array, maxItems: 2, items: { type: object, additionalProperties: false, required: [uin, birth_date, birth_brn], properties: { uin: { type: string, minLength: 10, maxLength: 10 }, birth_date: { type: string, format: date }, birth_brn: { type: [string, 'null'], maxLength: 128 } } } }

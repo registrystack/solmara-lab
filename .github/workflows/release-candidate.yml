@@ -3,15 +3,6 @@ name: release-candidate
 on:
   workflow_dispatch:
     inputs:
-      registry_relay_image:
-        description: Digest-pinned registry-relay image
-        required: true
-      registry_notary_image:
-        description: Digest-pinned registry-notary image
-        required: true
-      registry_stack_tag:
-        description: Registry Stack candidate or release tag matching the supplied image digests
-        required: true
       solmara_image_tag:
         description: Tag for Solmara-owned images. Defaults to the workflow commit SHA.
         required: false
@@ -21,199 +12,398 @@ permissions:
   packages: write
 
 jobs:
-  smoke:
+  verify-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
-      REGISTRY_RELAY_IMAGE: ${{ inputs.registry_relay_image }}
-      REGISTRY_NOTARY_IMAGE: ${{ inputs.registry_notary_image }}
-      REGISTRY_STACK_TAG: ${{ inputs.registry_stack_tag }}
       SOLMARA_IMAGE_REGISTRY: ghcr.io/registrystack
       SOLMARA_IMAGE_TAG: ${{ inputs.solmara_image_tag || github.sha }}
-      POSTGRES_IMAGE: postgres:16-alpine
-      ESIGNET_POSTGRES_IMAGE: postgres:16
-      ESIGNET_BASE_IMAGE: mosipid/esignet-with-plugins:1.8.0
-      ESIGNET_UI_IMAGE: mosipid/oidc-ui:1.8.0
-      ESIGNET_RELAY_AUTHENTICATOR_REF: 2e7d0e452a778e048f2c259391397d1e1844318e
-      STATIC_METADATA_IMAGE: python:3.12-alpine
     steps:
-      - uses: actions/checkout@v4
-      - name: Checkout Registry Stack source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: registrystack/registry-stack
-          ref: ${{ env.REGISTRY_STACK_TAG }}
-          path: vendor/registry-stack
-      - name: Verify Registry Stack source
+          persist-credentials: false
+      - name: Read immutable Registry Stack source identity
+        id: registry-stack
         run: |
           set -euo pipefail
           set -a
           source versions.env
           set +a
-          test "$REGISTRY_STACK_SOURCE_REF" = "$REGISTRY_STACK_TAG"
-          test "$(git -C vendor/registry-stack rev-parse HEAD)" = "$REGISTRY_STACK_SOURCE_COMMIT"
-          {
-            printf 'SOLMARA_RELAY_BUNDLE_SEQUENCE=%s\n' "$SOLMARA_RELAY_BUNDLE_SEQUENCE"
-            printf 'VOLUME_INIT_IMAGE=%s\n' "$VOLUME_INIT_IMAGE"
-          } >> "$GITHUB_ENV"
-      - name: Checkout eSignet relay authenticator
-        uses: actions/checkout@v4
+          printf 'source_ref=%s\n' "$REGISTRY_STACK_SOURCE_REF" >> "$GITHUB_OUTPUT"
+          printf 'source_commit=%s\n' "$REGISTRY_STACK_SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
+          for key in REGISTRY_STACK_REQUIRED_VERSION \
+            REGISTRY_RELAY_IMAGE SOLMARA_EVIDENCE_IMAGE SOLMARA_MINT_IMAGE \
+            ESIGNET_BASE_IMAGE ESIGNET_POSTGRES_IMAGE ESIGNET_UI_IMAGE \
+            ESIGNET_AUTHENTICATOR_JAR_URL ESIGNET_AUTHENTICATOR_JAR_SHA256 \
+            REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256; do
+            value="$(printenv "$key")"
+            printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
+          done
+      - name: Require published Registry Stack and authenticator pins
+        run: scripts/check-registry-stack-release-pin.py --require-public
+      - name: Checkout the exact Registry Stack source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: jeremi/esignet-relay-authenticator
-          ref: ${{ env.ESIGNET_RELAY_AUTHENTICATOR_REF }}
-          path: vendor/esignet-relay-authenticator
-          ssh-key: ${{ secrets.ESIGNET_RELAY_AUTHENTICATOR_SSH_KEY }}
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-node@v4
+          repository: registrystack/registry-stack
+          ref: ${{ steps.registry-stack.outputs.source_commit }}
+          path: vendor/registry-stack
+          persist-credentials: false
+      - name: Verify official Registry Stack runtime images and Relayctl
+        run: |
+          set -euo pipefail
+          set -a
+          source versions.env
+          set +a
+          test "$(git -C vendor/registry-stack rev-parse HEAD)" = "$REGISTRY_STACK_SOURCE_COMMIT"
+          for component in relay evidence mint; do
+            case "$component" in
+              relay) image="$REGISTRY_RELAY_IMAGE" ;;
+              evidence) image="$SOLMARA_EVIDENCE_IMAGE" ;;
+              mint) image="$SOLMARA_MINT_IMAGE" ;;
+            esac
+            expected_prefix="ghcr.io/registrystack/${component}@sha256:"
+            if ! printf '%s\n' "$image" | grep -Eq "^ghcr\\.io/registrystack/${component}@sha256:[0-9a-f]{64}$"; then
+              echo "$component must use ${expected_prefix}<64 lowercase hex>" >&2
+              exit 1
+            fi
+            docker pull "$image"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$REGISTRY_STACK_SOURCE_COMMIT"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')" = "$REGISTRY_STACK_REQUIRED_VERSION"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = https://github.com/registrystack/registry-stack
+          done
+          relayctl="$RUNNER_TEMP/relayctl-v${REGISTRY_STACK_REQUIRED_VERSION}-linux-amd64"
+          curl --fail --location --silent --show-error "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL" --output "$relayctl"
+          printf '%s  %s\n' "$REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256" "$relayctl" | sha256sum --check --status
+          printf 'REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_FILE=%s\n' "$relayctl" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0
         with:
           node-version: "22"
-      - uses: docker/setup-buildx-action@v3
-      - name: Install tools
+      - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v3.11.1
+      - name: Install just
+        env:
+          JUST_VERSION: 1.58.0
+          JUST_SHA256: 4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/just.tar.gz"
+          curl --fail --location --silent --show-error \
+            --retry 5 --retry-all-errors --connect-timeout 30 --max-time 120 \
+            --output "$archive" \
+            "https://github.com/casey/just/releases/download/$JUST_VERSION/just-$JUST_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          printf '%s  %s\n' "$JUST_SHA256" "$archive" | sha256sum --check --status
+          mkdir -p "$RUNNER_TEMP/just-bin"
+          tar --extract --file "$archive" --directory "$RUNNER_TEMP/just-bin" just
+          printf '%s\n' "$RUNNER_TEMP/just-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/just-bin/just" --version
+      - name: Install dependencies
         run: |
           corepack enable
-          sudo apt-get update
-          sudo apt-get install -y just
-      - name: Setup
-        run: just setup
-      - name: Install Playwright browser
+          just setup
+      - name: Install browser test dependencies
         run: |
           cd portal && pnpm exec playwright install --with-deps chromium
           cd ../home && pnpm exec playwright install chromium
-      - name: Generate fixtures and secrets
+      - name: Generate and validate authority-cell runtime
+        env:
+          REGISTRY_STACK_SOURCE_DIR: ${{ github.workspace }}/vendor/registry-stack
         run: |
-          just generate
+          just prepare
           just metadata-publish
-      - name: Validate
-        run: |
           just lint
           just test
-          just registry-projects-editor
-          if [ -n "$(git status --short -- projects)" ]; then
-            git status --short -- projects
-            exit 1
-          fi
-          just registry-projects-check
-          just registry-projects-test
-          just registry-projects-capabilities
-          just registry-projects-runtime-check
           just compose
-          just review-release "$REGISTRY_STACK_TAG"
-      - name: Prove SRO contract generation transition
-        run: just contract-generation-proof
-      - name: Start stack
-        run: just up
-      - name: Smoke and PostgreSQL restart persistence
-        run: just smoke
-      - name: Portal live e2e
-        run: just portal-live-e2e
-      - name: Visitor center e2e
-        run: just home-live-e2e
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+          just relay-check
+      - name: Start and smoke authority cells
+        env:
+          REGISTRY_STACK_SOURCE_DIR: ${{ github.workspace }}/vendor/registry-stack
+        run: |
+          just up
+          just smoke
+          just evidence-check
+          just programme-acceptance
+          just lifecycle-proof
+          just portal-live-e2e
+          just home-live-e2e
+      - name: Report authority-cell startup failure
+        if: failure()
+        run: |
+          project_name="$(python3 scripts/compose_project_name.py)"
+          docker compose --env-file versions.env --env-file .env --project-name "$project_name" -f compose.yaml ps --all
+          docker compose --env-file versions.env --env-file .env --project-name "$project_name" -f compose.yaml logs --no-color \
+            authority-audit-init mint evidence-gateway relay-issuer-readiness \
+            cra-relay nia-relay mosd-relay sipf-relay nagdi-relay
+      - name: Record recoverable rollout phases
+        run: |
+          just rollout side-by-side
+          just rollout switch
+          just rollout disable
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push hosted Relay image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/relay/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            REGISTRY_RELAY_IMAGE=${{ env.REGISTRY_RELAY_IMAGE }}
-            VOLUME_INIT_IMAGE=${{ env.VOLUME_INIT_IMAGE }}
-      - name: Verify hosted Relay signed bundles
+      - name: Require pre-provisioned public Solmara packages
         env:
-          SOLMARA_HOSTED_RELAY_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-relay:${{ env.SOLMARA_IMAGE_TAG }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          for project in cra-civil nia-population sro-social mosd-programme sipf-pensions nagdi-agriculture; do
-            for bundle in "$project" "$project/consultation"; do
-              docker run --rm --platform linux/amd64 \
-                -e REGISTRY_RELAY_AUDIT_HASH_SECRET=0123456789abcdef0123456789abcdef \
-                -e REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1=abcdef0123456789abcdef0123456789 \
-                -e REGISTRY_RELAY_CONSULTATION_DATABASE_URL=postgresql://runtime:placeholder@postgres:5432/consultation?sslmode=require \
-                -e SOLMARA_NIA_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
-                -e SOLMARA_SIPF_DATABASE_URL=postgresql://reader:placeholder@postgres:5432/source?sslmode=require \
-                "$SOLMARA_HOSTED_RELAY_IMAGE" \
-                config verify-bundle \
-                --bundle-dir "/etc/solmara/hosted-relay-bundles/$bundle/bundle" \
-                --anchor-path "/etc/solmara/hosted-relay-bundles/$bundle/trust-anchor.json" \
-                --state-path "/etc/solmara/hosted-relay-bundles/$bundle/antirollback-seed.json" \
-                | jq -e --argjson expected "$SOLMARA_RELAY_BUNDLE_SEQUENCE" \
-                    '.result == "verified" and .bundle_sequence == $expected' >/dev/null
-            done
+          for package in \
+            solmara-lab-authority-provisioner \
+            solmara-lab-transit-signer; do
+            visibility="$(gh api "/orgs/registrystack/packages/container/${package}" --jq .visibility)"
+            if [ "$visibility" != public ]; then
+              echo "$package must be pre-provisioned as a public package with Actions write access" >&2
+              exit 1
+            fi
           done
-      - name: Build and push hosted Notary image
-        uses: docker/build-push-action@v6
+      - name: Build and push authority provisioner
+        id: authority_provisioner
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
-          file: docker/notary/Dockerfile
+          file: docker/hosted-authority-provisioner/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-notary:${{ env.SOLMARA_IMAGE_TAG }}
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-authority-provisioner:${{ env.SOLMARA_IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.SOLMARA_IMAGE_TAG }}
+            org.opencontainers.image.source=https://github.com/registrystack/solmara-lab
+            org.registrystack.release.version=${{ env.REGISTRY_STACK_REQUIRED_VERSION }}
+            org.registrystack.release.revision=${{ steps.registry-stack.outputs.source_commit }}
           build-args: |
-            REGISTRY_NOTARY_IMAGE=${{ env.REGISTRY_NOTARY_IMAGE }}
-      - name: Build and push hosted Postgres image
-        uses: docker/build-push-action@v6
+            REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL=${{ env.REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL }}
+            REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256=${{ env.REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256 }}
+      - name: Build and push Transit signer
+        id: transit_signer
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
-          file: docker/postgres/Dockerfile
+          file: docker/hosted-transit-signer/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-postgres:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            POSTGRES_IMAGE=${{ env.POSTGRES_IMAGE }}
-      - name: Build and push hosted static metadata image
-        uses: docker/build-push-action@v6
+          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-transit-signer:${{ env.SOLMARA_IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.SOLMARA_IMAGE_TAG }}
+            org.opencontainers.image.source=https://github.com/registrystack/solmara-lab
+            org.registrystack.release.version=${{ env.REGISTRY_STACK_REQUIRED_VERSION }}
+            org.registrystack.release.revision=${{ steps.registry-stack.outputs.source_commit }}
+      - name: Verify hosted authority image source labels
+        run: |
+          set -euo pipefail
+          for component in authority-provisioner transit-signer; do
+            case "$component" in
+              authority-provisioner) digest='${{ steps.authority_provisioner.outputs.digest }}' ;;
+              transit-signer) digest='${{ steps.transit_signer.outputs.digest }}' ;;
+            esac
+            image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-${component}@${digest}"
+            docker pull "$image"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = '${{ github.sha }}'
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = https://github.com/registrystack/solmara-lab
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.registrystack.release.version" }}')" = "$REGISTRY_STACK_REQUIRED_VERSION"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.registrystack.release.revision" }}')" = '${{ steps.registry-stack.outputs.source_commit }}'
+          done
+      - name: Smoke hosted authority provisioner image
+        run: |
+          set -euo pipefail
+          image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-authority-provisioner@${{ steps.authority_provisioner.outputs.digest }}"
+          state="$RUNNER_TEMP/solmara-authority-provisioner-state"
+          mkdir -p "$state/runtime" "$state/source"
+          for _ in 1 2; do
+            docker run --rm --platform linux/amd64 --network none --read-only --tmpfs /tmp \
+              --user 0:0 --cap-drop ALL \
+              --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+              --mount "type=bind,source=$state/runtime,target=/provisioned/runtime" \
+              --mount "type=bind,source=$state/source,target=/provisioned/source" \
+              "$image" provision \
+              --target cra-relay \
+              --assets /opt/solmara-hosted-assets \
+              --runtime-output /provisioned/runtime \
+              --source-output /provisioned/source \
+              --mint-origin https://mint-authority-cells.solmara.registrystack.org
+          done
+          python3 - "$state" <<'PY'
+          import sqlite3
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          with sqlite3.connect(f"file:{root / 'source/cra.sqlite'}?mode=ro", uri=True) as connection:
+              assert connection.execute("PRAGMA quick_check").fetchall() == [("ok",)]
+          assert (root / "runtime/runtime.yaml").is_file()
+          assert any((root / "runtime/package").iterdir())
+          PY
+          docker run --rm --platform linux/amd64 --network none --read-only --tmpfs /tmp \
+            --user 0:0 --cap-drop ALL --cap-add DAC_OVERRIDE --cap-add FOWNER \
+            --entrypoint python \
+            --mount "type=bind,source=$state/runtime,target=/provisioned/runtime" \
+            "$image" -c \
+            "from pathlib import Path; p=Path('/provisioned/runtime/runtime.yaml'); p.chmod(0o644); p.open('a', encoding='utf-8').write('\\n')"
+          stdout="$RUNNER_TEMP/solmara-authority-provisioner.stdout"
+          stderr="$RUNNER_TEMP/solmara-authority-provisioner.stderr"
+          set +e
+          docker run --rm --platform linux/amd64 --network none --read-only --tmpfs /tmp \
+            --user 0:0 --cap-drop ALL \
+            --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
+            --mount "type=bind,source=$state/runtime,target=/provisioned/runtime" \
+            --mount "type=bind,source=$state/source,target=/provisioned/source" \
+            "$image" provision \
+            --target cra-relay \
+            --assets /opt/solmara-hosted-assets \
+            --runtime-output /provisioned/runtime \
+            --source-output /provisioned/source \
+            --mint-origin https://mint-authority-cells.solmara.registrystack.org \
+            >"$stdout" 2>"$stderr"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$stdout"
+          test "$(cat "$stderr")" = "hosted target provisioning failed"
+          uv run scripts/smoke-hosted-provisioner-image.py \
+            --image "$image" \
+            --state-root "$RUNNER_TEMP/solmara-authority-provisioner-authority-state"
+      - name: Smoke hosted Transit signer image
+        run: |
+          set -euo pipefail
+          image="$SOLMARA_IMAGE_REGISTRY/solmara-lab-transit-signer@${{ steps.transit_signer.outputs.digest }}"
+          docker run --rm --network none --read-only --entrypoint python "$image" -c 'import cryptography'
+          export SIGNER_IMAGE="$image"
+          export SIGNING_PRIVATE_JWK
+          SIGNING_PRIVATE_JWK="$(cat config/evidence/local/cells/cra/secrets/signing.jwk)"
+          export SIGNING_PUBLIC_JWK
+          SIGNING_PUBLIC_JWK="$(cat runtime/evidence-cells/cells/cra/bundle/public-keys/*.jwk.json)"
+          project="solmara-transit-signer-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          compose="$RUNNER_TEMP/solmara-transit-signer.compose.yaml"
+          cat >"$compose" <<'YAML'
+          services:
+            transit-init:
+              image: ${SIGNER_IMAGE:?required}
+              entrypoint: [/usr/local/bin/python, -c]
+              command: ["import os; os.chown('/transit', 65532, 65532); os.chmod('/transit', 0o700)"]
+              restart: "no"
+              user: "0:0"
+              read_only: true
+              tmpfs: [/tmp]
+              network_mode: none
+              cap_drop: [ALL]
+              cap_add: [CHOWN, FOWNER]
+              security_opt: [no-new-privileges:true]
+              volumes: [transit:/transit]
+            signer:
+              image: ${SIGNER_IMAGE:?required}
+              command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-cra]
+              restart: "no"
+              user: "65532:65532"
+              read_only: false
+              network_mode: none
+              cap_drop: [ALL]
+              security_opt: [no-new-privileges:true]
+              volumes: [transit:/transit]
+              secrets:
+                - {source: signing-private, target: /tmp/solmara-signing.jwk, uid: "65532", gid: "65532", mode: 0400}
+                - {source: signing-public, target: /tmp/solmara-signing-public.jwk, uid: "65532", gid: "65532", mode: 0400}
+              healthcheck:
+                test: [CMD, /usr/local/bin/python, -c, "import socket; s=socket.socket(socket.AF_UNIX); s.connect('/transit/transit-proxy.sock'); s.close()"]
+                interval: 1s
+                timeout: 1s
+                retries: 30
+                start_period: 1s
+              depends_on:
+                transit-init: {condition: service_completed_successfully}
+          secrets:
+            signing-private: {environment: SIGNING_PRIVATE_JWK}
+            signing-public: {environment: SIGNING_PUBLIC_JWK}
+          volumes:
+            transit: {}
+          YAML
+          chmod 0600 "$compose"
+          cleanup() {
+            docker compose -p "$project" -f "$compose" down -v >/dev/null 2>&1 || true
+            unset SIGNING_PRIVATE_JWK SIGNING_PUBLIC_JWK
+          }
+          trap cleanup EXIT
+          docker compose -p "$project" -f "$compose" up -d --wait --wait-timeout 60
+          docker compose -p "$project" -f "$compose" exec -T signer python -c '
+          import glob
+          import os
+          from pathlib import Path
+          assert os.geteuid() == 65532
+          assert not Path("/tmp/solmara-signing.jwk").exists()
+          assert not Path("/tmp/solmara-signing-public.jwk").exists()
+          assert not glob.glob("/tmp/solmara-transit-*")
+          assert Path("/transit/transit-proxy.sock").is_socket()
+          '
+          docker compose -p "$project" -f "$compose" exec -T signer python -c '
+          import socket
+          client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+          client.settimeout(5)
+          client.connect("/transit/transit-proxy.sock")
+          client.sendall(b"GET /v1/transit/keys/solmara-evidence-cra HTTP/1.1\r\nHost: localhost\r\nX-Vault-Request: true\r\nConnection: close\r\n\r\n")
+          response = bytearray()
+          while True:
+              chunk = client.recv(65536)
+              if not chunk:
+                  break
+              response.extend(chunk)
+          client.close()
+          raise SystemExit(0 if response.startswith(b"HTTP/1.1 200 ") else 1)
+          '
+          cleanup
+          trap - EXIT
+      - name: Build and push static metadata
+        id: static_metadata
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: docker/static-metadata/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-static-metadata:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            STATIC_METADATA_IMAGE=${{ env.STATIC_METADATA_IMAGE }}
-      - name: Build and push scenario runner image
-        uses: docker/build-push-action@v6
+      - name: Build and push scenario runner
+        id: scenario_runner
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: scenario-runner/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-scenario-runner:${{ env.SOLMARA_IMAGE_TAG }}
-      - name: Build and push Visitor Center image
-        uses: docker/build-push-action@v6
+      - name: Build and push Visitor Center
+        id: home
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: home/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-home:${{ env.SOLMARA_IMAGE_TAG }}
-      - name: Build and push portal image
-        uses: docker/build-push-action@v6
+      - name: Build and push programme portal
+        id: portal
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: ./portal
           file: ./portal/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-portal:${{ env.SOLMARA_IMAGE_TAG }}
-      - name: Build and push eSignet relay image
-        uses: docker/build-push-action@v6
+      - name: Build and push eSignet Relay V2 authenticator image
+        id: esignet_relay
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: docker/esignet-relay/Dockerfile
-          build-contexts: |
-            esignet_relay_authenticator_src=./vendor/esignet-relay-authenticator
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-relay:${{ env.SOLMARA_IMAGE_TAG }}
           build-args: |
             ESIGNET_BASE_IMAGE=${{ env.ESIGNET_BASE_IMAGE }}
-      - name: Build and push eSignet Postgres image
-        uses: docker/build-push-action@v6
+            ESIGNET_AUTHENTICATOR_JAR_URL=${{ env.ESIGNET_AUTHENTICATOR_JAR_URL }}
+            ESIGNET_AUTHENTICATOR_JAR_SHA256=${{ env.ESIGNET_AUTHENTICATOR_JAR_SHA256 }}
+      - name: Build and push isolated eSignet database
+        id: esignet_postgres
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: docker/esignet-postgres/Dockerfile
@@ -222,8 +412,9 @@ jobs:
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-postgres:${{ env.SOLMARA_IMAGE_TAG }}
           build-args: |
             POSTGRES_IMAGE=${{ env.ESIGNET_POSTGRES_IMAGE }}
-      - name: Build and push eSignet UI image
-        uses: docker/build-push-action@v6
+      - name: Build and push eSignet UI
+        id: esignet_ui
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: docker/esignet-ui/Dockerfile
@@ -234,27 +425,50 @@ jobs:
             ESIGNET_UI_IMAGE=${{ env.ESIGNET_UI_IMAGE }}
             ESIGNET_NGINX_CONF=config/esignet/nginx-hosted.conf
       - name: Build and push eSignet seed image
-        uses: docker/build-push-action@v6
+        id: esignet_seed
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: docker/esignet-seed/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed:${{ env.SOLMARA_IMAGE_TAG }}
-      - name: Report image digests
+      - name: Generate Coolify image manifest
+        env:
+          REGISTRY_RELAY_IMAGE: ${{ env.REGISTRY_RELAY_IMAGE }}
+          SOLMARA_EVIDENCE_IMAGE: ${{ env.SOLMARA_EVIDENCE_IMAGE }}
+          SOLMARA_MINT_IMAGE: ${{ env.SOLMARA_MINT_IMAGE }}
+          SOLMARA_AUTHORITY_PROVISIONER_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-authority-provisioner@${{ steps.authority_provisioner.outputs.digest }}
+          SOLMARA_TRANSIT_SIGNER_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-transit-signer@${{ steps.transit_signer.outputs.digest }}
+          SOLMARA_STATIC_METADATA_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-static-metadata@${{ steps.static_metadata.outputs.digest }}
+          SOLMARA_SCENARIO_RUNNER_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-scenario-runner@${{ steps.scenario_runner.outputs.digest }}
+          SOLMARA_HOME_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-home@${{ steps.home.outputs.digest }}
+          SOLMARA_PORTAL_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-portal@${{ steps.portal.outputs.digest }}
+          SOLMARA_ESIGNET_RELAY_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-relay@${{ steps.esignet_relay.outputs.digest }}
+          SOLMARA_ESIGNET_POSTGRES_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-postgres@${{ steps.esignet_postgres.outputs.digest }}
+          SOLMARA_ESIGNET_UI_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-ui@${{ steps.esignet_ui.outputs.digest }}
+          SOLMARA_ESIGNET_SEED_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed@${{ steps.esignet_seed.outputs.digest }}
+        run: |
+          set -euo pipefail
+          manifest="$RUNNER_TEMP/solmara-release/solmara-hosted-images.env"
+          python3 scripts/hosted-image-manifest.py write --output "$manifest"
+          python3 scripts/hosted-image-manifest.py validate --manifest "$manifest"
+      - name: Upload Coolify image manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: solmara-hosted-images-${{ github.sha }}
+          path: ${{ runner.temp }}/solmara-release/solmara-hosted-images.env
+          if-no-files-found: error
+          retention-days: 30
+      - name: Report immutable Solmara image digests
         run: |
           {
             echo "### Solmara image digests"
             echo
-            for image in solmara-lab-relay solmara-lab-notary solmara-lab-postgres solmara-lab-static-metadata solmara-lab-scenario-runner solmara-lab-home solmara-lab-portal solmara-lab-esignet-relay solmara-lab-esignet-postgres solmara-lab-esignet-ui solmara-lab-esignet-seed; do
-              ref="${SOLMARA_IMAGE_REGISTRY}/${image}:${SOLMARA_IMAGE_TAG}"
-              digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
-              echo "- ${SOLMARA_IMAGE_REGISTRY}/${image}@${digest}"
-            done
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Stop stack
+            while IFS='=' read -r key image; do
+              printf -- '- %s=%s\n' "$key" "$image"
+            done < "$RUNNER_TEMP/solmara-release/solmara-hosted-images.env"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop authority-cell stack
         if: always()
-        run: |
-          if command -v just >/dev/null 2>&1; then
-            just down
-          fi
+        run: just down || true

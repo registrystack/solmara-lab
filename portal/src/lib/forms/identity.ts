@@ -18,19 +18,16 @@ export function buildIdentityTrace(displayName: string): ProofTrace {
       'Not disclosed: the raw national id and the tokens, held server-side only and never sent to the browser',
     status: 'ok',
     ts: new Date().toISOString(),
-    request: {
-      method: 'POST',
-      url: '/auth/callback',
-      body: { grant_type: 'authorization_code', relationship: 'self' }
-    },
-    response: { status: 200, body: { subject_bound: true, name: displayName } },
+    purpose: 'session-binding',
+    resultState: 'prefilled',
+    presentations: [],
+    responseStatus: 200,
     proof: {
       signedBy: 'SolmaraID (eSignet)',
       algorithm: 'EdDSA-Ed25519',
       issuerKey: 'did:web:esignet.gov.solmara.example#key-1',
-      holderBound: 'Bound to the signed-in citizen (cnf wallet key)',
-      credential: 'OIDC ID token (server-side session)',
-      auditId: 'audit:login'
+      holderBound: 'Bound to the signed-in portal session',
+      credential: 'OIDC session identity held server-side'
     }
   };
 }

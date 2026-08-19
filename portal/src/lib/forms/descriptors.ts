@@ -1,6 +1,6 @@
 // The three wave 1 ServiceForm descriptors.
 //
-// Each Field maps a kind/claim/notary/purpose/disclose so the form page can drive
+// Each Field maps a kind/claim/authority/purpose/disclose so the form page can drive
 // the EvidenceField renderer and the BFF can resolve a canned scenario by field
 // id. The field ids ARE the scenario lookup keys the MockEvidenceProvider expects
 // (see resolveScenarioKey), so they must match the keys in providers/mock/scenarios.ts.
@@ -9,14 +9,14 @@
 // pension-survivor survivor-benefit decision (manual: true). Child-benefit reads
 // carry the `delegated` flag so the form gates them behind the consent step.
 
-import type { Field, NotaryId, ServiceForm } from '$lib/types';
+import type { AuthorityId, Field, ServiceForm } from '$lib/types';
 
 export const PURPOSES = {
-  childBenefitReview: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
-  pensionPaymentReview: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
-  survivorBenefitDetermination: 'https://id.registrystack.org/solmara/purpose/survivor-benefit-determination',
-  voucherEligibilityReview: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-  citizenSelfService: 'https://id.registrystack.org/solmara/purpose/citizen-self-service'
+  childBenefitReview: 'child-benefit-review',
+  pensionPaymentReview: 'pension-payment-review',
+  survivorBenefitDetermination: 'survivor-benefit-determination',
+  voucherEligibilityReview: 'voucher-eligibility-review',
+  citizenSelfService: 'citizen-self-service'
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ const agriSubsidy: ServiceForm = {
       label: 'Registered farmer?',
       kind: 'verify',
       claim: 'farmer-registered',
-      notary: 'agri',
+      authority: 'agri',
       purpose: PURPOSES.voucherEligibilityReview,
       disclose: 'Not disclosed: only the yes/no, no farm details'
     },
@@ -47,7 +47,7 @@ const agriSubsidy: ServiceForm = {
       label: 'Purpose authorization',
       kind: 'verify',
       claim: 'data-use-authorized-for-purpose',
-      notary: 'agri',
+      authority: 'agri',
       purpose: PURPOSES.voucherEligibilityReview,
       disclose: 'Not disclosed: unrelated farmer records or workbook rows'
     },
@@ -63,7 +63,7 @@ const agriSubsidy: ServiceForm = {
       label: 'Eligibility',
       kind: 'decision',
       claim: 'eligible-for-climate-smart-input-voucher',
-      notary: 'agri',
+      authority: 'agri',
       purpose: PURPOSES.voucherEligibilityReview,
       disclose: 'Not disclosed: the underlying parcel measurements behind the decision'
     }
@@ -89,7 +89,7 @@ const educationGrant: ServiceForm = {
       label: 'Child birth registered',
       kind: 'verify',
       claim: 'birth-is-registered',
-      notary: 'childCivil',
+      authority: 'childCivil',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: place of birth and registration officer',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -99,7 +99,7 @@ const educationGrant: ServiceForm = {
       label: 'Population record active',
       kind: 'verify',
       claim: 'population-record-active',
-      notary: 'population',
+      authority: 'population',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: identity attributes or population register row',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -109,7 +109,7 @@ const educationGrant: ServiceForm = {
       label: 'Child age under 5',
       kind: 'verify',
       claim: 'child-age-under-5',
-      notary: 'childCivil',
+      authority: 'childCivil',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: full birth certificate or exact birth date',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -119,7 +119,7 @@ const educationGrant: ServiceForm = {
       label: 'Household below threshold',
       kind: 'verify',
       claim: 'household-below-poverty-threshold',
-      notary: 'socialRegistry',
+      authority: 'socialRegistry',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: poverty score or household roster',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -129,7 +129,7 @@ const educationGrant: ServiceForm = {
       label: 'Not already enrolled',
       kind: 'verify',
       claim: 'not-already-enrolled',
-      notary: 'programme',
+      authority: 'programme',
       purpose: PURPOSES.childBenefitReview,
       disclose: 'Not disclosed: other programme records',
       delegated: { relationshipClaim: 'caregiver-link', dependentRef: 'selected-child' }
@@ -151,7 +151,7 @@ const socialCash: ServiceForm = {
       label: 'Death registration reviewed?',
       kind: 'verify',
       claim: 'person-is-deceased',
-      notary: 'civil',
+      authority: 'civil',
       purpose: PURPOSES.pensionPaymentReview,
       disclose: 'Not disclosed: any other civil record detail'
     },
@@ -160,7 +160,7 @@ const socialCash: ServiceForm = {
       label: 'Pension payment should stop?',
       kind: 'verify',
       claim: 'pension-payment-should-stop',
-      notary: 'social',
+      authority: 'social',
       purpose: PURPOSES.pensionPaymentReview,
       disclose: 'Not disclosed: cause of death or other medical detail'
     },
@@ -169,7 +169,7 @@ const socialCash: ServiceForm = {
       label: 'Survivor relationship',
       kind: 'verify',
       claim: 'survivor-is-eligible',
-      notary: 'social',
+      authority: 'social',
       purpose: PURPOSES.survivorBenefitDetermination,
       disclose: 'Not disclosed: the full marriage record'
     },
@@ -178,7 +178,7 @@ const socialCash: ServiceForm = {
       label: 'Pension payment active?',
       kind: 'verify',
       claim: 'pension-payment-active',
-      notary: 'social',
+      authority: 'social',
       purpose: PURPOSES.pensionPaymentReview,
       disclose: 'Not disclosed: payment amount or payment history'
     },
@@ -194,7 +194,7 @@ const socialCash: ServiceForm = {
       label: 'Eligibility decision',
       kind: 'decision',
       claim: 'survivor-benefit-eligible',
-      notary: 'social',
+      authority: 'social',
       purpose: PURPOSES.survivorBenefitDetermination,
       disclose: 'Not disclosed: the raw inputs each authority used',
       manual: true
@@ -219,7 +219,7 @@ export type CatalogEntry = {
   slug: string;
   title: string;
   summary: string;
-  authorities: NotaryId[];
+  authorities: AuthorityId[];
 };
 
 export const CATALOG: CatalogEntry[] = [

@@ -17,9 +17,9 @@ describe('ProofTicker', () => {
     expect(ticker).toHaveAttribute('aria-live', 'polite');
   });
 
-  it('is labelled as the proof audit log', () => {
+  it('is labelled as the proof log', () => {
     render(ProofTicker, { props: { traces: [] } });
-    expect(screen.getByRole('log', { name: /proof audit log/i })).toBeInTheDocument();
+    expect(screen.getByRole('log', { name: /proof log/i })).toBeInTheDocument();
   });
 
   it('renders an entry for each trace', () => {
@@ -59,14 +59,14 @@ describe('ProofTicker', () => {
     expect(screen.getAllByText('Agri').length).toBeGreaterThan(0);
     // Social Registry entries
     expect(screen.getAllByText('Social Registry').length).toBeGreaterThan(0);
-    // Civil entries
-    expect(screen.getAllByText('Civil').length).toBeGreaterThan(0);
+    // Portal authorization entry
+    expect(screen.getAllByText('Portal').length).toBeGreaterThan(0);
   });
 
   it('labels the identity-binding trace as eSignet, never Unknown', () => {
-    // The identity trace carries no Notary `authority` (eSignet is not one of the
-    // four Notaries), so a naive authority lookup falls through to "Unknown". It
-    // must instead name its issuer so the very first audit line reads honestly.
+    // The identity trace carries no authority Evidence source (eSignet is the
+    // identity provider), so a naive lookup falls through to "Unknown". It
+    // must instead name its issuer so the first proof line reads honestly.
     render(ProofTicker, { props: { traces: [buildIdentityTrace('Elena Dela Cruz')] } });
     expect(screen.queryByText('Unknown')).toBeNull();
     expect(screen.getByText('eSignet')).toBeInTheDocument();

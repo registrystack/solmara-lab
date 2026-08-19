@@ -1,0 +1,20 @@
+meta {
+  name: 05 - NAgDI voucher lookup
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{nagdi_relay_url}}/v2/resources/farmer/lookups/voucher-by-farmer-id?fields=farmerRegistered,dataUseAuthorized,activeSmallholderFarmer,activeFarmParcel,cropDeclaredForSeason,districtClimateRiskActive,voucherEntitlementCurrent,voucherNotRedeemed
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{NAGDI_VOUCHER_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"farmerId":"FR-000001"}}
+}

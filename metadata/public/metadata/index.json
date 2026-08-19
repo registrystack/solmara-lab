@@ -9,132 +9,152 @@
     {
       "media_type": "application/json",
       "path": "metadata/catalog.json",
-      "sha256": "sha256:2db419cefb6b0659792ac1ceb803d21a8fafd54eb75eefdced7496fdc8a480f4"
+      "sha256": "sha256:49604351742db066f104f1e648e383228bd786c0b264c1a4370331f8dc9f3e6e"
     },
     {
       "media_type": "application/json",
       "path": "metadata/cpsv-ap",
-      "sha256": "sha256:ddfccb6700668ba4753a0ddfe00e80f3c2cfc60192863f84e1f76cd4529aa01d"
+      "sha256": "sha256:845c0707695d38306a78d5a5bc7edf051ece9db6f940f1b873520ef63fc5a8b6"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/cpsv-ap.jsonld",
-      "sha256": "sha256:ddfccb6700668ba4753a0ddfe00e80f3c2cfc60192863f84e1f76cd4529aa01d"
+      "sha256": "sha256:845c0707695d38306a78d5a5bc7edf051ece9db6f940f1b873520ef63fc5a8b6"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/dcat.jsonld",
-      "sha256": "sha256:6f0e778b71be0f94dd97dc2d7e87ce5850a363efd0ebdfb99b745f2ab5848b92"
+      "sha256": "sha256:3747beabd9d30201a2065963cdeefeb45a1b26c9ae380d787f1da7d511e81d32"
     },
     {
       "media_type": "application/json",
       "path": "metadata/evidence-offerings.json",
-      "sha256": "sha256:bb079ab2166568c5e175438da8e6fd37edb5dc48bc2a93f38f409f4445b0db89"
+      "sha256": "sha256:f3d995ca9ce9f2ed0b083094763560dd2f8ea606edaa7f66f89713fd057abd67"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/cra-birth-registration-offering.json",
-      "sha256": "sha256:519d0e195db9fe938057c7dd2c4819b31c237cb7a7da06228a1cab3fc287fafd"
+      "path": "metadata/evidence-offerings/cra-child-benefit-v1-offering.json",
+      "sha256": "sha256:4945af2a2ce39cd876464f36b7c461241a533c0a439139ed40cf3499578fc1a0"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/cra-death-registration-offering.json",
-      "sha256": "sha256:8231e762fefa587af31560c759916754d53a5f742ad923385fd214eeac6884f1"
+      "path": "metadata/evidence-offerings/cra-citizen-record-v1-offering.json",
+      "sha256": "sha256:323c53c57e38fcb0a1763fbcf599bf1d8a9eab269c2800bce66ced3ad78a168a"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/mosd-programme-beneficiary-enrollment-offering.json",
-      "sha256": "sha256:90a2f91491e0d32615016c663cba787fad9c225287af741b7dfa4fa0f2c94fef"
+      "path": "metadata/evidence-offerings/cra-pension-death-v1-offering.json",
+      "sha256": "sha256:6546f52ad662d882796ea27cbab3205caee415b66183ae3563dc55433539a451"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/nagdi-agriculture-farmer-voucher-offering.json",
-      "sha256": "sha256:4920058bf44aa821eb48c8723072ffac8d1e1691e4ca2028b596a401169b4286"
+      "path": "metadata/evidence-offerings/mosd-child-benefit-v1-offering.json",
+      "sha256": "sha256:9eb7f35fb2efbb3f7b221dd87fd9f99f62f8d45639b8e304b832b7c57c671802"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/nagdi-agriculture-livestock-movement-offering.json",
-      "sha256": "sha256:62a87e2b217ae731012a82d3c7e660e1430dbe0cfdbfe0711e16a049e4ec47d2"
+      "path": "metadata/evidence-offerings/nagdi-livestock-v1-offering.json",
+      "sha256": "sha256:26379f6e3780710b0cd9bb44081b0c674e5819086eaec49da12e6ab919c726be"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/nia-population-population-status-offering.json",
-      "sha256": "sha256:ce917bdb721637857697e7ce6f13dc2ddb4c4ed584a353da22cc253561cd2e42"
+      "path": "metadata/evidence-offerings/nagdi-voucher-v1-offering.json",
+      "sha256": "sha256:1cd41c0b7ad9c669dd5bc2668dfc64266b06dd6f6093bb4e386bc81109a59873"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/sipf-pensions-pension-case-offering.json",
-      "sha256": "sha256:75ba6b9f33fc855e83bd1459fe6ab229b8b624477c7f3d36c00ad97ca0abd930"
+      "path": "metadata/evidence-offerings/nia-child-benefit-v1-offering.json",
+      "sha256": "sha256:8829626e163fa2050505296b3b6d564f0348747ca7368d8418f834d6572e0d4c"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/solmara.child-benefit.authority-predicate-collection.json",
-      "sha256": "sha256:1b59dd02b2730d034b180123098768117eceaca0504e4c25846105e978956cfb"
+      "path": "metadata/evidence-offerings/nia-citizen-status-v1-offering.json",
+      "sha256": "sha256:1603eafad482dfc6ac8e7c9fe8523e3950d1b40ee836d43b9c360373555378c3"
     },
     {
       "media_type": "application/json",
-      "path": "metadata/evidence-offerings/sro-social-household-poverty-offering.json",
-      "sha256": "sha256:b2593c8bfe333bcbffff3f5d91f9ce1930654ddc0db86209263b616e915d15c2"
+      "path": "metadata/evidence-offerings/sipf-pension-payment-v1-offering.json",
+      "sha256": "sha256:1b73e1397709a63fc9c7a5715797427e8c679ec4b6c4a770bf8be32f0c892ee7"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/sipf-survivor-benefit-v1-offering.json",
+      "sha256": "sha256:07365e008affe512ea996059b85623e4026e7d225b9484d89059616ea09577fa"
+    },
+    {
+      "media_type": "application/json",
+      "path": "metadata/evidence-offerings/sro-child-benefit-v1-offering.json",
+      "sha256": "sha256:078cfc456039f1ca832c5544eab3429f8477a9488d3a20b6ceb47da2403be97b"
     },
     {
       "media_type": "application/yaml",
       "path": "metadata/metadata.yaml",
-      "sha256": "sha256:3961e5a3c7d19688039db461f8d8585e6b5d42a4c1c5a58cb759557829d30cc5"
+      "sha256": "sha256:4c765f6526a95a84d59485b94e1fd57f677df824b91ecd5a3b00651cf006d191"
     },
     {
       "media_type": "application/json",
       "path": "metadata/ogc-records/items.json",
-      "sha256": "sha256:aeb387ef3c8821b1e9cd1b40b1720c080cb59e686aefa2c3654493e28cda0d33"
+      "sha256": "sha256:2b924e2f6fa8f95275ec0a175e165276866d75a4ab176b2c5a0453d3fae0cde7"
     },
     {
       "media_type": "application/ld+json",
       "path": "metadata/policies.jsonld",
-      "sha256": "sha256:9f6b4698c3f2c2f3ba11ea79c64f7cc9c9809c1821c3cd65b35b563ad2537aaf"
+      "sha256": "sha256:4b4402dbd21c787c85d42fbad8919beeb170fd9abc3278c6974c2f9d758b5cba"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/cra-birth-registration-offering-policy.jsonld",
-      "sha256": "sha256:5765930b8ba06eb475e1cbea73299bb218da725b0ad0d632d46d2772b0a557ee"
+      "path": "metadata/policies/cra-child-benefit-v1-offering-policy.jsonld",
+      "sha256": "sha256:fd48f0c5c5801e1b1d0ba72322c1cbe801af46ca4232dbaa9c0ace3ca589ac08"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/cra-death-registration-offering-policy.jsonld",
-      "sha256": "sha256:91e8caf238fab79fcb995d2181d3c0d27486e2f0c8a865891f0196d653a850cd"
+      "path": "metadata/policies/cra-citizen-record-v1-offering-policy.jsonld",
+      "sha256": "sha256:3580c537bba48557e4ab3f431f55f45cc94e2e558a3e9fc547c7bd255088f9bc"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/mosd-programme-beneficiary-enrollment-offering-policy.jsonld",
-      "sha256": "sha256:2f10bcafccfb352e80cd01d48acd0a5552ee26bc2ba42b599fe7fbef08a82d84"
+      "path": "metadata/policies/cra-pension-death-v1-offering-policy.jsonld",
+      "sha256": "sha256:bb2ae74ceaa689b39edac3161e2e3f5d85fce0b90786202ce3424616b25943cc"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/nagdi-agriculture-farmer-voucher-offering-policy.jsonld",
-      "sha256": "sha256:a1146d20b753132190483bac84b96a2d681e8e2c3ccf5f1b78d8506f4862b322"
+      "path": "metadata/policies/mosd-child-benefit-v1-offering-policy.jsonld",
+      "sha256": "sha256:d209ff4a6c3a6a4f7b3d69f53fdcb7fe55bc68fdbd9f7180f2374a34c0b6c789"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/nagdi-agriculture-livestock-movement-offering-policy.jsonld",
-      "sha256": "sha256:6c3f849025434b9abc5be8644bfd29011bb519914b293e8f3445845ab53376ea"
+      "path": "metadata/policies/nagdi-livestock-v1-offering-policy.jsonld",
+      "sha256": "sha256:e6d2e623aeb6fb683e8181c10c65c725fb9574b890968519d6c44fbc0bff0b60"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/nia-population-population-status-offering-policy.jsonld",
-      "sha256": "sha256:2d3a0ff6df7f37513a0ec334e933ae27a3412db2a5e2fd569a1f6be5081bbb9d"
+      "path": "metadata/policies/nagdi-voucher-v1-offering-policy.jsonld",
+      "sha256": "sha256:e3a854169bf138c8195c994121cbace6e4ed84e147b3e6017e590612e3f50f62"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/sipf-pensions-pension-case-offering-policy.jsonld",
-      "sha256": "sha256:743025c16e905b278546623c1d2f268502b6c013b667c56ed8d46fd603bc36d9"
+      "path": "metadata/policies/nia-child-benefit-v1-offering-policy.jsonld",
+      "sha256": "sha256:fd0c92c384820881bbabf8fee115825d1197563263f6eb815135c311d409f033"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/solmara-child-benefit-authority-predicate-collection-policy.jsonld",
-      "sha256": "sha256:7b14a9bf40cdc5da8da1c3dae62c554c19eff14d8b0255984081216b651c57ca"
+      "path": "metadata/policies/nia-citizen-status-v1-offering-policy.jsonld",
+      "sha256": "sha256:f24586f80452144f90e3816d926921ce6ec211e78685992bcbd8c0bbe8e34ff1"
     },
     {
       "media_type": "application/ld+json",
-      "path": "metadata/policies/sro-social-household-poverty-offering-policy.jsonld",
-      "sha256": "sha256:2b99e4de49c24e68fb5b203cc43709aa285faad8dd2f0a3760c59846ccc6ae63"
+      "path": "metadata/policies/sipf-pension-payment-v1-offering-policy.jsonld",
+      "sha256": "sha256:9dc670d33ae13a2e1063eea6e3ab6ce11e409912f3c2833ed67d4417e36971ed"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/sipf-survivor-benefit-v1-offering-policy.jsonld",
+      "sha256": "sha256:cd7fd749cb732565369d7dadd2dd06da4366c169545261dd1c8f60bc584f900a"
+    },
+    {
+      "media_type": "application/ld+json",
+      "path": "metadata/policies/sro-child-benefit-v1-offering-policy.jsonld",
+      "sha256": "sha256:47aa3d94c91cc97a63141cb67e59c017f2a4bcb4bcc11f31d42096d808c52542"
     },
     {
       "media_type": "application/ld+json",
@@ -143,7 +163,7 @@
     }
   ],
   "catalog": "/metadata/catalog.json",
-  "catalog_id": "solmara-wave1-multi-authority",
+  "catalog_id": "solmara-authority-cells",
   "dcat": "/metadata/dcat.jsonld",
   "evidence_offerings": "/metadata/evidence-offerings.json",
   "manifest": "/metadata/metadata.yaml",

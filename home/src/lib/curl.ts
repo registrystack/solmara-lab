@@ -13,9 +13,8 @@ export function runnableRequestSources(
 }
 
 /**
- * Render a request as a copy-as-curl snippet. Headers are prepared server-side:
- * redacted by default, with only allowlisted synthetic lab tokens republished
- * for the visitor center. URLs are already rewritten to host-reachable ones.
+ * Render an already-safe request as a copy-as-curl snippet. Runtime credential
+ * markers are omitted rather than copied into the browser.
  */
 export function toCurl(source: RequestSource | undefined, overrideHeaders: Record<string, string> = {}): string {
   if (!source || !source.url) return '';
@@ -23,6 +22,7 @@ export function toCurl(source: RequestSource | undefined, overrideHeaders: Recor
   const headers = { ...(source.headers ?? {}), ...overrideHeaders };
   const lines: string[] = [`curl -sS -X ${method} '${source.url}'`];
   for (const [key, value] of Object.entries(headers)) {
+    if (/authorization|x-api-key/i.test(key) || /runtime token hidden|bearer\s+[a-z0-9._-]+/i.test(value)) continue;
     lines.push(`  -H '${key}: ${value}'`);
   }
   if (source.body !== undefined && source.body !== null) {

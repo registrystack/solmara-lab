@@ -1,16 +1,25 @@
 vars {
   child_benefit_federator_url: http://127.0.0.1:4321
-  cra_notary_url: http://127.0.0.1:4325
-  sipf_notary_url: http://127.0.0.1:4322
-  nagdi_notary_url: http://127.0.0.1:4323
+  cra_evidence_url: https://localhost:4341/evidence/cra
+  nia_evidence_url: https://localhost:4341/evidence/nia
+  sro_evidence_url: https://localhost:4341/evidence/sro
+  mosd_programme_evidence_url: https://localhost:4341/evidence/mosd-programme
+  sipf_evidence_url: https://localhost:4341/evidence/sipf
+  nagdi_evidence_url: https://localhost:4341/evidence/nagdi
+  cra_relay_url: http://127.0.0.1:4311
+  nia_relay_url: http://127.0.0.1:4312
+  mosd_relay_url: http://127.0.0.1:4314
+  sipf_relay_url: http://127.0.0.1:4315
+  nagdi_relay_url: http://127.0.0.1:4316
   metadata_url: http://127.0.0.1:4331
-  child_benefit_purpose: https://id.registrystack.org/solmara/purpose/child-benefit-review
-  pension_payment_purpose: https://id.registrystack.org/solmara/purpose/pension-payment-review
-  survivor_benefit_purpose: https://id.registrystack.org/solmara/purpose/survivor-benefit-determination
-  voucher_purpose: https://id.registrystack.org/solmara/purpose/voucher-eligibility-review
-  livestock_purpose: https://id.registrystack.org/solmara/purpose/livestock-movement-control
   CHILD_BENEFIT_FEDERATOR_TOKEN:
-  CRA_PENSION_CLIENT_TOKEN:
-  SIPF_PENSION_CLIENT_TOKEN:
-  NAGDI_NOTARY_TOKEN:
+  EVIDENCE_ACCESS_TOKEN:
+  CRA_PENSION_RELAY_TOKEN:
+  CRA_CITIZEN_RELAY_TOKEN:
+  NIA_ESIGNET_RELAY_TOKEN:
+  MOSD_CHILD_BENEFIT_RELAY_TOKEN:
+  SIPF_PENSION_RELAY_TOKEN:
+  SIPF_SURVIVOR_RELAY_TOKEN:
+  NAGDI_VOUCHER_RELAY_TOKEN:
+  NAGDI_LIVESTOCK_RELAY_TOKEN:
 }

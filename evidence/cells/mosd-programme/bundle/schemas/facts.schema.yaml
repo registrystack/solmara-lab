@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [duplicate_flag]
+properties: { duplicate_flag: { type: boolean } }

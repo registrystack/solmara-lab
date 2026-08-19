@@ -1,0 +1,9 @@
+apiVersion: relay.registrystack.org/classification-review/v1
+kind: ClassificationReview
+registryIdentifier: https://id.registrystack.org/solmara/registry/nia
+classificationInventoryDigest: sha256:4337e9e1d8a3deed0bd3c30d8a4a79867a77d0c820beba0ffecf92225f6b460f
+method: manual
+reviewer: did:web:id.registrystack.org:solmara:authority:nia
+reviewDate: 2026-08-12
+status: reviewed
+rationaleRef: governance/classification-review-rationale.md

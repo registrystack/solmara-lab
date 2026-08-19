@@ -1,0 +1,43 @@
+{
+  "access": {
+    "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+    "discovery_url": "https://nagdi-evidence.solmara.registrystack.org/v1/evidence-definitions",
+    "endpoint_url": "https://nagdi-evidence.solmara.registrystack.org/v1/evidence",
+    "kind": "evidence-verification-api",
+    "source_type": "Relay lookup"
+  },
+  "dataset": "nagdi-agriculture",
+  "description": "An independently signed Relay lookup assertion issued by National Agricultural Data Institute.",
+  "entity": "livestock_movement",
+  "evidence_type": "livestock-movement-v1",
+  "id": "nagdi-livestock-v1-offering",
+  "iri": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-livestock-v1-offering",
+  "issuing_authority": {
+    "authority_type": "eli:PublicAuthority",
+    "id": "nagdi",
+    "iri": "did:web:id.registrystack.org:solmara:authority:nagdi",
+    "name": "National Agricultural Data Institute",
+    "spatial": "https://id.registrystack.org/solmara/jurisdiction/XS"
+  },
+  "lookup_keys": [
+    "farmer_id"
+  ],
+  "policy": "nagdi-livestock-v1-offering-policy",
+  "public_services": [
+    "agriculture-review"
+  ],
+  "purposes": [
+    "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
+  ],
+  "semantics": {
+    "application_profiles": [
+      "cpsv-ap"
+    ],
+    "concepts": [
+      "https://id.registrystack.org/solmara/concept/registered-herd",
+      "https://id.registrystack.org/solmara/concept/origin-district-not-quarantined-for-species",
+      "https://id.registrystack.org/solmara/concept/eligible-for-livestock-movement-permit"
+    ]
+  },
+  "title": "National Agricultural Data Institute Livestock movement v1"
+}

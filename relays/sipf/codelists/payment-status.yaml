@@ -1,0 +1,4 @@
+id: sipf-payment-status
+version: "1"
+status: reviewed
+values: [active, held]

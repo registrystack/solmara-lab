@@ -1,77 +1,33 @@
-# Solmara Purpose Catalogue
+# Solmara purpose catalogue
 
-Status: normative for Solmara Lab wave 1.
+Status: normative for the authority-owned Evidence reset.
 
-All Solmara purpose IRIs are minted under
-`https://id.registrystack.org/solmara/purpose/...`. Manifests advertise these
-IRIs, notaries enforce these IRIs, and smoke tests assert these IRIs and stable
-problem codes. Smoke tests must not assert denial message text.
+Evidence requests carry one closed purpose code in the signed request body.
+For Relay-backed requirements, the Evidence cell authenticates to Registry Mint
+with a dedicated private-key JWT client. Mint issues a token whose registration
+fixes the full purpose IRI, exact Relay scope, and `solmara-runtime` audience.
+The caller cannot select or override downstream Relay authority.
 
-## Wave 1 Purposes
-
-| Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
-|---|---|---|---|---|
-| `https://id.registrystack.org/solmara/purpose/child-benefit-review` | Civil Registration Authority, National Identity Agency, Social Registry Office, MoSD programme MIS | CRA, NIA, SRO, and Programme authority Notaries | Birth to child benefit | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/pension-payment-review` | Civil Registration Authority, Social Insurance and Pensions Fund | CRA and SIPF authority Notaries | Death to pension stop | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/survivor-benefit-determination` | Social Insurance and Pensions Fund | SIPF authority Notary | Survivor benefit | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/voucher-eligibility-review` | National Agricultural Data Institute | NAgDI authority Notary | Farmer climate-smart voucher | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/livestock-movement-control` | National Agricultural Data Institute | NAgDI authority Notary | Livestock movement permit companion | `pdp.purpose_not_permitted` |
-| `https://id.registrystack.org/solmara/purpose/citizen-self-service` | Civil Registration Authority and National Identity Agency | CRA and NIA authority Notaries | Citizen portal | `pdp.purpose_not_permitted` |
-
-The two NAgDI purpose identifiers are canonical for wave 1 docs. WP4 must still
-confirm that the ported NAgDI claim configs use these exact identifiers.
-
-## Purpose Rules
-
-`child-benefit-review` permits evidence needed to determine whether a child may
-be enrolled in child support: registered birth, age under 5, child life status,
-household eligibility band, and duplicate enrollment status. It does not permit
-raw poverty scores, complete household profiles, or unrelated civil events.
-
-`pension-payment-review` permits the SIPF to determine whether an active pension
-payment should continue, be held, or stop. It permits the fact of death and the
-death registration number where needed. It does not permit cause of death or
-medical details.
-
-`survivor-benefit-determination` permits the SIPF to determine whether a linked
-spouse or dependent qualifies for survivor benefits. It permits spouse linkage,
-marriage status, death fact, and pension membership predicates. It does not
-permit cause of death, complete contribution history, or unrelated benefits.
-
-`voucher-eligibility-review` permits NAgDI to evaluate farmer registration,
-data-use authorization, eligible crop or holding records, district risk band,
-and prior voucher status. It does not permit unrelated livestock movements or
-raw market-sizing tables.
-
-`livestock-movement-control` permits NAgDI to evaluate owner, animal, premises,
-vaccination, quarantine, and movement predicates for a livestock permit. It does
-not permit farmer voucher budget, unrelated crop records, or household poverty
-data.
-
-`citizen-self-service` permits the citizen portal to request preview evidence
-for the selected persona and to show proof traces for consented service
-journeys. It does not permit bulk reads, administrative-only fields, or evidence
-for a different selected persona.
-
-## Credential And Offering Names
-
-| Story | Evidence offering | Credential `vct` |
+| Purpose code | Authority requirements | Evidence source |
 |---|---|---|
-| Birth to child benefit | Four authority predicate responses composed by the child-benefit orchestration service | No credential issued |
-| Death to pension stop | `cra-pension-death` and `sipf-pension-payment-review` | No credential issued |
-| Survivor benefit | `sipf-survivor-benefit` | `https://id.registrystack.org/solmara/vct/survivor-benefit-status` |
-| Farmer climate-smart voucher | NAgDI `voucher` | `https://id.registrystack.org/solmara/vct/climate-smart-voucher-eligibility` |
-| Livestock movement permit | NAgDI `livestock` | `https://id.registrystack.org/solmara/vct/livestock-movement-permit` |
+| `child-benefit-review` | CRA, NIA, SRO, MoSD | three immutable extracts, one Relay lookup |
+| `pension-payment-review` | CRA death, SIPF payment | two Relay lookups |
+| `survivor-benefit-determination` | SIPF survivor | Relay lookup |
+| `voucher-eligibility-review` | NAgDI voucher | Relay lookup |
+| `livestock-movement-control` | NAgDI livestock | Relay lookup |
+| `citizen-self-service` | CRA link, NIA status | one Relay lookup, one immutable extract |
 
-## Denial Assertions
+Child benefit permits only registered-birth, under-five, active-population,
+poverty-priority, and not-already-enrolled concepts. Pension permits death and
+active-payment concepts but not cause of death, payment amount, or history.
+Survivor review permits the reviewed eligibility value, not a marriage record.
+Agriculture purposes are isolated from one another. Citizen self-service permits
+only CRA linkage and NIA active-population concepts.
 
-Purpose-denial smoke tests assert:
+Wrong-purpose or unauthorized requests fail generically. Relay no-match,
+ambiguous match, and concealed records collapse to unresolved consultation.
+Responses and logs never include selectors, tokens, source rows, secrets,
+private keys, audit material, or sensitive dependency details.
 
-1. The denied request used a purpose IRI outside the permitted catalogue or a
-   permitted purpose against a prohibited field.
-2. The response problem code is `pdp.purpose_not_permitted`.
-3. The response does not include the prohibited source field.
-
-The child-benefit orchestration smoke verifies that four independently governed
-authority responses can be composed without creating a seventh Notary or a
-shared correctness-state owner.
+The programme application verifies every authority JWS and owns the final
+cross-authority outcome. No Evidence cell returns an application decision.

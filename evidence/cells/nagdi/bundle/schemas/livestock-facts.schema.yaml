@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [registered_herd, herd_vaccination_current, origin_district_not_quarantined_for_species, destination_district_open, no_conflicting_open_movement_permit]
+properties: { registered_herd: { type: boolean }, herd_vaccination_current: { type: boolean }, origin_district_not_quarantined_for_species: { type: boolean }, destination_district_open: { type: boolean }, no_conflicting_open_movement_permit: { type: boolean } }

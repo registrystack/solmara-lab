@@ -1,285 +1,204 @@
-# Solmara Lab hosted deployment
+# Hosted deployment
 
-Status: operational runbook for the public Solmara Lab deployment.
+Deploy the authority-cell reset only from the exact Registry Stack release
+recorded in `versions.env`. Relay, Evidence, and Mint must use their official
+Registry Stack OCI images pinned by digest. Solmara-owned images are also
+digest-pinned, while the local Relayctl helper is assembled from its
+checksum-verified release asset. A missing, floating, or mismatched pin stops
+deployment.
 
-This guide describes the public Coolify topology without publishing private
-control-plane coordinates or secret values. Keep those values in the private
-operations store for the target environment.
+The sanitized hosted image manifest carries `REGISTRY_RELAY_IMAGE`,
+`SOLMARA_EVIDENCE_IMAGE`, and `SOLMARA_MINT_IMAGE` unchanged from
+`versions.env`. Compose consumes those exact full references. The separate
+Relay digest field remains release-verification evidence only and is not a
+deployment input.
 
-## Deployment model
+Registry Stack v0.20.0 remains immutable and does not contain the Evidence
+capability required by this lab. v0.20.1 contains the required runtime
+capabilities but does not publish official Evidence and Mint OCI images.
+Registry Stack v0.21.0 is the first coherent release with all three official
+runtime images; the lab currently pins v0.22.0 from that line. Do not move a
+release, substitute a floating source reference, or recreate those runtime
+images in Solmara.
 
-The hosted lab has one edge application and four authority applications. Each
-authority runs one public Relay, one private consultation Relay, and one
-Notary. Only the consultation Relay and Notary share a network namespace. The
-public Relay remains independently routable, while the consultation Relay
-binds only to loopback and is not published. Their PostgreSQL
-correctness-state databases and roles remain distinct, and each Relay process
-owns a persistent snapshot-cache volume.
+## Release package precondition
 
-| Coolify app | Compose file | Authority services |
-|---|---|---|
-| `solmara-lab` | `compose.coolify.yaml` | Visitor Center, portal, scenario runner, static metadata, child-benefit evidence composer |
-| `solmara-lab-interior` | `compose.coolify.interior.yaml` | CRA and NIA public Relay + private consultation Relay + Notary, PostgreSQL |
-| `solmara-lab-social-development` | `compose.coolify.social-development.yaml` | SRO and Programme public Relay + private consultation Relay + Notary, PostgreSQL |
-| `solmara-lab-labour-pensions` | `compose.coolify.labour-pensions.yaml` | SIPF public Relay + private consultation Relay + Notary, PostgreSQL |
-| `solmara-lab-agriculture` | `compose.coolify.agriculture.yaml` | NAgDI public Relay + private consultation Relay + Notary, PostgreSQL |
-| `solmara-lab-esignet` | `compose.coolify.esignet.yaml` | eSignet, eSignet UI and edge, eSignet PostgreSQL and Redis, seed jobs |
-| `solmara-lab-wallet` | `compose.coolify.walt.yaml` | Walt holder wallet demonstrator and its backing services |
+Before the first release-candidate build, an organization owner must provision
+these two public, anonymously pullable GitHub Container Registry packages and
+grant the repository's GitHub Actions workflow write access:
 
-The child-benefit evidence composer retains the service identifier
-`child-benefit-federator` for existing routes. It calls the CRA, NIA, SRO, and
-Programme authority Notaries and combines their responses. It is not a Notary,
-does not own Notary correctness state, and does not change the six-pair
-topology.
+- `ghcr.io/registrystack/solmara-lab-authority-provisioner`
+- `ghcr.io/registrystack/solmara-lab-transit-signer`
 
-Hosted Compose files follow these rules:
+The Registry Stack release owns the public `relay`, `evidence`, and `mint`
+packages. Solmara only reads those upstream digest references from
+`versions.env`; its workflow neither rebuilds nor republishes them. The
+authority provisioner contains the reviewed contracts and deterministic
+publications. The Transit signer contains only the signer runtime. Release
+handoff records the immutable digest of every upstream and Solmara-owned image.
+Do not reuse an unrelated package or deploy a mutable tag.
 
-- Coolify owns public routing, so services have no host port bindings.
-- Runtime configuration is checked into the repository and mounted read-only.
-  Secret files are not checked in, and no configuration mount is writable.
-- Cross-application calls use public HTTPS endpoints. The applications do not
-  share a custom Docker network.
-- Hosted services run digest-pinned images and do not use `build:` blocks.
-- Every authority Notary owns one PostgreSQL database, owner, migrator, and
-  runtime role.
-- Every public and consultation Relay mounts its own named volume at
-  `/var/lib/registry-relay/cache`. A durable materialization publication
-  pointer and its immutable Parquet snapshot must survive the same restart.
-- Registry Notary has no Redis service or Redis volume. `esignet-redis` belongs
-  only to eSignet.
+## Authority topology
 
-## Authority pairs and endpoints
+The hosted topology contains five Relay V2 services, six independently signed
+Evidence cells, one shared lab Mint, and the programme application. The optional
+eSignet profile uses the NIA Relay lookup.
 
-| Authority | Relay service and endpoint | Notary service and endpoint |
-|---|---|---|
-| CRA | `cra-civil-relay`, `https://cra-relay.solmara.registrystack.org` | `cra-notary`, `https://cra-notary.solmara.registrystack.org` |
-| NIA | `nia-population-relay`, `https://nia-relay.solmara.registrystack.org` | `nia-notary`, `https://nia-notary.solmara.registrystack.org` |
-| SRO | `sro-social-relay`, `https://sro-relay.solmara.registrystack.org` | `sro-notary`, `https://sro-notary.solmara.registrystack.org` |
-| Programme | `programme-mis-relay`, `https://mosd-programme-relay.solmara.registrystack.org` | `programme-notary`, `https://programme-notary.solmara.registrystack.org` |
-| SIPF | `sipf-pensions-relay`, `https://sipf-relay.solmara.registrystack.org` | `sipf-notary`, `https://sipf-notary.solmara.registrystack.org` |
-| NAgDI | `nagdi-agriculture-relay`, `https://nagdi-relay.solmara.registrystack.org` | `nagdi-notary`, `https://nagdi-notary.solmara.registrystack.org` |
+Evidence hosts are:
 
-The other public endpoints are:
+- `cra-evidence.solmara.registrystack.org`
+- `nia-evidence.solmara.registrystack.org`
+- `sro-evidence.solmara.registrystack.org`
+- `mosd-programme-evidence.solmara.registrystack.org`
+- `sipf-evidence.solmara.registrystack.org`
+- `nagdi-evidence.solmara.registrystack.org`
 
-| Service | Endpoint |
-|---|---|
-| Visitor Center | `https://solmara.registrystack.org` |
-| Portal | `https://portal.solmara.registrystack.org` |
-| Static metadata | `https://metadata.solmara.registrystack.org` |
-| Child-benefit evidence composer | `https://child-benefit-federator.solmara.registrystack.org` |
-| eSignet | `https://esignet.solmara.registrystack.org` |
-| eSignet UI | `https://esignet-ui.solmara.registrystack.org` |
-| Walt holder wallet | `https://wallet.solmara.registrystack.org` |
+`compose.coolify.provision.yaml` is a dedicated operator-only application. It
+owns 34 fixed-name active volumes and runs only the one-shot target
+provisioners:
 
-## Image model
+| Owner | Volumes | Contents |
+|---|---:|---|
+| Shared Mint | 3 | Runtime, secrets, and Transit socket |
+| Five Relays | 10 | One runtime and one mutable source volume per authority |
+| Six Evidence cells | 21 | Runtime, secrets, and Transit socket per cell, plus the CRA, NIA, and SRO immutable-extract volumes |
 
-Registry Stack Relay and Notary image refs are inputs to the Solmara wrapper
-builds. The `release-candidate` workflow requires a Registry Stack candidate
-or release tag and accepts only Relay and Notary input digests that match the
-committed `versions.env` pins. It also checks out the exact Registry Stack
-source commit declared there for release and contract verification. Governed
-attribute release is part of the canonical Registry Stack v0.15.2 Relay
-image, which the workflow uses directly as the base of the deployable Solmara
-Relay wrapper. Solmara does not compile or publish a feature-specific Relay
-runtime. The workflow reports immutable digest refs for these Coolify
-variables:
+`compose.coolify.signers.yaml` is a separate operator-only application. It
+attaches only the seven fixed Transit volumes as external volumes and runs one
+isolated signer for Mint and one for each Evidence cell. The provision
+application never receives a private issuer signing key. Runtime applications
+attach the fixed-name runtime, source, secret, extract, and Transit volumes as
+external read-only volumes. Each runtime application owns the writable audit
+volumes for its services and initializes their permissions without reading or
+replacing existing audit records.
 
-- `SOLMARA_RELAY_IMAGE`
-- `SOLMARA_NOTARY_IMAGE`
-- `SOLMARA_POSTGRES_IMAGE`
-- `SOLMARA_STATIC_METADATA_IMAGE`
-- `SOLMARA_SCENARIO_RUNNER_IMAGE`
-- `SOLMARA_HOME_IMAGE`
-- `SOLMARA_PORTAL_IMAGE`
-- `SOLMARA_ESIGNET_RELAY_IMAGE`
-- `SOLMARA_ESIGNET_POSTGRES_IMAGE`
-- `SOLMARA_ESIGNET_UI_IMAGE`
-- `SOLMARA_ESIGNET_SEED_IMAGE`
+Docker Compose injects an environment-backed secret after creating its target
+container and rejects that operation when the root filesystem is read-only.
+Relay provisioners and Transit initializers remain read-only. The one-shot
+Evidence and Mint provisioners and the non-root signer processes instead mount
+`/run/secrets` as tmpfs. They remain networkless with no new privileges; signer
+processes also run with every Linux capability dropped. Secret values are not
+placed in container environment variables. The provisioner copies only the
+required non-signing runtime secrets into each authority's isolated secret
+volume; private issuer signing keys remain confined to signer tmpfs.
 
-Before dispatching the workflow, run
-`just review-release <registry-stack-tag>` with that same tag. `just review`
-remains the no-argument contributor and CI gate.
+## Mint clients
 
-Use `image@sha256:<digest>` values in Coolify. Do not deploy mutable tags.
-`REGISTRY_STACK_PLATFORM` defaults to `linux/amd64`; override it only when the
-selected Registry Stack release publishes another platform.
+The shared Mint registers nine clients under the common lab audience. Eight are
+least-authority source clients, each limited to its named operation:
 
-## Configuration and secrets
+- `cra-pension-evidence`
+- `cra-citizen-evidence`
+- `mosd-child-benefit-evidence`
+- `sipf-pension-evidence`
+- `sipf-survivor-evidence`
+- `nagdi-voucher-evidence`
+- `nagdi-livestock-evidence`
+- `nia-esignet`
 
-The six authority projects are the source of Relay and Notary runtime
-configuration. Regenerate both local and hosted closures after changing a
-project:
+The ninth client, `solmara-demo`, belongs to the programme application and is
+used to request assertions from the authority Evidence cells. The shared Mint
+is a lab convenience, not production tenancy guidance.
 
-```bash
-just registry-projects-sync
-just registry-projects-runtime-check
+## Secret boundary
+
+Create deployment secrets for these classes without placing their values in a
+Compose file, repository file, build log, or delivery record:
+
+- one private and public signing JWK pair for Mint and for each of the six
+  Evidence issuers;
+- one private and public client JWK pair for each of the nine Mint clients;
+- authority-specific Relay audit HMAC keys, plus cursor HMAC keys for the Relay
+  contracts that require cursors;
+- Mint and Evidence audit HMAC keys;
+- one subject-binding HMAC key for each Evidence cell;
+- the programme federator token;
+- when eSignet is enabled, its database credential, KYC-token and PSUT HMAC
+  secrets, KYC keystore credentials, and portal OIDC client key.
+
+Each signing private JWK is projected only to its dedicated signer. That signer
+also receives the matching public half and refuses startup unless it is the
+exact projection of the private key. A Mint
+client private JWK is installed only for its client owner, and an
+authority-scoped one-shot provisioner may write it only into that owner's
+secret volume. Inject public JWK halves into the provisioner and their matching
+signers only; the provisioner writes
+the issuer projections and Mint client registrations into the generated
+runtime material. No runtime receives another authority's client private key.
+
+Never commit a private key, token, generated database, generated Relay package,
+runtime bundle, or audit log.
+
+## Immutable extract lifecycle
+
+CRA birth, NIA population, and SRO poverty use immutable SQLite extracts. The
+hosted provisioner creates the initial checked publication and reuses the exact
+active filename on a restart. It never overwrites an active extract in place.
+
+To publish a later checkpoint, override the matching direct-cell provisioner
+service command with:
+
+```text
+publish-extract --target <cra|nia|sro>-evidence --assets /opt/solmara-hosted-assets --runtime-output /provisioned/runtime --extract-output /provisioned/extracts
 ```
 
-Hosted Relay does not boot those compiler outputs as unsigned non-local
-configuration. Each public and consultation Relay carries its own
-instance-bound signed Config Bundle, public trust anchor, and anti-rollback
-state, with no private signing key. The public bundle excludes private
-consultation artifacts; the consultation bundle contains the complete
-consultation closure. Verify that every signed closure still projects exactly
-to the compiler output:
+The operation validates the current binding, appends the checked publication
+under a fresh immutable filename, preserves the old file, and atomically
+rebinds only that cell's runtime configuration. Restart only the matching
+Evidence cell after the operation succeeds. The running cell continues to read
+the old mounted extract until that restart. A malformed, metadata-mismatched,
+or non-newer publication fails closed.
 
-```bash
-just hosted-relay-bundles-check
-```
+## Deployment order
 
-When a hosted Relay config or artifact changes, keep the private JWK in
-1Password and pass its `op://` secret reference, together with the public-only
-JWK file, to `scripts/generate-hosted-relay-bundles.py`. Registryctl reads the
-private member directly through 1Password CLI without writing it into the
-repository or a working-tree file. When multiple 1Password accounts are signed
-in, select the account with `OP_ACCOUNT` and use vault and item IDs in the
-secret reference so the lookup is unambiguous. Increment
-`SOLMARA_RELAY_BUNDLE_SEQUENCE` in `versions.env`, generate into a new staging
-directory, review the config and manifest diffs, then replace the committed
-bundle set. The generator creates separate public and consultation streams for
-each authority, and the verification gates require all twelve bundles to use
-that exact sequence. Never commit the private JWK. A first deployment seeds
-sequence zero only into an empty matching Relay cache volume; successful Relay
-startup audits and persists the signed sequence. Later image rollback cannot
-lower that durable sequence. Publish a higher signed sequence for a normal
-rollback, or use Registry Relay's reviewed break-glass procedure.
+Deploy the reset alongside the existing deployment in this order:
 
-Each authority application needs only the variables referenced by its Compose
-file. At minimum, provide:
+1. Record the old deployment's exact image references, routes, and retained
+   volume names. Do not attach an old writer to a new source volume.
+2. Deploy `compose.coolify.provision.yaml`. Require every one-shot provisioner
+   to complete successfully.
+3. Deploy `compose.coolify.signers.yaml`. Require all seven Transit initializers
+   to complete successfully and all seven signers to become healthy.
+4. Deploy the shared Mint, programme services, portal, Visitor Center, and
+   static metadata from `compose.coolify.yaml`. Require Mint health, discovery,
+   and JWKS to pass before starting a Relay, because every Relay validates the
+   permanent Mint issuer during startup. Do not send programme requests yet.
+5. Deploy the authority runtime applications from
+   `compose.coolify.interior.yaml`,
+   `compose.coolify.social-development.yaml`,
+   `compose.coolify.labour-pensions.yaml`, and
+   `compose.coolify.agriculture.yaml`. Confirm all five Relays and all six
+   Evidence cells are ready on the private routes.
+6. Run the hosted programme, denial, JWKS, source-label, redaction, and UI smoke
+   against the new routes before changing public routing.
+7. If required for this deployment, add `compose.coolify.esignet.yaml` and run
+   the citizen-login smoke through the NIA Relay V2 lookup.
+8. Switch programme authority URLs and public metadata routing only after every
+   required smoke passes. Disable the superseded services, but retain their
+   volumes and exact deployment references for recovery.
 
-- The required digest-pinned `SOLMARA_*_IMAGE` refs.
-- `SOLMARA_POSTGRES_PASSWORD` and the source database URL used by NIA or SIPF
-  when that authority owns a PostgreSQL-backed source projection.
-- Three Relay consultation-state credentials per authority: runtime, keyring
-  maintenance, and keyring reader.
-- Two Notary state credentials per authority: migrator and runtime.
-- Separate Relay and Notary audit hash secrets for every authority.
-- The client token hashes and signing keys named by that authority's generated
-  runtime configuration.
-- The Relay audit pseudonym key and consultation-state retention values named
-  by the Compose file.
+Rollback restores routing to the old services and their retained volumes. It
+does not reuse a new Relay V2 database with an older binary. Removing a
+superseded service or volume is a separate approved cleanup.
 
-For example, the CRA app uses `CRA_RELAY_POSTGRES_RUNTIME_PASSWORD`,
-`CRA_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD`,
-`CRA_RELAY_POSTGRES_KEYRING_READER_PASSWORD`,
-`CRA_NOTARY_POSTGRES_MIGRATOR_PASSWORD`, and
-`CRA_NOTARY_POSTGRES_RUNTIME_PASSWORD`. Other authorities use the same suffixes
-with `NIA`, `SRO`, `PROGRAMME`, `SIPF`, or `NAGDI`.
+## Hosted acceptance
 
-The core application holds only the client tokens it needs to call the six
-authority services. It does not receive authority database credentials.
-eSignet and Walt credentials stay in their own applications.
+Acceptance is based on live hosted behavior, not inferred from local tests. It
+requires:
 
-Do not print full environment dumps while deploying. Coolify responses can
-include secret values when the caller has sensitive read access.
+- child benefit to compose four independently signed assertions and return the
+  expected five positive concepts;
+- pension to compose CRA and SIPF assertions without disclosing cause of death
+  or unrelated civil data;
+- both agriculture journeys to succeed through their NAgDI lookups;
+- wrong-purpose and unauthorized calls to fail generically;
+- the portal to prove authority URL selection, per-authority JWKS verification,
+  source-type labels, and redaction;
+- the Visitor Center to show the publisher, six Evidence cells, five Relays,
+  shared Mint, and programme application;
+- when the optional profile is deployed, eSignet login to complete through the
+  NIA Relay V2 lookup.
 
-## Workload identity prerequisite
-
-Each hosted authority application runs a loopback-only workload agent that
-rotates a five-minute Relay token into its authority-owned named volume. The
-Notary runtime and state installer mount that volume read-only and wait for the
-agent to become healthy. Private workload JWKs enter only as Coolify production
-secrets; they are not present in images, public metadata, or Compose defaults.
-A missing, malformed, or expired token keeps the dependent workload unready.
-
-The public half of every hosted workload key is committed at
-`metadata/public/.well-known/jwks.json` and served separately at
-`https://workload-issuer.solmara.registrystack.org/.well-known/jwks.json`.
-Relay tokens use that HTTPS origin as `iss`, while the token agents remain
-bound to container loopback. Keep the public JWKS and all corresponding
-Coolify private JWKs in one reviewed rotation.
-
-The eSignet application has a separate NIA identity with
-`azp=solmara-esignet`, `sub=solmara-esignet`, and exactly the
-`population:identity_release` scope. Its agent writes
-`solmara-esignet-relay-token` as UID/GID `1001:1001` into an eSignet-owned
-volume. The eSignet plugin rereads that file for each Relay request, so normal
-rotation does not require an eSignet restart. Do not copy the token itself into
-a Coolify environment variable or reuse the NIA Notary identity.
-
-## Coolify application setup
-
-For each application:
-
-1. Select this repository and the exact commit being deployed.
-2. Use Docker Compose as the build pack.
-3. Select the application's `compose.coolify*.yaml` file.
-4. Disable generated domains and shared custom networks.
-5. Add only the production variables referenced by that Compose file.
-6. Attach domains to the exact service names in the endpoint tables.
-7. Deploy authority applications before the edge application.
-
-Run the eSignet seed job once before expecting portal login to pass. The
-authority PostgreSQL bootstrap and state-install jobs are idempotent and run as
-part of their Compose dependency graph.
-
-## Deployment verification
-
-From a trusted shell with the demo client tokens available through `.env` or
-the process environment:
-
-```bash
-just hosted-smoke
-```
-
-The smoke checks all six Relay and Notary endpoints, authority evidence
-journeys, purpose denial, the Visitor Center proxy, and the portal backend.
-Set `SOLMARA_HOSTED_SMOKE_BROWSER=1` to add hosted browser coverage.
-
-For each authority, also verify:
-
-1. Relay `/ready` returns success.
-2. Notary `/ready` returns success only after its Relay and database checks.
-3. One representative authority evidence request succeeds.
-4. A wrong-purpose request is denied without returning the prohibited field.
-5. Restarting the Notary preserves correctness state and readiness.
-
-## PostgreSQL operations
-
-The bootstrap container creates only the authority keys listed in
-`SOLMARA_RELAY_DATABASES` and `SOLMARA_NOTARY_DATABASES`. The serving Relay and
-Notary receive runtime credentials only. Schema installation uses dedicated
-jobs and never gives migration credentials to a serving process.
-
-Registry Stack v0.15.2 uses the `v015` Relay state epoch from `versions.env`.
-The retained consultation-result schema does not change, but the hosted
-deployment now persists every Relay cache that backs a PostgreSQL
-materialization publication pointer. Earlier `v013` deployments did not
-persist those immutable snapshot files, so reusing their pointers after
-container replacement can leave consultation profiles permanently
-unavailable. Quiesce old Relay writers, keep the `v013` databases for
-rollback, and follow the complete stopped-writer procedure in
-[`notary-postgresql-state.md`](notary-postgresql-state.md).
-
-Back up, restore, and upgrade each Notary database independently. See
-[`notary-postgresql-state.md`](notary-postgresql-state.md) for the database map
-and recovery sequence. Preserve the eSignet Redis volume separately because it
-is outside the Notary state boundary.
-
-## Troubleshooting
-
-### Notary stays unready
-
-Check the matching Relay `/ready`, PostgreSQL health, state-installer exit
-status, and workload-token freshness. A Notary intentionally remains unready
-when a required Relay profile cannot be verified.
-
-### State installer fails
-
-Confirm that the authority key appears in `SOLMARA_NOTARY_DATABASES`, that both
-authority Notary passwords are set, and that the wrapper and product images
-come from the same release. Do not pass the migrator URL to the serving Notary.
-
-### Hosted Notary calls a private service name
-
-Regenerate the hosted project closure with `just registry-projects-sync`.
-Hosted Relay source URLs must use the public HTTPS domains in the authority
-table. A URL such as `http://cra-civil-relay:8080` cannot cross Coolify
-applications.
-
-### Coolify routes the wrong container port
-
-Route the Relay hostname to port `8080` on the public Relay service. Route the
-Notary hostname to port `8081` in the private consultation Relay namespace.
-Never route consultation Relay port `8080`; it is explicitly bound to
-`127.0.0.1` for Notary-only access.
+Attach only sanitized pass or fail results and public artifact identities to
+the delivery record. Do not attach selectors, source rows, tokens, private
+audit material, secrets, deployment logs, or private release evidence.

@@ -61,20 +61,20 @@ test('child benefit delegated two-hop: the civil read resolves only after consen
   await expect(page.getByText('Child age under 5: yes')).toBeVisible({ timeout: 10_000 });
 });
 
-// The footer audit log is an expandable drawer: collapsed to a few rows by default,
+// The footer proof log is an expandable drawer: collapsed to a few rows by default,
 // click to expand and scroll the full proof history (older entries are not lost).
-test('the proof audit log drawer expands to reveal full history', async ({ page }) => {
+test('the proof log drawer expands to reveal full history', async ({ page }) => {
   await signIn(page);
   await page.getByTestId('card-farmer-voucher').click();
   await expect(page.getByText('Registered farmer: yes')).toBeVisible({ timeout: 10_000 });
 
-  const toggle = page.getByTestId('audit-log-toggle');
+  const toggle = page.getByTestId('proof-log-toggle');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
   // The scroll region exists and can hold overflow (full history is reachable).
-  await expect(page.locator('#proof-audit-log')).toBeVisible();
+  await expect(page.locator('#proof-log')).toBeVisible();
 });
 
 // DoD: every EvidenceField state is reachable on the mock via the state gallery.

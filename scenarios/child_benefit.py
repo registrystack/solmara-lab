@@ -1,81 +1,30 @@
 #!/usr/bin/env python3
-"""Birth to child benefit guided scenario."""
+"""Birth-to-child-benefit guided scenario through the application collector."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from .common import (
-    CHILD_BENEFIT_AS_OF_DATE,
-    PURPOSES,
-    auth_headers,
-    evaluation_body,
-    friendly_result,
-    http_json,
-    missing_runtime_token,
-    request_source,
-    source_response,
-    standard_error_result,
-)
+from .common import CHILD_BENEFIT_AS_OF_DATE, PURPOSES, friendly_result, http_json, missing_runtime_token, request_source, source_response, standard_error_result
 from .service_config import service_token, service_token_env, service_url
 
 
 SCENARIO_ID = "birth-to-child-benefit"
-SERVICE_NAME = "Child Benefit Federator"
+SERVICE_NAME = "Child Benefit Evidence Collector"
 SERVICE_ID = "child-benefit-federator"
 POSITIVE_SUBJECT = "2300010248"
 DECEASED_CONTROL = "2300091305"
 ABOVE_THRESHOLD_CONTROL = "2300036523"
 UNREGISTERED_CONTROL = "2300073046"
 DUPLICATE_CONTROL = "2300054788"
-CLAIMS = [
-    "birth-is-registered",
-    "population-record-active",
-    "child-age-under-5",
-    "household-below-poverty-threshold",
-    "not-already-enrolled",
-]
+CLAIMS = ["birth-is-registered", "population-record-active", "child-age-under-5", "household-below-poverty-threshold", "not-already-enrolled"]
 FRIENDLY = {
-    "discover": {
-        "met": (
-            "The catalogue lists what may be asked.",
-            "Claim definitions only. No resident data has moved yet.",
-        ),
-    },
-    "positive": {
-        "met": (
-            "Mateo's source predicates are ready for review.",
-            "The application collected five source-owned facts. It did not make the benefit decision.",
-        ),
-        "unmet": (
-            "Review cannot proceed on the facts returned.",
-            "One or more source-owned checks came back not met. The programme policy layer decides what happens next.",
-        ),
-    },
-    "deceased-control": {
-        "unmet": (
-            "Rejected, exactly as designed.",
-            "The civil predicate fails for the deceased control case. The application only returns that fact.",
-        ),
-    },
-    "poverty-control": {
-        "unmet": (
-            "Rejected: the household is above the threshold.",
-            "The social registry predicate came back not met. The caseworker never sees the household's actual income.",
-        ),
-    },
-    "unregistered-control": {
-        "unmet": (
-            "No birth predicate could be satisfied. Registration comes first.",
-            "The civil authority returns only the minimized predicate result, not a source row.",
-        ),
-    },
-    "duplicate-control": {
-        "unmet": (
-            "Rejected: already enrolled.",
-            "The programme MIS predicate came back not met, preventing a double payment.",
-        ),
-    },
+    "positive": {"met": ("Mateo's signed source evidence is ready.", "The programme composed five concepts from four authority requirements without copying source rows.")},
+    "deceased-control": {"unmet": ("Rejected, exactly as designed.", "The civil evidence says the child is not active for this review.")},
+    "poverty-control": {"unmet": ("Rejected: the household is above the threshold.", "Only the reviewed poverty predicate was disclosed.")},
+    "unregistered-control": {"unmet": ("Registration comes first.", "No registered-birth evidence was asserted.")},
+    "duplicate-control": {"unmet": ("Rejected: already enrolled.", "The programme evidence prevents a duplicate payment.")},
+    "purpose-denial": {"refused": ("Refused, exactly as designed.", "The unsupported purpose matched no Evidence grant.")},
 }
 
 
@@ -84,74 +33,23 @@ def story() -> dict[str, Any]:
         "id": SCENARIO_ID,
         "title": "Birth to child benefit",
         "short_title": "Child benefit",
-        "proves": "Civil, population, social registry, and beneficiary evidence can be collected as source-owned predicates without copying source rows.",
+        "proves": "One application can collect separately signed CRA, NIA, SRO, and MoSD evidence without copying source rows.",
         "domain": "Social protection",
-        "availability": "hosted",
-        "intro": "A caseworker reviews child benefit eligibility from minimized Solmara evidence.",
+        "availability": "local",
+        "intro": "A caseworker reviews minimized Registry Evidence assertions.",
         "actor": "MoSD child benefit caseworker",
         "subject": {"name": "Mateo Santos", "identifier": POSITIVE_SUBJECT},
-        "requester": {
-            "name": "Child benefit desk",
-            "purpose": PURPOSES["child_benefit"],
-        },
+        "requester": {"name": "Child benefit desk", "purpose": PURPOSES["child_benefit"]},
         "steps": [
-            {
-                "id": "discover",
-                "label": "Discover predicates",
-                "prompt": "Read the child-benefit evidence catalogue.",
-                "button": "Discover",
-                "request_summary": "GET /v1/claims",
-            },
-            {
-                "id": "positive",
-                "label": "Collect eligible child predicates",
-                "prompt": "Run the positive control.",
-                "button": "Evaluate",
-                "request_summary": "POST child-benefit evidence request for the positive UIN.",
-            },
-            {
-                "id": "deceased-control",
-                "label": "Deceased control",
-                "prompt": "Confirm a deceased child is rejected.",
-                "button": "Evaluate",
-                "request_summary": "POST child-benefit claims for the deceased control UIN.",
-            },
-            {
-                "id": "poverty-control",
-                "label": "Income threshold control",
-                "prompt": "Confirm an above-threshold household is rejected.",
-                "button": "Evaluate",
-                "request_summary": "POST child-benefit claims for the threshold control UIN.",
-            },
-            {
-                "id": "unregistered-control",
-                "label": "Unregistered birth control",
-                "prompt": "Route an unregistered birth to registration first.",
-                "button": "Evaluate",
-                "request_summary": "POST child-benefit claims for the unregistered control UIN.",
-            },
-            {
-                "id": "duplicate-control",
-                "label": "Duplicate enrollment control",
-                "prompt": "Reject an already-enrolled child.",
-                "button": "Evaluate",
-                "request_summary": "POST child-benefit claims for the duplicate control UIN.",
-            },
-            {
-                "id": "purpose-denial",
-                "label": "Purpose denial",
-                "prompt": "Try the same request with an unsupported purpose.",
-                "button": "Try denial",
-                "request_summary": "POST with an unsupported Data-Purpose header.",
-            },
+            {"id": "discover", "label": "Discover requirements", "prompt": "Read the Evidence definitions.", "button": "Discover", "request_summary": "GET /v1/evidence-definitions"},
+            {"id": "positive", "label": "Collect eligible child evidence", "prompt": "Run the positive control.", "button": "Evaluate", "request_summary": "POST five Evidence requirements."},
+            {"id": "deceased-control", "label": "Deceased control", "prompt": "Confirm a deceased child is rejected.", "button": "Evaluate", "request_summary": "POST child-benefit requirements."},
+            {"id": "poverty-control", "label": "Income threshold control", "prompt": "Confirm an above-threshold household is rejected.", "button": "Evaluate", "request_summary": "POST child-benefit requirements."},
+            {"id": "unregistered-control", "label": "Unregistered birth control", "prompt": "Route an unregistered birth to registration first.", "button": "Evaluate", "request_summary": "POST child-benefit requirements."},
+            {"id": "duplicate-control", "label": "Duplicate enrollment control", "prompt": "Reject an already-enrolled child.", "button": "Evaluate", "request_summary": "POST child-benefit requirements."},
+            {"id": "purpose-denial", "label": "Purpose denial", "prompt": "Try an unsupported purpose.", "button": "Try denial", "request_summary": "POST with an unsupported purpose."},
         ],
-        "receipt": [
-            {
-                "label": "Evidence",
-                "value": "Source-owned predicates, no eligibility composition",
-            },
-            {"label": "Raw rows copied", "value": "No"},
-        ],
+        "receipt": [{"label": "Evidence", "value": "Flattened signed JWS assertions"}, {"label": "Raw rows copied", "value": "No"}],
     }
 
 
@@ -164,57 +62,43 @@ def run_step(config: dict[str, Any], step_id: str) -> dict[str, Any]:
 
 
 def _request(config: dict[str, Any], step_id: str, *, send: bool) -> dict[str, Any]:
-    url = service_url(
-        SERVICE_ID, "/v1/claims" if step_id == "discover" else "/v1/evaluations"
-    )
-    subject = {
-        "positive": POSITIVE_SUBJECT,
-        "deceased-control": DECEASED_CONTROL,
-        "poverty-control": ABOVE_THRESHOLD_CONTROL,
-        "unregistered-control": UNREGISTERED_CONTROL,
-        "duplicate-control": DUPLICATE_CONTROL,
-        "purpose-denial": POSITIVE_SUBJECT,
-    }.get(step_id)
-    purpose = request_purpose(config, step_id)
-    token = service_token(SERVICE_ID)
-    headers = auth_headers(token, purpose, "application/json")
-    body = (
-        None
-        if step_id == "discover"
-        else evaluation_body(
-            subject or "",
-            CLAIMS,
-            scheme="solmara_uin",
-            format="application/json",
-            variables={"as_of_date": CHILD_BENEFIT_AS_OF_DATE},
-        )
-    )
+    subject = {"positive": POSITIVE_SUBJECT, "deceased-control": DECEASED_CONTROL, "poverty-control": ABOVE_THRESHOLD_CONTROL, "unregistered-control": UNREGISTERED_CONTROL, "duplicate-control": DUPLICATE_CONTROL, "purpose-denial": POSITIVE_SUBJECT}.get(step_id)
     if step_id != "discover" and not subject:
         return standard_error_result(step_id)
-    request = request_source(
-        "GET" if step_id == "discover" else "POST", url, headers, body
-    )
+    token = service_token(SERVICE_ID) if send else ""
+    purpose = "unsupported-demo-purpose" if step_id == "purpose-denial" else str(config.get("purpose_override") or PURPOSES["child_benefit"])
+    url = service_url(SERVICE_ID, "/v1/claims" if step_id == "discover" else "/v1/evaluations")
+    headers = {"x-api-key": token, "Accept": "application/json"}
+    body = None if step_id == "discover" else {"purpose": purpose, "target": {"type": "Person", "identifiers": [{"scheme": "solmara_uin", "value": subject}]}, "claims": CLAIMS, "disclosure": "predicate", "format": "application/json", "variables": {"as_of_date": CHILD_BENEFIT_AS_OF_DATE}}
+    request = request_source("GET" if step_id == "discover" else "POST", url, headers, body)
+    if body is not None:
+        request["purpose"] = purpose
     if not send:
         return {"request_source": request}
     if not token:
-        return missing_runtime_token(
-            step_id, SERVICE_NAME, service_token_env(SERVICE_ID), request
-        )
+        return missing_runtime_token(step_id, SERVICE_NAME, service_token_env(SERVICE_ID), request)
     result = http_json("GET" if step_id == "discover" else "POST", url, headers, body)
     response_body = result.body if isinstance(result.body, dict) else {}
-    payload = {
-        "step_id": step_id,
-        "friendly": friendly_result(step_id, result, FRIENDLY),
-        "request_source": request,
-        "response_source": source_response(result),
-        "source_trace": response_body.get("source_trace", []),
-    }
-    return payload
+    results = []
+    for item in response_body.get("results", []):
+        if not isinstance(item, dict) or not isinstance(item.get("satisfied"), bool):
+            continue
+        safe = {
+            "claim_id": item.get("claim_id"),
+            "concept_id": item.get("concept_id"),
+            "satisfied": item["satisfied"],
+            "value": item["satisfied"],
+        }
+        if isinstance(item.get("presentation"), dict):
+            safe["presentation"] = item["presentation"]
+        results.append(safe)
+    presentations = []
+    for item in results:
+        presentation = item.get("presentation")
+        if isinstance(presentation, dict) and presentation not in presentations:
+            presentations.append(presentation)
+    return {"step_id": step_id, "friendly": friendly_result(step_id, result, FRIENDLY), "request_source": request, "response_source": source_response(result), "source_trace": response_body.get("source_trace", []), "results": results, "presentations": presentations}
 
 
 def request_purpose(config: dict[str, Any], step_id: str) -> str:
-    if step_id == "purpose-denial":
-        return "https://id.registrystack.org/solmara/purpose/unsupported-demo-purpose"
-    if isinstance(config.get("purpose_override"), str):
-        return config["purpose_override"]
-    return PURPOSES["child_benefit"]
+    return "unsupported-demo-purpose" if step_id == "purpose-denial" else str(config.get("purpose_override") or PURPOSES["child_benefit"])

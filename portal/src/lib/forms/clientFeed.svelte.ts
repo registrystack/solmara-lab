@@ -4,7 +4,7 @@
 // cannot read it directly, so we mirror the REDACTED traces it streams out. The
 // SSE transport only carries `event: trace` frames (the rail feed is server-only),
 // so we DERIVE the ministry-rail events client-side from each trace's status and
-// disclosure, the same mapping the BFF uses server-side (bff.ts railFromStatus).
+// stable result state, the same mapping the BFF uses server-side.
 //
 // Client-safe: no server-only imports. Svelte 5 runes.
 
@@ -16,24 +16,25 @@ import type { ProofTrace, RailChannel, RailEvent } from '$lib/types';
 const STALL_AFTER_MS = 15_000;
 
 // Derive a rail channel + phase from a trace. Mirrors bff.ts railFromStatus so the
-// constellation lights the same way the server intended. The disclosure is read
-// from the redacted request body (an allowlisted key).
+// constellation lights the same way the server intended.
 function railFromTrace(trace: ProofTrace): { channel: RailChannel; phase: RailEvent['phase'] } {
-  switch (trace.status) {
-    case 'denied':
+  switch (trace.resultState) {
     case 'error':
+    case 'ambiguous':
       return { channel: 'denied', phase: 'denied' };
+    case 'fetched':
+    case 'stale':
+      return { channel: 'fetch', phase: 'sealed' };
+    case 'verified':
     case 'false':
+    case 'recovered':
       return { channel: 'verify', phase: 'sealed' };
-    case 'ok': {
-      const disclosure = (trace.request.body.disclosure ?? '') as string;
-      const channel: RailChannel =
-        disclosure === 'predicate' || disclosure === 'decision' ? 'verify' : 'fetch';
-      return { channel, phase: 'sealed' };
-    }
     case 'in_flight':
-    default:
+    case 'slow':
       return { channel: 'verify', phase: 'request' };
+    case 'idle':
+    case 'prefilled':
+      return { channel: 'verify', phase: 'sealed' };
   }
 }
 
@@ -120,7 +121,7 @@ class ClientFeedStore {
         this.applyTrace(trace);
       } catch {
         // A malformed frame must not crash the feed; surface it as a stall so the
-        // reconnect pill shows rather than silently dropping the audit line.
+        // reconnect pill shows rather than silently dropping the proof line.
         this.#connected = false;
       }
     });

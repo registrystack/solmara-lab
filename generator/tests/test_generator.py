@@ -261,6 +261,12 @@ class GeneratorTests(unittest.TestCase):
         }
         self.assertEqual(pensions["2300109568"]["payment_status"], "active")
         self.assertEqual(pensions["2300109568"]["survivor_eligible"], "true")
+        survivor_cases = {
+            row["spouse_uin"]: row
+            for row in pensions.values()
+            if row["spouse_uin"]
+        }
+        self.assertEqual(survivor_cases["2300146081"]["survivor_eligible"], "false")
 
         vouchers = {
             row["farmer_id"]: row

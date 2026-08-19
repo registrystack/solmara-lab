@@ -8,6 +8,19 @@ keystore_password="${REGISTRY_ESIGNET_KYC_SIGNING_KEYSTORE_PASSWORD:?missing REG
 key_alias="${REGISTRY_ESIGNET_KYC_SIGNING_KEY_ALIAS:?missing REGISTRY_ESIGNET_KYC_SIGNING_KEY_ALIAS}"
 key_password="${REGISTRY_ESIGNET_KYC_SIGNING_KEY_PASSWORD:?missing REGISTRY_ESIGNET_KYC_SIGNING_KEY_PASSWORD}"
 
+if [[ -n "${REGISTRY_TLS_CA_CERT:-}" ]]; then
+  truststore=/tmp/registry-esignet-truststore.p12
+  rm -f "$truststore"
+  keytool -importcert -noprompt \
+    -alias registry-runtime-ca \
+    -file "$REGISTRY_TLS_CA_CERT" \
+    -keystore "$truststore" \
+    -storetype PKCS12 \
+    -storepass changeit \
+    >/dev/null
+  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djavax.net.ssl.trustStore=$truststore -Djavax.net.ssl.trustStorePassword=changeit"
+fi
+
 mkdir -p "$(dirname "$keystore_path")"
 
 if [[ -f "$keystore_path" ]] && ! keytool -list \

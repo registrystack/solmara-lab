@@ -1,0 +1,72 @@
+apiVersion: relay.registrystack.org/v2alpha1
+kind: RegistryContract
+metadata: {id: solmara-nia-relay, version: "2026-08-12", title: NIA eSignet UserInfo consultation}
+registry:
+  registryIdentifier: https://id.registrystack.org/solmara/registry/nia
+  name: National Identity Agency Relay
+  authority: {identifier: "did:web:id.registrystack.org:solmara:authority:nia", name: National Identity Agency}
+  authoritativeScope: Current population identity attributes held by NIA for consented eSignet UserInfo release
+  baseUri: https://nia.gov.solmara.example/registry/
+  identifierLifecyclePolicyRef: governance/identifier-lifecycle.yaml
+  alignmentTargets: [{name: govstack-digital-registries, version: 3.0.0-alpha.2, status: directional}]
+governance: {controller: "did:web:id.registrystack.org:solmara:authority:nia", publisher: "did:web:id.registrystack.org:solmara:authority:nia", auditOwner: "did:web:id.registrystack.org:solmara:authority:nia"}
+semantics: {localVocabulary: https://id.registrystack.org/solmara/vocabulary/nia/}
+classifications:
+  privacy: {scheme: https://w3id.org/dpv, version: "2.3"}
+  institutional: {scheme: https://id.registrystack.org/solmara/classification/nia, version: "1"}
+  handling: {scheme: https://id.registrystack.org/vocab/handling, version: "1"}
+  provenanceRef: governance/classification-review.yaml
+sources:
+  nia: {kind: sqlite, profile: live-read-only, expectedSchemaFingerprint: "sha256:d91bc765476032de74670b1c4fce0c3d4f6c56f2b0116b36457fe5feb6027758"}
+resources:
+  - id: population-person
+    title: Population person
+    description: Consent-projected eSignet UserInfo properties from NIA.
+    semanticClass: local:PopulationPerson
+    source: {source: nia, view: relay_population_person}
+    classificationDefaults: {privacy: sensitive-personal, institutional: restricted, handling: restricted, status: reviewed}
+    sourceColumnClassifications:
+      record_id: {privacy: identifying}
+      record_revision: {privacy: non-personal}
+      lifecycle_state: {privacy: personal}
+      recorded_at: {privacy: personal-context}
+      uin: {privacy: identifying}
+      legacy_nid: {privacy: identifying}
+      given_name: {privacy: identifying}
+      family_name: {privacy: identifying}
+      sex: {privacy: sensitive-personal}
+      birth_date: {privacy: sensitive-personal}
+      identity_status: {privacy: sensitive-personal}
+      alive: {privacy: sensitive-personal}
+    recordContext:
+      recordIdentifier: {sourceColumn: record_id}
+      revisionIdentifier: {sourceColumn: record_revision}
+      lifecycleState: {sourceColumn: lifecycle_state, codelist: codelists/record-lifecycle.yaml}
+      recordedAt: {sourceColumn: recorded_at}
+    properties:
+      individualId: {sourceColumn: uin, type: string, sourceRequired: true, semanticTerm: local:individualId, label: Individual ID, description: NIA subject identifier, classification: {privacy: identifying}}
+      givenName: {sourceColumn: given_name, type: string, sourceRequired: true, semanticTerm: local:givenName, label: Given name, description: Given name, classification: {privacy: identifying}}
+      familyName: {sourceColumn: family_name, type: string, sourceRequired: true, semanticTerm: local:familyName, label: Family name, description: Family name, classification: {privacy: identifying}}
+      gender: {sourceColumn: sex, type: controlled-code, codelist: codelists/sex.yaml, sourceRequired: true, semanticTerm: local:gender, label: Gender, description: Consented gender claim, classification: {privacy: sensitive-personal}}
+      birthdate: {sourceColumn: birth_date, type: date, sourceRequired: true, semanticTerm: local:birthdate, label: Birthdate, description: Consented date of birth claim, classification: {privacy: sensitive-personal}}
+      active: {sourceColumn: alive, type: boolean, sourceRequired: true, semanticTerm: local:active, label: Active, description: Whether the identity belongs to a living person, classification: {privacy: sensitive-personal}}
+      legacyIdentifierInternal: {sourceColumn: legacy_nid, type: string, sourceRequired: false, semanticTerm: local:legacyIdentifierInternal, label: Internal legacy identifier, description: Accounted source column excluded from the eSignet disclosure, classification: {privacy: identifying}}
+      identityStatusInternal: {sourceColumn: identity_status, type: controlled-code, codelist: codelists/identity-status.yaml, sourceRequired: true, semanticTerm: local:identityStatusInternal, label: Internal identity status, description: Accounted source column excluded from the eSignet disclosure, classification: {privacy: sensitive-personal}}
+    disclosureProfiles:
+      esignet-userinfo: {properties: [individualId, givenName, familyName, gender, birthdate, active]}
+    operations:
+      lookups:
+        - id: esignet-userinfo
+          requestBody:
+            maximumBytes: 96
+            selectors: {uin: {sourceColumn: uin, type: string, minimumBytes: 10, maximumBytes: 10}}
+          defaultAccessProfile: esignet
+          accessProfiles:
+            esignet:
+              access:
+                scope: solmara:relay:nia:esignet-userinfo
+                purpose: {claim: purpose, allowed: ["https://id.registrystack.org/solmara/purpose/esignet-identity-verification"]}
+              disclosureProfile: esignet-userinfo
+    processingDescriptions:
+      - {id: esignet-userinfo, operationRefs: [lookup:esignet-userinfo], purpose: "https://id.registrystack.org/solmara/purpose/esignet-identity-verification", recipientClass: esignet, legalBasisRef: governance/legal-basis.yaml, dpvProfileRef: governance/processing.dpv.yaml, safeguards: [explicit-fields-projection, exact-lookup, minimum-disclosure, value-free-audit]}
+metadataVisibility: {service: public, resources: operation-bound, semantics: operation-bound, classifications: operator-only, processing: operation-bound}

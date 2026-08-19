@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [linkedUin]
+properties: { linkedUin: { type: string, minLength: 10, maxLength: 10 } }

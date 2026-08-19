@@ -91,11 +91,18 @@
 
   function orchestrationField(result: StepRunResult, field: 'service_id' | 'decision'): string {
     const body = result.response_source.body;
-    if (!body || typeof body !== 'object') return 'Not reported';
+    if (!body || typeof body !== 'object') return fallbackOrchestrationField(result, field);
     const orchestration = (body as { orchestration?: unknown }).orchestration;
-    if (!orchestration || typeof orchestration !== 'object') return 'Not reported';
+    if (!orchestration || typeof orchestration !== 'object') return fallbackOrchestrationField(result, field);
     const value = (orchestration as Record<string, unknown>)[field];
-    return typeof value === 'string' && value ? value : 'Not reported';
+    return typeof value === 'string' && value ? value : fallbackOrchestrationField(result, field);
+  }
+
+  function fallbackOrchestrationField(result: StepRunResult, field: 'service_id' | 'decision'): string {
+    if (result.request_source?.url?.includes('/v1/evaluations') && result.source_trace?.length) {
+      return field === 'service_id' ? 'child-benefit-federator' : 'not_composed';
+    }
+    return 'Not reported';
   }
 
   function isCollectedApplicationEvidence(result: StepRunResult | null): result is StepRunResult {
@@ -195,11 +202,11 @@
                     <div class="drawer-head">
                       <h4>
                         {requestSources.length === 1
-                          ? 'Request (published lab token)'
-                          : `Requests (${requestSources.length} authority calls, published lab tokens)`}
+                          ? 'Sanitized request skeleton'
+                          : `Sanitized requests (${requestSources.length} authority calls)`}
                       </h4>
                       {#if requestSources.length === 1}
-                        <CopyButton text={toCurl(requestSources[0])} label="Copy as curl" />
+                        <CopyButton text={toCurl(requestSources[0])} label="Copy safe curl skeleton" />
                       {/if}
                     </div>
                     {#if requestSources.length > 1}
@@ -208,7 +215,7 @@
                           <div class="peer-call">
                             <div class="drawer-head">
                               <h5>Authority request {requestIndex + 1} of {requestSources.length}</h5>
-                              <CopyButton text={toCurl(source)} label="Copy as curl" />
+                              <CopyButton text={toCurl(source)} label="Copy safe curl skeleton" />
                             </div>
                             <pre>{sourceBlock(source)}</pre>
                           </div>
@@ -325,7 +332,7 @@
   <section class="page-band accountability" id="accountability">
     <div class="content">
       <p class="eyebrow">Accountability</p>
-      <h2>{applicationEvidence ? 'What the source trace recorded about this access' : 'What the Notary recorded about this access'}</h2>
+      <h2>{applicationEvidence ? 'What the source trace recorded about this access' : 'What the authority Evidence service recorded about this access'}</h2>
       {#if accountability}
         {@const first = claimResults(accountability)[0]?.raw ?? {}}
         <div class="provenance">
@@ -344,7 +351,7 @@
       {:else}
         <p class="inspector-empty">Run an evaluation step to see the proof trace.</p>
       {/if}
-      <p class="audit-note">Reading the registry authority's own audit log is a product capability candidate, tracked separately.</p>
+      <p class="audit-note">Authority-side operational logs remain outside the visitor-facing proof view.</p>
     </div>
   </section>
 </main>

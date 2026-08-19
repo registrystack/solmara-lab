@@ -1,0 +1,20 @@
+meta {
+  name: 04 - SIPF pension lookup
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{sipf_relay_url}}/v2/resources/pension-payment/lookups/by-pensioner-uin?fields=paymentStatus
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{SIPF_PENSION_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"pensionerUin":"2300109568"}}
+}

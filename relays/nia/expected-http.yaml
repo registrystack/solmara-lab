@@ -1,0 +1,21 @@
+schemaVersion: relay.registrystack.org/http-journey/v1alpha1
+registry: https://id.registrystack.org/solmara/registry/nia
+authorizations:
+  ok: {principal: nia-esignet, scopes: [solmara:relay:nia:esignet-userinfo], claims: {purpose: "https://id.registrystack.org/solmara/purpose/esignet-identity-verification"}}
+  wrong-scope: {principal: nia-esignet, scopes: [solmara:relay:nia:other], claims: {purpose: "https://id.registrystack.org/solmara/purpose/esignet-identity-verification"}}
+  wrong-purpose: {principal: nia-esignet, scopes: [solmara:relay:nia:esignet-userinfo], claims: {purpose: "https://id.registrystack.org/solmara/purpose/citizen-self-service"}}
+steps:
+  - id: userinfo-success
+    authorizationFixture: ok
+    request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: "individualId,givenName,familyName"}, body: {uin: "2300010248"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [individualId, givenName, familyName], domainDataValues: {individualId: "2300010248", givenName: Mateo, familyName: Santos}, absentEverywhere: [gender, birthdate, legacyIdentifierInternal, identityStatusInternal, legacy_nid, identity_status]}
+  - id: userinfo-fields-minimum
+    authorizationFixture: ok
+    request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: individualId}, body: {uin: "2300010248"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [individualId], absentEverywhere: [givenName, familyName, gender, birthdate]}
+  - {id: wrong-scope, authorizationFixture: wrong-scope, request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: individualId}, body: {uin: "2300010248"}}, expect: {status: 404, code: resource.not_found}}
+  - {id: wrong-purpose, authorizationFixture: wrong-purpose, request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: individualId}, body: {uin: "2300010248"}}, expect: {status: 403, code: consultation.denied}}
+  - {id: malformed-selector, authorizationFixture: ok, request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: individualId}, body: {uin: short}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: no-match, authorizationFixture: ok, request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: individualId}, body: {uin: "2399999999"}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: invalid-row, authorizationFixture: ok, request: {method: POST, path: /v2/resources/population-person/lookups/esignet-userinfo, query: {fields: "individualId,birthdate"}, body: {uin: "2300999999"}}, expect: {status: 503, code: source.unavailable}}
+  - {id: no-list-route, authorizationFixture: ok, request: {method: GET, path: /v2/resources/population-person/records}, expect: {status: 404, routeAbsent: true}}

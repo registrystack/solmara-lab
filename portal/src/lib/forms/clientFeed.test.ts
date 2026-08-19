@@ -43,11 +43,8 @@ describe('ClientFeed watchdog', () => {
       notDisclosed: 'Not disclosed: source rows',
       status: 'ok',
       ts: '2026-07-15T00:00:00Z',
-      request: {
-        method: 'MULTI',
-        url: 'solmara://citizen-portal/application-composition',
-        body: { disclosure: 'decision' }
-      }
+      resultState: 'verified',
+      presentations: []
     };
 
     clientFeed.applyTrace(trace);

@@ -27,73 +27,187 @@ SURVIVOR_BENEFIT_PURPOSE = (
 VOUCHER_REVIEW_PURPOSE = (
     "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"
 )
-CHILD_BENEFIT_COLLECTION_MEDIA_TYPE = "application/json"
-CHILD_BENEFIT_FEDERATOR_URL = (
-    "https://child-benefit-federator.solmara.registrystack.org"
-)
-
-DATASET_OFFERING_DEFAULTS = {
+DATASET_DEFAULTS = {
     "cra-civil": {
-        "evidence_type": "birth-registration-evidence",
-        "entity": "civil_person",
-        "service": "child-benefit-review",
-        "endpoint": "https://cra-notary.solmara.registrystack.org/v1/evaluations",
-        "discovery": "https://cra-notary.solmara.registrystack.org/.well-known/evidence-service",
-        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": [
             "https://publicschema.org/crvs/Birth",
             "https://publicschema.org/crvs/Death",
         ],
     },
     "nia-population": {
-        "evidence_type": "population-status-evidence",
-        "entity": "person",
-        "service": "child-benefit-review",
-        "endpoint": "https://nia-notary.solmara.registrystack.org/v1/evaluations",
-        "discovery": "https://nia-notary.solmara.registrystack.org/.well-known/evidence-service",
-        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/Person"],
     },
     "sro-social": {
-        "evidence_type": "household-poverty-evidence",
-        "entity": "household",
-        "service": "child-benefit-review",
-        "endpoint": "https://sro-notary.solmara.registrystack.org/v1/evaluations",
-        "discovery": "https://sro-notary.solmara.registrystack.org/.well-known/evidence-service",
-        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": [
             "https://publicschema.org/Household",
             "https://publicschema.org/SocioEconomicProfile",
         ],
     },
     "mosd-programme": {
-        "evidence_type": "beneficiary-enrollment-evidence",
-        "entity": "enrollment",
-        "service": "child-benefit-review",
-        "endpoint": "https://programme-notary.solmara.registrystack.org/v1/evaluations",
-        "discovery": "https://programme-notary.solmara.registrystack.org/.well-known/evidence-service",
-        "purposes": [CHILD_BENEFIT_PURPOSE],
         "concepts": ["https://publicschema.org/sp/Enrollment"],
     },
     "sipf-pensions": {
-        "evidence_type": "pension-case-evidence",
-        "entity": "pension_case",
-        "service": "pension-survivor-review",
-        "endpoint": "https://sipf-notary.solmara.registrystack.org/v1/evaluations",
-        "discovery": "https://sipf-notary.solmara.registrystack.org/.well-known/evidence-service",
-        "purposes": [PENSION_PAYMENT_PURPOSE, SURVIVOR_BENEFIT_PURPOSE],
         "concepts": ["https://id.registrystack.org/solmara/semantics/pension-case"],
     },
     "nagdi-agriculture": {
-        "evidence_type": "farmer-voucher-evidence",
-        "entity": "farmer_voucher",
-        "service": "nagdi-voucher-review",
-        "endpoint": "https://nagdi-notary.solmara.registrystack.org/v1/evaluations",
-        "discovery": "https://nagdi-notary.solmara.registrystack.org/.well-known/evidence-service",
-        "purposes": [VOUCHER_REVIEW_PURPOSE],
         "concepts": ["https://publicschema.org/Farm"],
     },
 }
+
+AUTHORITY_EVIDENCE_URLS = {
+    "cra": "https://cra-evidence.solmara.registrystack.org",
+    "nia": "https://nia-evidence.solmara.registrystack.org",
+    "sro": "https://sro-evidence.solmara.registrystack.org",
+    "mosd-programme-mis": "https://mosd-programme-evidence.solmara.registrystack.org",
+    "sipf": "https://sipf-evidence.solmara.registrystack.org",
+    "nagdi": "https://nagdi-evidence.solmara.registrystack.org",
+}
+
+EVIDENCE_OFFERING_SPECS = [
+    {
+        "id": "cra-child-benefit-v1-offering",
+        "dataset": "cra-civil",
+        "entity": "civil_person",
+        "authority": "cra",
+        "evidence_type": "cra-child-benefit-v1",
+        "service": "child-benefit-review",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "lookup_keys": ["uin"],
+        "concepts": [
+            "https://id.registrystack.org/solmara/concept/birth-is-registered",
+            "https://id.registrystack.org/solmara/concept/child-age-under-5",
+        ],
+        "source": "immutable extract",
+    },
+    {
+        "id": "cra-pension-death-v1-offering",
+        "dataset": "cra-civil",
+        "entity": "civil_person",
+        "authority": "cra",
+        "evidence_type": "cra-death-status-v1",
+        "service": "pension-survivor-review",
+        "purposes": [PENSION_PAYMENT_PURPOSE],
+        "lookup_keys": ["uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/person-is-deceased"],
+        "source": "Relay lookup",
+    },
+    {
+        "id": "cra-citizen-record-v1-offering",
+        "dataset": "cra-civil",
+        "entity": "civil_person",
+        "authority": "cra",
+        "evidence_type": "civil-record-linked-v1",
+        "service": "citizen-self-service",
+        "purposes": ["https://id.registrystack.org/solmara/purpose/citizen-self-service"],
+        "lookup_keys": ["uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/civil-record-linked"],
+        "source": "Relay lookup",
+    },
+    {
+        "id": "nia-child-benefit-v1-offering",
+        "dataset": "nia-population",
+        "entity": "population_person",
+        "authority": "nia",
+        "evidence_type": "population-active-v1",
+        "service": "child-benefit-review",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "lookup_keys": ["uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/population-record-active"],
+        "source": "immutable extract",
+    },
+    {
+        "id": "nia-citizen-status-v1-offering",
+        "dataset": "nia-population",
+        "entity": "population_person",
+        "authority": "nia",
+        "evidence_type": "citizen-population-active-v1",
+        "service": "citizen-self-service",
+        "purposes": ["https://id.registrystack.org/solmara/purpose/citizen-self-service"],
+        "lookup_keys": ["uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/citizen-population-record-active"],
+        "source": "immutable extract",
+    },
+    {
+        "id": "sro-child-benefit-v1-offering",
+        "dataset": "sro-social",
+        "entity": "poverty_record",
+        "authority": "sro",
+        "evidence_type": "poverty-priority-v1",
+        "service": "child-benefit-review",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "lookup_keys": ["uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/household-below-poverty-threshold"],
+        "source": "immutable extract",
+    },
+    {
+        "id": "mosd-child-benefit-v1-offering",
+        "dataset": "mosd-programme",
+        "entity": "beneficiary_enrolment",
+        "authority": "mosd-programme-mis",
+        "evidence_type": "not-enrolled-v1",
+        "service": "child-benefit-review",
+        "purposes": [CHILD_BENEFIT_PURPOSE],
+        "lookup_keys": ["uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/not-already-enrolled"],
+        "source": "Relay lookup",
+    },
+    {
+        "id": "sipf-pension-payment-v1-offering",
+        "dataset": "sipf-pensions",
+        "entity": "pension_payment",
+        "authority": "sipf",
+        "evidence_type": "pension-payment-active-v1",
+        "service": "pension-survivor-review",
+        "purposes": [PENSION_PAYMENT_PURPOSE],
+        "lookup_keys": ["pensioner_uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/pension-payment-active"],
+        "source": "Relay lookup",
+    },
+    {
+        "id": "sipf-survivor-benefit-v1-offering",
+        "dataset": "sipf-pensions",
+        "entity": "survivor_case",
+        "authority": "sipf",
+        "evidence_type": "survivor-benefit-v1",
+        "service": "pension-survivor-review",
+        "purposes": [SURVIVOR_BENEFIT_PURPOSE],
+        "lookup_keys": ["spouse_uin"],
+        "concepts": ["https://id.registrystack.org/solmara/concept/survivor-is-eligible"],
+        "source": "Relay lookup",
+    },
+    {
+        "id": "nagdi-voucher-v1-offering",
+        "dataset": "nagdi-agriculture",
+        "entity": "farmer_voucher",
+        "authority": "nagdi",
+        "evidence_type": "climate-smart-voucher-v1",
+        "service": "agriculture-review",
+        "purposes": [VOUCHER_REVIEW_PURPOSE],
+        "lookup_keys": ["farmer_id"],
+        "concepts": [
+            "https://id.registrystack.org/solmara/concept/farmer-registered",
+            "https://id.registrystack.org/solmara/concept/data-use-authorized-for-purpose",
+            "https://id.registrystack.org/solmara/concept/eligible-for-climate-smart-input-voucher",
+        ],
+        "source": "Relay lookup",
+    },
+    {
+        "id": "nagdi-livestock-v1-offering",
+        "dataset": "nagdi-agriculture",
+        "entity": "livestock_movement",
+        "authority": "nagdi",
+        "evidence_type": "livestock-movement-v1",
+        "service": "agriculture-review",
+        "purposes": ["https://id.registrystack.org/solmara/purpose/livestock-movement-control"],
+        "lookup_keys": ["farmer_id"],
+        "concepts": [
+            "https://id.registrystack.org/solmara/concept/registered-herd",
+            "https://id.registrystack.org/solmara/concept/origin-district-not-quarantined-for-species",
+            "https://id.registrystack.org/solmara/concept/eligible-for-livestock-movement-permit",
+        ],
+        "source": "Relay lookup",
+    },
+]
 
 GRAY_REGISTRIES = [
     {
@@ -240,46 +354,11 @@ def build_bundle(
         normalize_dataset(dataset, fragment_index)
         for dataset in manifest.get("datasets", [])
     ]
-    offerings = []
-    for dataset in datasets:
-        source_offerings = dataset.pop("source_evidence_offerings", [])
-        if source_offerings:
-            offerings.extend(
-                normalize_source_offering(dataset, offering, authorities)
-                for offering in source_offerings
-            )
-        else:
-            offerings.append(synthetic_offering(dataset, authorities))
-
-    # NAgDI has two live evidence paths in wave 1; keep both visible to the visitor center.
-    if not any(
-        offering["id"] == "nagdi-agriculture-livestock-movement-offering"
-        for offering in offerings
-    ):
-        nagdi = next(
-            dataset for dataset in datasets if dataset["id"] == "nagdi-agriculture"
-        )
-        livestock = synthetic_offering(
-            nagdi,
-            authorities,
-            evidence_type="livestock-movement-evidence",
-            entity="livestock_movement",
-        )
-        livestock["id"] = "nagdi-agriculture-livestock-movement-offering"
-        livestock["title"] = "NAgDI livestock movement evidence offering"
-        livestock["description"] = (
-            "Livestock movement-control predicates for permit checks."
-        )
-        livestock["public_services"] = ["livestock-movement-control"]
-        livestock["purposes"] = [
-            "https://id.registrystack.org/solmara/purpose/livestock-movement-control"
-        ]
-        livestock["semantics"]["concepts"] = ["https://publicschema.org/livestock-type"]
-        offerings.append(livestock)
-
-    collection_offering_id = "solmara.child-benefit.authority-predicate-collection"
-    if not any(offering["id"] == collection_offering_id for offering in offerings):
-        offerings.append(child_benefit_collection_offering(authorities))
+    datasets_by_id = {dataset["id"]: dataset for dataset in datasets}
+    offerings = [
+        authority_evidence_offering(spec, datasets_by_id, authorities)
+        for spec in EVIDENCE_OFFERING_SPECS
+    ]
 
     policies = [policy_for_offering(offering) for offering in offerings]
     catalog = {
@@ -310,7 +389,7 @@ def normalize_dataset(
     dataset: dict[str, Any], fragment_index: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
     fragment = fragment_index.get(dataset["id"], {})
-    defaults = DATASET_OFFERING_DEFAULTS.get(dataset["id"], {})
+    defaults = DATASET_DEFAULTS.get(dataset["id"], {})
     entities = [
         normalize_entity(item, fragment.get("purposes", []), defaults)
         for item in dataset.get("entities", [])
@@ -326,7 +405,6 @@ def normalize_dataset(
         "application_profiles": fragment.get("application_profiles", []),
         "purposes": fragment.get("purposes", []),
         "entities": entities,
-        "source_evidence_offerings": dataset.get("evidence_offerings", []),
     }
 
 
@@ -357,123 +435,41 @@ def normalize_entity(
     }
 
 
-def normalize_source_offering(
-    dataset: dict[str, Any], offering: dict[str, Any], authorities: dict[str, Any]
-) -> dict[str, Any]:
-    default = synthetic_offering(
-        dataset,
-        authorities,
-        evidence_type=offering.get("evidence_type"),
-        entity=offering.get("entity"),
-    )
-    policy = offering.get("policy") if isinstance(offering.get("policy"), dict) else {}
-    default.update(
-        {
-            "id": offering["id"],
-            "iri": offering.get("iri", default["iri"]),
-            "title": text(offering.get("title"), default["title"]),
-            "description": text(offering.get("description"), default["description"]),
-            "lookup_keys": offering.get("lookup_keys", []),
-            "public_services": offering.get(
-                "procedure_contexts", default["public_services"]
-            ),
-            "access": offering.get("access", default["access"]),
-            "purposes": policy.get("purpose", dataset["purposes"]),
-        }
-    )
-    default["policy"] = f"{default['id']}-policy"
-    return default
-
-
-def synthetic_offering(
-    dataset: dict[str, Any],
+def authority_evidence_offering(
+    spec: dict[str, Any],
+    datasets: dict[str, dict[str, Any]],
     authorities: dict[str, Any],
-    *,
-    evidence_type: str | None = None,
-    entity: str | None = None,
 ) -> dict[str, Any]:
-    defaults = DATASET_OFFERING_DEFAULTS.get(dataset["id"], {})
-    evidence_type = evidence_type or defaults.get(
-        "evidence_type", f"{dataset['id']}-evidence"
-    )
-    entity = entity or defaults.get("entity") or dataset["entities"][0]["name"]
-    authority = dataset.get("authority", {})
-    authority_id = authority.get("id", dataset["id"])
-    endpoint = defaults.get(
-        "endpoint", "https://metadata.solmara.registrystack.org/v1/evaluations"
-    )
-    discovery = defaults.get(
-        "discovery",
-        "https://metadata.solmara.registrystack.org/.well-known/evidence-service",
-    )
-    offering_id = f"{dataset['id']}-{evidence_type.replace('-evidence', '')}-offering"
-    purposes = defaults.get("purposes", dataset.get("purposes", []))
+    dataset = datasets[spec["dataset"]]
+    authority = authorities[spec["authority"]]
+    base_url = AUTHORITY_EVIDENCE_URLS[spec["authority"]]
     return {
-        "id": offering_id,
-        "iri": f"https://id.registrystack.org/solmara/evidence-offerings/{slug(offering_id)}",
-        "title": f"{dataset['title']} evidence offering",
-        "description": f"Purpose-limited evidence predicates from {dataset['title']}.",
+        "id": spec["id"],
+        "iri": f"https://id.registrystack.org/solmara/evidence-offerings/{spec['id']}",
+        "title": f"{authority['name']} {humanize(spec['evidence_type'])}",
+        "description": (
+            f"An independently signed {spec['source']} assertion issued by "
+            f"{authority['name']}."
+        ),
         "dataset": dataset["id"],
-        "entity": entity,
-        "evidence_type": evidence_type,
-        "issuing_authority": authorities.get(authority_id, authority),
-        "lookup_keys": ["uin"]
-        if entity not in {"farmer_voucher", "livestock_movement"}
-        else ["farmer_id"],
-        "public_services": [defaults.get("service", "citizen-self-service")],
+        "entity": spec["entity"],
+        "evidence_type": spec["evidence_type"],
+        "issuing_authority": authority,
+        "lookup_keys": spec["lookup_keys"],
+        "public_services": [spec["service"]],
         "access": {
             "kind": "evidence-verification-api",
-            "conforms_to": "https://spec.openapis.org/oas/v3.1.0",
-            "endpoint_url": endpoint,
-            "discovery_url": discovery,
+            "conforms_to": "https://id.registrystack.org/spec/registry-evidence/v1",
+            "endpoint_url": f"{base_url}/v1/evidence",
+            "discovery_url": f"{base_url}/v1/evidence-definitions",
+            "source_type": spec["source"],
         },
-        "purposes": purposes,
+        "purposes": spec["purposes"],
         "semantics": {
-            "concepts": defaults.get(
-                "concepts",
-                ["https://id.registrystack.org/solmara/semantics/registry-record"],
-            ),
+            "concepts": spec["concepts"],
             "application_profiles": ["cpsv-ap"],
         },
-        "policy": f"{offering_id}-policy",
-    }
-
-
-def child_benefit_collection_offering(authorities: dict[str, Any]) -> dict[str, Any]:
-    offering_id = "solmara.child-benefit.authority-predicate-collection"
-    return {
-        "id": offering_id,
-        "iri": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
-        "title": "Child Benefit Authority Predicate Collection",
-        "description": (
-            "A transient collection of source-owned child benefit predicates. "
-            "It contains no copied source rows and no composed eligibility decision."
-        ),
-        "dataset": "mosd-programme",
-        "entity": "enrollment",
-        "evidence_type": "child-benefit-authority-predicate-collection-evidence",
-        "issuing_authority": authorities["mosd-programme-mis"],
-        "lookup_keys": ["uin"],
-        "public_services": ["child-benefit-review"],
-        "access": {
-            "kind": "authority-predicate-collection-api",
-            "conforms_to": "https://id.registrystack.org/solmara/contracts/authority-predicate-collection/v1",
-            "endpoint_url": f"{CHILD_BENEFIT_FEDERATOR_URL}/v1/evaluations",
-            "discovery_url": f"{CHILD_BENEFIT_FEDERATOR_URL}/v1/claims",
-            "media_type": CHILD_BENEFIT_COLLECTION_MEDIA_TYPE,
-            "ruleset": "source-owned-child-benefit-predicates-v1",
-        },
-        "purposes": [CHILD_BENEFIT_PURPOSE],
-        "semantics": {
-            "concepts": [
-                "https://publicschema.org/Person",
-                "https://publicschema.org/crvs/Birth",
-                "https://publicschema.org/Household",
-                "https://publicschema.org/sp/Enrollment",
-            ],
-            "application_profiles": ["cpsv-ap"],
-        },
-        "policy": "solmara-child-benefit-authority-predicate-collection-policy",
+        "policy": f"{spec['id']}-policy",
     }
 
 

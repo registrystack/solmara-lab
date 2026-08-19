@@ -1,0 +1,232 @@
+name: solmara-authority-cells
+
+# This operator-only application owns every active runtime volume. Runtime
+# applications attach them by fixed external name and never receive write
+# access to authored contracts, source publications, extracts, or secrets.
+x-provisioner-common: &provisioner-common
+  image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
+  restart: "no"
+  # Each one-shot service is confined to one target's volumes and needs root
+  # only to initialize Docker-owned volume roots and hand private runtime
+  # material to UID 65532. It has no network or writable container root.
+  user: "0:0"
+  network_mode: none
+  cap_drop: [ALL]
+  cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+  security_opt: [no-new-privileges:true]
+
+x-provisioner: &provisioner
+  <<: *provisioner-common
+  read_only: true
+  tmpfs: /tmp
+
+# Docker Compose copies environment-backed secrets before starting a container.
+# Keep those inputs on the one-shot container's ephemeral root filesystem so a
+# tmpfs mount cannot mask them, and relax only the targets that consume them.
+# The provisioner removes the closed input inventory on every exit. Relay
+# provisioners remain fully read-only and receive no secret path.
+x-secret-provisioner: &secret-provisioner
+  <<: *provisioner-common
+  read_only: false
+
+services:
+  cra-relay-provisioner:
+    <<: *provisioner
+    command: [provision, --target, cra-relay, --assets, /opt/solmara-hosted-assets, --runtime-output, /provisioned/runtime, --source-output, /provisioned/source, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [cra-relay-runtime:/provisioned/runtime, cra-relay-source:/provisioned/source]
+
+  nia-relay-provisioner:
+    <<: *provisioner
+    command: [provision, --target, nia-relay, --assets, /opt/solmara-hosted-assets, --runtime-output, /provisioned/runtime, --source-output, /provisioned/source, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [nia-relay-runtime:/provisioned/runtime, nia-relay-source:/provisioned/source]
+
+  mosd-relay-provisioner:
+    <<: *provisioner
+    command: [provision, --target, mosd-relay, --assets, /opt/solmara-hosted-assets, --runtime-output, /provisioned/runtime, --source-output, /provisioned/source, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [mosd-relay-runtime:/provisioned/runtime, mosd-relay-source:/provisioned/source]
+
+  sipf-relay-provisioner:
+    <<: *provisioner
+    command: [provision, --target, sipf-relay, --assets, /opt/solmara-hosted-assets, --runtime-output, /provisioned/runtime, --source-output, /provisioned/source, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [sipf-relay-runtime:/provisioned/runtime, sipf-relay-source:/provisioned/source]
+
+  nagdi-relay-provisioner:
+    <<: *provisioner
+    command: [provision, --target, nagdi-relay, --assets, /opt/solmara-hosted-assets, --runtime-output, /provisioned/runtime, --source-output, /provisioned/source, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [nagdi-relay-runtime:/provisioned/runtime, nagdi-relay-source:/provisioned/source]
+
+  cra-evidence-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, cra-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.2.21, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://cra-relay-authority-cells.solmara.registrystack.org]
+    volumes: [cra-evidence-runtime:/provisioned/runtime, cra-evidence-secrets:/provisioned/secrets, cra-evidence-extracts:/provisioned/extracts]
+    secrets:
+      - {source: cra-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: cra-evidence-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: cra-evidence-subject-binding-hmac-key, target: /tmp/solmara-provisioning/subject-binding-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: cra-pension-evidence-client-key, target: /tmp/solmara-provisioning/cra-pension-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+      - {source: cra-citizen-evidence-client-key, target: /tmp/solmara-provisioning/cra-citizen-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+
+  nia-evidence-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, nia-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.2.22, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [nia-evidence-runtime:/provisioned/runtime, nia-evidence-secrets:/provisioned/secrets, nia-evidence-extracts:/provisioned/extracts]
+    secrets:
+      - {source: nia-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: nia-evidence-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: nia-evidence-subject-binding-hmac-key, target: /tmp/solmara-provisioning/subject-binding-hmac-key, uid: "0", gid: "0", mode: 0400}
+
+  sro-evidence-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, sro-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.3.23, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [sro-evidence-runtime:/provisioned/runtime, sro-evidence-secrets:/provisioned/secrets, sro-evidence-extracts:/provisioned/extracts]
+    secrets:
+      - {source: sro-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: sro-evidence-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: sro-evidence-subject-binding-hmac-key, target: /tmp/solmara-provisioning/subject-binding-hmac-key, uid: "0", gid: "0", mode: 0400}
+
+  mosd-evidence-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, mosd-programme-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.3.24, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://mosd-programme-relay-authority-cells.solmara.registrystack.org]
+    volumes: [mosd-evidence-runtime:/provisioned/runtime, mosd-evidence-secrets:/provisioned/secrets]
+    secrets:
+      - {source: mosd-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: mosd-evidence-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: mosd-evidence-subject-binding-hmac-key, target: /tmp/solmara-provisioning/subject-binding-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: mosd-child-benefit-evidence-client-key, target: /tmp/solmara-provisioning/mosd-child-benefit-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+
+  sipf-evidence-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, sipf-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.4.25, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://sipf-relay-authority-cells.solmara.registrystack.org]
+    volumes: [sipf-evidence-runtime:/provisioned/runtime, sipf-evidence-secrets:/provisioned/secrets]
+    secrets:
+      - {source: sipf-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: sipf-evidence-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: sipf-evidence-subject-binding-hmac-key, target: /tmp/solmara-provisioning/subject-binding-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: sipf-pension-evidence-client-key, target: /tmp/solmara-provisioning/sipf-pension-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+      - {source: sipf-survivor-evidence-client-key, target: /tmp/solmara-provisioning/sipf-survivor-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+
+  nagdi-evidence-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, nagdi-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.5.26, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://nagdi-relay-authority-cells.solmara.registrystack.org]
+    volumes: [nagdi-evidence-runtime:/provisioned/runtime, nagdi-evidence-secrets:/provisioned/secrets]
+    secrets:
+      - {source: nagdi-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: nagdi-evidence-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: nagdi-evidence-subject-binding-hmac-key, target: /tmp/solmara-provisioning/subject-binding-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: nagdi-voucher-evidence-client-key, target: /tmp/solmara-provisioning/nagdi-voucher-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+      - {source: nagdi-livestock-evidence-client-key, target: /tmp/solmara-provisioning/nagdi-livestock-evidence-client-key, uid: "0", gid: "0", mode: 0400}
+
+  mint-provisioner:
+    <<: *secret-provisioner
+    command: [provision, --target, mint, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.1.20, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    volumes: [mint-runtime:/provisioned/runtime, mint-secrets:/provisioned/secrets]
+    secrets:
+      - {source: mint-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: mint-audit-hmac-key, target: /tmp/solmara-provisioning/audit-hmac-key, uid: "0", gid: "0", mode: 0400}
+      - {source: cra-pension-evidence-client-public-jwk, target: /tmp/solmara-provisioning/cra-pension-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: cra-citizen-evidence-client-public-jwk, target: /tmp/solmara-provisioning/cra-citizen-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: mosd-child-benefit-evidence-client-public-jwk, target: /tmp/solmara-provisioning/mosd-child-benefit-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: sipf-pension-evidence-client-public-jwk, target: /tmp/solmara-provisioning/sipf-pension-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: sipf-survivor-evidence-client-public-jwk, target: /tmp/solmara-provisioning/sipf-survivor-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: nagdi-voucher-evidence-client-public-jwk, target: /tmp/solmara-provisioning/nagdi-voucher-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: nagdi-livestock-evidence-client-public-jwk, target: /tmp/solmara-provisioning/nagdi-livestock-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: nia-esignet-client-public-jwk, target: /tmp/solmara-provisioning/nia-esignet-public.jwk, uid: "0", gid: "0", mode: 0400}
+      - {source: solmara-demo-client-public-jwk, target: /tmp/solmara-provisioning/solmara-demo-client-public.jwk, uid: "0", gid: "0", mode: 0400}
+
+  provisioning-ready:
+    image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
+    command: [ready]
+    restart: "no"
+    user: "65532:65532"
+    read_only: true
+    tmpfs: /tmp
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      cra-relay-provisioner: {condition: service_completed_successfully}
+      nia-relay-provisioner: {condition: service_completed_successfully}
+      mosd-relay-provisioner: {condition: service_completed_successfully}
+      sipf-relay-provisioner: {condition: service_completed_successfully}
+      nagdi-relay-provisioner: {condition: service_completed_successfully}
+      cra-evidence-provisioner: {condition: service_completed_successfully}
+      nia-evidence-provisioner: {condition: service_completed_successfully}
+      sro-evidence-provisioner: {condition: service_completed_successfully}
+      mosd-evidence-provisioner: {condition: service_completed_successfully}
+      sipf-evidence-provisioner: {condition: service_completed_successfully}
+      nagdi-evidence-provisioner: {condition: service_completed_successfully}
+      mint-provisioner: {condition: service_completed_successfully}
+
+secrets:
+  mint-signing-public-jwk: {environment: MINT_SIGNING_PUBLIC_JWK}
+  mint-audit-hmac-key: {environment: MINT_AUDIT_HMAC_KEY}
+  cra-evidence-signing-public-jwk: {environment: CRA_EVIDENCE_SIGNING_PUBLIC_JWK}
+  cra-evidence-audit-hmac-key: {environment: CRA_EVIDENCE_AUDIT_HMAC_KEY}
+  cra-evidence-subject-binding-hmac-key: {environment: CRA_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+  nia-evidence-signing-public-jwk: {environment: NIA_EVIDENCE_SIGNING_PUBLIC_JWK}
+  nia-evidence-audit-hmac-key: {environment: NIA_EVIDENCE_AUDIT_HMAC_KEY}
+  nia-evidence-subject-binding-hmac-key: {environment: NIA_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+  sro-evidence-signing-public-jwk: {environment: SRO_EVIDENCE_SIGNING_PUBLIC_JWK}
+  sro-evidence-audit-hmac-key: {environment: SRO_EVIDENCE_AUDIT_HMAC_KEY}
+  sro-evidence-subject-binding-hmac-key: {environment: SRO_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+  mosd-evidence-signing-public-jwk: {environment: MOSD_EVIDENCE_SIGNING_PUBLIC_JWK}
+  mosd-evidence-audit-hmac-key: {environment: MOSD_EVIDENCE_AUDIT_HMAC_KEY}
+  mosd-evidence-subject-binding-hmac-key: {environment: MOSD_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+  sipf-evidence-signing-public-jwk: {environment: SIPF_EVIDENCE_SIGNING_PUBLIC_JWK}
+  sipf-evidence-audit-hmac-key: {environment: SIPF_EVIDENCE_AUDIT_HMAC_KEY}
+  sipf-evidence-subject-binding-hmac-key: {environment: SIPF_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+  nagdi-evidence-signing-public-jwk: {environment: NAGDI_EVIDENCE_SIGNING_PUBLIC_JWK}
+  nagdi-evidence-audit-hmac-key: {environment: NAGDI_EVIDENCE_AUDIT_HMAC_KEY}
+  nagdi-evidence-subject-binding-hmac-key: {environment: NAGDI_EVIDENCE_SUBJECT_BINDING_HMAC_KEY}
+  cra-pension-evidence-client-key: {environment: CRA_PENSION_EVIDENCE_CLIENT_PRIVATE_JWK}
+  cra-citizen-evidence-client-key: {environment: CRA_CITIZEN_EVIDENCE_CLIENT_PRIVATE_JWK}
+  mosd-child-benefit-evidence-client-key: {environment: MOSD_CHILD_BENEFIT_EVIDENCE_CLIENT_PRIVATE_JWK}
+  sipf-pension-evidence-client-key: {environment: SIPF_PENSION_EVIDENCE_CLIENT_PRIVATE_JWK}
+  sipf-survivor-evidence-client-key: {environment: SIPF_SURVIVOR_EVIDENCE_CLIENT_PRIVATE_JWK}
+  nagdi-voucher-evidence-client-key: {environment: NAGDI_VOUCHER_EVIDENCE_CLIENT_PRIVATE_JWK}
+  nagdi-livestock-evidence-client-key: {environment: NAGDI_LIVESTOCK_EVIDENCE_CLIENT_PRIVATE_JWK}
+  cra-pension-evidence-client-public-jwk: {environment: CRA_PENSION_EVIDENCE_CLIENT_PUBLIC_JWK}
+  cra-citizen-evidence-client-public-jwk: {environment: CRA_CITIZEN_EVIDENCE_CLIENT_PUBLIC_JWK}
+  mosd-child-benefit-evidence-client-public-jwk: {environment: MOSD_CHILD_BENEFIT_EVIDENCE_CLIENT_PUBLIC_JWK}
+  sipf-pension-evidence-client-public-jwk: {environment: SIPF_PENSION_EVIDENCE_CLIENT_PUBLIC_JWK}
+  sipf-survivor-evidence-client-public-jwk: {environment: SIPF_SURVIVOR_EVIDENCE_CLIENT_PUBLIC_JWK}
+  nagdi-voucher-evidence-client-public-jwk: {environment: NAGDI_VOUCHER_EVIDENCE_CLIENT_PUBLIC_JWK}
+  nagdi-livestock-evidence-client-public-jwk: {environment: NAGDI_LIVESTOCK_EVIDENCE_CLIENT_PUBLIC_JWK}
+  nia-esignet-client-public-jwk: {environment: NIA_ESIGNET_CLIENT_PUBLIC_JWK}
+  solmara-demo-client-public-jwk: {environment: SOLMARA_DEMO_CLIENT_PUBLIC_JWK}
+
+volumes:
+  mint-runtime: {name: solmara-authority-cells-mint-runtime}
+  mint-secrets: {name: solmara-authority-cells-mint-secrets}
+  mint-transit: {name: solmara-authority-cells-mint-transit}
+  cra-relay-runtime: {name: solmara-authority-cells-cra-relay-runtime}
+  cra-relay-source: {name: solmara-authority-cells-cra-relay-source}
+  nia-relay-runtime: {name: solmara-authority-cells-nia-relay-runtime}
+  nia-relay-source: {name: solmara-authority-cells-nia-relay-source}
+  mosd-relay-runtime: {name: solmara-authority-cells-mosd-relay-runtime}
+  mosd-relay-source: {name: solmara-authority-cells-mosd-relay-source}
+  sipf-relay-runtime: {name: solmara-authority-cells-sipf-relay-runtime}
+  sipf-relay-source: {name: solmara-authority-cells-sipf-relay-source}
+  nagdi-relay-runtime: {name: solmara-authority-cells-nagdi-relay-runtime}
+  nagdi-relay-source: {name: solmara-authority-cells-nagdi-relay-source}
+  cra-evidence-runtime: {name: solmara-authority-cells-cra-evidence-runtime}
+  cra-evidence-secrets: {name: solmara-authority-cells-cra-evidence-secrets}
+  cra-evidence-transit: {name: solmara-authority-cells-cra-evidence-transit}
+  cra-evidence-extracts: {name: solmara-authority-cells-cra-evidence-extracts}
+  nia-evidence-runtime: {name: solmara-authority-cells-nia-evidence-runtime}
+  nia-evidence-secrets: {name: solmara-authority-cells-nia-evidence-secrets}
+  nia-evidence-transit: {name: solmara-authority-cells-nia-evidence-transit}
+  nia-evidence-extracts: {name: solmara-authority-cells-nia-evidence-extracts}
+  sro-evidence-runtime: {name: solmara-authority-cells-sro-evidence-runtime}
+  sro-evidence-secrets: {name: solmara-authority-cells-sro-evidence-secrets}
+  sro-evidence-transit: {name: solmara-authority-cells-sro-evidence-transit}
+  sro-evidence-extracts: {name: solmara-authority-cells-sro-evidence-extracts}
+  mosd-evidence-runtime: {name: solmara-authority-cells-mosd-evidence-runtime}
+  mosd-evidence-secrets: {name: solmara-authority-cells-mosd-evidence-secrets}
+  mosd-evidence-transit: {name: solmara-authority-cells-mosd-evidence-transit}
+  sipf-evidence-runtime: {name: solmara-authority-cells-sipf-evidence-runtime}
+  sipf-evidence-secrets: {name: solmara-authority-cells-sipf-evidence-secrets}
+  sipf-evidence-transit: {name: solmara-authority-cells-sipf-evidence-transit}
+  nagdi-evidence-runtime: {name: solmara-authority-cells-nagdi-evidence-runtime}
+  nagdi-evidence-secrets: {name: solmara-authority-cells-nagdi-evidence-secrets}
+  nagdi-evidence-transit: {name: solmara-authority-cells-nagdi-evidence-transit}

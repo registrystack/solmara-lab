@@ -1,2 +1,3 @@
 survivor_link_id,deceased_uin,survivor_uin,relationship,proof_mrn,survivor_award_no,link_status,observed_at,source_system
 SIPF-SL-000001,2300109568,2300118698,spouse,MRN-1970-0401-00001,,verified,2026-07-04T09:00:00Z,SIPF-CORE
+SIPF-SL-000002,2300136959,2300146081,former_spouse,MRN-2010-0302-00002,,dissolved,2026-07-04T09:00:00Z,SIPF-CORE

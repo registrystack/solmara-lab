@@ -1,45 +1,30 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-mkdir -p "$root/output/smoke"
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+set -a
+. "$root/versions.env"
+. "$root/.env"
+set +a
 
-ran=0
-"$root/scripts/smoke-story-previews.py"
-ran=1
+uv run --project "$root" "$root/scripts/check-signer-public-keys.py"
 
-if [ "${SOLMARA_SMOKE_LIVE:-1}" != "0" ]; then
-  ran=1
-  "$root/scripts/smoke-relay-sources.py"
-  compose=(
-    docker compose
-    --env-file "$root/versions.env"
-    --env-file "$root/.env"
-    -f "$root/compose.yaml"
-  )
-  nia_esignet_relay_token=$(
-    "${compose[@]}" exec -T nia-workload-agent \
-      cat /run/esignet-secrets/solmara-esignet-relay-token
-  )
-  NIA_ESIGNET_RELAY_TOKEN="$nia_esignet_relay_token" \
-    "$root/scripts/smoke-nia-attribute-release.py"
-  unset nia_esignet_relay_token
-  # The signing smokes need cryptography from the locked project environment.
-  uv run --locked --project "$root" "$root/scripts/smoke-live.py"
-  uv run --locked --project "$root" "$root/scripts/notary_state_restart.py"
-  uv run --locked --project "$root" "$root/scripts/smoke-child-benefit-application.py"
-  "$root/scripts/smoke-published-tokens.py"
-  "$root/scripts/smoke-portal-compose.py"
-fi
+python3 - <<'PY'
+import json
+import os
+import urllib.request
 
-for script in "$root"/scripts/stories/*.sh; do
-  if [ -x "$script" ]; then
-    ran=1
-    "$script"
-  fi
-done
+for name, url in {
+    "home": f"http://127.0.0.1:{os.getenv('SOLMARA_HOME_PORT', '4301')}/",
+    "portal": f"http://127.0.0.1:{os.getenv('SOLMARA_PORTAL_PORT', '4300')}/",
+}.items():
+    with urllib.request.urlopen(url, timeout=10) as response:
+        if response.status != 200:
+            raise SystemExit(f"{name} returned {response.status}")
 
-if [ "$ran" -eq 0 ]; then
-  echo "No story smoke scripts are installed yet." >&2
-  exit 1
-fi
+for authority, port in {"cra": 4311, "nia": 4312, "mosd": 4314, "sipf": 4315, "nagdi": 4316}.items():
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=10) as response:
+        body = json.load(response)
+        if body.get("status") != "ok":
+            raise SystemExit(f"{authority} Relay is not healthy")
+PY

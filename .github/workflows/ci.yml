@@ -7,43 +7,50 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  checks:
+  authority-cell-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - name: Enable pnpm
-        run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0
         with:
           node-version: "22"
-          cache: pnpm
-          cache-dependency-path: portal/pnpm-lock.yaml
       - name: Install just
-        uses: extractions/setup-just@v2
-      - name: Setup
-        run: just setup
-      - name: Publish metadata
-        run: just metadata-publish
-      - name: Lint
-        run: just lint
-      - name: Test
-        run: just test
-      - name: Verify compiler-generated authority projects
+        env:
+          JUST_VERSION: 1.58.0
+          JUST_SHA256: 4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
         run: |
-          just registry-projects-editor
-          if [ -n "$(git status --short -- projects)" ]; then
-            git status --short -- projects
-            exit 1
-          fi
-          just registry-projects-check
-          just registry-projects-test
-          just registry-projects-capabilities
-          just registry-projects-runtime-check
-      - name: Generate local secrets
-        run: just gen-secrets
-      - name: Compose
+          set -euo pipefail
+          archive="$RUNNER_TEMP/just.tar.gz"
+          curl --fail --location --silent --show-error \
+            --retry 5 --retry-all-errors --connect-timeout 30 --max-time 120 \
+            --output "$archive" \
+            "https://github.com/casey/just/releases/download/$JUST_VERSION/just-$JUST_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          printf '%s  %s\n' "$JUST_SHA256" "$archive" | sha256sum --check --status
+          mkdir -p "$RUNNER_TEMP/just-bin"
+          tar --extract --file "$archive" --directory "$RUNNER_TEMP/just-bin" just
+          printf '%s\n' "$RUNNER_TEMP/just-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/just-bin/just" --version
+      - name: Install dependencies
+        run: |
+          corepack enable
+          just setup
+      - name: Generate ignored runtime material
+        run: just generate
+      - name: Publish checked-in metadata
+        run: just metadata-publish
+      - name: Lint authority-cell configuration
+        run: just lint
+      - name: Test authority-cell application
+        run: just test
+      - name: Validate and package all Relay V2 projects
+        run: just relay-check
+      - name: Validate Compose topology
         run: just compose
-      - name: Review
-        run: just review

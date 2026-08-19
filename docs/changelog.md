@@ -3,6 +3,67 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-19 Registry Stack v0.22.0
+
+Solmara pins Registry Stack v0.22.0 across `versions.env`, the release-pin
+gate, and the home release-identity surface. The Relay, Evidence, and Mint OCI
+references move to the v0.22.0 digests, and the Relayctl authoring helper is
+built from the v0.22.0 `linux-amd64` release asset and its checksum. The
+topology is unchanged; v0.22.0 adds a container runtime deployment preflight,
+a strict Mint readiness probe, Mint support for compatible OAuth clients,
+eager validation of Evidence trusted public keys, and root-owned Relay
+configuration.
+
+## 2026-08-13 Official Registry Stack runtime images
+
+Solmara no longer assembles or publishes local Evidence and Mint runtime
+wrappers. Relay, Evidence, and Mint are now closed to their official Registry
+Stack v0.21.0 GHCR repositories and immutable digests from `versions.env`;
+only the Relayctl authoring helper is assembled locally from a
+checksum-verified release asset. The release-candidate handoff carries the
+upstream Evidence and Mint
+references unchanged and publishes only Solmara-owned deployment images. Relay
+now follows the same closed handoff: hosted Compose consumes the canonical
+`REGISTRY_RELAY_IMAGE` reference rather than rebuilding it from a separate
+digest input.
+
+## 2026-08-12 Authority-owned Relay and Evidence reset
+
+Solmara now authors six independent Evidence cells and five Relay V2 projects.
+CRA, NIA, and SRO publish immutable SQLite extracts for direct Evidence use;
+CRA, MoSD, SIPF, and NAgDI expose only named exact Relay lookups, with NIA's
+Relay reserved for the optional eSignet UserInfo profile. The programme code
+routes all 11 preserved requirements to their owning authority, verifies each
+ES256 JWS against that authority's JWKS, and composes application outcomes.
+
+The reset replaces the old singleton Evidence, Records API, ambient purpose
+header, and authority decision-service topology. Mutable Relay publications and
+versioned immutable extracts now have deliberately different lifecycle proof.
+Registry Stack v0.19.0 was found incapable of issuing Relay-compatible Mint
+claims and of representing Relay's concealed unresolved outcome in Evidence
+fixtures. v0.20.1 added those capabilities but did not publish official
+Evidence and Mint images. The completed reset therefore pins Registry Stack
+v0.21.0 by exact release source, Relayctl checksum, and official Relay,
+Evidence, and Mint OCI digests. The separately released
+`esignet-relay-authenticator` v0.2.0 JAR is pinned by SHA-256.
+
+## 2026-08-06 Registry Stack main Evidence migration
+
+The local lab now builds Relay, Registry Evidence, and Registry Mint from the
+exact Registry Stack `main` commit pinned in `versions.env`. Six authority
+Relays expose current Records APIs to one Evidence service through scoped,
+short-lived workload credentials. Mint uses `private_key_jwt` client
+authentication, and the application journeys consume flattened signed JWS
+Evidence assertions instead of authority Notary evaluations.
+
+All six Registry projects and their committed runtime closures are regenerated
+with Registryctl 0.17.0. Eleven Evidence requirements cover child benefit,
+pension and survivor workflows, farmer and livestock controls, and citizen
+self-service. The active local quality gates validate the paired Mint config,
+the Evidence bundle, and 89 Evidence fixture cases. Hosted and Coolify files
+remain on the earlier released Notary topology and are explicitly unsupported
+on this source-only branch.
+
 ## 2026-07-29 Registry Stack v0.15.2 adoption
 
 The lab now consumes the canonical Registry Stack Relay image directly. The

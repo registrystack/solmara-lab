@@ -1,6 +1,6 @@
 <script lang="ts">
   // The cross-person denial set-piece. A real denied evaluation (403
-  // subject_mismatch, no source read), rendered as denial-as-success: the boundary
+  // not_authorized, no source read), rendered as denial-as-success: the boundary
   // held. This is rendered with its own treatment, NOT the EvidenceField error
   // state, because a denial is a deliberate, signed "no", not a network failure.
   import { evaluateField } from '$lib/forms';
@@ -13,9 +13,9 @@
     state = 'trying';
     try {
       const r = await evaluateField({ slug, fieldId: 'denial', scenarioKey: 'denial' });
-      // The provider returns the denial with reasonCode 'subject_mismatch'. The SSE
+      // The provider returns the denial with reasonCode 'not_authorized'. The SSE
       // feed independently lights the rail (bounce) and the inspector (denial entry).
-      state = r.reasonCode === 'subject_mismatch' ? 'denied' : 'failed';
+      state = r.reasonCode === 'not_authorized' ? 'denied' : 'failed';
     } catch {
       state = 'failed';
     }
@@ -36,7 +36,7 @@
     <div class="denied" role="status" data-testid="denial-result">
       <strong>Denied: blocked at the identity gate, no data touched.</strong>
       <span>
-        The Notary refused before reading any record (403 subject_mismatch). The packet bounced;
+        The portal refused before an authority Evidence service read any record (403 not_authorized). The packet bounced;
         the stranger's record never lit.
       </span>
     </div>

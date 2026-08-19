@@ -1,0 +1,4 @@
+type: object
+additionalProperties: false
+required: [survivor_eligible]
+properties: { survivor_eligible: { type: boolean } }

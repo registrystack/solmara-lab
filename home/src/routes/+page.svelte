@@ -39,7 +39,7 @@
   <LandingHero />
   <ProofStrip metadata={home.metadata} scenarios={home.scenarios} />
   <HowItWorks />
-  <PurposeLens scenarios={home.scenarios} purposes={home.purposes} />
+  <PurposeLens scenarios={home.scenarios} />
 
   <section class="page-band stories" id="stories">
     <div class="content">

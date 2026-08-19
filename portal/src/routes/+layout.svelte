@@ -8,9 +8,9 @@
 
   let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
-  // The footer audit log is a drawer: collapsed to its most-recent rows by default,
+  // The footer proof log is a drawer: collapsed to its most-recent rows by default,
   // expanded (and scrollable) on demand so the full proof history is reachable.
-  let auditOpen = $state(false);
+  let proofLogOpen = $state(false);
 
   // One app-wide SSE connection to the redacted proof feed. Browser only (onMount
   // never runs during SSR), so EventSource is safe here. The rail, ticker, and
@@ -51,24 +51,24 @@
     </aside>
   </div>
 
-  <!-- Ambient audit log: a drawer pinned to the foot of the page. Collapsed to its
+  <!-- Ambient proof log: a drawer pinned to the foot of the page. Collapsed to its
        most-recent rows by default (the form is the hero up top); expand + scroll for
        the full proof history, so older entries are never lost. -->
-  <section class="ticker-band" class:open={auditOpen} aria-label="Proof audit log">
+  <section class="ticker-band" class:open={proofLogOpen} aria-label="Proof log">
     <button
       type="button"
       class="ticker-handle"
-      data-testid="audit-log-toggle"
-      aria-expanded={auditOpen}
-      aria-controls="proof-audit-log"
-      onclick={() => (auditOpen = !auditOpen)}
+      data-testid="proof-log-toggle"
+      aria-expanded={proofLogOpen}
+      aria-controls="proof-log"
+      onclick={() => (proofLogOpen = !proofLogOpen)}
     >
-      <span class="handle-label">Proof audit log</span>
+      <span class="handle-label">Proof log</span>
       <span class="handle-count">{clientFeed.traces.length}</span>
-      <span class="handle-chevron" aria-hidden="true">{auditOpen ? '▾' : '▴'}</span>
-      <span class="handle-hint">{auditOpen ? 'collapse' : 'expand'}</span>
+      <span class="handle-chevron" aria-hidden="true">{proofLogOpen ? '▾' : '▴'}</span>
+      <span class="handle-hint">{proofLogOpen ? 'collapse' : 'expand'}</span>
     </button>
-    <div class="ticker-scroll" id="proof-audit-log">
+    <div class="ticker-scroll" id="proof-log">
       <ProofTicker traces={clientFeed.traces} />
     </div>
   </section>
@@ -128,7 +128,7 @@
     min-width: 0;
   }
 
-  /* The audit-log drawer, pinned to the foot of the viewport. Collapsed it shows its
+  /* The proof-log drawer, pinned to the foot of the viewport. Collapsed it shows its
      most-recent rows; opened it grows upward and the rows scroll, so the full history
      is reachable without the log ever dominating the page. */
   .ticker-band {

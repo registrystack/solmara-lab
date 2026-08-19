@@ -1,0 +1,20 @@
+meta {
+  name: 07 - SIPF survivor lookup
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{sipf_relay_url}}/v2/resources/survivor-case/lookups/by-spouse-uin?fields=survivorEligible
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{SIPF_SURVIVOR_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"spouseUin":"2300118698"}}
+}

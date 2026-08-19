@@ -8,15 +8,20 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LINE_RE = re.compile(r"^([A-Z0-9_]+)=([^#\s]+)$")
+LINE_RE = re.compile(r"^([A-Z0-9_]+)=([^#\s]*)$")
 PIN_RE = re.compile(r"^[^#\s]+@sha256:[0-9a-f]{64}$")
-REGISTRY_STACK_IMAGE_KEYS = {"REGISTRY_RELAY_IMAGE", "REGISTRY_NOTARY_IMAGE"}
-PINNED_IMAGE_KEYS = REGISTRY_STACK_IMAGE_KEYS | {
-    "VOLUME_INIT_IMAGE",
+OFFICIAL_RUNTIME_REPOSITORIES = {
+    "REGISTRY_RELAY_IMAGE": "relay",
+    "SOLMARA_EVIDENCE_IMAGE": "evidence",
+    "SOLMARA_MINT_IMAGE": "mint",
 }
-COMPOSE_FALLBACK_RE = re.compile(
-    r"\$\{(?P<key>REGISTRY_(?:RELAY|NOTARY)_IMAGE):-(?P<value>[^}]+)\}"
-)
+SOURCE_IMAGE_KEYS = set(OFFICIAL_RUNTIME_REPOSITORIES)
+PINNED_IMAGE_KEYS = {
+    "VOLUME_INIT_IMAGE", "EVIDENCE_GATEWAY_IMAGE", "PYTHON_STATIC_IMAGE",
+    "NODE_BUILD_IMAGE", "UV_BUILD_IMAGE",
+    "ESIGNET_REDIS_IMAGE", "ESIGNET_BASE_IMAGE", "ESIGNET_UI_IMAGE",
+    "ESIGNET_POSTGRES_IMAGE",
+}
 
 
 def main() -> int:
@@ -37,36 +42,37 @@ def main() -> int:
             continue
         key, value = match.groups()
         values[key] = value
+        if key in OFFICIAL_RUNTIME_REPOSITORIES:
+            repository = OFFICIAL_RUNTIME_REPOSITORIES[key]
+            expected = f"ghcr.io/registrystack/{repository}@sha256:"
+            if not value.startswith(expected) or not PIN_RE.match(value):
+                failures.append(
+                    f"versions.env:{line_no}: {key} must use "
+                    f"{expected}<64 lowercase hex>"
+                )
         if key in PINNED_IMAGE_KEYS and not PIN_RE.match(value):
             failures.append(f"versions.env:{line_no}: {key} must use image@sha256:<64 hex>")
         if "@latest" in value or ":latest" in value:
             failures.append(f"versions.env:{line_no}: latest tags are not allowed")
 
-    for key in PINNED_IMAGE_KEYS:
+    for key in PINNED_IMAGE_KEYS | SOURCE_IMAGE_KEYS:
         if key not in values:
             failures.append(f"versions.env: {key} is required")
 
-    compose_files = [ROOT / "compose.yaml", ROOT / "compose.hosted.yaml"]
-    compose_files.extend(sorted(ROOT.glob("compose.coolify*.yaml")))
-    fallback_counts = {key: 0 for key in REGISTRY_STACK_IMAGE_KEYS}
+    compose_files = [ROOT / "compose.yaml", ROOT / "compose.esignet.yaml"]
+    required_counts = {key: 0 for key in SOURCE_IMAGE_KEYS}
     for compose in compose_files:
         if not compose.exists():
             continue
         text = compose.read_text()
         if "@latest" in text or ":latest" in text:
             failures.append(f"{compose.name}: latest tags are not allowed")
-        for fallback in COMPOSE_FALLBACK_RE.finditer(text):
-            key = fallback.group("key")
-            fallback_counts[key] += 1
-            expected = values.get(key)
-            if expected and fallback.group("value") != expected:
-                failures.append(
-                    f"{compose.name}: {key} fallback must match versions.env"
-                )
+        for key in SOURCE_IMAGE_KEYS:
+            required_counts[key] += text.count(f"${{{key}:?")
 
-    for key, count in fallback_counts.items():
+    for key, count in required_counts.items():
         if count == 0:
-            failures.append(f"compose files: expected a {key} fallback")
+            failures.append(f"compose files: expected a required {key} reference")
 
     if failures:
         for failure in failures:

@@ -4,7 +4,7 @@
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "cra-birth-registration-offering-policy",
+      "id": "cra-child-benefit-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -20,15 +20,15 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-birth-registration",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-child-benefit-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/cra-birth-registration-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/cra-child-benefit-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "cra-death-registration-offering-policy",
+      "id": "cra-pension-death-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -44,15 +44,39 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-death-registration",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-pension-death-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/cra-death-registration-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/cra-pension-death-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "nia-population-population-status-offering-policy",
+      "id": "cra-citizen-record-v1-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/cra-citizen-record-v1-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/cra-citizen-record-v1-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "nia-child-benefit-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -68,15 +92,39 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/nia-population-population-status-offering",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nia-child-benefit-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/nia-population-population-status-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/nia-child-benefit-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "sro-social-household-poverty-offering-policy",
+      "id": "nia-citizen-status-v1-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
+                "https://id.registrystack.org/solmara/purpose/citizen-self-service"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nia-citizen-status-v1-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/nia-citizen-status-v1-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "sro-child-benefit-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -92,15 +140,15 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/sro-social-household-poverty-offering",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/sro-child-benefit-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/sro-social-household-poverty-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/sro-child-benefit-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "mosd-programme-beneficiary-enrollment-offering-policy",
+      "id": "mosd-child-benefit-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -116,15 +164,15 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/mosd-programme-beneficiary-enrollment-offering",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/mosd-child-benefit-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/mosd-programme-beneficiary-enrollment-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/mosd-child-benefit-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "sipf-pensions-pension-case-offering-policy",
+      "id": "sipf-pension-payment-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -133,7 +181,30 @@
               "leftOperand": "purpose",
               "operator": "isAnyOf",
               "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/pension-payment-review",
+                "https://id.registrystack.org/solmara/purpose/pension-payment-review"
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "https://www.w3.org/TR/odrl-model/",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pension-payment-v1-offering",
+      "type": "odrl:Set",
+      "uid": "https://id.registrystack.org/solmara/policies/sipf-pension-payment-v1-offering-policy"
+    },
+    {
+      "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+      },
+      "id": "sipf-survivor-benefit-v1-offering-policy",
+      "permission": [
+        {
+          "action": "use",
+          "constraint": [
+            {
+              "leftOperand": "purpose",
+              "operator": "isAnyOf",
+              "rightOperand": [
                 "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"
               ]
             }
@@ -141,15 +212,15 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/sipf-pensions-pension-case-offering",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/sipf-survivor-benefit-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/sipf-pensions-pension-case-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/sipf-survivor-benefit-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "nagdi-agriculture-farmer-voucher-offering-policy",
+      "id": "nagdi-voucher-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -165,15 +236,15 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-farmer-voucher-offering",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-voucher-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/nagdi-agriculture-farmer-voucher-offering-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/nagdi-voucher-v1-offering-policy"
     },
     {
       "@context": {
         "odrl": "http://www.w3.org/ns/odrl/2/"
       },
-      "id": "nagdi-agriculture-livestock-movement-offering-policy",
+      "id": "nagdi-livestock-v1-offering-policy",
       "permission": [
         {
           "action": "use",
@@ -189,33 +260,9 @@
         }
       ],
       "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-agriculture-livestock-movement-offering",
+      "target": "https://id.registrystack.org/solmara/evidence-offerings/nagdi-livestock-v1-offering",
       "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/nagdi-agriculture-livestock-movement-offering-policy"
-    },
-    {
-      "@context": {
-        "odrl": "http://www.w3.org/ns/odrl/2/"
-      },
-      "id": "solmara-child-benefit-authority-predicate-collection-policy",
-      "permission": [
-        {
-          "action": "use",
-          "constraint": [
-            {
-              "leftOperand": "purpose",
-              "operator": "isAnyOf",
-              "rightOperand": [
-                "https://id.registrystack.org/solmara/purpose/child-benefit-review"
-              ]
-            }
-          ]
-        }
-      ],
-      "profile": "https://www.w3.org/TR/odrl-model/",
-      "target": "https://id.registrystack.org/solmara/evidence-offerings/child-benefit-authority-predicate-collection",
-      "type": "odrl:Set",
-      "uid": "https://id.registrystack.org/solmara/policies/solmara-child-benefit-authority-predicate-collection-policy"
+      "uid": "https://id.registrystack.org/solmara/policies/nagdi-livestock-v1-offering-policy"
     }
   ]
 }

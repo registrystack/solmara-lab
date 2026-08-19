@@ -1,241 +1,60 @@
-name: solmara-lab-labour-pensions
+name: solmara-lab-pensions-cells
 
-x-relay-environment: &relay-environment
-  RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_RELAY_BIND: 0.0.0.0:8080
-
-x-notary-environment: &notary-environment
-  RUST_LOG: ${RUST_LOG:-info}
-  REGISTRY_NOTARY_BIND: 0.0.0.0:8081
-  REGISTRY_NOTARY_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
-
-x-relay-common: &relay-common
-  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
-  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
+x-runtime: &runtime
   restart: unless-stopped
-  environment: *relay-environment
-  healthcheck:
-    test: ["CMD", "/usr/local/bin/registry-relay", "healthcheck"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
-
-x-relay-bootstrap-common: &relay-bootstrap-common
-  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
-  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
-  restart: "no"
-
-x-relay-config-state-init: &relay-config-state-init
-  image: ${SOLMARA_RELAY_IMAGE:?set digest-pinned Solmara relay image}
-  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
-  user: "0:0"
-  restart: "no"
-  entrypoint: ["/bin/busybox", "sh", "-eu", "-c"]
-
-x-workload-agent-common: &workload-agent-common
-  image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set digest-pinned Solmara scenario runner image}
-  command: ["python", "scripts/relay_workload_identity_agent.py"]
-  restart: unless-stopped
-  healthcheck:
-    test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)\""]
-    interval: 10s
-    timeout: 5s
-    retries: 6
-
-x-notary-common: &notary-common
-  image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
-  platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
-  user: "65534:65534"
-  restart: unless-stopped
-  environment: *notary-environment
-  healthcheck:
-    test: ["CMD", "/usr/local/bin/registry-notary", "healthcheck", "--url", "http://127.0.0.1:8081/ready"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
+  read_only: true
+  tmpfs: [/tmp]
+  networks: [runtime]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  depends_on:
+    audit-permissions: {condition: service_completed_successfully}
 
 services:
-  postgres:
-    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
-    entrypoint: ["/bin/sh", "/usr/local/bin/solmara-postgres-entrypoint.sh"]
-    command:
-      - postgres
-      - -c
-      - ssl=on
-      - -c
-      - ssl_cert_file=/var/lib/postgresql/server-ssl/server.crt
-      - -c
-      - ssl_key_file=/var/lib/postgresql/server-ssl/server.key
-    environment: &postgres-environment
-      POSTGRES_USER: ${SOLMARA_POSTGRES_USER:-solmara_registry}
-      POSTGRES_PASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
-      POSTGRES_DB: ${SOLMARA_POSTGRES_DB:-solmara_lab}
-      SOLMARA_SOURCE_READER_DATABASES: sipf
-      SIPF_SOURCE_POSTGRES_READER_PASSWORD: ${SIPF_SOURCE_POSTGRES_READER_PASSWORD}
-      REGISTRY_RELAY_STATE_EPOCH: ${REGISTRY_RELAY_STATE_EPOCH:-v015}
-      SOLMARA_RELAY_DATABASES: sipf
-      SOLMARA_NOTARY_DATABASES: sipf
-      SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD: ${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}
-      SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD: ${SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}
-      SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD: ${SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD}
-      SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD: ${SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD}
-      SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD: ${SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  registry-postgresql-bootstrap:
-    image: ${SOLMARA_POSTGRES_IMAGE:?set digest-pinned Solmara Postgres image}
+  audit-permissions:
+    image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
+    entrypoint: [python, /app/scripts/provision-hosted-runtime.py]
+    command: [init-audit, --destination, /audit/sipf-relay, --destination, /audit/sipf-evidence, --uid, "65532", --gid, "65532"]
     restart: "no"
-    entrypoint: ["/bin/sh", "/docker-entrypoint-initdb.d/010-init-notary-postgresql.sh"]
-    environment:
-      <<: *postgres-environment
-      PGHOST: postgres
-      PGPASSWORD: ${SOLMARA_POSTGRES_PASSWORD}
-      PGSSLMODE: require
+    user: "0:0"
+    read_only: true
+    tmpfs: [/tmp]
+    network_mode: none
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: [no-new-privileges:true]
+    volumes: [sipf-relay-audit:/audit/sipf-relay, sipf-evidence-audit:/audit/sipf-evidence]
+
+  sipf-relay:
+    <<: *runtime
+    image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
+    command: [serve, --runtime, /etc/relay/sipf/runtime.yaml]
+    environment: {SOLMARA_RELAY_AUDIT_KEY: "${SIPF_RELAY_AUDIT_KEY:?required}", SOLMARA_RELAY_CURSOR_KEY: "${SIPF_RELAY_CURSOR_KEY:?required}"}
+    volumes: [sipf-relay-runtime:/etc/relay/sipf:ro, sipf-relay-source:/var/lib/relay/source:ro, sipf-relay-audit:/var/lib/relay/audit]
+    labels: {solmara.lab.host: sipf-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+
+  sipf-evidence:
+    <<: *runtime
+    image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
+    command: [--runtime, /etc/registry-evidence/sipf/runtime.yaml, serve]
+    volumes: [sipf-evidence-runtime:/etc/registry-evidence/sipf:ro, sipf-evidence-secrets:/run/secrets/registry-evidence/sipf:ro, sipf-evidence-transit:/run/registry-evidence/sipf:ro, sipf-evidence-audit:/var/lib/registry-evidence/sipf/audit]
+    networks: {runtime: {ipv4_address: 172.29.4.25}}
     depends_on:
-      postgres:
-        condition: service_healthy
-
-  sipf-workload-agent:
-    <<: *workload-agent-common
-    environment:
-      WORKLOAD_ISSUER: https://workload-issuer.solmara.registrystack.org
-      WORKLOAD_IDENTITIES_JSON: >-
-        [{"audience":"registry-relay","azp":"sipf-notary","subject":"sipf-notary","scopes":["registry:consult:sipf-pension-payment-review","registry:consult:sipf-survivor-benefit"],"token_file":"/run/secrets/sipf-notary-relay-token","private_jwk_env":"SIPF_RELAY_WORKLOAD_JWK"}]
-      SIPF_RELAY_WORKLOAD_JWK: ${SIPF_RELAY_WORKLOAD_JWK}
-    volumes:
-      - sipf-workload-token:/run/secrets
-
-  sipf-relay-config-state-init:
-    <<: *relay-config-state-init
-    command:
-      - |
-        /bin/busybox mkdir -p /var/lib/registry-relay/cache
-        /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache
-        if ! /bin/busybox test -e /var/lib/registry-relay/cache/config-bundle-antirollback.json; then
-          /bin/busybox cp /etc/solmara/hosted-relay-bundles/sipf-pensions/antirollback-seed.json /var/lib/registry-relay/cache/config-bundle-antirollback.json
-          /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache/config-bundle-antirollback.json
-          /bin/busybox chmod 0600 /var/lib/registry-relay/cache/config-bundle-antirollback.json
-        fi
-    volumes:
-      - sipf-relay-cache:/var/lib/registry-relay/cache
-
-  sipf-relay-consultation-config-state-init:
-    <<: *relay-config-state-init
-    command:
-      - |
-        /bin/busybox mkdir -p /var/lib/registry-relay/cache
-        /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache
-        if ! /bin/busybox test -e /var/lib/registry-relay/cache/config-bundle-antirollback.json; then
-          /bin/busybox cp /etc/solmara/hosted-relay-bundles/sipf-pensions/consultation/antirollback-seed.json /var/lib/registry-relay/cache/config-bundle-antirollback.json
-          /bin/busybox chown 65532:65532 /var/lib/registry-relay/cache/config-bundle-antirollback.json
-          /bin/busybox chmod 0600 /var/lib/registry-relay/cache/config-bundle-antirollback.json
-        fi
-    volumes:
-      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
-
-  sipf-relay-state-bootstrap:
-    <<: *relay-bootstrap-common
-    command: ["consultation", "bootstrap-state", "--config", "/etc/solmara/hosted-relay-bundles/sipf-pensions/consultation/bootstrap.yaml", "--migration-database-url-env", "REGISTRY_RELAY_STATE_MIGRATION_URL", "--owner-role", "solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_owner", "--keyring-maintenance-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL", "--keyring-reader-database-url-env", "REGISTRY_RELAY_STATE_KEYRING_READER_URL", "--active-key-id", "epoch-1", "--active-write-deadline-unix-ms", "${SOLMARA_RELAY_KEY_ACTIVE_WRITE_DEADLINE_UNIX_MS}", "--audit-event-retention-ms", "${SOLMARA_RELAY_AUDIT_EVENT_RETENTION_MS}"]
-    environment:
-      <<: *relay-environment
-      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
-      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
-      REGISTRY_RELAY_STATE_MIGRATION_URL: "postgresql://${SOLMARA_POSTGRES_USER:-solmara_registry}:${SOLMARA_POSTGRES_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
-      REGISTRY_RELAY_STATE_KEYRING_MAINTENANCE_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_keyring_maintenance:${SIPF_RELAY_POSTGRES_KEYRING_MAINTENANCE_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
-      REGISTRY_RELAY_STATE_KEYRING_READER_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_keyring_reader:${SIPF_RELAY_POSTGRES_KEYRING_READER_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
-      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
-    volumes:
-      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
-    depends_on:
-      sipf-relay-consultation-config-state-init:
-        condition: service_completed_successfully
-      registry-postgresql-bootstrap:
-        condition: service_completed_successfully
-
-  sipf-pensions-relay:
-    <<: *relay-common
-    command: ["--config", "/etc/solmara/hosted-relay-bundles/sipf-pensions/bootstrap.yaml"]
-    environment:
-      <<: *relay-environment
-      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
-      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
-      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
-    expose: ["8080"]
-    volumes:
-      - sipf-relay-cache:/var/lib/registry-relay/cache
-    depends_on:
-      sipf-relay-config-state-init:
-        condition: service_completed_successfully
-    labels:
-      solmara.lab.host: sipf-relay.solmara.registrystack.org
-
-  sipf-pensions-relay-consultation:
-    <<: *relay-common
-    command: ["--config", "/etc/solmara/hosted-relay-bundles/sipf-pensions/consultation/bootstrap.yaml", "--bind", "127.0.0.1:8080"]
-    environment:
-      <<: *relay-environment
-      REGISTRY_RELAY_BIND: 127.0.0.1:8080
-      REGISTRY_RELAY_AUDIT_HASH_SECRET: ${SIPF_RELAY_AUDIT_HASH_SECRET}
-      REGISTRY_RELAY_AUDIT_PSEUDONYM_EPOCH_1: ${SIPF_RELAY_AUDIT_PSEUDONYM_EPOCH_1}
-      REGISTRY_RELAY_CONSULTATION_DATABASE_URL: "postgresql://solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}_runtime:${SIPF_RELAY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_relay_sipf_consultation_${REGISTRY_RELAY_STATE_EPOCH:-v015}?sslmode=require"
-      SOLMARA_SIPF_DATABASE_URL: ${SOLMARA_SIPF_DATABASE_URL}
-      DATA_GATE_POSTGRES_ROOT_CERT_PATH: /etc/solmara/postgres/root.crt
-    expose: ["8081"]
-    volumes:
-      - sipf-relay-consultation-cache:/var/lib/registry-relay/cache
-    depends_on:
-      sipf-relay-state-bootstrap:
-        condition: service_completed_successfully
-      sipf-workload-agent:
-        condition: service_healthy
-
-  sipf-notary:
-    <<: *notary-common
-    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml"]
-    network_mode: service:sipf-pensions-relay-consultation
-    environment: &sipf-notary-environment
-      <<: *notary-environment
-      REGISTRY_NOTARY_AUDIT_HASH_SECRET: ${SIPF_NOTARY_AUDIT_HASH_SECRET}
-      REGISTRY_NOTARY_POSTGRES_URL: "postgresql://solmara_notary_sipf_runtime:${SIPF_NOTARY_POSTGRES_RUNTIME_PASSWORD}@postgres:5432/solmara_notary_sipf?sslmode=require"
-      SIPF_PENSION_CLIENT_TOKEN_HASH: ${SIPF_PENSION_CLIENT_TOKEN_HASH}
-      SIPF_NOTARY_ISSUER_JWK: ${SIPF_NOTARY_ISSUER_JWK}
-    volumes:
-      - sipf-workload-token:/run/secrets:ro
-    depends_on:
-      sipf-pensions-relay-consultation:
-        condition: service_healthy
-      sipf-notary-state-install:
-        condition: service_completed_successfully
-      sipf-workload-agent:
-        condition: service_healthy
-    labels:
-      solmara.lab.host: sipf-notary.solmara.registrystack.org
-
-  sipf-notary-state-install:
-    image: ${SOLMARA_NOTARY_IMAGE:?set digest-pinned Solmara notary image}
-    platform: ${REGISTRY_STACK_PLATFORM:-linux/amd64}
-    restart: "no"
-    command: ["--config", "/etc/solmara/registry-projects/hosted/sipf-pensions/notary/notary.yaml", "state", "install", "--migration-url-env", "REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL", "--owner-role", "solmara_notary_sipf_owner", "--runtime-role", "solmara_notary_sipf_runtime"]
-    environment:
-      <<: *sipf-notary-environment
-      REGISTRY_NOTARY_POSTGRES_MIGRATOR_URL: "postgresql://solmara_notary_sipf_migrator:${SIPF_NOTARY_POSTGRES_MIGRATOR_PASSWORD}@postgres:5432/solmara_notary_sipf?sslmode=require"
-    volumes:
-      - sipf-workload-token:/run/secrets:ro
-    depends_on:
-      registry-postgresql-bootstrap:
-        condition: service_completed_successfully
-      sipf-workload-agent:
-        condition: service_healthy
+      audit-permissions: {condition: service_completed_successfully}
+      sipf-relay: {condition: service_started}
+    labels: {solmara.lab.host: "${SOLMARA_SIPF_EVIDENCE_PUBLIC_HOST:-sipf-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
-  postgres-data:
-  sipf-relay-cache:
-  sipf-relay-consultation-cache:
-  sipf-workload-token:
+  sipf-relay-runtime: {external: true, name: solmara-authority-cells-sipf-relay-runtime}
+  sipf-relay-source: {external: true, name: solmara-authority-cells-sipf-relay-source}
+  sipf-relay-audit:
+  sipf-evidence-runtime: {external: true, name: solmara-authority-cells-sipf-evidence-runtime}
+  sipf-evidence-secrets: {external: true, name: solmara-authority-cells-sipf-evidence-secrets}
+  sipf-evidence-transit: {external: true, name: solmara-authority-cells-sipf-evidence-transit}
+  sipf-evidence-audit:
+  superseded-state: {external: true, name: "${SOLMARA_SUPERSEDED_PENSIONS_VOLUME:-solmara-lab-pensions-state}"}
+
+networks:
+  runtime:
+    ipam:
+      config: [{subnet: 172.29.4.0/24}]

@@ -1,0 +1,52 @@
+version: 1
+assuranceProfile: production
+service: { providerId: https://id.registrystack.org/solmara/evidence/sro, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
+issuer: { id: did:web:id.registrystack.org:solmara:authority:sro }
+authentication: { kind: oidc-access-token, issuer: https://mint.solmara.registrystack.org, audiences: [solmara-runtime], tokenTypes: [at+jwt], algorithms: [ES256], jwksUri: https://mint.solmara.registrystack.org/.well-known/jwks.json, principalClaim: sub, requesterTagsClaim: evidence_tags, evidenceAudienceClaim: evidence_audience, grantIdClaim: evidence_grant_id, grantAuthorityClaim: evidence_authority, maximumTokenLifetimeSeconds: 300, revokedKeyIds: [] }
+audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
+subjectBinding: { secretRef: secret:file/subject-binding-hmac-key, keyVersion: 1 }
+rateLimits: { requestsPerPrincipalPerMinute: 60, burstPerPrincipal: 10, failedSelectorAttemptsPerPrincipalAuthorityPerMinute: 10 }
+signing: { format: flattened-jws-json, algorithm: ES256, activePublicJwkFile: public-keys/sro.jwk.json, publishedPublicJwkFiles: [], revokedKeyIds: [], jwksPath: /.well-known/evidence/jwks.json, maximumAssertionValiditySeconds: 3600, verifierClockSkewSeconds: 30 }
+responseFormats: [signed-jws]
+selectorProfiles:
+  solmara-uin-v1: { maximumAggregateBytes: 16, fields: { uin: { type: string, minimumBytes: 10, maximumBytes: 10 } } }
+sources:
+  poverty-extract:
+    transport: sqlite-extract
+    extractProfile: sro-poverty-extract
+    posture: source-derived
+    maximumExtractAgeSeconds: 86400
+    request:
+      statement: queries/poverty-evidence.sql
+      columns: [{ name: uin, type: string }, { name: poverty_band, type: string }]
+      selectorInputs: [{ role: subject, alternatives: [{ profile: solmara-uin-v1, fields: [uin] }] }]
+      parameterBindings: { uin: { kind: selector, role: subject, profile: solmara-uin-v1, field: uin } }
+      projection: [/rows/*/uin, /rows/*/poverty_band]
+      maximumRows: 2
+      maximumCellBytes: 128
+      maximumStatementSteps: 100000
+      timeoutMilliseconds: 2000
+      maximumResponseBytes: 8192
+      concurrencyLimit: 8
+    responseSchema: schemas/poverty-response.schema.yaml
+    extractScript: adapters/sqlite-extract.rhai
+    factSchema: schemas/poverty-facts.schema.yaml
+authorityProfiles:
+  sro-consumers-v1:
+    kind: statutory
+    requesterTags: [solmara-demo]
+    grants: [{ requirement: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1, purpose: child-benefit-review, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }] }]
+requirements:
+  - id: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
+    kind: information-requirement
+    acquisition: { kind: single, source: poverty-extract }
+    purposes: [child-benefit-review]
+    subjectRoles: [{ role: subject, cardinality: one, selectorProfiles: [solmara-uin-v1] }]
+    referenceFrameworks: [https://id.registrystack.org/solmara/framework/child-benefit/v1]
+    evidenceType: https://id.registrystack.org/solmara/evidence-type/poverty-priority/v1
+    validitySeconds: 3600
+    derivation: { script: derivations/poverty-priority.rhai, parameters: {} }
+    concepts: [{ id: https://id.registrystack.org/solmara/concept/household-below-poverty-threshold, form: boolean, required: true, constraints: {} }]
+    fixtures: fixtures/child-benefit.yaml
+    disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sro-child-benefit] }
+    existenceDisclosure: collapse-unresolved

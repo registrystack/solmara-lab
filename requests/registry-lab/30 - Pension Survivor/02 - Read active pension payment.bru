@@ -1,36 +1,31 @@
 meta {
-  name: 02 - Read SIPF payment predicate
+  name: 02 - Request SIPF payment assertion
   type: http
   seq: 2
 }
 
 post {
-  url: {{sipf_notary_url}}/v1/evaluations
+  url: {{sipf_evidence_url}}/v1/evidence
   body: json
   auth: none
 }
 
 headers {
-  x-api-key: {{SIPF_PENSION_CLIENT_TOKEN}}
-  Data-Purpose: {{pension_payment_purpose}}
-  Accept: application/vnd.registry-notary.claim-result+json
+  Authorization: Bearer {{EVIDENCE_ACCESS_TOKEN}}
+  Accept: application/jose+json
 }
 
 body:json {
   {
-    "target": {
-      "type": "Person",
-      "identifiers": [
-        {
-          "scheme": "solmara_uin",
-          "value": "2300109568"
-        }
-      ]
-    },
-    "claims": [
-      "pension-payment-active"
-    ],
-    "disclosure": "predicate",
-    "format": "application/vnd.registry-notary.claim-result+json"
+    "requestNonce": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "requirement": "https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1",
+    "purpose": "pension-payment-review",
+    "subjects": [{
+      "role": "subject",
+      "selector": {
+        "profile": "solmara-uin-v1",
+        "values": {"uin": "2300109568"}
+      }
+    }]
   }
 }

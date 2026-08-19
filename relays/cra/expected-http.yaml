@@ -1,0 +1,42 @@
+schemaVersion: relay.registrystack.org/http-journey/v1alpha1
+registry: https://id.registrystack.org/solmara/registry/cra
+authorizations:
+  death-ok: {principal: cra-pension-evidence, scopes: [solmara:relay:cra:death-by-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review"}}
+  death-wrong-scope: {principal: cra-pension-evidence, scopes: [solmara:relay:cra:citizen-link-by-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review"}}
+  death-wrong-purpose: {principal: cra-pension-evidence, scopes: [solmara:relay:cra:death-by-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/citizen-self-service"}}
+  citizen-ok: {principal: cra-citizen-evidence, scopes: [solmara:relay:cra:citizen-link-by-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/citizen-self-service"}}
+  citizen-wrong-scope: {principal: cra-citizen-evidence, scopes: [solmara:relay:cra:death-by-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/citizen-self-service"}}
+  citizen-wrong-purpose: {principal: cra-citizen-evidence, scopes: [solmara:relay:cra:citizen-link-by-uin], claims: {purpose: "https://id.registrystack.org/solmara/purpose/pension-payment-review"}}
+steps:
+  - {id: ready, request: {method: GET, path: /ready}, expect: {status: 200}}
+  - id: death-success
+    authorizationFixture: death-ok
+    request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: "2300109568"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [deceased], domainDataValues: {deceased: true}, absentEverywhere: [birthDateInternal, birthRegistrationNumberInternal, birth_date, birth_brn, linkedUin]}
+  - id: death-living-success
+    authorizationFixture: death-ok
+    request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: "2300010248"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [deceased], domainDataValues: {deceased: false}, absentEverywhere: [birthDateInternal, birthRegistrationNumberInternal, birth_date, birth_brn, linkedUin]}
+  - id: death-fields-minimum
+    authorizationFixture: death-ok
+    request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, query: {fields: deceased}, body: {uin: "2300109568"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [deceased], absentEverywhere: [linkedUin, birthDateInternal, birthRegistrationNumberInternal]}
+  - {id: death-wrong-scope, authorizationFixture: death-wrong-scope, request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: "2300109568"}}, expect: {status: 404, code: resource.not_found}}
+  - {id: death-wrong-purpose, authorizationFixture: death-wrong-purpose, request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: "2300109568"}}, expect: {status: 403, code: consultation.denied}}
+  - {id: death-malformed-selector, authorizationFixture: death-ok, request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: short}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: death-no-match, authorizationFixture: death-ok, request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: "2399999999"}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: death-invalid-row, authorizationFixture: death-ok, request: {method: POST, path: /v2/resources/civil-person/lookups/death-by-uin, body: {uin: "2300999999"}}, expect: {status: 503, code: source.unavailable}}
+  - id: citizen-success
+    authorizationFixture: citizen-ok
+    request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, body: {uin: "2300010248"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [linkedUin], domainDataValues: {linkedUin: "2300010248"}, absentEverywhere: [deceased, birthDateInternal, birthRegistrationNumberInternal, birth_date, birth_brn]}
+  - id: citizen-fields-minimum
+    authorizationFixture: citizen-ok
+    request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, query: {fields: linkedUin}, body: {uin: "2300010248"}}
+    expect: {status: 200, registryCoreRequired: true, domainDataKeys: [linkedUin], absentEverywhere: [deceased, birthDateInternal, birthRegistrationNumberInternal]}
+  - {id: citizen-wrong-scope, authorizationFixture: citizen-wrong-scope, request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, body: {uin: "2300010248"}}, expect: {status: 404, code: resource.not_found}}
+  - {id: citizen-wrong-purpose, authorizationFixture: citizen-wrong-purpose, request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, body: {uin: "2300010248"}}, expect: {status: 403, code: consultation.denied}}
+  - {id: citizen-malformed-selector, authorizationFixture: citizen-ok, request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, body: {uin: short}}, expect: {status: 400, code: consultation.invalid_request}}
+  - {id: citizen-no-match, authorizationFixture: citizen-ok, request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, body: {uin: "2399999999"}}, expect: {status: 404, code: consultation.unresolved, equivalenceClass: unresolved}}
+  - {id: citizen-invalid-row, authorizationFixture: citizen-ok, request: {method: POST, path: /v2/resources/civil-person/lookups/citizen-link-by-uin, body: {uin: "2300999999"}}, expect: {status: 503, code: source.unavailable}}
+  - {id: no-list-route, authorizationFixture: citizen-ok, request: {method: GET, path: /v2/resources/civil-person/records}, expect: {status: 404, routeAbsent: true}}

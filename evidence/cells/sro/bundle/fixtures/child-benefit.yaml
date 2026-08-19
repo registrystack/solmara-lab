@@ -1,0 +1,42 @@
+fixture: registry.evidence.reference.solmara.sro-child-benefit/v1
+synthetic_only: true
+common:
+  observed_at: '2026-07-14T00:00:00Z'
+  selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000006' } } }
+  derivationSelectorInputs: {}
+  extract: |
+    CREATE TABLE evidence_extract (published_at TEXT NOT NULL, publisher TEXT NOT NULL, extract_id TEXT NOT NULL);
+    INSERT INTO evidence_extract VALUES ('2026-07-14T00:00:00Z', 'did:web:id.registrystack.org:solmara:authority:sro', 'sro-poverty-2026-07-14');
+    CREATE TABLE poverty_evidence (uin TEXT NOT NULL, poverty_band TEXT NOT NULL);
+    INSERT INTO poverty_evidence VALUES ('1000000006', 'priority');
+    INSERT INTO poverty_evidence VALUES ('1000000016', 'standard');
+    INSERT INTO poverty_evidence VALUES ('1000000026', 'priority');
+    INSERT INTO poverty_evidence VALUES ('1000000026', 'standard');
+  expectedRequestParts: { parameters: {} }
+  expectedTransport: { statement: queries/poverty-evidence.sql }
+cases:
+  - id: positive
+    selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000006' } } }
+    expected: { lookup: match, derivationRuns: true, signed: true, facts: { uin: '1000000006', poverty_band: priority }, value: true }
+  - id: negative-standard-band
+    selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000016' } } }
+    expected: { lookup: match, derivationRuns: true, signed: true, value: false }
+  - id: boundary-priority-band
+    selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000006' } } }
+    expected: { lookup: match, derivationRuns: true, signed: true, value: true }
+  - id: missing-record
+    selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000098' } } }
+    expected: { lookup: no_match, publicProblem: evidence.unavailable, derivationRuns: false, signed: false }
+  - id: no-match
+    selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000099' } } }
+    expected: { lookup: no_match, publicProblem: evidence.unavailable, derivationRuns: false, signed: false }
+  - id: ambiguous-duplicate
+    selectors: { subject: { profile: solmara-uin-v1, values: { uin: '1000000026' } } }
+    expected: { lookup: ambiguous, publicProblem: evidence.unavailable, derivationRuns: false, signed: false }
+  - id: source-failure
+    sourceFailure: timeout
+    expected: { publicProblem: source.unavailable, signed: false }
+  - id: anti-reconstruction
+    bundleMutation: duplicate-disclosure-family
+    expected: { bundle: rejected }
+privacyExpectation: { evidenceContains: [https://id.registrystack.org/solmara/concept/household-below-poverty-threshold], evidenceExcludes: [uin, poverty_band], diagnosticsExclude: ['1000000006'] }

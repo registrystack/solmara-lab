@@ -1,181 +1,113 @@
-// Canned ProofTrace[] for the proof gallery demo and unit tests.
-// Every ProofStatus and depth shape is represented.
 import type { ProofTrace } from '$lib/types';
 
 export const CANNED_TRACES: ProofTrace[] = [
-  // 1. In-flight (skeleton at top)
   {
     id: 'event-1',
     seq: 1,
     fieldId: 'farmer-registered',
     authority: 'agri',
-    headline: 'Checking NAgDI for farmer-registered status...',
-    answered: 'Agriculture answered: farmer-registered = (pending)',
-    notDisclosed: 'Only the yes/no result is checked, no farm details',
+    headline: 'Checking NAgDI for farmer registration status...',
+    answered: 'National Agricultural Data Institute response is pending',
+    notDisclosed: 'Only the reviewed answer is requested, no farm details',
     status: 'in_flight',
     ts: '2026-06-21T12:04:05.000Z',
-    request: {
-      method: 'POST',
-      url: 'https://nagdi-notary.solmara.example/v1/evaluations',
-      body: {
-        claim: 'farmer-registered',
-        purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-        relationship: 'self'
+    purpose: 'voucher-eligibility-review',
+    resultState: 'in_flight',
+    presentations: [
+      {
+        authority: 'National Agricultural Data Institute',
+        issuer: 'did:web:id.registrystack.org:solmara:authority:nagdi',
+        serviceId: 'nagdi-evidence',
+        source: 'Relay lookup'
       }
-    }
+    ]
   },
-
-  // 2. Verified (farmer registration)
   {
     id: 'event-2',
     seq: 2,
     fieldId: 'farmer-registered',
     authority: 'agri',
-    headline:
-      'Confirmed by NAgDI: Amina did not have to prove this herself',
-    answered: 'Agriculture answered: farmer-registered = true',
-    notDisclosed: 'Only the yes/no, no farm details or parcel coordinates',
+    headline: 'Confirmed by NAgDI: the applicant did not have to prove this herself',
+    answered: 'National Agricultural Data Institute answered: farmer-registered = true',
+    notDisclosed: 'Only the yes/no answer, no farm details or parcel coordinates',
     status: 'ok',
     ts: '2026-06-21T12:04:09.000Z',
-    request: {
-      method: 'POST',
-      url: 'https://nagdi-notary.solmara.example/v1/evaluations',
-      body: {
-        claim: 'farmer-registered',
-        purpose: 'https://id.registrystack.org/solmara/purpose/voucher-eligibility-review',
-        relationship: 'self'
+    purpose: 'voucher-eligibility-review',
+    resultState: 'verified',
+    responseStatus: 200,
+    presentations: [
+      {
+        authority: 'National Agricultural Data Institute',
+        issuer: 'did:web:id.registrystack.org:solmara:authority:nagdi',
+        serviceId: 'nagdi-evidence',
+        source: 'Relay lookup'
       }
-    },
-    response: {
-      status: 200,
-      body: {
-        registered: true,
-        source_authority: 'Agriculture',
-        as_of: '2026-05-01'
-      }
-    },
+    ],
     proof: {
-      signedBy: 'No credential issued; National Agricultural Data Institute returned a claim evaluation',
-      algorithm: 'Registry Notary claim-result response; no credential signature asserted',
-      issuerKey: 'Not applicable for claim-result evaluation',
-      holderBound: 'Not credential-bound; the portal selected the purpose and subject',
-      credential: 'Claim result only; no credential issued',
-      auditId: 'Not available in this canned gallery trace'
+      signedBy: 'National Agricultural Data Institute issued the returned Evidence',
+      algorithm: 'Verified Evidence assertion',
+      issuerKey: 'Authority Evidence JWKS',
+      holderBound: 'Audience-scoped to the portal request',
+      credential: 'Minimum-disclosure Evidence assertion'
     }
   },
-
-  // 3. Fetched (household composition)
   {
     id: 'event-3',
     seq: 3,
     fieldId: 'household-below-poverty-threshold',
     authority: 'socialRegistry',
-    headline:
-      'Verified by Social Protection: household is below the programme threshold',
-    answered: 'Social answered: household-below-poverty-threshold = true',
+    headline: 'The household is below the reviewed programme threshold',
+    answered: 'Social Registry Office answered: household-below-poverty-threshold = true',
     notDisclosed: 'Predicate only, not poverty score or household roster',
     status: 'ok',
     ts: '2026-06-21T12:04:12.000Z',
-    request: {
-      method: 'POST',
-      url: 'https://sro-notary.solmara.example/v1/evaluations',
-      body: {
-        claim: 'household-below-poverty-threshold',
-        purpose: 'https://id.registrystack.org/solmara/purpose/child-benefit-review',
-        relationship: 'self'
+    purpose: 'child-benefit-review',
+    resultState: 'verified',
+    responseStatus: 200,
+    presentations: [
+      {
+        authority: 'Social Registry Office',
+        issuer: 'did:web:id.registrystack.org:solmara:authority:sro',
+        serviceId: 'sro-evidence',
+        source: 'immutable extract'
       }
-    },
-    response: {
-      status: 200,
-      body: {
-        satisfied: true,
-        source_authority: 'Social Registry Office',
-        as_of: '2026-04-15'
-      }
-    },
+    ],
     proof: {
-      signedBy: 'Social Registry Office source-owned Notary',
-      algorithm: 'Authenticated claim-result evaluation; no credential signature asserted',
-      issuerKey: 'Not applicable for claim-result evaluation',
-      holderBound: 'Portal-selected purpose and subject',
-      credential: 'Minimized predicate claim result',
-      auditId: 'Not available in this canned gallery trace'
+      signedBy: 'Social Registry Office issued the returned Evidence',
+      algorithm: 'Verified Evidence assertion',
+      issuerKey: 'Authority Evidence JWKS',
+      holderBound: 'Audience-scoped to the portal request',
+      credential: 'Minimum-disclosure Evidence assertion'
     }
   },
-
-  // 4. Denial (cross-person attempt)
   {
     id: 'event-4',
     seq: 4,
     fieldId: 'person-is-deceased',
-    authority: 'civil',
-    headline:
-      'Denied by Civil Registry: subject mismatch, no data read for 2300073046',
-    answered: 'Civil answered: person-is-deceased = denied (subject_mismatch)',
-    notDisclosed:
-      'No data was read; the query was rejected before any registry access',
+    headline: 'Denied by the portal: request was not authorized, no data read',
+    answered: 'Portal authorization gate returned 403 not_authorized',
+    notDisclosed: 'No source was contacted',
     status: 'denied',
     ts: '2026-06-21T12:04:15.000Z',
-    request: {
-      method: 'POST',
-      url: 'https://cra-notary.solmara.example/v1/evaluations',
-      body: {
-        claim: 'person-is-deceased',
-        purpose: 'https://id.registrystack.org/solmara/purpose/pension-payment-review',
-        relationship: 'self'
-      }
-    },
-    response: {
-      status: 403,
-      body: {
-        error: 'subject_mismatch',
-        source_authority: 'Civil Registry',
-        message: 'Token subject does not match requested target'
-      }
-    }
+    purpose: 'pension-payment-review',
+    resultState: 'error',
+    responseStatus: 403,
+    presentations: []
   },
-
-  // 5. Identity-binding (pinned to bottom as the foundation)
   {
     id: 'event-0',
     seq: 0,
     fieldId: 'identity',
-    authority: 'civil',
-    headline:
-      'Identity bound via eSignet: session linked to 2300018263 (Elena Dela Cruz)',
-    answered: 'Civil answered: identity = bound (eSignet UserInfo)',
-    notDisclosed:
-      'Only name and national ID were shared; no other civil facts disclosed',
+    headline: 'Identity bound through eSignet',
+    answered: 'eSignet bound the signed-in portal session',
+    notDisclosed: 'No additional identity attributes were shared',
     status: 'ok',
     ts: '2026-06-21T12:03:58.000Z',
-    request: {
-      method: 'POST',
-      url: 'https://esignet.solmara.example/v1/userinfo',
-      body: {
-        claim: 'identity',
-        purpose: 'session_binding',
-        relationship: 'self'
-      }
-    },
-    response: {
-      status: 200,
-      body: {
-        sub: '2300018263',
-        name: 'Elena Dela Cruz',
-        source_authority: 'Civil Registry via eSignet',
-        as_of: '2026-06-21'
-      }
-    },
-    proof: {
-      signedBy: 'No credential issued; eSignet UserInfo bound the portal session',
-      algorithm: 'OIDC UserInfo response; no credential signature asserted',
-      issuerKey: 'Not applicable for UserInfo',
-      holderBound: 'Portal session bound to the configured UserInfo subject claim',
-      credential: 'OIDC session identity, not a verifiable credential',
-      auditId: 'session-binding:event-0'
-    }
+    purpose: 'session-binding',
+    resultState: 'prefilled',
+    responseStatus: 200,
+    presentations: []
   }
 ];
 
-// The identity-binding entry is always pinned to the bottom.
 export const IDENTITY_TRACE_ID = 'event-0';

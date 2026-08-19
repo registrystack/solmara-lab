@@ -1,192 +1,129 @@
-set dotenv-load := true
-set positional-arguments := true
+set dotenv-load
+set positional-arguments
 
 compose_project_name := `python3 scripts/compose_project_name.py`
 
 default:
     @just --list
 
-# Install local development dependencies when subprojects define them.
 setup:
-    @if [ -f pyproject.toml ]; then uv sync; fi
-    @if [ -f generator/pyproject.toml ]; then cd generator && uv sync; fi
-    @if [ -f portal/package.json ]; then cd portal && pnpm install --frozen-lockfile; fi
-    @if [ -f home/package.json ]; then cd home && pnpm install --frozen-lockfile; fi
+    uv sync
+    cd generator && uv sync
+    cd portal && pnpm install --frozen-lockfile
+    cd home && pnpm install --frozen-lockfile
 
-# Generate deterministic fixtures and local secrets.
+# Generate deterministic fixtures plus ignored operator/runtime material.
 generate:
-    @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m solmara_lab.generate; else echo "generator/pyproject.toml missing"; exit 1; fi
-    scripts/gen-secrets.py
+    cd generator && uv run python -m solmara_lab.generate
+    uv run scripts/gen-secrets.py
+    @if test -d runtime/evidence-cells; then chmod -R u+w runtime/evidence-cells && rm -rf -- runtime/evidence-cells; fi
+    uv run python evidence/scripts/build-cells.py --private-key-root config/evidence/local/cells --output runtime/evidence-cells
+    uv run python scripts/project-runtime-secrets.py
+    uv run scripts/check-signer-public-keys.py
 
-# Generate a clean checkout, verify compiler output, and start the local topology.
-up-generated:
-    just generate
-    just registry-projects-runtime-check
-    just up
+build-runtime-images:
+    scripts/build-registry-stack-runtime.sh
 
-# Validate every authority-owned Registry project in both deployment profiles.
-registry-projects-check:
-    scripts/registry-projects.sh check
+# Compile production Relay packages and publish deterministic SQLite sources.
+prepare-runtime: build-runtime-images
+    uv run scripts/check-signer-public-keys.py
+    scripts/prepare-authority-runtime.sh
 
-# Print the complete redacted acquisition and disclosure plan for every authority.
-registry-projects-review:
-    scripts/registry-projects.sh review
+prepare: generate prepare-runtime
 
-# Inspect compiled, declared, enabled, used, and missing capabilities.
-registry-projects-capabilities:
-    scripts/registry-projects.sh capabilities
-
-# Install or refresh version-matched VS Code and Zed schema mappings.
-registry-projects-editor:
-    scripts/registry-projects.sh editor
-
-# Run every synthetic authority integration fixture offline.
-registry-projects-test:
-    scripts/registry-projects.sh test
-
-# Build private Relay and Notary inputs for every authority-owned project.
-registry-projects-build environment="local":
-    scripts/registry-projects.sh build {{environment}}
-
-# Refresh the committed runtime closure from all authored authority projects.
-registry-projects-sync:
-    scripts/registry-projects.sh sync-runtime
-
-# Prove the committed runtime closure matches the authored authority projects.
-registry-projects-runtime-check:
-    scripts/registry-projects.sh check-runtime
-
-# Verify signed hosted Relay closures against their public trust anchors.
-hosted-relay-bundles-check:
-    uv run --locked scripts/check-hosted-relay-bundles.py
-
-# Exercise one complete compiler-generated SRO blue-green release transition.
-contract-generation-proof:
-    uv run --locked scripts/contract-generation-proof.py
-
-# Generate only local secrets.
-gen-secrets:
-    scripts/gen-secrets.py
-
-# Publish the static metadata bundle served by static-metadata.
 metadata-publish:
-    @if command -v registry-manifest-cli >/dev/null 2>&1; then registry-manifest-cli publish metadata/solmara-wave1.metadata.yaml --out metadata/public/metadata --site-root metadata/public; fi
     uv run scripts/publish-metadata.py
 
-# Check that the committed static metadata bundle is up to date.
 metadata-publish-check:
     uv run scripts/publish-metadata.py --check
 
-# Lint the published metadata bundle.
-metadata-lint:
-    uv run scripts/metadata-lint.py
-
-# Static repository checks.
 lint:
+    uvx ruff check --select E4,E7,E9,F --exclude vendor .
     scripts/check-fiction.sh
-    scripts/check-image-pins.py
     scripts/check-config-secrets.py
-    just hosted-relay-bundles-check
+    scripts/check-image-pins.py
+    scripts/hosted-image-manifest.py inventory
+    scripts/check-runtime-topology.py
+    scripts/check-registry-stack-release-pin.py
+    uv run scripts/check-signer-public-keys.py
     just metadata-publish-check
-    just metadata-lint
-    @if [ -f portal/package.json ]; then cd portal && pnpm check; fi
-    @if [ -f home/package.json ]; then cd home && pnpm check; fi
+    uv run scripts/metadata-lint.py
+    cd portal && pnpm check
+    cd home && pnpm check
 
-# Unit and integration tests that can run without a full Compose stack.
 test:
-    @if [ -f generator/pyproject.toml ]; then cd generator && uv run python -m unittest discover -s tests; fi
-    uv run python3 -m unittest discover -s scenario-runner -p 'test_*.py'
-    @if [ -f portal/package.json ]; then cd portal && pnpm test; fi
-    @if [ -f home/package.json ]; then cd home && pnpm test; fi
-    uv run python3 -m unittest discover -s scripts -p 'test_*.py'
+    cd generator && uv run python -m unittest discover -s tests
+    uv run python -m unittest discover -s scenario-runner -p 'test_*.py'
+    uv run python -m unittest relays/test_relay_projects.py evidence/tests/test_cells.py scripts/test_metadata_authority_contracts.py scripts/test_image_pins.py scripts/test_build_registry_stack_runtime.py scripts/test_hosted_image_manifest.py scripts/test_hosted_provisioning_topology.py scripts/test_hosted_network_isolation.py scripts/test_hosted_home_topology.py scripts/test_hosted_esignet_topology.py scripts/test_hosted_evidence_routes.py scripts/test_hosted_runtime_assets.py scripts/test_provision_hosted_runtime.py scripts/test_hosted_transit_signer.py scripts/test_smoke_hosted_provisioner_image.py scripts/test_runtime_topology.py scripts/test_registry_stack_release_pin.py scripts/test_hosted_authority_rollout.py scripts/test_local_relay_runtime_stager.py scripts/test_local_transit_proxy.py scripts/test_local_transit_signers.py scripts/test_local_transit_providers.py scripts/test_signer_public_keys.py scripts/test_project_runtime_secrets.py scripts/test_gen_secrets.py scripts/test_publish_runtime_extracts.py scripts/test_lifecycle_proof.py scripts/test_live_lifecycle_proof.py scripts/test_local_relay_source_publisher.py scripts/test_smoke_programme_acceptance.py scripts/test_smoke_esignet.py
+    cd portal && pnpm test
+    cd home && pnpm test
 
-# Validate Compose files without starting services.
+# Validate local, hosted, eSignet, and every Coolify topology without starting it.
 compose:
-    @if [ ! -f .env ]; then echo ".env is missing; run 'just gen-secrets' first" >&2; exit 1; fi
-    @if [ -f compose.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null; fi
-    @if [ -f compose.hosted.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.hosted.yaml config >/dev/null; fi
-    @if [ -f compose.esignet.yaml ]; then COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml config >/dev/null; fi
-    scripts/check-coolify-compose.sh
+    @test -f .env || { echo ".env is missing; run just gen-secrets" >&2; exit 1; }
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml config >/dev/null
+    @scripts/check-hosted-compose.sh
+    @scripts/check-coolify-compose.sh
 
-# Start the local topology.
-up:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
+# Verify that every Registry Stack v0.22.0 release reference is public and immutable.
+hosted-pin-check: build-runtime-images
+    scripts/check-image-pins.py
+    scripts/check-registry-stack-release-pin.py --require-public
 
-# Build Registry Relay from the pinned source for explicit local development.
-up-dev:
-    scripts/build-relay-runtime.sh
-    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_DEV_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml up -d --build
+# Run all four relayctl production gates against the five authored projects.
+relay-check: build-runtime-images
+    scripts/check-relay-projects.sh
 
-# Stop the local topology without removing local volumes.
+# Check the six running Evidence deployments and all eleven authored fixtures.
+evidence-check:
+    scripts/check-evidence-cells.sh
+
+signers-up:
+    uv run scripts/local-transit-signers.py up
+    scripts/check-local-transit-providers.py
+
+signers-down:
+    uv run scripts/local-transit-signers.py down
+
+up: prepare
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml up -d --build --force-recreate
+
+up-esignet: prepare
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml up -d --build --force-recreate
+
 down:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml down
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml down
+    just signers-down
 
-# Start the local topology with eSignet-backed portal login.
-up-esignet:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
-
-# Build Registry Relay from the pinned source for explicit local eSignet development.
-up-esignet-dev:
-    scripts/build-relay-runtime.sh
-    @set -a; . ./versions.env; set +a; env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; REGISTRY_RELAY_IMAGE="$SOLMARA_RELAY_DEV_IMAGE" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml up -d --build
-
-# Stop the local eSignet topology without removing local volumes.
 down-esignet:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml down
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml down
+    just signers-down
 
-# Stop the local topology and remove this checkout's local volumes.
+# Destructive reset is intentionally local-only. Hosted rollout never deletes volumes.
 reset:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml down -v
+    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml down -v
 
-# Stop the local eSignet topology and remove this checkout's local eSignet volumes.
-reset-esignet:
-    @env_args="--env-file versions.env"; if [ -f .env ]; then env_args="$env_args --env-file .env"; fi; COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{compose_project_name}}}" docker compose $env_args -f compose.yaml -f compose.esignet.yaml down -v
+rollout phase:
+    scripts/hosted-authority-rollout.py {{ phase }}
 
-# Run story and authority-application smokes against the running local topology.
 smoke:
     scripts/smoke.sh
 
-# Run only live HTTP checks against the running local topology.
-smoke-live:
-    uv run --locked scripts/smoke-live.py
+smoke-esignet:
+    @uv run scripts/smoke-esignet.py >/dev/null && node scripts/smoke-esignet-login.mjs || { echo "smoke-esignet: FAIL"; exit 1; }
 
-# Prove all six Notary databases survive exact `just down` / `just up` recreation.
-notary-state-restart-proof:
-    uv run --locked scripts/notary_state_restart.py
+programme-acceptance:
+    @COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml exec -T scenario-runner python - < scripts/smoke-programme-acceptance.py 2>/dev/null || { echo "programme-acceptance: FAIL scenario-runner-execution"; exit 1; }
 
-# Smoke eSignet discovery; portal login proves the NIA attribute-release path end to end.
-smoke-esignet *args:
-    uv run scripts/smoke-esignet.py {{args}}
+lifecycle-proof:
+    uv run scripts/live-lifecycle-proof.py
 
-# Probe Relay source endpoints used by live Notary smoke.
-relay-source-smoke:
-    scripts/smoke-relay-sources.py
+lifecycle-fixture-proof:
+    uv run scripts/lifecycle_proof.py
 
-# Smoke the Compose portal service and live BFF wiring.
-portal-compose-smoke:
-    scripts/smoke-portal-compose.py
-
-# Run browser e2e against the live local topology.
 portal-live-e2e:
-    @cd portal && PORT="${PORT:-4001}" PORTAL_PROVIDER=live pnpm e2e
+    cd portal && SOLMARA_PORTAL_E2E_MODE=hosted PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}" pnpm e2e
 
-# Run browser e2e against the Visitor's Center.
 home-live-e2e:
-    @cd home && SOLMARA_HOME_E2E_MODE=live PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_HOME_PORT:-4301}" pnpm e2e
-
-# Run public hosted health, endpoint, scenario, and portal smoke checks.
-hosted-smoke *args:
-    uv run scripts/smoke-hosted.py {{args}}
-
-# Verify committed Registry Stack release inputs match a candidate or release tag.
-release-pins tag:
-    scripts/check-release-pins.py "$1"
-
-# Run release-readiness and security-oriented checks.
-review:
-    scripts/review.sh
-
-# Run release review against an explicit Registry Stack candidate or release tag.
-review-release tag:
-    scripts/check-release-pins.py "$1"
-    scripts/review.sh
+    cd home && SOLMARA_HOME_E2E_MODE=live PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_HOME_PORT:-4301}" pnpm e2e

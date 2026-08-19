@@ -35,7 +35,7 @@
       {connected ? 'Simulate: disconnect' : 'Simulate: reconnect'}
     </button>
     <span class="control-hint">
-      (Disconnected state shows the "reconnecting to audit feed" pill)
+      (Disconnected state shows the "reconnecting to proof feed" pill)
     </span>
   </div>
 
@@ -63,7 +63,7 @@
         </li>
         <li>
           <span class="legend-badge denied">denied</span>
-          event-4: denied (Civil, subject_mismatch - cross-person attempt)
+          event-4: denied (Civil, not_authorized - cross-person attempt)
         </li>
         <li>
           <span class="legend-badge identity">identity</span>
@@ -79,7 +79,7 @@
   </div>
 
   <!-- Proof ticker: full-width, always present -->
-  <section class="ticker-section" aria-label="Proof audit ticker">
+  <section class="ticker-section" aria-label="Proof ticker">
     <h2 class="ticker-label">Proof ticker (always present, ARIA live-region)</h2>
     <ProofTicker {traces} />
   </section>

@@ -1,0 +1,4 @@
+id: sipf-record-lifecycle
+version: "1"
+status: reviewed
+values: [active, in_payment, pending_proof_of_life]

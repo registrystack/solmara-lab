@@ -1,0 +1,20 @@
+meta {
+  name: 03 - MoSD enrolment lookup
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{mosd_relay_url}}/v2/resources/beneficiary-enrolment/lookups/by-uin?fields=duplicateEnrolment
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{MOSD_CHILD_BENEFIT_RELAY_TOKEN}}
+  Accept: application/json
+}
+
+body:json {
+  {"selectors":{"uin":"2300010248"}}
+}
