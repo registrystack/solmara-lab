@@ -130,7 +130,7 @@ class HostedImageManifestTests(unittest.TestCase):
 
     def test_relay_must_use_the_canonical_official_reference(self) -> None:
         invalid = (
-            "ghcr.io/registrystack/relay:v0.21.0",
+            "ghcr.io/registrystack/relay:v0.22.0",
             f"ghcr.io/registrystack/solmara-lab-relay@sha256:{'1' * 64}",
             f"ghcr.io/registrystack/relay@sha256:{'A' * 64}",
         )

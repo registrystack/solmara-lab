@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 HTTPS = re.compile(r"^https://[^\s]+$")
-REQUIRED_VERSION = "0.21.0"
+REQUIRED_VERSION = "0.22.0"
 
 
 def read_versions(path: Path) -> dict[str, str]:

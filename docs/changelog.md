@@ -3,6 +3,17 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-19 Registry Stack v0.22.0
+
+Solmara pins Registry Stack v0.22.0 across `versions.env`, the release-pin
+gate, and the home release-identity surface. The Relay, Evidence, and Mint OCI
+references move to the v0.22.0 digests, and the Relayctl authoring helper is
+built from the v0.22.0 `linux-amd64` release asset and its checksum. The
+topology is unchanged; v0.22.0 adds a container runtime deployment preflight,
+a strict Mint readiness probe, Mint support for compatible OAuth clients,
+eager validation of Evidence trusted public keys, and root-owned Relay
+configuration.
+
 ## 2026-08-13 Official Registry Stack runtime images
 
 Solmara no longer assembles or publishes local Evidence and Mint runtime
