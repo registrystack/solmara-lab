@@ -1,0 +1,96 @@
+name: solmara-lab-social-signers
+
+# This operator-only application is the private issuer-key boundary for the
+# Social Development cells. It holds only the SRO and MOSD signing keys and
+# attaches only their Transit socket directories under the shared authority
+# state root.
+x-transit-init: &transit-init
+  image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
+  entrypoint: [/usr/local/bin/python, -c]
+  command: ["import os,stat,sys; p='/transit'; s=os.lstat(p); ok=stat.S_ISDIR(s.st_mode) and not stat.S_ISLNK(s.st_mode); not ok and sys.exit(1); os.chown(p,65532,65532); os.chmod(p,0o700)"]
+  restart: "no"
+  user: "0:0"
+  read_only: true
+  tmpfs: [/tmp]
+  network_mode: none
+  cap_drop: [ALL]
+  cap_add: [CHOWN, FOWNER]
+  security_opt: [no-new-privileges:true]
+
+x-signer: &signer
+  image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
+  restart: unless-stopped
+  user: "65532:65532"
+  # Docker Compose copies environment-backed secrets into the container rootfs
+  # before start, so this process cannot use a read-only root filesystem. The
+  # non-root wrapper consumes and unlinks those owner-only inputs before exec.
+  read_only: false
+  network_mode: none
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  healthcheck:
+    test: [CMD, /usr/local/bin/python, -c, "import socket; s=socket.socket(socket.AF_UNIX); s.connect('/transit/transit-proxy.sock'); s.close()"]
+    interval: 2s
+    timeout: 1s
+    retries: 30
+    start_period: 2s
+
+x-private-secret-target: &private-secret-target
+  target: /tmp/solmara-signing.jwk
+  uid: "65532"
+  gid: "65532"
+  mode: 0400
+
+x-public-secret-target: &public-secret-target
+  target: /tmp/solmara-signing-public.jwk
+  uid: "65532"
+  gid: "65532"
+  mode: 0400
+
+services:
+  sro-transit-init:
+    <<: *transit-init
+    volumes: [/data/solmara-authority-cells/sro-evidence/transit:/transit]
+  mosd-transit-init:
+    <<: *transit-init
+    volumes: [/data/solmara-authority-cells/mosd-evidence/transit:/transit]
+
+  sro-signer:
+    <<: *signer
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sro]
+    volumes: [/data/solmara-authority-cells/sro-evidence/transit:/transit]
+    secrets:
+      - {source: sro-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: sro-evidence-signing-public-jwk, <<: *public-secret-target}
+    depends_on:
+      sro-transit-init: {condition: service_completed_successfully}
+  mosd-signer:
+    <<: *signer
+    command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-mosd-programme]
+    volumes: [/data/solmara-authority-cells/mosd-evidence/transit:/transit]
+    secrets:
+      - {source: mosd-evidence-signing-jwk, <<: *private-secret-target}
+      - {source: mosd-evidence-signing-public-jwk, <<: *public-secret-target}
+    depends_on:
+      mosd-transit-init: {condition: service_completed_successfully}
+
+  social-development-signers-ready:
+    image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
+    entrypoint: [/usr/local/bin/python, -c]
+    command: ["print('social-development authority signers ready')"]
+    restart: "no"
+    user: "65532:65532"
+    read_only: true
+    tmpfs: [/tmp]
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      sro-signer: {condition: service_healthy}
+      mosd-signer: {condition: service_healthy}
+
+secrets:
+  sro-evidence-signing-jwk: {environment: SRO_EVIDENCE_SIGNING_JWK}
+  sro-evidence-signing-public-jwk: {environment: SRO_EVIDENCE_SIGNING_PUBLIC_JWK}
+  mosd-evidence-signing-jwk: {environment: MOSD_EVIDENCE_SIGNING_JWK}
+  mosd-evidence-signing-public-jwk: {environment: MOSD_EVIDENCE_SIGNING_PUBLIC_JWK}

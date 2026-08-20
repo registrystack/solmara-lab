@@ -76,9 +76,21 @@ provisioner on one server and a consumer on another would resolve the same path
 to two different empty directories. Co-locating the provision, signer, core, and
 four authority applications is a deployment precondition.
 
-`compose.coolify.signers.yaml` is a separate operator-only application. It
-attaches only those seven Transit socket paths, which it creates and owns, and
-runs one isolated signer for Mint and one for each Evidence cell. The provision
+Each ministry runs its own signer application, which creates and owns the
+Transit socket paths of its cells and runs one isolated signer per cell:
+
+| Application | File | Signers |
+|---|---|---|
+| `solmara-lab-mint-signer` | `compose.coolify.signers.mint.yaml` | Mint |
+| `solmara-lab-interior-signers` | `compose.coolify.signers.interior.yaml` | CRA, NIA |
+| `solmara-lab-social-signers` | `compose.coolify.signers.social-development.yaml` | SRO, MOSD |
+| `solmara-lab-pensions-signers` | `compose.coolify.signers.labour-pensions.yaml` | SIPF |
+| `solmara-lab-agriculture-signers` | `compose.coolify.signers.agriculture.yaml` | NAGDI |
+
+Compose scopes a private issuer key to its own signer container, but a Coolify
+application environment is a boundary Compose cannot express. Splitting the
+signers by ministry keeps each private signing key out of every environment but
+its owner's. The provision
 application never receives a private issuer signing key. Runtime applications
 attach the runtime, source, secret, extract, and Transit paths read-only. Each
 runtime application owns the writable audit volumes for its services and
@@ -170,8 +182,17 @@ Deploy the reset alongside the existing deployment in this order:
    volume names. Do not attach an old writer to a new source path.
 2. Deploy `compose.coolify.provision.yaml`. Require every one-shot provisioner
    to complete successfully.
-3. Deploy `compose.coolify.signers.yaml`. Require all seven Transit initializers
-   to complete successfully and all seven signers to become healthy.
+3. Deploy the five signer applications. They share no state and may deploy in
+   any order. Require every Transit initializer to complete successfully and
+   each application's `<group>-signers-ready` barrier to complete, which happens
+   only once all seven signers across the five applications are healthy.
+
+   If a previous deployment ran the single aggregate signer application, stop it
+   before deploying these five. It still owns the seven live Transit sockets, and
+   a signer refuses to start on a socket that accepts a connection rather than
+   removing another process's listener, so every replacement would exit and no
+   readiness barrier could complete. Rollback reverses this: stop all five, then
+   start the aggregate application.
 4. Deploy the shared Mint, programme services, portal, Visitor Center, and
    static metadata from `compose.coolify.yaml`. Require Mint health, discovery,
    and JWKS to pass before starting a Relay, because every Relay validates the
