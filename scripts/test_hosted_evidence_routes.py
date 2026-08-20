@@ -179,5 +179,20 @@ class RoutedServiceNameTests(unittest.TestCase):
                     self.assertNotIn("-", name)
 
 
+class EvidenceIdentityTests(unittest.TestCase):
+    def test_every_cell_bundle_names_the_origin_it_is_routed_on(self) -> None:
+        """`service.publicOrigin` is the resource identity RFC 9728 discovery
+        answers with, so a bundle that names anything other than the cell's own
+        canonical route hands a relying party the wrong resource."""
+        for service, (_, _, canonical_host) in EVIDENCE_ROUTES.items():
+            cell = service.removesuffix("_evidence").replace("_", "-")
+            bundle = ROOT / "evidence" / "cells" / cell / "bundle" / "evidence.yaml"
+            with self.subTest(cell=cell):
+                config = yaml.safe_load(bundle.read_text(encoding="utf-8"))
+                self.assertEqual(
+                    config["service"]["publicOrigin"], f"https://{canonical_host}"
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
