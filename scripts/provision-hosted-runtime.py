@@ -94,6 +94,14 @@ MINT_CLIENTS = {
         "https://id.registrystack.org/solmara/purpose/esignet-identity-verification",
     ),
 }
+# Re-adopting an extract this provisioner already published imposes no freshness
+# ceiling. `maximumExtractAgeSeconds` is a serving policy the Evidence cell
+# applies to live requests; enforcing it again here only makes the provision
+# application refuse to redeploy a day after it last ran. Publishing a newer
+# checkpoint stays the deliberate, separate `publish-extract` operation. The
+# ceiling is lifted rather than removed so a future-dated extract is still
+# refused.
+REUSE_MAX_EXTRACT_AGE_SECONDS = 100 * 365 * 24 * 60 * 60
 ROLLBACK_RUNTIME = re.compile(
     r"^runtime\.rollback-(?:cra-birth|nia-population|sro-poverty)-"
     r"[0-9]{8}T[0-9]{6}(?:[0-9]{6})?Z\.yaml$"
@@ -684,12 +692,17 @@ def _stage_extract(
         generated = publisher.publish_extract(
             Path(temporary), cell, published_at, extract_id
         )
+        # Regenerating a reused publication carries its original published_at,
+        # so the serving age is lifted here for the same reason it is lifted
+        # when the binding is read back. This validates deterministic output
+        # against an exact expected identity; freshness is not the question.
         publisher.validate_extract(
             generated,
             cell,
             observed_at=observed_at,
             expected_extract_id=extract_id,
             expected_published_at=published_at,
+            maximum_age_seconds=REUSE_MAX_EXTRACT_AGE_SECONDS,
         )
         target = destination / generated.name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -704,8 +717,6 @@ def _publication_time(
     runtime_output: Path,
     extract_output: Path,
     observed_at: str,
-    *,
-    require_fresh: bool = True,
 ) -> str:
     runtime_file = runtime_output / "runtime.yaml"
     if not runtime_file.exists():
@@ -717,7 +728,10 @@ def _publication_time(
         try:
             publisher = _load_publisher(assets)
             metadata = publisher.validate_extract(
-                existing[0], cell, observed_at=observed_at
+                existing[0],
+                cell,
+                observed_at=observed_at,
+                maximum_age_seconds=REUSE_MAX_EXTRACT_AGE_SECONDS,
             )
             if existing[0].name != f"{metadata.extract_id}.sqlite":
                 raise ProvisionError("invalid existing extract")
@@ -749,9 +763,10 @@ def _publication_time(
         publisher.validate_extract(
             existing,
             cell,
-            observed_at=observed_at if require_fresh else published_at,
+            observed_at=observed_at,
             expected_extract_id=extract_id,
             expected_published_at=published_at,
+            maximum_age_seconds=REUSE_MAX_EXTRACT_AGE_SECONDS,
         )
         if extract_name != f"{extract_id}.sqlite":
             raise ProvisionError("invalid existing extract")
@@ -870,7 +885,6 @@ def publish_extract(args: argparse.Namespace) -> None:
         runtime_output,
         extract_output,
         now,
-        require_fresh=False,
     )
     previous_name = f"{_load_publisher(assets).timestamped_extract_id(cell, previous_publication)}.sqlite"
     with tempfile.TemporaryDirectory(
