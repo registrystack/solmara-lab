@@ -1,6 +1,6 @@
 version: 1
 assuranceProfile: production
-service: { providerId: https://id.registrystack.org/solmara/evidence/sipf, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
+service: { providerId: https://id.registrystack.org/solmara/evidence/sipf, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab, publicOrigin: https://sipf-evidence.solmara.registrystack.org }
 issuer: { id: did:web:id.registrystack.org:solmara:authority:sipf }
 authentication: { kind: oidc-access-token, issuer: https://mint.solmara.registrystack.org, audiences: [solmara-runtime], tokenTypes: [at+jwt], algorithms: [ES256], jwksUri: https://mint.solmara.registrystack.org/.well-known/jwks.json, principalClaim: sub, requesterTagsClaim: evidence_tags, evidenceAudienceClaim: evidence_audience, grantIdClaim: evidence_grant_id, grantAuthorityClaim: evidence_authority, maximumTokenLifetimeSeconds: 300, revokedKeyIds: [] }
 audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
@@ -64,7 +64,8 @@ authorityProfiles:
       - { requirement: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1, purpose: pension-payment-review, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }] }
       - { requirement: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1, purpose: survivor-benefit-determination, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }] }
 requirements:
-  - id: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1
+  - handle: sipf-pension-payment
+    id: https://id.registrystack.org/solmara/requirement/sipf-pension-payment/v1
     kind: information-requirement
     acquisition: { kind: single, source: sipf-pension }
     purposes: [pension-payment-review]
@@ -73,11 +74,12 @@ requirements:
     evidenceType: https://id.registrystack.org/solmara/evidence-type/pension-payment-active/v1
     validitySeconds: 300
     derivation: { script: derivations/pension-active.rhai, parameters: {} }
-    concepts: [{ id: https://id.registrystack.org/solmara/concept/pension-payment-active, form: boolean, required: true, constraints: {} }]
+    concepts: [{ handle: pension-payment-active, id: https://id.registrystack.org/solmara/concept/pension-payment-active, form: boolean, required: true, constraints: {} }]
     fixtures: fixtures/pension.yaml
     disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sipf-pension] }
     existenceDisclosure: collapse-unresolved
-  - id: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1
+  - handle: sipf-survivor-benefit
+    id: https://id.registrystack.org/solmara/requirement/sipf-survivor-benefit/v1
     kind: information-requirement
     acquisition: { kind: single, source: sipf-survivor }
     purposes: [survivor-benefit-determination]
@@ -86,7 +88,7 @@ requirements:
     evidenceType: https://id.registrystack.org/solmara/evidence-type/survivor-benefit/v1
     validitySeconds: 300
     derivation: { script: derivations/survivor-eligible.rhai, parameters: {} }
-    concepts: [{ id: https://id.registrystack.org/solmara/concept/survivor-is-eligible, form: boolean, required: true, constraints: {} }]
+    concepts: [{ handle: survivor-is-eligible, id: https://id.registrystack.org/solmara/concept/survivor-is-eligible, form: boolean, required: true, constraints: {} }]
     fixtures: fixtures/survivor.yaml
     disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sipf-survivor] }
     existenceDisclosure: collapse-unresolved

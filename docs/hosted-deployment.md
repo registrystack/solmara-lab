@@ -17,7 +17,7 @@ Registry Stack v0.20.0 remains immutable and does not contain the Evidence
 capability required by this lab. v0.20.1 contains the required runtime
 capabilities but does not publish official Evidence and Mint OCI images.
 Registry Stack v0.21.0 is the first coherent release with all three official
-runtime images; the lab currently pins v0.22.0 from that line. Do not move a
+runtime images; the lab currently pins v0.23.0 from that line. Do not move a
 release, substitute a floating source reference, or recreate those runtime
 images in Solmara.
 

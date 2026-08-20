@@ -36,13 +36,13 @@ class RegistryStackRuntimeBuilderTests(unittest.TestCase):
         self.relayctl_asset.write_bytes(b"published relayctl fixture")
         relayctl_sha256 = hashlib.sha256(self.relayctl_asset.read_bytes()).hexdigest()
         (self.root / "versions.env").write_text(
-            "REGISTRY_STACK_REQUIRED_VERSION=0.22.0\n"
+            "REGISTRY_STACK_REQUIRED_VERSION=0.23.0\n"
             "REGISTRY_STACK_SOURCE_COMMIT=" + "a" * 40 + "\n"
             f"REGISTRY_STACK_RELEASE_RELAY_DIGEST={self.digests['RELAY']}\n"
             f"REGISTRY_RELAY_IMAGE=ghcr.io/registrystack/relay@sha256:{self.digests['RELAY']}\n"
             f"SOLMARA_EVIDENCE_IMAGE=ghcr.io/registrystack/evidence@sha256:{self.digests['EVIDENCE']}\n"
             f"SOLMARA_MINT_IMAGE=ghcr.io/registrystack/mint@sha256:{self.digests['MINT']}\n"
-            "REGISTRY_RELAYCTL_IMAGE=solmara-lab-relayctl:v0.22.0\n"
+            "REGISTRY_RELAYCTL_IMAGE=solmara-lab-relayctl:v0.23.0\n"
             "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL=https://example.invalid/relayctl\n"
             f"REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256={relayctl_sha256}\n",
             encoding="utf-8",
@@ -72,7 +72,7 @@ elif arguments[:2] == ["image", "inspect"]:
     elif "org.opencontainers.image.revision" in output_format:
         print("a" * 40)
     elif "org.opencontainers.image.version" in output_format:
-        print("0.22.0")
+        print("0.23.0")
     elif "org.opencontainers.image.source" in output_format:
         print("https://github.com/registrystack/registry-stack")
 elif arguments[0] == "pull":
@@ -134,7 +134,7 @@ shutil.copyfile(os.environ["FAKE_RELAYCTL_SOURCE"], output)
         calls = self.log.read_text(encoding="utf-8")
         for component in ("relay", "evidence", "mint"):
             self.assertIn(
-                f"buildx imagetools inspect ghcr.io/registrystack/{component}:v0.22.0",
+                f"buildx imagetools inspect ghcr.io/registrystack/{component}:v0.23.0",
                 calls,
             )
 
@@ -149,7 +149,7 @@ shutil.copyfile(os.environ["FAKE_RELAYCTL_SOURCE"], output)
             result.stderr,
         )
         calls = self.log.read_text(encoding="utf-8")
-        self.assertNotIn("ghcr.io/registrystack/mint:v0.22.0", calls)
+        self.assertNotIn("ghcr.io/registrystack/mint:v0.23.0", calls)
 
     def test_relayctl_is_verified_on_the_host_before_the_minimal_image_build(self) -> None:
         self.environment["FORCE_RELAYCTL_BUILD"] = "1"

@@ -1,6 +1,6 @@
 version: 1
 assuranceProfile: production
-service: { providerId: https://id.registrystack.org/solmara/evidence/nagdi, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
+service: { providerId: https://id.registrystack.org/solmara/evidence/nagdi, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab, publicOrigin: https://nagdi-evidence.solmara.registrystack.org }
 issuer: { id: did:web:id.registrystack.org:solmara:authority:nagdi }
 authentication: { kind: oidc-access-token, issuer: https://mint.solmara.registrystack.org, audiences: [solmara-runtime], tokenTypes: [at+jwt], algorithms: [ES256], jwksUri: https://mint.solmara.registrystack.org/.well-known/jwks.json, principalClaim: sub, requesterTagsClaim: evidence_tags, evidenceAudienceClaim: evidence_audience, grantIdClaim: evidence_grant_id, grantAuthorityClaim: evidence_authority, maximumTokenLifetimeSeconds: 300, revokedKeyIds: [] }
 audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
@@ -64,7 +64,8 @@ authorityProfiles:
       - { requirement: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1, purpose: voucher-eligibility-review, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: farmer-reference-v1, valueOrigin: request }] }
       - { requirement: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1, purpose: livestock-movement-control, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: farmer-reference-v1, valueOrigin: request }] }
 requirements:
-  - id: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1
+  - handle: nagdi-voucher
+    id: https://id.registrystack.org/solmara/requirement/nagdi-voucher/v1
     kind: information-requirement
     acquisition: { kind: single, source: nagdi-voucher }
     purposes: [voucher-eligibility-review]
@@ -73,11 +74,12 @@ requirements:
     evidenceType: https://id.registrystack.org/solmara/evidence-type/climate-smart-voucher/v1
     validitySeconds: 300
     derivation: { script: derivations/voucher.rhai, parameters: {} }
-    concepts: [{ id: https://id.registrystack.org/solmara/concept/farmer-registered, form: boolean, required: true, constraints: {} }, { id: https://id.registrystack.org/solmara/concept/data-use-authorized-for-purpose, form: boolean, required: true, constraints: {} }, { id: https://id.registrystack.org/solmara/concept/eligible-for-climate-smart-input-voucher, form: boolean, required: true, constraints: {} }]
+    concepts: [{ handle: farmer-registered, id: https://id.registrystack.org/solmara/concept/farmer-registered, form: boolean, required: true, constraints: {} }, { handle: data-use-authorized-for-purpose, id: https://id.registrystack.org/solmara/concept/data-use-authorized-for-purpose, form: boolean, required: true, constraints: {} }, { handle: eligible-for-climate-smart-input-voucher, id: https://id.registrystack.org/solmara/concept/eligible-for-climate-smart-input-voucher, form: boolean, required: true, constraints: {} }]
     fixtures: fixtures/voucher.yaml
     disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/nagdi-voucher] }
     existenceDisclosure: collapse-unresolved
-  - id: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1
+  - handle: nagdi-livestock
+    id: https://id.registrystack.org/solmara/requirement/nagdi-livestock/v1
     kind: information-requirement
     acquisition: { kind: single, source: nagdi-livestock }
     purposes: [livestock-movement-control]
@@ -86,7 +88,7 @@ requirements:
     evidenceType: https://id.registrystack.org/solmara/evidence-type/livestock-movement/v1
     validitySeconds: 300
     derivation: { script: derivations/livestock.rhai, parameters: {} }
-    concepts: [{ id: https://id.registrystack.org/solmara/concept/registered-herd, form: boolean, required: true, constraints: {} }, { id: https://id.registrystack.org/solmara/concept/origin-district-not-quarantined-for-species, form: boolean, required: true, constraints: {} }, { id: https://id.registrystack.org/solmara/concept/eligible-for-livestock-movement-permit, form: boolean, required: true, constraints: {} }]
+    concepts: [{ handle: registered-herd, id: https://id.registrystack.org/solmara/concept/registered-herd, form: boolean, required: true, constraints: {} }, { handle: origin-district-not-quarantined-for-species, id: https://id.registrystack.org/solmara/concept/origin-district-not-quarantined-for-species, form: boolean, required: true, constraints: {} }, { handle: eligible-for-livestock-movement-permit, id: https://id.registrystack.org/solmara/concept/eligible-for-livestock-movement-permit, form: boolean, required: true, constraints: {} }]
     fixtures: fixtures/livestock.yaml
     disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/nagdi-livestock] }
     existenceDisclosure: collapse-unresolved

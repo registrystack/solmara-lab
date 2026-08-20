@@ -1,6 +1,6 @@
 version: 1
 assuranceProfile: production
-service: { providerId: https://id.registrystack.org/solmara/evidence/sro, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab }
+service: { providerId: https://id.registrystack.org/solmara/evidence/sro, trustDomain: https://id.registrystack.org/solmara/trust-domain/lab, publicOrigin: https://sro-evidence.solmara.registrystack.org }
 issuer: { id: did:web:id.registrystack.org:solmara:authority:sro }
 authentication: { kind: oidc-access-token, issuer: https://mint.solmara.registrystack.org, audiences: [solmara-runtime], tokenTypes: [at+jwt], algorithms: [ES256], jwksUri: https://mint.solmara.registrystack.org/.well-known/jwks.json, principalClaim: sub, requesterTagsClaim: evidence_tags, evidenceAudienceClaim: evidence_audience, grantIdClaim: evidence_grant_id, grantAuthorityClaim: evidence_authority, maximumTokenLifetimeSeconds: 300, revokedKeyIds: [] }
 audit: { format: keyed-jsonl, hashSecretRef: secret:file/audit-hmac-key, hashKeyVersion: 1, failClosed: true }
@@ -37,7 +37,8 @@ authorityProfiles:
     requesterTags: [solmara-demo]
     grants: [{ requirement: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1, purpose: child-benefit-review, audienceFrom: authenticated-requester, responseFormats: [signed-jws], subjects: [{ role: subject, selectorProfile: solmara-uin-v1, valueOrigin: request }] }]
 requirements:
-  - id: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
+  - handle: sro-child-benefit
+    id: https://id.registrystack.org/solmara/requirement/sro-child-benefit/v1
     kind: information-requirement
     acquisition: { kind: single, source: poverty-extract }
     purposes: [child-benefit-review]
@@ -46,7 +47,7 @@ requirements:
     evidenceType: https://id.registrystack.org/solmara/evidence-type/poverty-priority/v1
     validitySeconds: 3600
     derivation: { script: derivations/poverty-priority.rhai, parameters: {} }
-    concepts: [{ id: https://id.registrystack.org/solmara/concept/household-below-poverty-threshold, form: boolean, required: true, constraints: {} }]
+    concepts: [{ handle: household-below-poverty-threshold, id: https://id.registrystack.org/solmara/concept/household-below-poverty-threshold, form: boolean, required: true, constraints: {} }]
     fixtures: fixtures/child-benefit.yaml
     disclosureGuard: { families: [https://id.registrystack.org/solmara/disclosure-family/sro-child-benefit] }
     existenceDisclosure: collapse-unresolved

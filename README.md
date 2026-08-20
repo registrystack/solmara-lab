@@ -24,7 +24,7 @@ Evidence runtime cannot classify Relay's concealed `consultation.unresolved`
 response as a data-free unresolved consultation. Registry Stack v0.21.0 is the
 first coherent release that contains both capabilities and publishes official
 Relay, Evidence, and Mint runtime images. Solmara tracks that release line and
-currently pins v0.22.0, recording its release tag and source commit, those
+currently pins v0.23.0, recording its release tag and source commit, those
 official OCI references by digest, and the `relayctl` binary checksum in
 `versions.env`. The release handoff and every hosted deployment consume those
 same full references without reconstructing them from a second deployment
