@@ -57,6 +57,9 @@ services:
       mint: {condition: service_started}
   static-metadata:
     image: ${SOLMARA_STATIC_METADATA_IMAGE:?set a digest-pinned Solmara static metadata image}
+    # The image only layers the published metadata onto a stock Python base and
+    # sets no CMD of its own, so the server has to be named here.
+    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"]
     restart: unless-stopped
     labels: {solmara.lab.host: "${SOLMARA_METADATA_PUBLIC_HOST:-metadata.solmara.registrystack.org}"}
   scenario-runner:
