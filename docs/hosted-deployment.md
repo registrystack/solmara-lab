@@ -70,6 +70,12 @@ paths are:
 runs only the one-shot target provisioners and is the sole writer of every
 shared path except the seven Transit sockets.
 
+Every application that touches this state root must run on the same Docker host.
+The paths are node-local and no Compose file can enforce placement, so a
+provisioner on one server and a consumer on another would resolve the same path
+to two different empty directories. Co-locating the provision, signer, core, and
+four authority applications is a deployment precondition.
+
 `compose.coolify.signers.yaml` is a separate operator-only application. It
 attaches only those seven Transit socket paths, which it creates and owns, and
 runs one isolated signer for Mint and one for each Evidence cell. The provision
