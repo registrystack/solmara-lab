@@ -662,11 +662,11 @@ class RuntimeTopologyTests(unittest.TestCase):
             )
             volumes = set(service["volumes"])
             self.assertIn(
-                f"{authority}-relay-runtime:/etc/relay/{authority}:ro",
+                f"/data/solmara-authority-cells/{authority}-relay/runtime:/etc/relay/{authority}:ro",
                 volumes,
             )
             self.assertIn(
-                f"{authority}-relay-source:/var/lib/relay/source:ro",
+                f"/data/solmara-authority-cells/{authority}-relay/source:/var/lib/relay/source:ro",
                 volumes,
             )
             self.assertIn(

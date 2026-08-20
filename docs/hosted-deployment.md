@@ -53,24 +53,31 @@ Evidence hosts are:
 - `sipf-evidence.solmara.registrystack.org`
 - `nagdi-evidence.solmara.registrystack.org`
 
-`compose.coolify.provision.yaml` is a dedicated operator-only application. It
-owns 34 fixed-name active volumes and runs only the one-shot target
-provisioners:
+Shared authority state lives at fixed absolute host paths of the form
+`/data/solmara-authority-cells/<cell>/<role>` rather than in named volumes.
+Coolify rewrites every named volume reference to `{app_uuid}_{key}` and does not
+consult `external: true`, so a named volume would give each application a
+private copy of its own instead of the one the provisioner writes. The 34 shared
+paths are:
 
-| Owner | Volumes | Contents |
+| Owner | Paths | Contents |
 |---|---:|---|
 | Shared Mint | 3 | Runtime, secrets, and Transit socket |
-| Five Relays | 10 | One runtime and one mutable source volume per authority |
-| Six Evidence cells | 21 | Runtime, secrets, and Transit socket per cell, plus the CRA, NIA, and SRO immutable-extract volumes |
+| Five Relays | 10 | One runtime and one mutable source path per authority |
+| Six Evidence cells | 21 | Runtime, secrets, and Transit socket per cell, plus the CRA, NIA, and SRO immutable-extract paths |
+
+`compose.coolify.provision.yaml` is a dedicated operator-only application. It
+runs only the one-shot target provisioners and is the sole writer of every
+shared path except the seven Transit sockets.
 
 `compose.coolify.signers.yaml` is a separate operator-only application. It
-attaches only the seven fixed Transit volumes as external volumes and runs one
-isolated signer for Mint and one for each Evidence cell. The provision
+attaches only those seven Transit socket paths, which it creates and owns, and
+runs one isolated signer for Mint and one for each Evidence cell. The provision
 application never receives a private issuer signing key. Runtime applications
-attach the fixed-name runtime, source, secret, extract, and Transit volumes as
-external read-only volumes. Each runtime application owns the writable audit
-volumes for its services and initializes their permissions without reading or
-replacing existing audit records.
+attach the runtime, source, secret, extract, and Transit paths read-only. Each
+runtime application owns the writable audit volumes for its services and
+initializes their permissions without reading or replacing existing audit
+records.
 
 Docker Compose injects an environment-backed secret after creating its target
 container and rejects that operation when the root filesystem is read-only.
@@ -80,7 +87,7 @@ Evidence and Mint provisioners and the non-root signer processes instead mount
 processes also run with every Linux capability dropped. Secret values are not
 placed in container environment variables. The provisioner copies only the
 required non-signing runtime secrets into each authority's isolated secret
-volume; private issuer signing keys remain confined to signer tmpfs.
+path; private issuer signing keys remain confined to signer tmpfs.
 
 ## Mint clients
 
@@ -121,7 +128,7 @@ also receives the matching public half and refuses startup unless it is the
 exact projection of the private key. A Mint
 client private JWK is installed only for its client owner, and an
 authority-scoped one-shot provisioner may write it only into that owner's
-secret volume. Inject public JWK halves into the provisioner and their matching
+secret path. Inject public JWK halves into the provisioner and their matching
 signers only; the provisioner writes
 the issuer projections and Mint client registrations into the generated
 runtime material. No runtime receives another authority's client private key.
@@ -154,7 +161,7 @@ or non-newer publication fails closed.
 Deploy the reset alongside the existing deployment in this order:
 
 1. Record the old deployment's exact image references, routes, and retained
-   volume names. Do not attach an old writer to a new source volume.
+   volume names. Do not attach an old writer to a new source path.
 2. Deploy `compose.coolify.provision.yaml`. Require every one-shot provisioner
    to complete successfully.
 3. Deploy `compose.coolify.signers.yaml`. Require all seven Transit initializers

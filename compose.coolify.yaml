@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]
-    volumes: ["mint-runtime:/etc/registry-mint:ro", "mint-secrets:/run/secrets/registry-mint:ro", "mint-transit:/run/registry-mint:ro", "mint-audit:/var/lib/registry-mint"]
+    volumes: ["/data/solmara-authority-cells/mint/runtime:/etc/registry-mint:ro", "/data/solmara-authority-cells/mint/secrets:/run/secrets/registry-mint:ro", "/data/solmara-authority-cells/mint/transit:/run/registry-mint:ro", "mint-audit:/var/lib/registry-mint"]
     networks: {runtime: {ipv4_address: 172.29.1.20}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
@@ -154,9 +154,6 @@ secrets:
   solmara-demo-client-key:
     environment: SOLMARA_DEMO_CLIENT_PRIVATE_JWK
 volumes:
-  mint-runtime: {external: true, name: solmara-authority-cells-mint-runtime}
-  mint-secrets: {external: true, name: solmara-authority-cells-mint-secrets}
-  mint-transit: {external: true, name: solmara-authority-cells-mint-transit}
   mint-audit:
 networks:
   runtime:

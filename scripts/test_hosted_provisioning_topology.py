@@ -20,6 +20,29 @@ RUNTIME_COMPOSES = (
 )
 PROVIDERS = ("mint", "cra", "nia", "sro", "mosd", "sipf", "nagdi")
 RELAYS = ("cra", "nia", "mosd", "sipf", "nagdi")
+EXTRACT_PROVIDERS = ("cra", "nia", "sro")
+# Coolify rewrites every named volume reference to `{app_uuid}_{key}` and never
+# consults `external: true`, so one named volume cannot be shared between the
+# provisioning application and its consumers. Shared authority state is
+# addressed by absolute host path instead, laid out as `<root>/<cell>/<role>`.
+STATE_ROOT = "/data/solmara-authority-cells"
+CELL_ROLES = {
+    "mint": {"runtime", "secrets", "transit"},
+    **{f"{authority}-relay": {"runtime", "source"} for authority in RELAYS},
+    **{
+        f"{provider}-evidence": {"runtime", "secrets", "transit"}
+        | ({"extracts"} if provider in EXTRACT_PROVIDERS else set())
+        for provider in PROVIDERS[1:]
+    },
+}
+SHARED_PATHS = {
+    f"{STATE_ROOT}/{cell}/{role}" for cell, roles in CELL_ROLES.items() for role in roles
+}
+TRANSIT_PATHS = {
+    f"{STATE_ROOT}/{cell}/transit"
+    for cell, roles in CELL_ROLES.items()
+    if "transit" in roles
+}
 EVIDENCE_CLIENTS = {
     "cra": {"cra-pension-evidence", "cra-citizen-evidence"},
     "nia": set(),
@@ -62,6 +85,18 @@ RELAY_ORIGINS = {
 }
 
 
+def service_mounts(service):
+    """Yield (source, target, mode) per mount, with mode None when unset."""
+    for mount in service.get("volumes", []):
+        parts = mount.split(":")
+        if len(parts) == 2:
+            yield parts[0], parts[1], None
+        elif len(parts) == 3:
+            yield parts[0], parts[1], parts[2]
+        else:
+            raise AssertionError(f"unparsable mount {mount!r}")
+
+
 def fixture_render(value):
     if isinstance(value, dict):
         return {key: fixture_render(item) for key, item in value.items()}
@@ -92,18 +127,28 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             for path in RUNTIME_COMPOSES
         }
 
-    def test_provisioning_application_owns_exactly_34_active_volumes(self) -> None:
-        volumes = self.provision["volumes"]
-        self.assertEqual(len(volumes), 34)
-        self.assertTrue(
-            all(not value.get("external", False) for value in volumes.values())
-        )
-        self.assertTrue(
-            all(
-                value["name"].startswith("solmara-authority-cells-")
-                for value in volumes.values()
-            )
-        )
+    def test_provisioning_application_writes_every_shared_authority_path(self) -> None:
+        self.assertEqual(len(SHARED_PATHS), 34)
+        self.assertNotIn("volumes", self.provision)
+        written: set[str] = set()
+        for name, service in self.provision["services"].items():
+            for source, _, mode in service_mounts(service):
+                self.assertIn(source, SHARED_PATHS, (name, source))
+                self.assertIsNone(mode, (name, source))
+                written.add(source)
+        # The signer application creates and owns the Transit sockets; this
+        # application writes every other shared path.
+        self.assertEqual(written, SHARED_PATHS - TRANSIT_PATHS)
+
+    def test_no_application_declares_a_shared_named_volume(self) -> None:
+        for path in (PROVISION, SIGNERS, *RUNTIME_COMPOSES):
+            compose = yaml.safe_load(path.read_text(encoding="utf-8"))
+            for key, value in (compose.get("volumes") or {}).items():
+                name = (value or {}).get("name", "")
+                self.assertFalse(
+                    name.startswith("solmara-authority-cells-"),
+                    (path.name, key, name),
+                )
 
     def test_provisioning_application_contains_only_target_provisioners(self) -> None:
         services = self.provision["services"]
@@ -116,23 +161,22 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         }
         self.assertTrue(private_signing_secrets.isdisjoint(self.provision["secrets"]))
 
-    def test_runtime_applications_attach_active_volumes_read_only_by_fixed_name(
-        self,
-    ) -> None:
-        provisioned = {value["name"] for value in self.provision["volumes"].values()}
+    def test_runtime_applications_attach_shared_paths_read_only(self) -> None:
         attached: set[str] = set()
-        for compose in self.runtime.values():
-            for key, value in compose.get("volumes", {}).items():
-                if not value or not value.get("external"):
-                    continue
-                name = value.get("name", "")
-                if name in provisioned:
-                    attached.add(name)
-                    for service in compose["services"].values():
-                        for mount in service.get("volumes", []):
-                            if isinstance(mount, str) and mount.startswith(f"{key}:"):
-                                self.assertTrue(mount.endswith(":ro"), mount)
-        self.assertEqual(attached, provisioned)
+        for filename, compose in self.runtime.items():
+            declared = compose.get("volumes") or {}
+            for name, service in compose["services"].items():
+                for source, _, mode in service_mounts(service):
+                    if source.startswith("/"):
+                        self.assertIn(source, SHARED_PATHS, (filename, name, source))
+                        self.assertEqual(mode, "ro", (filename, name, source))
+                        attached.add(source)
+                        continue
+                    # Every other mount is an app-local writable audit volume
+                    # that no other application can reach.
+                    self.assertIsNone(declared[source], (filename, source))
+                    self.assertTrue(source.endswith("-audit"), (filename, source))
+        self.assertEqual(attached, SHARED_PATHS)
 
     def test_private_signing_keys_are_mounted_only_into_matching_signers(self) -> None:
         services = self.signers["services"]
@@ -363,14 +407,14 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     ) -> None:
         services = self.signers["services"]
         for provider in PROVIDERS:
-            volume = (
-                "mint-transit" if provider == "mint" else f"{provider}-evidence-transit"
-            )
+            cell = "mint" if provider == "mint" else f"{provider}-evidence"
+            path = f"{STATE_ROOT}/{cell}/transit"
+            self.assertIn(path, TRANSIT_PATHS)
             self.assertEqual(
-                services[f"{provider}-transit-init"]["volumes"], [f"{volume}:/transit"]
+                services[f"{provider}-transit-init"]["volumes"], [f"{path}:/transit"]
             )
             signer = services[f"{provider}-signer"]
-            self.assertEqual(signer["volumes"], [f"{volume}:/transit"])
+            self.assertEqual(signer["volumes"], [f"{path}:/transit"])
             self.assertEqual(
                 signer["depends_on"],
                 {
@@ -380,9 +424,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 },
             )
 
-    def test_signer_application_has_exact_services_secrets_and_external_volumes(
-        self,
-    ) -> None:
+    def test_signer_application_has_exact_services_and_secrets(self) -> None:
         expected_services = {
             *(f"{provider}-transit-init" for provider in PROVIDERS),
             *(f"{provider}-signer" for provider in PROVIDERS),
@@ -391,25 +433,13 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertEqual(set(self.signers["services"]), expected_services)
 
         expected_secrets: set[str] = set()
-        expected_volumes: set[str] = set()
         for provider in PROVIDERS:
             prefix = "mint" if provider == "mint" else f"{provider}-evidence"
             expected_secrets.update(
                 {f"{prefix}-signing-jwk", f"{prefix}-signing-public-jwk"}
             )
-            expected_volumes.add(f"{prefix}-transit")
         self.assertEqual(set(self.signers["secrets"]), expected_secrets)
-        self.assertEqual(set(self.signers["volumes"]), expected_volumes)
-        self.assertTrue(
-            all(
-                value
-                == {
-                    "external": True,
-                    "name": f"solmara-authority-cells-{key}",
-                }
-                for key, value in self.signers["volumes"].items()
-            )
-        )
+        self.assertNotIn("volumes", self.signers)
 
         readiness = self.signers["services"]["signers-ready"]
         self.assertEqual(
