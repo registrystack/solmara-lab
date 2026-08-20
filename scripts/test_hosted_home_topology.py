@@ -28,6 +28,23 @@ class HostedHomeTopologyTests(unittest.TestCase):
         self.assertIn("!output/smoke/.gitkeep", patterns)
         self.assertNotIn("!output/**", patterns)
 
+    def test_static_metadata_serves_the_published_directory(self) -> None:
+        # The image layers metadata onto a stock Python base whose CMD is a bare
+        # interpreter, so without an explicit command the container exits 0 at
+        # once and restarts forever instead of serving.
+        compose = yaml.safe_load(COMPOSE_PATH.read_text(encoding="utf-8"))
+        command = compose["services"]["static-metadata"].get("command")
+
+        self.assertIsNotNone(command, "static-metadata must name its server command")
+        self.assertEqual(
+            command,
+            ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"],
+        )
+
+        # The port in the command must match the one home advertises publicly.
+        url_map = compose["services"]["home"]["environment"]["SOLMARA_PUBLIC_URL_MAP"]
+        self.assertIn("static-metadata:8080", url_map)
+
     def test_home_uses_the_declared_public_topology_without_secrets(self) -> None:
         compose = yaml.safe_load(COMPOSE_PATH.read_text(encoding="utf-8"))
         home = compose["services"]["home"]
