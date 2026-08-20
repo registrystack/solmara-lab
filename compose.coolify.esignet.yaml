@@ -85,7 +85,6 @@ services:
       esignet-database: {condition: service_healthy}
       esignet-redis: {condition: service_healthy}
     labels:
-      solmara.lab.host: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
       solmara.rollout.slot: authority-cells
 
   esignet-ui:
@@ -97,6 +96,21 @@ services:
       esignet: {condition: service_started}
     labels:
       solmara.lab.host: ${SOLMARA_ESIGNET_UI_PUBLIC_HOST:-esignet-ui.solmara.registrystack.org}
+      solmara.rollout.slot: authority-cells
+
+  # eSignet answers only under /v1/esignet, so the issuer origin would publish
+  # neither its OpenID discovery document nor its RFC 8414 authorization-server
+  # metadata. The UI image is a host-agnostic reverse proxy that serves both at
+  # the root and forwards /v1/esignet, so it also fronts the issuer origin.
+  esignet-edge:
+    image: ${SOLMARA_ESIGNET_UI_IMAGE:?set digest-pinned eSignet UI image}
+    environment:
+      SOLMARA_ESIGNET_PUBLIC_HOST: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
+      SOLMARA_ESIGNET_UI_PUBLIC_HOST: ${SOLMARA_ESIGNET_UI_PUBLIC_HOST:-esignet-ui.solmara.registrystack.org}
+    depends_on:
+      esignet: {condition: service_started}
+    labels:
+      solmara.lab.host: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
       solmara.rollout.slot: authority-cells
 
   esignet-seed:

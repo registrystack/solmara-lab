@@ -747,7 +747,14 @@ class RuntimeTopologyTests(unittest.TestCase):
         services = esignet["services"]
         self.assertEqual(
             set(services),
-            {"esignet-database", "esignet-redis", "esignet", "esignet-ui", "esignet-seed"},
+            {
+                "esignet-database",
+                "esignet-redis",
+                "esignet",
+                "esignet-ui",
+                "esignet-edge",
+                "esignet-seed",
+            },
         )
         self.assertNotIn("portal", services)
 
@@ -799,6 +806,23 @@ class RuntimeTopologyTests(unittest.TestCase):
         esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
         esignet = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))
         self.assertEqual(esignet["services"]["esignet-seed"].get("restart"), "no")
+
+    def test_hosted_esignet_publishes_discovery_at_its_issuer_root(self) -> None:
+        """eSignet declares its issuer as the bare public origin but the Spring
+        service answers only under `/v1/esignet`, so routing the public host
+        straight at it leaves `{issuer}/.well-known/openid-configuration` and the
+        RFC 8414 authorization-server document unserved. The UI image is a
+        host-agnostic reverse proxy that publishes both, so the public host
+        belongs to an edge instance of it and the service stays unrouted."""
+        esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
+        services = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))["services"]
+        edge = services["esignet-edge"]
+        self.assertEqual(edge["image"], services["esignet-ui"]["image"])
+        self.assertEqual(
+            edge["labels"]["solmara.lab.host"],
+            "${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}",
+        )
+        self.assertNotIn("solmara.lab.host", services["esignet"].get("labels") or {})
 
     def test_bruno_workspace_covers_only_the_eight_governed_v2_lookups(self) -> None:
         relay_requests = SCRIPT.parents[1] / "requests/registry-lab/50 - Relay V2"
