@@ -72,6 +72,9 @@ RELAY_ROUTES = {
 
 def compose_environment() -> dict[str, str]:
     environment = os.environ | {
+        # Coolify exports this into the environment it runs Compose in, and the
+        # routed services read it to name the network the ingress proxy is on.
+        "COOLIFY_RESOURCE_UUID": "test-application-uuid",
         "SOLMARA_AUTHORITY_PROVISIONER_IMAGE": TEST_IMAGE,
         "REGISTRY_RELAY_IMAGE": TEST_IMAGE,
         "SOLMARA_EVIDENCE_IMAGE": TEST_IMAGE,
