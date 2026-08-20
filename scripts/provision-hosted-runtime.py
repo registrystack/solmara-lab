@@ -100,10 +100,11 @@ MINT_CLIENTS = {
 # ceiling is lifted rather than removed so a future-dated extract is still
 # refused.
 REUSE_MAX_EXTRACT_AGE_SECONDS = 100 * 365 * 24 * 60 * 60
-ROLLBACK_RUNTIME = re.compile(
-    r"^runtime\.rollback-(?:cra-birth|nia-population|sro-poverty)-"
-    r"[0-9]{8}T[0-9]{6}(?:[0-9]{6})?Z\.yaml$"
-)
+# `publish-extract` names the extract it stages and the runtime it supersedes
+# after the same publication, so both patterns are built from one fragment.
+PUBLICATION = r"(?:cra-birth|nia-population|sro-poverty)-[0-9]{8}T[0-9]{6}(?:[0-9]{6})?Z"
+ROLLBACK_RUNTIME = re.compile(rf"^runtime\.rollback-{PUBLICATION}\.yaml$")
+PUBLISHED_EXTRACT = re.compile(rf"^{PUBLICATION}\.sqlite$")
 
 
 class ProvisionError(RuntimeError):
@@ -560,6 +561,26 @@ def _preserve_extract_rollback(relative: str, value: tuple[str, int]) -> bool:
     )
 
 
+def _preserve_superseded_extracts(
+    active: str,
+) -> Callable[[str, tuple[str, int]], bool]:
+    """Look past the extracts `publish-extract` superseded, never past this run's
+    own. A rollback needs the older file to stay readable, so provisioning has to
+    accept it beside the one it stages; the staged extract is this run's output
+    and stays verified against what it wrote."""
+
+    def preserve(relative: str, value: tuple[str, int]) -> bool:
+        return (
+            "/" not in relative
+            and relative != active
+            and PUBLISHED_EXTRACT.fullmatch(relative) is not None
+            and value[0] != "directory"
+            and value[1] == 0o444
+        )
+
+    return preserve
+
+
 def _copy_tree(source: Path, destination: Path) -> None:
     shutil.copytree(source, destination)
 
@@ -913,7 +934,9 @@ def _stage_evidence(
     observed_at: str,
     mint_origin: str,
     relay_origin: str | None,
-) -> None:
+) -> str | None:
+    """Stage one evidence cell and report the extract it bound, if it holds one."""
+
     source = assets / "evidence" / "cells" / cell
     _copy_tree(source, runtime)
     public = _public_jwk(_read_secret(secrets, "signing-public.jwk"), allow_rsa=False)
@@ -955,6 +978,7 @@ def _stage_evidence(
     for directory in [secret_output, *secret_output.rglob("*")]:
         if directory.is_dir():
             directory.chmod(0o700)
+    return extract_name
 
 
 def _stage_mint(
@@ -1103,7 +1127,7 @@ def _provision_target(args: argparse.Namespace) -> None:
                 if cell in DIRECT
                 else now
             )
-            _stage_evidence(
+            extract_name = _stage_evidence(
                 assets,
                 cell,
                 args.secrets.absolute(),
@@ -1117,15 +1141,32 @@ def _provision_target(args: argparse.Namespace) -> None:
                 relay_origin,
             )
             runtime_preserve = _preserve_extract_rollback if cell in DIRECT else None
+            # `publish-extract` leaves the superseded extract beside the one it
+            # bound, exactly as it leaves the superseded runtime, so a later full
+            # provision has to look past both to recognise its own tree.
+            extract_preserve = (
+                _preserve_superseded_extracts(extract_name)
+                if extract_name is not None
+                else None
+            )
             _check_secret_install_tree(secret_output, args.secret_output.resolve())
             if cell in DIRECT:
-                _check_install_tree(extracts, args.extract_output.resolve())
+                _check_install_tree(
+                    extracts,
+                    args.extract_output.resolve(),
+                    preserve=extract_preserve,
+                )
             _check_install_tree(
                 runtime, args.runtime_output.resolve(), preserve=runtime_preserve
             )
             _install_secret_tree(secret_output, args.secret_output.resolve())
             if cell in DIRECT:
-                _install_tree(extracts, args.extract_output.resolve(), root_mode=0o555)
+                _install_tree(
+                    extracts,
+                    args.extract_output.resolve(),
+                    root_mode=0o555,
+                    preserve=extract_preserve,
+                )
         else:
             raise ProvisionError("invalid target")
         _install_tree(

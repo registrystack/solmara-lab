@@ -208,6 +208,10 @@ Evidence cell after the operation succeeds. The running cell continues to read
 the old mounted extract until that restart. A malformed, metadata-mismatched,
 or non-newer publication fails closed.
 
+A later full provision run composes with a published extract. It looks past the
+superseded extract and the superseded runtime it left behind, so a rollback keeps
+both, and still verifies everything it stages itself.
+
 ## Deployment order
 
 Deploy the reset alongside the existing deployment in this order:

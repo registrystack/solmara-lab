@@ -1049,6 +1049,137 @@ class HostedProvisionerTests(unittest.TestCase):
                 previous_name,
             )
 
+    def _published_extract_provision(
+        self, root: Path, superseded: str, active: str
+    ) -> object:
+        """Lay out the state `publish-extract` leaves behind and return the
+        parsed provision arguments that a later full run would use."""
+        runtime_output = root / "runtime-output"
+        extract_output = root / "extract-output"
+        runtime_output.mkdir()
+        extract_output.mkdir()
+        provisioner._write(extract_output / superseded, b"superseded", 0o444)
+        provisioner._write(extract_output / active, b"active", 0o444)
+        provisioner._write(runtime_output / "runtime.yaml", b"runtime", 0o444)
+        provisioner._write(
+            runtime_output
+            / f"runtime.rollback-{superseded.removesuffix('.sqlite')}.yaml",
+            b"rollback",
+            0o444,
+        )
+        return provisioner.parser().parse_args(
+            [
+                "provision",
+                "--target",
+                "sro-evidence",
+                "--assets",
+                str(root / "assets"),
+                "--secrets",
+                str(root / "secrets"),
+                "--runtime-output",
+                str(runtime_output),
+                "--secret-output",
+                str(root / "secret-output"),
+                "--extract-output",
+                str(extract_output),
+                "--bind-host",
+                provisioner.EXPECTED_BIND_HOST,
+                "--mint-origin",
+                provisioner.MINT_ORIGIN,
+            ]
+        )
+
+    @contextlib.contextmanager
+    def _staged_provision(self, active: str):
+        def stage(
+            _assets,
+            _cell,
+            _secrets,
+            runtime,
+            _secret_output,
+            extracts,
+            _bind_host,
+            _published_at,
+            _observed_at,
+            _mint_origin,
+            _relay_origin,
+        ):
+            provisioner._write(runtime / "runtime.yaml", b"runtime", 0o444)
+            provisioner._write(extracts / active, b"active", 0o444)
+            return active
+
+        with (
+            mock.patch.object(provisioner, "verify_assets"),
+            mock.patch.object(provisioner, "_validate_secret_inventory"),
+            mock.patch.object(provisioner, "_confine_secret_inventory"),
+            mock.patch.object(provisioner, "_consume_secret_inventory"),
+            mock.patch.object(
+                provisioner, "_publication_time", return_value="2026-08-12T10:00:00Z"
+            ),
+            mock.patch.object(provisioner, "_stage_evidence", side_effect=stage),
+            mock.patch.object(provisioner, "_check_secret_install_tree"),
+            mock.patch.object(provisioner, "_install_secret_tree"),
+        ):
+            yield
+
+    def test_provision_composes_with_a_published_extract(self) -> None:
+        """`publish-extract` appends the extract it binds beside the one it
+        supersedes and leaves a rollback runtime next to the runtime it rewrote.
+        A later full provision has to look past both to recognise its own tree,
+        and must leave the superseded extract where a rollback can still find
+        it."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            superseded = "sro-poverty-20260812T090000Z.sqlite"
+            active = "sro-poverty-20260812T100000Z.sqlite"
+            arguments = self._published_extract_provision(root, superseded, active)
+            with self._staged_provision(active):
+                provisioner.provision(arguments)
+
+            extract_output = root / "extract-output"
+            self.assertEqual((extract_output / superseded).read_bytes(), b"superseded")
+            self.assertEqual((extract_output / active).read_bytes(), b"active")
+            self.assertEqual(
+                stat.S_IMODE((extract_output / superseded).stat().st_mode), 0o444
+            )
+            self.assertEqual(stat.S_IMODE(extract_output.stat().st_mode), 0o555)
+
+    def test_provision_still_refuses_an_unpublished_extract_file(self) -> None:
+        """The allowance is only for extracts this provisioner published, so an
+        extract output carrying anything else is still a refusal rather than a
+        directory the check has stopped reading."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            superseded = "sro-poverty-20260812T090000Z.sqlite"
+            active = "sro-poverty-20260812T100000Z.sqlite"
+            arguments = self._published_extract_provision(root, superseded, active)
+            provisioner._write(
+                root / "extract-output" / "sro-poverty-restored.sqlite",
+                b"restored",
+                0o444,
+            )
+            with self._staged_provision(active), self.assertRaisesRegex(
+                provisioner.ProvisionError, "existing output mismatch"
+            ):
+                provisioner.provision(arguments)
+
+    def test_only_a_superseded_published_extract_is_preserved(self) -> None:
+        active = "sro-poverty-20260812T100000Z.sqlite"
+        superseded = "sro-poverty-20260812T090000Z.sqlite"
+        preserve = provisioner._preserve_superseded_extracts(active)
+        self.assertTrue(preserve(superseded, ("digest", 0o444)))
+        # The extract this run staged is its own output and stays verified.
+        self.assertFalse(preserve(active, ("digest", 0o444)))
+        # Only the three direct authorities publish extracts, only at the top of
+        # the output, only as immutable files.
+        self.assertFalse(
+            preserve("sipf-pension-20260812T090000Z.sqlite", ("digest", 0o444))
+        )
+        self.assertFalse(preserve(f"nested/{superseded}", ("digest", 0o444)))
+        self.assertFalse(preserve(superseded, ("directory", 0o444)))
+        self.assertFalse(preserve(superseded, ("digest", 0o644)))
+        self.assertFalse(preserve(f"{superseded}.bak", ("digest", 0o444)))
+
     def test_extract_append_never_overwrites_a_mismatched_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
