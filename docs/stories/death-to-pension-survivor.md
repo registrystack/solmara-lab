@@ -2,7 +2,7 @@
 
 The pension application combines a CRA death assertion and a SIPF active
 payment assertion under `pension-payment-review`. The application, not either
-Evidence cell, derives whether payment should stop.
+Evidence gateway, derives whether payment should stop.
 
 CRA calls only `civil-person/death-by-uin` and discloses the governed death
 status. SIPF calls only `pension-payment/by-pensioner-uin` and discloses active

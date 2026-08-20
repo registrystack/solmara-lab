@@ -21,7 +21,7 @@ unregistered birth, duplicate enrolment, and wrong purpose. An unregistered
 birth is a valid CRA record with no BRN and produces signed false, not an
 unresolved consultation. The mutable MoSD source changes on the next request;
 the three immutable sources change only after a reviewed replacement is bound
-and the owning cell is restarted.
+and the owning gateway is restarted.
 
 The response surface contains safe authority, issuer, provider, source type,
 and verified concept values. It does not contain selectors, tokens, source

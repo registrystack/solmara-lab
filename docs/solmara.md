@@ -1,9 +1,9 @@
 # Solmara lab architecture
 
-Solmara is a fictional institutional lab. Its core boundary is an authority
-cell: an authority publishes a governed source, operates its Evidence service,
-signs its assertions, and owns its audit trail. A programme consumes assertions
-from several cells and owns the programme decision.
+Solmara is a fictional institutional lab. Its core boundary is the authority:
+each one publishes a governed source, operates its own Evidence gateway, signs
+its assertions, and owns its audit trail. A programme consumes assertions from
+several authorities and owns the programme decision.
 
 ## Runtime topology
 
@@ -16,9 +16,9 @@ from several cells and owns the programme decision.
 | SIPF | live read-only SQLite | pension payment and survivor exact lookups |
 | NAgDI | live read-only SQLite | voucher and livestock exact lookups |
 
-There are six Evidence cells and five Relays. A Relay exists only for governed
-live consultation. It is not a façade over an Evidence cell's immutable local
-extract.
+There are six Evidence gateways and five Relays. A Relay exists only for
+governed live consultation. It is not a façade over an Evidence gateway's
+immutable local extract.
 
 Every Relay operation has one dedicated Mint client registration, exact scope,
 fixed purpose claim, access profile, and disclosure profile. Relays do not
@@ -27,10 +27,11 @@ offer list, search, cursor, or generic record routes. The shared
 
 ## Evidence authority
 
-Each cell has a unique provider IRI, authority DID issuer, ES256 signing key and
-JWKS, audit destination, subject-binding secret, runtime binding, and hostname.
-The application chooses the cell from a closed requirement directory, fetches
-only that cell's JWKS, verifies the exact requirement, evidence type, concepts,
+Each gateway has a unique provider IRI, authority DID issuer, ES256 signing key
+and JWKS, audit destination, subject-binding secret, runtime binding, and
+hostname. The application chooses the gateway from a closed requirement
+directory, fetches only that gateway's JWKS, verifies the exact requirement,
+evidence type, concepts,
 purpose, nonce, issuer, provider, audience, and validity window, then retains a
 safe presentation projection.
 
@@ -57,7 +58,7 @@ profile.
 Wrong scope, wrong purpose, malformed selectors, invalid source rows,
 unavailable source, and unavailable audit fail closed. No-match, ambiguous
 match, and policy-hidden matches use the same data-free unresolved class. An
-Evidence cell does not infer a negative assertion from an unresolved Relay
+Evidence gateway does not infer a negative assertion from an unresolved Relay
 consultation.
 
 ## Programme stories

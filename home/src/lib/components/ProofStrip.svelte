@@ -17,7 +17,7 @@
   <div class="content proof-grid">
     <div><strong>1</strong><span>synthetic country</span></div>
     <div><strong>{authorities ?? 'Unavailable'}</strong><span>live authorities</span></div>
-    <div><strong>{evidenceCells ?? 'Unavailable'}</strong><span>authority Evidence cells</span></div>
+    <div><strong>{evidenceCells ?? 'Unavailable'}</strong><span>authority Evidence gateways</span></div>
     <div><strong>{journeys ?? 'Unavailable'}</strong><span>guided policy journeys</span></div>
     <div><strong>0</strong><span>real resident records</span></div>
   </div>

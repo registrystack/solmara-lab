@@ -164,7 +164,7 @@ test('problem-codes anchors resolve, including current Evidence authorization de
   await expect(page.locator('[id="malformed_request"]')).toBeVisible();
 });
 
-test('anatomy lists five Relay V2 projects and six authority Evidence cells with config links', async ({ page }) => {
+test('anatomy lists five Relay V2 projects and six authority Evidence gateways with config links', async ({ page }) => {
   await page.goto('/anatomy');
   await expect(page.locator('#relays .entity')).toHaveCount(5);
   for (const id of ['cra-evidence', 'nia-evidence', 'sro-evidence', 'mosd-programme-evidence', 'sipf-evidence', 'nagdi-evidence']) {
@@ -241,10 +241,10 @@ test('purpose lens: the live review reveals evidence and the wrong-purpose chall
   await page.goto('/');
 
   await expect(
-    page.locator('#proof .proof-grid > div').filter({ hasText: 'authority Evidence cells' }).locator('strong')
+    page.locator('#proof .proof-grid > div').filter({ hasText: 'authority Evidence gateways' }).locator('strong')
   ).toHaveText('6');
   await expect(
-    page.locator('#solmara-preview .country-facts > div').filter({ hasText: 'Evidence cells' }).locator('dd')
+    page.locator('#solmara-preview .country-facts > div').filter({ hasText: 'Evidence gateways' }).locator('dd')
   ).toHaveText('6');
 
   // The boundary challenge appears only after a successful live evidence run.

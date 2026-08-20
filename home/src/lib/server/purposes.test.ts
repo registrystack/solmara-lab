@@ -8,8 +8,8 @@ const SAMPLE = `# Solmara Purpose Catalogue
 
 | Purpose IRI | Advertised by | Enforced by | Story | Denial problem codes |
 |---|---|---|---|---|
-| \`child-benefit-review\` | CRA, NIA | Authority Evidence cells | Birth to child benefit | \`not_authorized\` |
-| \`voucher-eligibility-review\` | NAgDI | Authority Evidence cells | Farmer climate-smart voucher | \`not_authorized\` |
+| \`child-benefit-review\` | CRA, NIA | Authority Evidence gateways | Birth to child benefit | \`not_authorized\` |
+| \`voucher-eligibility-review\` | NAgDI | Authority Evidence gateways | Farmer climate-smart voucher | \`not_authorized\` |
 
 ## Purpose Rules
 
@@ -55,13 +55,23 @@ describe('purposes parser', () => {
     expect(child.iri).toBe('child-benefit-review');
     expect(child.slug).toBe('child-benefit-review');
     expect(child.advertisedBy).toBe('CRA, NIA');
-    expect(child.enforcedBy).toBe('Authority Evidence cells');
+    expect(child.enforcedBy).toBe('Authority Evidence gateways');
     expect(child.story).toBe('Birth to child benefit');
     expect(child.denialCodes).toEqual(['not_authorized']);
     expect(child.plainLanguage).toContain('permits evidence needed to determine whether a child');
     expect(child.plainLanguage).toContain('does not permit raw poverty scores');
     // The rule paragraph must not leak markdown backticks.
     expect(child.plainLanguage).not.toContain('`');
+  });
+
+  it('names the enforcing service for a three-column row', () => {
+    // Every row in the published catalogue is three columns, so this is the
+    // shape the site actually renders and the one that supplies the enforcing
+    // service from code rather than from the table.
+    const purposes = parsePurposes(`| \`citizen-self-service\` | CRA link, NIA status | one Relay lookup |`);
+    expect(purposes).toHaveLength(1);
+    expect(purposes[0].enforcedBy).toBe('Authority Evidence gateways');
+    expect(purposes[0].plainLanguage).toContain('CRA link, NIA status may answer this purpose');
   });
 
   it('does not treat the credential section as a rule paragraph', () => {

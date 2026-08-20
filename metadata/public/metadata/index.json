@@ -9,7 +9,7 @@
     {
       "media_type": "application/json",
       "path": "metadata/catalog.json",
-      "sha256": "sha256:49604351742db066f104f1e648e383228bd786c0b264c1a4370331f8dc9f3e6e"
+      "sha256": "sha256:c9c540a49ef5945b62a035b285fc992987227b5bf371f1a8d3908f9608ddc8ef"
     },
     {
       "media_type": "application/json",
@@ -24,7 +24,7 @@
     {
       "media_type": "application/ld+json",
       "path": "metadata/dcat.jsonld",
-      "sha256": "sha256:3747beabd9d30201a2065963cdeefeb45a1b26c9ae380d787f1da7d511e81d32"
+      "sha256": "sha256:0c1dbff692facf94d31ccf304f4b727766090611bc3d1af9a01bfb348fea586b"
     },
     {
       "media_type": "application/json",
@@ -89,7 +89,7 @@
     {
       "media_type": "application/yaml",
       "path": "metadata/metadata.yaml",
-      "sha256": "sha256:4c765f6526a95a84d59485b94e1fd57f677df824b91ecd5a3b00651cf006d191"
+      "sha256": "sha256:f3842a3527c81a513a23587591f21d767edd7147f01ddcc9f1332152ce7cb783"
     },
     {
       "media_type": "application/json",

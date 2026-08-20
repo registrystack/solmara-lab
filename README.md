@@ -11,7 +11,7 @@ The reset has two evidence cadences:
 - CRA civil links and death status, MoSD enrolment, SIPF pension and survivor
   cases, and NAgDI agriculture requirements use named Relay V2 exact lookups.
 
-Six Evidence cells have distinct providers, issuers, signing keys, JWKS, audit
+Six Evidence gateways have distinct providers, issuers, signing keys, JWKS, audit
 sinks, subject-binding secrets, and endpoints. Five Relays expose only the
 named non-enumerating operations needed by the lab. NIA's Relay is reserved for
 the optional eSignet UserInfo profile; NIA Evidence reads its own extract.
@@ -60,11 +60,12 @@ Local entry points after startup are:
 
 - Visitor Center: `http://127.0.0.1:4301`
 - Programme portal: `http://127.0.0.1:4300`
-- Authority Evidence gateway: `https://localhost:4341/evidence/{authority}`
+- Local TLS front door: `https://localhost:4341/evidence/{authority}`
 - Static metadata: `http://127.0.0.1:4331`
 
-The gateway strips `/evidence/{authority}` before forwarding. Application code
-uses six authority base URLs and never assumes a national Evidence host.
+The front door strips `/evidence/{authority}` before forwarding, so one local
+port reaches all six gateways. Application code uses six authority base URLs and
+never assumes a national Evidence host.
 
 ## Architecture
 
@@ -103,7 +104,7 @@ uv run python -m solmara_lab.publisher --root .. publish-extract \
 
 The live MoSD mutation is visible on the next Relay-backed Evidence request
 without a restart. A newly named SRO extract is not visible until only the SRO
-Evidence cell is rebound and restarted. Invalid, stale, or overwritten extracts
+Evidence gateway is rebound and restarted. Invalid, stale, or overwritten extracts
 fail closed. Run lifecycle smoke in isolated volumes or restore the deterministic
 fixture state afterward.
 
@@ -131,9 +132,9 @@ Relay/Evidence authoring inputs are tracked.
 
 - `relays/` contains five authority-governed Relay V2 projects.
 - `evidence/cells/` contains six authority Evidence bundle templates and
-  runtime bindings.
+  runtime bindings, one per gateway.
 - `generator/solmara_lab/publisher.py` publishes deterministic SQLite sources.
-- `scenarios/` and `scenario-runner/` route requirements to authority cells,
+- `scenarios/` and `scenario-runner/` route requirements to authority gateways,
   verify multiple JWKS, and compose application outcomes.
 - `portal/` and `home/` display safe authority, issuer, and source-type labels.
 - `metadata/` and `requests/registry-lab/` publish discovery and request

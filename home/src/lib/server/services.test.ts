@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { statusProbes, topologyGroups } from './services';
 
 describe('authority-cell topology', () => {
-  it('has exactly five Relays, six Evidence cells, and one shared Mint', () => {
+  it('has exactly five Relays, six Evidence gateways, and one shared Mint', () => {
     const probes = statusProbes('http://portal.example');
     expect(probes.filter((probe) => probe.role === 'relay')).toHaveLength(5);
     expect(probes.filter((probe) => probe.role === 'evidence')).toHaveLength(6);
