@@ -101,6 +101,7 @@ services:
 
   esignet-seed:
     image: ${SOLMARA_ESIGNET_SEED_IMAGE:?set digest-pinned eSignet seed image}
+    restart: "no"
     environment:
       PGHOST: esignet-database
       PGUSER: esignet

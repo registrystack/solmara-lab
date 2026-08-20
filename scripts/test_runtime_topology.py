@@ -791,6 +791,15 @@ class RuntimeTopologyTests(unittest.TestCase):
         )
         self.assertNotIn("NIA_ESIGNET_CLIENT_PRIVATE_JWK", portal)
 
+    def test_hosted_esignet_seeder_runs_once(self) -> None:
+        """Coolify gives a service that declares no restart policy
+        `unless-stopped`, so a one-shot that exits on success is started again
+        forever. Every other one-shot in the fleet says `no`; the seeder must
+        too."""
+        esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
+        esignet = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))
+        self.assertEqual(esignet["services"]["esignet-seed"].get("restart"), "no")
+
     def test_bruno_workspace_covers_only_the_eight_governed_v2_lookups(self) -> None:
         relay_requests = SCRIPT.parents[1] / "requests/registry-lab/50 - Relay V2"
         rendered = "\n".join(
