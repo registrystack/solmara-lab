@@ -513,7 +513,7 @@ class HostedProvisionerTests(unittest.TestCase):
                 runtime,
                 output_secrets,
                 None,
-                provisioner.EXPECTED_BIND_HOST["sipf"],
+                provisioner.EXPECTED_BIND_HOST,
                 "2026-08-12T00:00:00Z",
                 "2026-08-12T00:00:00Z",
                 provisioner.MINT_ORIGIN,
@@ -589,7 +589,7 @@ class HostedProvisionerTests(unittest.TestCase):
                 secrets,
                 runtime,
                 output_secrets,
-                provisioner.EXPECTED_BIND_HOST["mint"],
+                provisioner.EXPECTED_BIND_HOST,
                 provisioner.MINT_ORIGIN,
             )
             self.assertEqual(
@@ -624,7 +624,7 @@ class HostedProvisionerTests(unittest.TestCase):
                     secrets,
                     root / "bad-runtime",
                     root / "bad-secrets",
-                    provisioner.EXPECTED_BIND_HOST["mint"],
+                    provisioner.EXPECTED_BIND_HOST,
                     provisioner.MINT_ORIGIN,
                 )
 
@@ -715,7 +715,7 @@ class HostedProvisionerTests(unittest.TestCase):
                     "--secret-output",
                     str(secret_output),
                     "--bind-host",
-                    provisioner.EXPECTED_BIND_HOST["mint"],
+                    provisioner.EXPECTED_BIND_HOST,
                     "--mint-origin",
                     provisioner.MINT_ORIGIN,
                 ]
@@ -966,7 +966,7 @@ class HostedProvisionerTests(unittest.TestCase):
             (runtime / "runtime.yaml").write_text(
                 yaml.safe_dump(
                     {
-                        "listener": {"bindHost": provisioner.EXPECTED_BIND_HOST["sro"]},
+                        "listener": {"bindHost": provisioner.EXPECTED_BIND_HOST},
                         "sourceExtracts": {
                             "sro-poverty-extract": {
                                 "path": f"/var/lib/registry-evidence/sro/extracts/{previous_name}"
@@ -1286,7 +1286,7 @@ class RealPublisherExtractAgeTest(unittest.TestCase):
                     runtime,
                     root / "output-secrets",
                     extracts,
-                    provisioner.EXPECTED_BIND_HOST["sro"],
+                    provisioner.EXPECTED_BIND_HOST,
                     self.PUBLISHED_AT,
                     self.LONG_AFTER,
                     provisioner.MINT_ORIGIN,

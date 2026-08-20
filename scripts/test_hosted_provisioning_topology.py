@@ -391,7 +391,9 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             else:
                 self.assertNotIn("--relay-origin", command)
 
-    def test_evidence_bind_hosts_match_their_isolated_runtime_networks(self) -> None:
+    def test_evidence_provisioners_bind_all_interfaces_on_addressed_runtimes(
+        self,
+    ) -> None:
         runtime_services = {
             "cra": self.runtime["compose.coolify.interior.yaml"]["services"][
                 "cra-evidence"
@@ -417,10 +419,8 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 f"{authority}-evidence-provisioner"
             ]
             command = provisioner["command"]
-            self.assertEqual(
-                command[command.index("--bind-host") + 1],
-                runtime["networks"]["runtime"]["ipv4_address"],
-            )
+            self.assertEqual(command[command.index("--bind-host") + 1], "0.0.0.0")
+            self.assertIn("ipv4_address", runtime["networks"]["runtime"], authority)
 
     def test_each_signer_and_transit_initializer_mount_only_its_matching_volume(
         self,
