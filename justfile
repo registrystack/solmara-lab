@@ -66,7 +66,7 @@ compose:
     @scripts/check-hosted-compose.sh
     @scripts/check-coolify-compose.sh
 
-# Verify that every Registry Stack v0.22.0 release reference is public and immutable.
+# Verify that every Registry Stack v0.23.0 release reference is public and immutable.
 hosted-pin-check: build-runtime-images
     scripts/check-image-pins.py
     scripts/check-registry-stack-release-pin.py --require-public

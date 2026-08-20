@@ -18,8 +18,8 @@ describe('home data adapters', () => {
 
   it('publishes the exact Registry Stack release identity', async () => {
     const versions = await readVersions();
-    expect(versions.REGISTRY_STACK_REQUIRED_VERSION).toBe('0.22.0');
-    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('v0.22.0');
+    expect(versions.REGISTRY_STACK_REQUIRED_VERSION).toBe('0.23.0');
+    expect(versions.REGISTRY_STACK_SOURCE_REF).toBe('v0.23.0');
     expect(versions.REGISTRY_STACK_SOURCE_COMMIT).toMatch(/^[0-9a-f]{40}$/);
     expect(versions.REGISTRY_RELAY_IMAGE).toMatch(/@sha256:[0-9a-f]{64}$/);
     expect(versions.SOLMARA_EVIDENCE_IMAGE).toMatch(/^ghcr\.io\/registrystack\/evidence@sha256:[0-9a-f]{64}$/);

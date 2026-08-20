@@ -3,6 +3,30 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-20 Registry Stack v0.23.0
+
+Solmara pins Registry Stack v0.23.0 across `versions.env`, the release-pin
+gate, and the home release-identity surface. The Relay, Evidence, and Mint OCI
+references move to the v0.23.0 digests, and the Relayctl authoring helper is
+built from the v0.23.0 `linux-amd64` release asset and its checksum. The
+topology is unchanged. The reason to move is security: v0.23.0 upgrades `h2`
+to 0.4.17, past RUSTSEC-2026-0258, where a peer could queue unlimited empty
+DATA frames on the HTTP/2 path that Relay and Evidence both serve over.
+
+The Evidence deployment contract gained three required fields, so the six cell
+bundles are authored rather than only re-pinned. `service.publicOrigin` names
+the one routed origin RFC 9728 discovery answers on, which is each cell's own
+`<cell>-evidence.solmara.registrystack.org`. Every requirement and every
+concept now carries a `handle`, the stable key a client reads a result under;
+each is authored to the last segment of the identifier it names. v0.23.0 also
+adds Registry Discovery and published Discovery client packages, neither of
+which the lab uses yet.
+
+Because the Evidence bundle content changed, the staged runtime a deployment
+already holds no longer matches the one this version stages. A local run needs
+`just reset` before `just up`. A hosted rollout cannot reuse the existing
+Evidence and Relay runtime volumes.
+
 ## 2026-08-19 Registry Stack v0.22.0
 
 Solmara pins Registry Stack v0.22.0 across `versions.env`, the release-pin

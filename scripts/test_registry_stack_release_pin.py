@@ -25,12 +25,12 @@ def authenticator_values() -> dict[str, str]:
 class ReleasePinTests(unittest.TestCase):
     def test_older_release_is_rejected_in_favour_of_coherent_release(self) -> None:
         values = {"REGISTRY_STACK_REQUIRED_VERSION": "0.21.0", **authenticator_values()}
-        self.assertIn("must be 0.22.0", MODULE.validate(values, require_public=False)[0])
+        self.assertIn("must be 0.23.0", MODULE.validate(values, require_public=False)[0])
 
     def test_missing_public_digest_is_an_explicit_blocker(self) -> None:
         values = {
-            "REGISTRY_STACK_REQUIRED_VERSION": "0.22.0",
-            "REGISTRY_STACK_SOURCE_REF": "v0.22.0",
+            "REGISTRY_STACK_REQUIRED_VERSION": "0.23.0",
+            "REGISTRY_STACK_SOURCE_REF": "v0.23.0",
             **authenticator_values(),
         }
         self.assertEqual(MODULE.validate(values, require_public=False), [])
@@ -38,11 +38,11 @@ class ReleasePinTests(unittest.TestCase):
 
     def test_digest_must_be_exact(self) -> None:
         values = {
-            "REGISTRY_STACK_REQUIRED_VERSION": "0.22.0",
-            "REGISTRY_STACK_SOURCE_REF": "v0.22.0",
+            "REGISTRY_STACK_REQUIRED_VERSION": "0.23.0",
+            "REGISTRY_STACK_SOURCE_REF": "v0.23.0",
             "REGISTRY_STACK_SOURCE_COMMIT": "f" * 40,
             "REGISTRY_STACK_RELEASE_RELAY_DIGEST": "a" * 64,
-            "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL": "https://github.com/registrystack/registry-stack/releases/download/v0.22.0/relayctl-v0.22.0-linux-amd64",
+            "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL": "https://github.com/registrystack/registry-stack/releases/download/v0.23.0/relayctl-v0.23.0-linux-amd64",
             "REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256": "d" * 64,
             **authenticator_values(),
         }
@@ -52,12 +52,12 @@ class ReleasePinTests(unittest.TestCase):
 
     def test_public_source_ref_must_bind_the_release_tag(self) -> None:
         values = {
-            "REGISTRY_STACK_REQUIRED_VERSION": "0.22.0",
+            "REGISTRY_STACK_REQUIRED_VERSION": "0.23.0",
             "REGISTRY_STACK_SOURCE_REF": "main",
             **authenticator_values(),
         }
         self.assertIn(
-            "REGISTRY_STACK_SOURCE_REF must be v0.22.0",
+            "REGISTRY_STACK_SOURCE_REF must be v0.23.0",
             MODULE.validate(values, require_public=False),
         )
 

@@ -84,6 +84,9 @@ class CellContractsTest(unittest.TestCase):
             config = configs[cell]
             runtime = load_yaml(ROOT / "evidence" / "cells" / cell / "runtime.yaml")
             self.assertEqual(config["service"]["providerId"], f"https://id.registrystack.org/solmara/evidence/{cell}")
+            # RFC 9728 discovery answers on the cell's own routed origin, which is
+            # the one origin a relying party may treat as this resource's identity.
+            self.assertEqual(config["service"]["publicOrigin"], f"https://{cell}-evidence.solmara.registrystack.org")
             self.assertEqual(config["issuer"]["id"], ISSUERS[cell])
             self.assertEqual(config["signing"]["algorithm"], "ES256")
             self.assertEqual(config["signing"]["activePublicJwkFile"], f"public-keys/{cell}.jwk.json")
@@ -91,6 +94,22 @@ class CellContractsTest(unittest.TestCase):
             self.assertEqual(runtime["listener"]["bindHost"], f"172.29.1.{offset}")
             self.assertEqual(runtime["signer"]["keyName"], f"solmara-evidence-{cell}")
             self.assertNotEqual(runtime["auditStorage"]["path"], "/var/lib/registry-evidence/audit/evidence.jsonl")
+
+    def test_every_requirement_and_concept_carries_its_own_stable_handle(self):
+        """A handle is the key a client reads a result under, so it is authored to
+        the last segment of the identifier it names rather than invented."""
+        for cell, config in self.configs().items():
+            handles = []
+            for requirement in config["requirements"]:
+                with self.subTest(cell=cell, requirement=requirement["id"]):
+                    self.assertEqual(requirement["handle"], requirement["id"].rsplit("/", 2)[-2])
+                handles.append(requirement["handle"])
+                concepts = [concept["handle"] for concept in requirement["concepts"]]
+                for concept in requirement["concepts"]:
+                    with self.subTest(cell=cell, concept=concept["id"]):
+                        self.assertEqual(concept["handle"], concept["id"].rsplit("/", 1)[-1])
+                self.assertCountEqual(concepts, set(concepts))
+            self.assertCountEqual(handles, set(handles))
 
     def test_exact_requirement_evidence_type_purpose_and_validity_set(self):
         actual = {}

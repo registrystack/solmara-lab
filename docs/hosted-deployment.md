@@ -17,7 +17,7 @@ Registry Stack v0.20.0 remains immutable and does not contain the Evidence
 capability required by this lab. v0.20.1 contains the required runtime
 capabilities but does not publish official Evidence and Mint OCI images.
 Registry Stack v0.21.0 is the first coherent release with all three official
-runtime images; the lab currently pins v0.22.0 from that line. Do not move a
+runtime images; the lab currently pins v0.23.0 from that line. Do not move a
 release, substitute a floating source reference, or recreate those runtime
 images in Solmara.
 
@@ -52,6 +52,14 @@ Evidence hosts are:
 - `mosd-programme-evidence.solmara.registrystack.org`
 - `sipf-evidence.solmara.registrystack.org`
 - `nagdi-evidence.solmara.registrystack.org`
+
+Each host is also the cell's own identity. The signed bundle carries it as
+`service.publicOrigin`, and the cell answers with it as the `resource` and the
+`jwks_uri` prefix of its RFC 9728 protected-resource metadata and in the
+`WWW-Authenticate` challenge it returns. `SOLMARA_<CELL>_EVIDENCE_PUBLIC_HOST`
+moves the route without moving that identity, so a deployment that sets one
+still publishes discovery documents naming the host above. Leave those
+overrides unset until the bundle origin is deployment-set as well.
 
 Shared authority state lives at fixed absolute host paths of the form
 `/data/solmara-authority-cells/<cell>/<role>` rather than in named volumes.
