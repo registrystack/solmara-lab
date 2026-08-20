@@ -66,6 +66,15 @@ paths are:
 | Five Relays | 10 | One runtime and one mutable source path per authority |
 | Six Evidence cells | 21 | Runtime, secrets, and Transit socket per cell, plus the CRA, NIA, and SRO immutable-extract paths |
 
+Each application also joins a Coolify-managed container network that carries the
+ingress proxy, alongside the private runtime network its services address. A
+listener bound only to its private runtime address refuses that proxy and never
+answers its public route, so Mint and every Evidence cell bind every interface.
+Evidence records this as `networkExposure: container-private`, the exposure its
+runtime requires before it accepts a wildcard bind. Isolation rests on network
+membership rather than on the bind address: an application's networks carry only
+its own containers and the proxy, so no authority reaches another's cells.
+
 `compose.coolify.provision.yaml` is a dedicated operator-only application. It
 runs only the one-shot target provisioners and is the sole writer of every
 shared path except the seven Transit sockets.

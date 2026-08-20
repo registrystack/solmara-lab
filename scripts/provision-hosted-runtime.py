@@ -642,6 +642,11 @@ def _patch_evidence_origins(
 def _patch_runtime(path: Path, bind_host: str, extract_name: str | None = None) -> None:
     config = yaml.safe_load(path.read_text(encoding="utf-8"))
     config["listener"]["bindHost"] = bind_host
+    # The Evidence runtime accepts a wildcard bind only under this exposure,
+    # which records that the container network and the upstream TLS boundary are
+    # operator-owned deployment facts. It grants no direct public exposure and
+    # does not change how a request is authenticated.
+    config["listener"]["networkExposure"] = "container-private"
     if extract_name is not None:
         profile = next(iter(config["sourceExtracts"]))
         old_path = Path(config["sourceExtracts"][profile]["path"])

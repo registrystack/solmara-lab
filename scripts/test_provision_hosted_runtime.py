@@ -465,6 +465,24 @@ class HostedProvisionerTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(stdout.getvalue(), f"{provisioner.SUCCESS}\n")
 
+    def test_patched_runtime_declares_a_container_private_wildcard_listener(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime_file = Path(temporary) / "runtime.yaml"
+            runtime_file.write_text(
+                yaml.safe_dump({"listener": {"bindHost": "127.0.0.1", "port": 8080}}),
+                encoding="utf-8",
+            )
+
+            provisioner._patch_runtime(runtime_file, provisioner.EXPECTED_BIND_HOST)
+
+            listener = yaml.safe_load(runtime_file.read_text(encoding="utf-8"))[
+                "listener"
+            ]
+            self.assertEqual(listener["bindHost"], "0.0.0.0")
+            self.assertEqual(listener["networkExposure"], "container-private")
+
     def test_evidence_output_contains_only_its_public_signer_and_own_secrets(
         self,
     ) -> None:
