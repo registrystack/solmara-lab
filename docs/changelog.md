@@ -3,6 +3,16 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-20 Evidence gateways replace "cells"
+
+Every visitor-facing surface now calls an authority's Evidence deployment an
+Evidence gateway. "Cell" was a private coinage of the reset and was never
+defined for a reader; "gateway" is the noun Registry Stack itself uses for the
+service that answers a requirement over an authority's own source. Nothing in
+the topology changed. Directory names, hostnames, volume paths, and the
+`solmara-authority-cells` catalogue identifier keep their existing spelling
+because they are identities rather than descriptions.
+
 ## 2026-08-20 Registry Stack v0.23.0
 
 Solmara pins Registry Stack v0.23.0 across `versions.env`, the release-pin
@@ -13,10 +23,10 @@ topology is unchanged. The reason to move is security: v0.23.0 upgrades `h2`
 to 0.4.17, past RUSTSEC-2026-0258, where a peer could queue unlimited empty
 DATA frames on the HTTP/2 path that Relay and Evidence both serve over.
 
-The Evidence deployment contract gained three required fields, so the six cell
+The Evidence deployment contract gained three required fields, so the six gateway
 bundles are authored rather than only re-pinned. `service.publicOrigin` names
-the one routed origin RFC 9728 discovery answers on, which is each cell's own
-`<cell>-evidence.solmara.registrystack.org`. Every requirement and every
+the one routed origin RFC 9728 discovery answers on, which is each gateway's own
+`<authority>-evidence.solmara.registrystack.org`. Every requirement and every
 concept now carries a `handle`, the stable key a client reads a result under;
 each is authored to the last segment of the identifier it names. v0.23.0 also
 adds Registry Discovery and published Discovery client packages, neither of
@@ -53,7 +63,7 @@ digest input.
 
 ## 2026-08-12 Authority-owned Relay and Evidence reset
 
-Solmara now authors six independent Evidence cells and five Relay V2 projects.
+Solmara now authors six independent Evidence gateways and five Relay V2 projects.
 CRA, NIA, and SRO publish immutable SQLite extracts for direct Evidence use;
 CRA, MoSD, SIPF, and NAgDI expose only named exact Relay lookups, with NIA's
 Relay reserved for the optional eSignet UserInfo profile. The programme code

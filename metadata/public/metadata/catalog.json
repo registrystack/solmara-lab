@@ -57,7 +57,7 @@
       "id": "cra-evidence-api",
       "iri": "https://cra-evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "CRA Evidence cell"
+        "en": "CRA Evidence gateway"
       }
     },
     {
@@ -67,7 +67,7 @@
       "id": "nia-evidence-api",
       "iri": "https://nia-evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "NIA Evidence cell"
+        "en": "NIA Evidence gateway"
       }
     },
     {
@@ -77,7 +77,7 @@
       "id": "sro-evidence-api",
       "iri": "https://sro-evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "SRO Evidence cell"
+        "en": "SRO Evidence gateway"
       }
     },
     {
@@ -87,7 +87,7 @@
       "id": "mosd-programme-evidence-api",
       "iri": "https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "MoSD Programme Evidence cell"
+        "en": "MoSD Programme Evidence gateway"
       }
     },
     {
@@ -97,7 +97,7 @@
       "id": "sipf-evidence-api",
       "iri": "https://sipf-evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "SIPF Evidence cell"
+        "en": "SIPF Evidence gateway"
       }
     },
     {
@@ -107,7 +107,7 @@
       "id": "nagdi-evidence-api",
       "iri": "https://nagdi-evidence.solmara.registrystack.org/v1/evidence",
       "title": {
-        "en": "NAgDI Evidence cell"
+        "en": "NAgDI Evidence gateway"
       }
     }
   ],
@@ -491,7 +491,7 @@
       "title": "NAgDI agriculture publication"
     }
   ],
-  "description": "Six authority-owned Evidence cells, five governed Relay V2 services, and the programme applications that compose signed assertions.",
+  "description": "Six authority-owned Evidence gateways, five governed Relay V2 services, and the programme applications that compose signed assertions.",
   "evidence_types": [
     {
       "id": "cra-child-benefit-v1",

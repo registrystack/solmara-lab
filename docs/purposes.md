@@ -3,7 +3,7 @@
 Status: normative for the authority-owned Evidence reset.
 
 Evidence requests carry one closed purpose code in the signed request body.
-For Relay-backed requirements, the Evidence cell authenticates to Registry Mint
+For Relay-backed requirements, the Evidence gateway authenticates to Registry Mint
 with a dedicated private-key JWT client. Mint issues a token whose registration
 fixes the full purpose IRI, exact Relay scope, and `solmara-runtime` audience.
 The caller cannot select or override downstream Relay authority.
@@ -30,4 +30,4 @@ Responses and logs never include selectors, tokens, source rows, secrets,
 private keys, audit material, or sensitive dependency details.
 
 The programme application verifies every authority JWS and owns the final
-cross-authority outcome. No Evidence cell returns an application decision.
+cross-authority outcome. No Evidence gateway returns an application decision.

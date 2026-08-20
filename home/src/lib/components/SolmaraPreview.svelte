@@ -27,7 +27,7 @@
       </p>
       <dl class="country-facts">
         <div><dt>Live authorities</dt><dd>{authorities ?? 'Unavailable'}</dd></div>
-        <div><dt>Evidence cells</dt><dd>{evidenceCells ?? 'Unavailable'}</dd></div>
+        <div><dt>Evidence gateways</dt><dd>{evidenceCells ?? 'Unavailable'}</dd></div>
         <div><dt>Real records</dt><dd>0</dd></div>
       </dl>
       <a class="button-link secondary-link" href="/country">Explore Solmara and its full synthetic cast</a>

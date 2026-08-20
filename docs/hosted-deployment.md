@@ -1,6 +1,6 @@
 # Hosted deployment
 
-Deploy the authority-cell reset only from the exact Registry Stack release
+Deploy the authority-owned reset only from the exact Registry Stack release
 recorded in `versions.env`. Relay, Evidence, and Mint must use their official
 Registry Stack OCI images pinned by digest. Solmara-owned images are also
 digest-pinned, while the local Relayctl helper is assembled from its
@@ -41,7 +41,7 @@ Do not reuse an unrelated package or deploy a mutable tag.
 ## Authority topology
 
 The hosted topology contains five Relay V2 services, six independently signed
-Evidence cells, one shared lab Mint, and the programme application. The optional
+Evidence gateways, one shared lab Mint, and the programme application. The optional
 eSignet profile uses the NIA Relay lookup.
 
 Evidence hosts are:
@@ -53,8 +53,8 @@ Evidence hosts are:
 - `sipf-evidence.solmara.registrystack.org`
 - `nagdi-evidence.solmara.registrystack.org`
 
-Each host is also the cell's own identity. The signed bundle carries it as
-`service.publicOrigin`, and the cell answers with it as the `resource` and the
+Each host is also the gateway's own identity. The signed bundle carries it as
+`service.publicOrigin`, and the gateway answers with it as the `resource` and the
 `jwks_uri` prefix of its RFC 9728 protected-resource metadata and in the
 `WWW-Authenticate` challenge it returns. `SOLMARA_<CELL>_EVIDENCE_PUBLIC_HOST`
 moves the route without moving that identity, so a deployment that sets one
@@ -72,16 +72,16 @@ paths are:
 |---|---:|---|
 | Shared Mint | 3 | Runtime, secrets, and Transit socket |
 | Five Relays | 10 | One runtime and one mutable source path per authority |
-| Six Evidence cells | 21 | Runtime, secrets, and Transit socket per cell, plus the CRA, NIA, and SRO immutable-extract paths |
+| Six Evidence gateways | 21 | Runtime, secrets, and Transit socket per gateway, plus the CRA, NIA, and SRO immutable-extract paths |
 
 Each application also joins a Coolify-managed container network that carries the
 ingress proxy, alongside the private runtime network its services address. A
 listener bound only to its private runtime address refuses that proxy and never
-answers its public route, so Mint and every Evidence cell bind every interface.
+answers its public route, so Mint and every Evidence gateway bind every interface.
 Evidence records this as `networkExposure: container-private`, the exposure its
 runtime requires before it accepts a wildcard bind. Isolation rests on network
 membership rather than on the bind address: an application's networks carry only
-its own containers and the proxy, so no authority reaches another's cells.
+its own containers and the proxy, so no authority reaches another's gateways.
 
 Joining two networks makes a container's routable address ambiguous. Traefik
 reads the address from the first network it iterates when no network is named,
@@ -111,7 +111,7 @@ to two different empty directories. Co-locating the provision, signer, core, and
 four authority applications is a deployment precondition.
 
 Each ministry runs its own signer application, which creates and owns the
-Transit socket paths of its cells and runs one isolated signer per cell:
+Transit socket paths of its gateways and runs one isolated signer per gateway:
 
 | Application | File | Signers |
 |---|---|---|
@@ -156,7 +156,7 @@ least-authority source clients, each limited to its named operation:
 - `nia-esignet`
 
 The ninth client, `solmara-demo`, belongs to the programme application and is
-used to request assertions from the authority Evidence cells. The shared Mint
+used to request assertions from the authority Evidence gateways. The shared Mint
 is a lab convenience, not production tenancy guidance.
 
 ## Secret boundary
@@ -170,7 +170,7 @@ Compose file, repository file, build log, or delivery record:
 - authority-specific Relay audit HMAC keys, plus cursor HMAC keys for the Relay
   contracts that require cursors;
 - Mint and Evidence audit HMAC keys;
-- one subject-binding HMAC key for each Evidence cell;
+- one subject-binding HMAC key for each Evidence gateway;
 - the programme federator token;
 - when eSignet is enabled, its database credential, KYC-token and PSUT HMAC
   secrets, KYC keystore credentials, and portal OIDC client key.
@@ -195,14 +195,14 @@ hosted provisioner creates the initial checked publication and reuses the exact
 active filename on a restart. It never overwrites an active extract in place.
 
 Reuse does not re-apply the extract's serving age. `maximumExtractAgeSeconds` is
-a policy each Evidence cell applies to live requests, so re-checking it while
+a policy each Evidence gateway applies to live requests, so re-checking it while
 re-adopting an already published extract would only make the provision
 application refuse to redeploy a day after it last ran. Every other binding,
 metadata, schema, and integrity check still applies, and an extract published in
 the future is still refused. Publishing a newer checkpoint remains the deliberate
 `publish-extract` operation below.
 
-To publish a later checkpoint, override the matching direct-cell provisioner
+To publish a later checkpoint, override the matching direct-gateway provisioner
 service command with:
 
 ```text
@@ -211,8 +211,9 @@ publish-extract --target <cra|nia|sro>-evidence --assets /opt/solmara-hosted-ass
 
 The operation validates the current binding, appends the checked publication
 under a fresh immutable filename, preserves the old file, and atomically
-rebinds only that cell's runtime configuration. Restart only the matching
-Evidence cell after the operation succeeds. The running cell continues to read
+rebinds only that gateway's runtime configuration. Restart only the matching
+Evidence gateway after the operation succeeds. The running gateway continues to
+read
 the old mounted extract until that restart. A malformed, metadata-mismatched,
 or non-newer publication fails closed.
 
@@ -248,7 +249,7 @@ Deploy the reset alongside the existing deployment in this order:
    `compose.coolify.social-development.yaml`,
    `compose.coolify.labour-pensions.yaml`, and
    `compose.coolify.agriculture.yaml`. Confirm all five Relays and all six
-   Evidence cells are ready on the private routes.
+   Evidence gateways are ready on the private routes.
 6. Run the hosted programme, denial, JWKS, source-label, redaction, and UI smoke
    against the new routes before changing public routing.
 7. If required for this deployment, add `compose.coolify.esignet.yaml` and run
@@ -274,7 +275,7 @@ requires:
 - wrong-purpose and unauthorized calls to fail generically;
 - the portal to prove authority URL selection, per-authority JWKS verification,
   source-type labels, and redaction;
-- the Visitor Center to show the publisher, six Evidence cells, five Relays,
+- the Visitor Center to show the publisher, six Evidence gateways, five Relays,
   shared Mint, and programme application;
 - when the optional profile is deployed, eSignet login to complete through the
   NIA Relay V2 lookup.

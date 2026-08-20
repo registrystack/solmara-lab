@@ -26,7 +26,7 @@ export function parsePurposes(raw: string): Purpose[] {
           iri,
           slug,
           advertisedBy: cells[1],
-          enforcedBy: 'Authority Evidence cells',
+          enforcedBy: 'Authority Evidence gateways',
           story: slug.replace(/-/g, ' '),
           denialCodes: ['not_authorized'],
           plainLanguage: `${cells[1]} may answer this purpose through ${cells[2]}. Wrong-purpose and unauthorized requests disclose nothing.`

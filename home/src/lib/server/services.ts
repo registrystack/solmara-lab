@@ -109,7 +109,7 @@ export const SERVICES: ServiceDef[] = [
     probeEnv: 'SOLMARA_CRA_EVIDENCE_URL',
     probeDefault: 'https://cra-evidence.solmara.registrystack.org',
     probePath: '/health',
-    configPaths: [{ label: 'Authority Evidence cell', path: 'evidence/cells/cra' }]
+    configPaths: [{ label: 'Authority Evidence gateway', path: 'evidence/cells/cra' }]
   }),
   evidence({
     id: 'nia-evidence',
@@ -119,7 +119,7 @@ export const SERVICES: ServiceDef[] = [
     probeEnv: 'SOLMARA_NIA_EVIDENCE_URL',
     probeDefault: 'https://nia-evidence.solmara.registrystack.org',
     probePath: '/health',
-    configPaths: [{ label: 'Authority Evidence cell', path: 'evidence/cells/nia' }]
+    configPaths: [{ label: 'Authority Evidence gateway', path: 'evidence/cells/nia' }]
   }),
   evidence({
     id: 'sro-evidence',
@@ -129,7 +129,7 @@ export const SERVICES: ServiceDef[] = [
     probeEnv: 'SOLMARA_SRO_EVIDENCE_URL',
     probeDefault: 'https://sro-evidence.solmara.registrystack.org',
     probePath: '/health',
-    configPaths: [{ label: 'Authority Evidence cell', path: 'evidence/cells/sro' }]
+    configPaths: [{ label: 'Authority Evidence gateway', path: 'evidence/cells/sro' }]
   }),
   evidence({
     id: 'mosd-programme-evidence',
@@ -139,7 +139,7 @@ export const SERVICES: ServiceDef[] = [
     probeEnv: 'SOLMARA_MOSD_PROGRAMME_EVIDENCE_URL',
     probeDefault: 'https://mosd-programme-evidence.solmara.registrystack.org',
     probePath: '/health',
-    configPaths: [{ label: 'Authority Evidence cell', path: 'evidence/cells/mosd-programme' }]
+    configPaths: [{ label: 'Authority Evidence gateway', path: 'evidence/cells/mosd-programme' }]
   }),
   evidence({
     id: 'sipf-evidence',
@@ -149,7 +149,7 @@ export const SERVICES: ServiceDef[] = [
     probeEnv: 'SOLMARA_SIPF_EVIDENCE_URL',
     probeDefault: 'https://sipf-evidence.solmara.registrystack.org',
     probePath: '/health',
-    configPaths: [{ label: 'Authority Evidence cell', path: 'evidence/cells/sipf' }]
+    configPaths: [{ label: 'Authority Evidence gateway', path: 'evidence/cells/sipf' }]
   }),
   evidence({
     id: 'nagdi-evidence',
@@ -159,12 +159,12 @@ export const SERVICES: ServiceDef[] = [
     probeEnv: 'SOLMARA_NAGDI_EVIDENCE_URL',
     probeDefault: 'https://nagdi-evidence.solmara.registrystack.org',
     probePath: '/health',
-    configPaths: [{ label: 'Authority Evidence cell', path: 'evidence/cells/nagdi' }]
+    configPaths: [{ label: 'Authority Evidence gateway', path: 'evidence/cells/nagdi' }]
   }),
   shared({
     id: 'lab-mint',
     label: 'Shared lab Mint',
-    blurb: 'Issues short-lived, audience-bound machine tokens for the six authority Evidence cells and five Relays.',
+    blurb: 'Issues short-lived, audience-bound machine tokens for the six authority Evidence gateways and five Relays.',
     probeEnv: 'MINT_URL',
     probeDefault: 'https://localhost:4341',
     probePath: '/health',
@@ -270,7 +270,7 @@ export function topologyGroups(repoUrl: string): TopologyGroup[] {
     },
     {
       key: 'evidence',
-      title: 'Six authority Evidence cells',
+      title: 'Six authority Evidence gateways',
       blurb: 'Each authority has its own Evidence service identity, issuer, reviewed requirements, and origin. The lab Mint is shared infrastructure, never the evidence issuer.',
       services: byId(['cra-evidence', 'nia-evidence', 'sro-evidence', 'mosd-programme-evidence', 'sipf-evidence', 'nagdi-evidence', 'lab-mint'])
     },

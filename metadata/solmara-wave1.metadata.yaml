@@ -5,7 +5,7 @@ catalog:
   title:
     en: Solmara authority-owned Evidence catalogue
   description:
-    en: Six authority-owned Evidence cells, five governed Relay V2 services, and the programme applications that compose signed assertions.
+    en: Six authority-owned Evidence gateways, five governed Relay V2 services, and the programme applications that compose signed assertions.
   publisher:
     name: Solmara Interoperability Metadata Publisher
     iri: did:web:id.registrystack.org:solmara:authority:metadata
@@ -238,37 +238,37 @@ public_services:
 data_services:
   - id: cra-evidence-api
     iri: https://cra-evidence.solmara.registrystack.org/v1/evidence
-    title: {en: CRA Evidence cell}
+    title: {en: CRA Evidence gateway}
     endpoint_url: https://cra-evidence.solmara.registrystack.org/v1/evidence
     endpoint_description: https://cra-evidence.solmara.registrystack.org/v1/evidence-definitions
     conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
   - id: nia-evidence-api
     iri: https://nia-evidence.solmara.registrystack.org/v1/evidence
-    title: {en: NIA Evidence cell}
+    title: {en: NIA Evidence gateway}
     endpoint_url: https://nia-evidence.solmara.registrystack.org/v1/evidence
     endpoint_description: https://nia-evidence.solmara.registrystack.org/v1/evidence-definitions
     conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
   - id: sro-evidence-api
     iri: https://sro-evidence.solmara.registrystack.org/v1/evidence
-    title: {en: SRO Evidence cell}
+    title: {en: SRO Evidence gateway}
     endpoint_url: https://sro-evidence.solmara.registrystack.org/v1/evidence
     endpoint_description: https://sro-evidence.solmara.registrystack.org/v1/evidence-definitions
     conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
   - id: mosd-programme-evidence-api
     iri: https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence
-    title: {en: MoSD Programme Evidence cell}
+    title: {en: MoSD Programme Evidence gateway}
     endpoint_url: https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence
     endpoint_description: https://mosd-programme-evidence.solmara.registrystack.org/v1/evidence-definitions
     conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
   - id: sipf-evidence-api
     iri: https://sipf-evidence.solmara.registrystack.org/v1/evidence
-    title: {en: SIPF Evidence cell}
+    title: {en: SIPF Evidence gateway}
     endpoint_url: https://sipf-evidence.solmara.registrystack.org/v1/evidence
     endpoint_description: https://sipf-evidence.solmara.registrystack.org/v1/evidence-definitions
     conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
   - id: nagdi-evidence-api
     iri: https://nagdi-evidence.solmara.registrystack.org/v1/evidence
-    title: {en: NAgDI Evidence cell}
+    title: {en: NAgDI Evidence gateway}
     endpoint_url: https://nagdi-evidence.solmara.registrystack.org/v1/evidence
     endpoint_description: https://nagdi-evidence.solmara.registrystack.org/v1/evidence-definitions
     conforms_to: https://id.registrystack.org/spec/registry-evidence/v1
