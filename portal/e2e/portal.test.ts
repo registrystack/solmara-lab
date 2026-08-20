@@ -1,10 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
-
-async function signIn(page: Page) {
-  await page.goto('/');
-  await page.getByTestId('signin').click();
-  await expect(page).toHaveURL(/\/services$/);
-}
+import { test, expect } from '@playwright/test';
+import { signIn } from './support/auth';
 
 // Happy path: landing -> sign in -> catalog -> farmer-voucher -> fields auto-resolve
 // from the authority -> a proof entry is visible.

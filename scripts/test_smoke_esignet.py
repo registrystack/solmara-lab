@@ -153,12 +153,20 @@ class SmokeEsignetTests(unittest.TestCase):
         source = (ROOT / "scripts" / "smoke-esignet-login.mjs").read_text()
         self.assertEqual(source.count("console.log("), 1)
         self.assertIn("console.log('smoke-esignet-login: PASS')", source)
-        self.assertIn("getByRole('checkbox', { name: 'voluntary_claims' })", source)
-        self.assertIn("allClaims.check({ force: true })", source)
-        self.assertIn("url.pathname.endsWith('/consent')", source)
-        self.assertIn("timeout: 60_000", source)
-        self.assertNotIn("error.errorCode", source)
         self.assertNotIn("page.title()", source)
+
+        # The smoke drives the portal e2e sign-in helper rather than its own copy
+        # of the login, so the guard follows the code: nothing the helper reads
+        # off eSignet may reach the smoke's output, whether printed or thrown.
+        helper = (ROOT / "portal" / "e2e" / "support" / "auth.ts").read_text()
+        self.assertNotIn("console.log(", helper)
+        self.assertNotIn("errorCode", helper)
+        self.assertNotIn("page.title()", helper)
+        self.assertIn("getByRole('checkbox', { name: 'voluntary_claims' })", helper)
+        self.assertIn("allClaims.check({ force: true })", helper)
+        # eSignet refuses authorization while it is still starting, so the helper
+        # keeps reissuing the request for as long as the smoke used to.
+        self.assertIn("PROVIDER_TIMEOUT_MS = 60_000", helper)
 
         seed_source = (ROOT / "scripts" / "seed-esignet.py").read_text()
         self.assertNotIn("Local static OTP", seed_source)
