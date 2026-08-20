@@ -194,7 +194,7 @@ def smoke(image: str, state_root: Path) -> None:
         "--extract-output",
         "/provisioned/extracts",
         "--bind-host",
-        provisioner.EXPECTED_BIND_HOST["cra"],
+        provisioner.EXPECTED_BIND_HOST,
         "--mint-origin",
         MINT_ORIGIN,
         "--relay-origin",
@@ -254,7 +254,7 @@ def smoke(image: str, state_root: Path) -> None:
         "--secret-output",
         "/provisioned/secrets",
         "--bind-host",
-        provisioner.EXPECTED_BIND_HOST["mint"],
+        provisioner.EXPECTED_BIND_HOST,
         "--mint-origin",
         MINT_ORIGIN,
     ]

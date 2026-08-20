@@ -43,15 +43,13 @@ DIRECT = {
     "nia": ("nia-population-extract", "nia-population"),
     "sro": ("sro-poverty-extract", "sro-poverty"),
 }
-EXPECTED_BIND_HOST = {
-    "mint": "172.29.1.20",
-    "cra": "172.29.2.21",
-    "nia": "172.29.2.22",
-    "sro": "172.29.3.23",
-    "mosd-programme": "172.29.3.24",
-    "sipf": "172.29.4.25",
-    "nagdi": "172.29.5.26",
-}
+# Every application also joins a Coolify-managed network that carries the ingress
+# proxy, so a listener bound only to its private runtime address refuses that
+# proxy and never answers a public route. Isolation comes from network
+# membership instead: an application's networks hold only its own containers and
+# the proxy. The value stays an explicit argument, and anything else is refused,
+# so a deployment cannot quietly move a listener off the interfaces it needs.
+EXPECTED_BIND_HOST = "0.0.0.0"
 CELL_CLIENTS = {
     "cra": ("cra-pension-evidence", "cra-citizen-evidence"),
     "nia": (),
@@ -644,6 +642,11 @@ def _patch_evidence_origins(
 def _patch_runtime(path: Path, bind_host: str, extract_name: str | None = None) -> None:
     config = yaml.safe_load(path.read_text(encoding="utf-8"))
     config["listener"]["bindHost"] = bind_host
+    # The Evidence runtime accepts a wildcard bind only under this exposure,
+    # which records that the container network and the upstream TLS boundary are
+    # operator-owned deployment facts. It grants no direct public exposure and
+    # does not change how a request is authenticated.
+    config["listener"]["networkExposure"] = "container-private"
     if extract_name is not None:
         profile = next(iter(config["sourceExtracts"]))
         old_path = Path(config["sourceExtracts"][profile]["path"])
@@ -808,7 +811,7 @@ def _replace_extract_binding(
             raise ProvisionError("invalid existing runtime")
         original = runtime_file.read_bytes()
         config = yaml.safe_load(original.decode("utf-8"))
-        if config["listener"]["bindHost"] != EXPECTED_BIND_HOST[cell]:
+        if config["listener"]["bindHost"] != EXPECTED_BIND_HOST:
             raise ProvisionError("invalid existing runtime")
         if set(config["sourceExtracts"]) != {DIRECT[cell][0]}:
             raise ProvisionError("invalid existing runtime")
@@ -1047,7 +1050,7 @@ def _provision_target(args: argparse.Namespace) -> None:
                 or args.relay_origin
             ):
                 raise ProvisionError("invalid target")
-            if args.bind_host != EXPECTED_BIND_HOST["mint"]:
+            if args.bind_host != EXPECTED_BIND_HOST:
                 raise ProvisionError("invalid bind host")
             mint_secrets = _provision_secret_inventory(target)
             if mint_secrets is None:
@@ -1083,7 +1086,7 @@ def _provision_target(args: argparse.Namespace) -> None:
                 if expected_relay_origin is not None
                 else None
             )
-            if args.bind_host != EXPECTED_BIND_HOST[cell]:
+            if args.bind_host != EXPECTED_BIND_HOST:
                 raise ProvisionError("invalid bind host")
             cell_secrets = _provision_secret_inventory(target)
             if cell_secrets is None:

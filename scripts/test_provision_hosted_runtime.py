@@ -465,6 +465,24 @@ class HostedProvisionerTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(stdout.getvalue(), f"{provisioner.SUCCESS}\n")
 
+    def test_patched_runtime_declares_a_container_private_wildcard_listener(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime_file = Path(temporary) / "runtime.yaml"
+            runtime_file.write_text(
+                yaml.safe_dump({"listener": {"bindHost": "127.0.0.1", "port": 8080}}),
+                encoding="utf-8",
+            )
+
+            provisioner._patch_runtime(runtime_file, provisioner.EXPECTED_BIND_HOST)
+
+            listener = yaml.safe_load(runtime_file.read_text(encoding="utf-8"))[
+                "listener"
+            ]
+            self.assertEqual(listener["bindHost"], "0.0.0.0")
+            self.assertEqual(listener["networkExposure"], "container-private")
+
     def test_evidence_output_contains_only_its_public_signer_and_own_secrets(
         self,
     ) -> None:
@@ -513,7 +531,7 @@ class HostedProvisionerTests(unittest.TestCase):
                 runtime,
                 output_secrets,
                 None,
-                provisioner.EXPECTED_BIND_HOST["sipf"],
+                provisioner.EXPECTED_BIND_HOST,
                 "2026-08-12T00:00:00Z",
                 "2026-08-12T00:00:00Z",
                 provisioner.MINT_ORIGIN,
@@ -589,7 +607,7 @@ class HostedProvisionerTests(unittest.TestCase):
                 secrets,
                 runtime,
                 output_secrets,
-                provisioner.EXPECTED_BIND_HOST["mint"],
+                provisioner.EXPECTED_BIND_HOST,
                 provisioner.MINT_ORIGIN,
             )
             self.assertEqual(
@@ -624,7 +642,7 @@ class HostedProvisionerTests(unittest.TestCase):
                     secrets,
                     root / "bad-runtime",
                     root / "bad-secrets",
-                    provisioner.EXPECTED_BIND_HOST["mint"],
+                    provisioner.EXPECTED_BIND_HOST,
                     provisioner.MINT_ORIGIN,
                 )
 
@@ -715,7 +733,7 @@ class HostedProvisionerTests(unittest.TestCase):
                     "--secret-output",
                     str(secret_output),
                     "--bind-host",
-                    provisioner.EXPECTED_BIND_HOST["mint"],
+                    provisioner.EXPECTED_BIND_HOST,
                     "--mint-origin",
                     provisioner.MINT_ORIGIN,
                 ]
@@ -966,7 +984,7 @@ class HostedProvisionerTests(unittest.TestCase):
             (runtime / "runtime.yaml").write_text(
                 yaml.safe_dump(
                     {
-                        "listener": {"bindHost": provisioner.EXPECTED_BIND_HOST["sro"]},
+                        "listener": {"bindHost": provisioner.EXPECTED_BIND_HOST},
                         "sourceExtracts": {
                             "sro-poverty-extract": {
                                 "path": f"/var/lib/registry-evidence/sro/extracts/{previous_name}"
@@ -1286,7 +1304,7 @@ class RealPublisherExtractAgeTest(unittest.TestCase):
                     runtime,
                     root / "output-secrets",
                     extracts,
-                    provisioner.EXPECTED_BIND_HOST["sro"],
+                    provisioner.EXPECTED_BIND_HOST,
                     self.PUBLISHED_AT,
                     self.LONG_AFTER,
                     provisioner.MINT_ORIGIN,

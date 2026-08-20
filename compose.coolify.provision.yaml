@@ -63,7 +63,7 @@ services:
 
   cra-evidence-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, cra-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.2.21, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://cra-relay-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, cra-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://cra-relay-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/cra-evidence/runtime:/provisioned/runtime, /data/solmara-authority-cells/cra-evidence/secrets:/provisioned/secrets, /data/solmara-authority-cells/cra-evidence/extracts:/provisioned/extracts]
     secrets:
       - {source: cra-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
@@ -74,7 +74,7 @@ services:
 
   nia-evidence-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, nia-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.2.22, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, nia-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/nia-evidence/runtime:/provisioned/runtime, /data/solmara-authority-cells/nia-evidence/secrets:/provisioned/secrets, /data/solmara-authority-cells/nia-evidence/extracts:/provisioned/extracts]
     secrets:
       - {source: nia-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
@@ -83,7 +83,7 @@ services:
 
   sro-evidence-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, sro-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 172.29.3.23, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, sro-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --extract-output, /provisioned/extracts, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/sro-evidence/runtime:/provisioned/runtime, /data/solmara-authority-cells/sro-evidence/secrets:/provisioned/secrets, /data/solmara-authority-cells/sro-evidence/extracts:/provisioned/extracts]
     secrets:
       - {source: sro-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
@@ -92,7 +92,7 @@ services:
 
   mosd-evidence-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, mosd-programme-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.3.24, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://mosd-programme-relay-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, mosd-programme-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://mosd-programme-relay-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/mosd-evidence/runtime:/provisioned/runtime, /data/solmara-authority-cells/mosd-evidence/secrets:/provisioned/secrets]
     secrets:
       - {source: mosd-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
@@ -102,7 +102,7 @@ services:
 
   sipf-evidence-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, sipf-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.4.25, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://sipf-relay-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, sipf-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://sipf-relay-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/sipf-evidence/runtime:/provisioned/runtime, /data/solmara-authority-cells/sipf-evidence/secrets:/provisioned/secrets]
     secrets:
       - {source: sipf-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
@@ -113,7 +113,7 @@ services:
 
   nagdi-evidence-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, nagdi-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.5.26, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://nagdi-relay-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, nagdi-evidence, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org, --relay-origin, https://nagdi-relay-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/nagdi-evidence/runtime:/provisioned/runtime, /data/solmara-authority-cells/nagdi-evidence/secrets:/provisioned/secrets]
     secrets:
       - {source: nagdi-evidence-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
@@ -124,7 +124,7 @@ services:
 
   mint-provisioner:
     <<: *secret-provisioner
-    command: [provision, --target, mint, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 172.29.1.20, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
+    command: [provision, --target, mint, --assets, /opt/solmara-hosted-assets, --secrets, /tmp/solmara-provisioning, --runtime-output, /provisioned/runtime, --secret-output, /provisioned/secrets, --bind-host, 0.0.0.0, --mint-origin, https://mint-authority-cells.solmara.registrystack.org]
     volumes: [/data/solmara-authority-cells/mint/runtime:/provisioned/runtime, /data/solmara-authority-cells/mint/secrets:/provisioned/secrets]
     secrets:
       - {source: mint-signing-public-jwk, target: /tmp/solmara-provisioning/signing-public.jwk, uid: "0", gid: "0", mode: 0400}
