@@ -751,8 +751,8 @@ class RuntimeTopologyTests(unittest.TestCase):
                 "esignet-database",
                 "esignet-redis",
                 "esignet",
-                "esignet-ui",
-                "esignet-edge",
+                "esignet_ui",
+                "esignet_edge",
                 "esignet-seed",
             },
         )
@@ -813,16 +813,28 @@ class RuntimeTopologyTests(unittest.TestCase):
         straight at it leaves `{issuer}/.well-known/openid-configuration` and the
         RFC 8414 authorization-server document unserved. The UI image is a
         host-agnostic reverse proxy that publishes both, so the public host
-        belongs to an edge instance of it and the service stays unrouted."""
+        belongs to an edge instance of it and the service stays unrouted.
+
+        Both proxies carry underscore names because Coolify accepts a routed
+        service only under its compose key but resolves it after rewriting "-"
+        to "_", so a hyphenated name is stored where routing never reads."""
         esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
         services = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))["services"]
-        edge = services["esignet-edge"]
-        self.assertEqual(edge["image"], services["esignet-ui"]["image"])
+        edge = services["esignet_edge"]
+        self.assertEqual(edge["image"], services["esignet_ui"]["image"])
         self.assertEqual(
             edge["labels"]["solmara.lab.host"],
             "${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}",
         )
         self.assertNotIn("solmara.lab.host", services["esignet"].get("labels") or {})
+        routed = [
+            name
+            for name, service in services.items()
+            if "solmara.lab.host" in (service.get("labels") or {})
+        ]
+        self.assertEqual(sorted(routed), ["esignet_edge", "esignet_ui"])
+        for name in routed:
+            self.assertNotIn("-", name)
 
     def test_bruno_workspace_covers_only_the_eight_governed_v2_lookups(self) -> None:
         relay_requests = SCRIPT.parents[1] / "requests/registry-lab/50 - Relay V2"
