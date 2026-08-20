@@ -102,9 +102,9 @@ MINT_CLIENTS = {
 REUSE_MAX_EXTRACT_AGE_SECONDS = 100 * 365 * 24 * 60 * 60
 # `publish-extract` names the extract it stages and the runtime it supersedes
 # after the same publication, so both patterns are built from one fragment.
-PUBLICATION = r"(?:cra-birth|nia-population|sro-poverty)-[0-9]{8}T[0-9]{6}(?:[0-9]{6})?Z"
+PUBLICATION_TIME = r"[0-9]{8}T[0-9]{6}(?:[0-9]{6})?Z"
+PUBLICATION = rf"(?:cra-birth|nia-population|sro-poverty)-{PUBLICATION_TIME}"
 ROLLBACK_RUNTIME = re.compile(rf"^runtime\.rollback-{PUBLICATION}\.yaml$")
-PUBLISHED_EXTRACT = re.compile(rf"^{PUBLICATION}\.sqlite$")
 
 
 class ProvisionError(RuntimeError):
@@ -562,18 +562,20 @@ def _preserve_extract_rollback(relative: str, value: tuple[str, int]) -> bool:
 
 
 def _preserve_superseded_extracts(
-    active: str,
+    prefix: str, active: str
 ) -> Callable[[str, tuple[str, int]], bool]:
-    """Look past the extracts `publish-extract` superseded, never past this run's
-    own. A rollback needs the older file to stay readable, so provisioning has to
-    accept it beside the one it stages; the staged extract is this run's output
-    and stays verified against what it wrote."""
+    """Look past the extracts `publish-extract` superseded for this authority,
+    never past this run's own. A rollback needs the older file to stay readable,
+    so provisioning has to accept it beside the one it stages; the staged extract
+    is this run's output and stays verified against what it wrote, and an extract
+    output carries one authority, so any other name is still a mismatch."""
+    published = re.compile(rf"^{re.escape(prefix)}-{PUBLICATION_TIME}\.sqlite$")
 
     def preserve(relative: str, value: tuple[str, int]) -> bool:
         return (
             "/" not in relative
             and relative != active
-            and PUBLISHED_EXTRACT.fullmatch(relative) is not None
+            and published.fullmatch(relative) is not None
             and value[0] != "directory"
             and value[1] == 0o444
         )
@@ -1143,10 +1145,12 @@ def _provision_target(args: argparse.Namespace) -> None:
             runtime_preserve = _preserve_extract_rollback if cell in DIRECT else None
             # `publish-extract` leaves the superseded extract beside the one it
             # bound, exactly as it leaves the superseded runtime, so a later full
-            # provision has to look past both to recognise its own tree.
+            # provision has to look past both to recognise its own tree. Each cell
+            # provisions its own extract output, so the allowance is scoped to the
+            # one authority that publishes into this one.
             extract_preserve = (
-                _preserve_superseded_extracts(extract_name)
-                if extract_name is not None
+                _preserve_superseded_extracts(DIRECT[cell][1], extract_name)
+                if cell in DIRECT and extract_name is not None
                 else None
             )
             _check_secret_install_tree(secret_output, args.secret_output.resolve())

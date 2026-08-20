@@ -1166,7 +1166,7 @@ class HostedProvisionerTests(unittest.TestCase):
     def test_only_a_superseded_published_extract_is_preserved(self) -> None:
         active = "sro-poverty-20260812T100000Z.sqlite"
         superseded = "sro-poverty-20260812T090000Z.sqlite"
-        preserve = provisioner._preserve_superseded_extracts(active)
+        preserve = provisioner._preserve_superseded_extracts("sro-poverty", active)
         self.assertTrue(preserve(superseded, ("digest", 0o444)))
         # The extract this run staged is its own output and stays verified.
         self.assertFalse(preserve(active, ("digest", 0o444)))
@@ -1179,6 +1179,30 @@ class HostedProvisionerTests(unittest.TestCase):
         self.assertFalse(preserve(superseded, ("directory", 0o444)))
         self.assertFalse(preserve(superseded, ("digest", 0o644)))
         self.assertFalse(preserve(f"{superseded}.bak", ("digest", 0o444)))
+        # Every cell provisions its own extract output, so a publication named
+        # after another authority is a mismatch rather than a rollback this cell
+        # could ever take.
+        self.assertFalse(
+            preserve("cra-birth-20260812T090000Z.sqlite", ("digest", 0o444))
+        )
+
+    def test_provision_refuses_a_foreign_authority_extract(self) -> None:
+        """An extract output belongs to one cell, so a publication carrying
+        another authority's prefix is state this run cannot account for."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            superseded = "sro-poverty-20260812T090000Z.sqlite"
+            active = "sro-poverty-20260812T100000Z.sqlite"
+            arguments = self._published_extract_provision(root, superseded, active)
+            provisioner._write(
+                root / "extract-output" / "cra-birth-20260812T090000Z.sqlite",
+                b"foreign",
+                0o444,
+            )
+            with self._staged_provision(active), self.assertRaisesRegex(
+                provisioner.ProvisionError, "existing output mismatch"
+            ):
+                provisioner.provision(arguments)
 
     def test_extract_append_never_overwrites_a_mismatched_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
