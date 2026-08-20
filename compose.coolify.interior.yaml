@@ -30,7 +30,7 @@ services:
     image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/cra/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${CRA_RELAY_AUDIT_KEY:?required}"}
-    volumes: [cra-relay-runtime:/etc/relay/cra:ro, cra-relay-source:/var/lib/relay/source:ro, cra-relay-audit:/var/lib/relay/audit]
+    volumes: [/data/solmara-authority-cells/cra-relay/runtime:/etc/relay/cra:ro, /data/solmara-authority-cells/cra-relay/source:/var/lib/relay/source:ro, cra-relay-audit:/var/lib/relay/audit]
     labels: {solmara.lab.host: cra-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   nia-relay:
@@ -38,14 +38,14 @@ services:
     image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/nia/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${NIA_RELAY_AUDIT_KEY:?required}"}
-    volumes: [nia-relay-runtime:/etc/relay/nia:ro, nia-relay-source:/var/lib/relay/source:ro, nia-relay-audit:/var/lib/relay/audit]
+    volumes: [/data/solmara-authority-cells/nia-relay/runtime:/etc/relay/nia:ro, /data/solmara-authority-cells/nia-relay/source:/var/lib/relay/source:ro, nia-relay-audit:/var/lib/relay/audit]
     labels: {solmara.lab.host: nia-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   cra-evidence:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/cra/runtime.yaml, serve]
-    volumes: [cra-evidence-runtime:/etc/registry-evidence/cra:ro, cra-evidence-secrets:/run/secrets/registry-evidence/cra:ro, cra-evidence-transit:/run/registry-evidence/cra:ro, cra-evidence-extracts:/var/lib/registry-evidence/cra/extracts:ro, cra-evidence-audit:/var/lib/registry-evidence/cra/audit]
+    volumes: [/data/solmara-authority-cells/cra-evidence/runtime:/etc/registry-evidence/cra:ro, /data/solmara-authority-cells/cra-evidence/secrets:/run/secrets/registry-evidence/cra:ro, /data/solmara-authority-cells/cra-evidence/transit:/run/registry-evidence/cra:ro, /data/solmara-authority-cells/cra-evidence/extracts:/var/lib/registry-evidence/cra/extracts:ro, cra-evidence-audit:/var/lib/registry-evidence/cra/audit]
     networks: {runtime: {ipv4_address: 172.29.2.21}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
@@ -56,26 +56,14 @@ services:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/nia/runtime.yaml, serve]
-    volumes: [nia-evidence-runtime:/etc/registry-evidence/nia:ro, nia-evidence-secrets:/run/secrets/registry-evidence/nia:ro, nia-evidence-transit:/run/registry-evidence/nia:ro, nia-evidence-extracts:/var/lib/registry-evidence/nia/extracts:ro, nia-evidence-audit:/var/lib/registry-evidence/nia/audit]
+    volumes: [/data/solmara-authority-cells/nia-evidence/runtime:/etc/registry-evidence/nia:ro, /data/solmara-authority-cells/nia-evidence/secrets:/run/secrets/registry-evidence/nia:ro, /data/solmara-authority-cells/nia-evidence/transit:/run/registry-evidence/nia:ro, /data/solmara-authority-cells/nia-evidence/extracts:/var/lib/registry-evidence/nia/extracts:ro, nia-evidence-audit:/var/lib/registry-evidence/nia/audit]
     networks: {runtime: {ipv4_address: 172.29.2.22}}
     labels: {solmara.lab.host: "${SOLMARA_NIA_EVIDENCE_PUBLIC_HOST:-nia-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
-  cra-relay-runtime: {external: true, name: solmara-authority-cells-cra-relay-runtime}
-  cra-relay-source: {external: true, name: solmara-authority-cells-cra-relay-source}
-  nia-relay-runtime: {external: true, name: solmara-authority-cells-nia-relay-runtime}
-  nia-relay-source: {external: true, name: solmara-authority-cells-nia-relay-source}
   cra-relay-audit:
   nia-relay-audit:
-  cra-evidence-runtime: {external: true, name: solmara-authority-cells-cra-evidence-runtime}
-  cra-evidence-secrets: {external: true, name: solmara-authority-cells-cra-evidence-secrets}
-  cra-evidence-transit: {external: true, name: solmara-authority-cells-cra-evidence-transit}
-  cra-evidence-extracts: {external: true, name: solmara-authority-cells-cra-evidence-extracts}
   cra-evidence-audit:
-  nia-evidence-runtime: {external: true, name: solmara-authority-cells-nia-evidence-runtime}
-  nia-evidence-secrets: {external: true, name: solmara-authority-cells-nia-evidence-secrets}
-  nia-evidence-transit: {external: true, name: solmara-authority-cells-nia-evidence-transit}
-  nia-evidence-extracts: {external: true, name: solmara-authority-cells-nia-evidence-extracts}
   nia-evidence-audit:
   superseded-state: {external: true, name: "${SOLMARA_SUPERSEDED_INTERIOR_VOLUME:-solmara-lab-interior-state}"}
 

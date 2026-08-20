@@ -30,14 +30,14 @@ services:
     image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/nagdi/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${NAGDI_RELAY_AUDIT_KEY:?required}", SOLMARA_RELAY_CURSOR_KEY: "${NAGDI_RELAY_CURSOR_KEY:?required}"}
-    volumes: [nagdi-relay-runtime:/etc/relay/nagdi:ro, nagdi-relay-source:/var/lib/relay/source:ro, nagdi-relay-audit:/var/lib/relay/audit]
+    volumes: [/data/solmara-authority-cells/nagdi-relay/runtime:/etc/relay/nagdi:ro, /data/solmara-authority-cells/nagdi-relay/source:/var/lib/relay/source:ro, nagdi-relay-audit:/var/lib/relay/audit]
     labels: {solmara.lab.host: nagdi-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
 
   nagdi-evidence:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/nagdi/runtime.yaml, serve]
-    volumes: [nagdi-evidence-runtime:/etc/registry-evidence/nagdi:ro, nagdi-evidence-secrets:/run/secrets/registry-evidence/nagdi:ro, nagdi-evidence-transit:/run/registry-evidence/nagdi:ro, nagdi-evidence-audit:/var/lib/registry-evidence/nagdi/audit]
+    volumes: [/data/solmara-authority-cells/nagdi-evidence/runtime:/etc/registry-evidence/nagdi:ro, /data/solmara-authority-cells/nagdi-evidence/secrets:/run/secrets/registry-evidence/nagdi:ro, /data/solmara-authority-cells/nagdi-evidence/transit:/run/registry-evidence/nagdi:ro, nagdi-evidence-audit:/var/lib/registry-evidence/nagdi/audit]
     networks: {runtime: {ipv4_address: 172.29.5.26}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
@@ -45,12 +45,7 @@ services:
     labels: {solmara.lab.host: "${SOLMARA_NAGDI_EVIDENCE_PUBLIC_HOST:-nagdi-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
 
 volumes:
-  nagdi-relay-runtime: {external: true, name: solmara-authority-cells-nagdi-relay-runtime}
-  nagdi-relay-source: {external: true, name: solmara-authority-cells-nagdi-relay-source}
   nagdi-relay-audit:
-  nagdi-evidence-runtime: {external: true, name: solmara-authority-cells-nagdi-evidence-runtime}
-  nagdi-evidence-secrets: {external: true, name: solmara-authority-cells-nagdi-evidence-secrets}
-  nagdi-evidence-transit: {external: true, name: solmara-authority-cells-nagdi-evidence-transit}
   nagdi-evidence-audit:
   superseded-state: {external: true, name: "${SOLMARA_SUPERSEDED_AGRICULTURE_VOLUME:-solmara-lab-agriculture-state}"}
 

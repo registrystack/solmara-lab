@@ -1,7 +1,8 @@
 name: solmara-authority-cell-signers
 
 # This operator-only application is the sole private issuer-key boundary. It
-# attaches only the fixed Transit volumes owned by the provisioning application.
+# attaches only the seven Transit socket directories under the shared authority
+# state root and no other authority state.
 x-transit-init: &transit-init
   image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}
   entrypoint: [/usr/local/bin/python, -c]
@@ -48,30 +49,30 @@ x-public-secret-target: &public-secret-target
 services:
   mint-transit-init:
     <<: *transit-init
-    volumes: [mint-transit:/transit]
+    volumes: [/data/solmara-authority-cells/mint/transit:/transit]
   cra-transit-init:
     <<: *transit-init
-    volumes: [cra-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/cra-evidence/transit:/transit]
   nia-transit-init:
     <<: *transit-init
-    volumes: [nia-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/nia-evidence/transit:/transit]
   sro-transit-init:
     <<: *transit-init
-    volumes: [sro-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/sro-evidence/transit:/transit]
   mosd-transit-init:
     <<: *transit-init
-    volumes: [mosd-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/mosd-evidence/transit:/transit]
   sipf-transit-init:
     <<: *transit-init
-    volumes: [sipf-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/sipf-evidence/transit:/transit]
   nagdi-transit-init:
     <<: *transit-init
-    volumes: [nagdi-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/nagdi-evidence/transit:/transit]
 
   mint-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-mint]
-    volumes: [mint-transit:/transit]
+    volumes: [/data/solmara-authority-cells/mint/transit:/transit]
     secrets:
       - {source: mint-signing-jwk, <<: *private-secret-target}
       - {source: mint-signing-public-jwk, <<: *public-secret-target}
@@ -80,7 +81,7 @@ services:
   cra-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-cra]
-    volumes: [cra-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/cra-evidence/transit:/transit]
     secrets:
       - {source: cra-evidence-signing-jwk, <<: *private-secret-target}
       - {source: cra-evidence-signing-public-jwk, <<: *public-secret-target}
@@ -89,7 +90,7 @@ services:
   nia-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nia]
-    volumes: [nia-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/nia-evidence/transit:/transit]
     secrets:
       - {source: nia-evidence-signing-jwk, <<: *private-secret-target}
       - {source: nia-evidence-signing-public-jwk, <<: *public-secret-target}
@@ -98,7 +99,7 @@ services:
   sro-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sro]
-    volumes: [sro-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/sro-evidence/transit:/transit]
     secrets:
       - {source: sro-evidence-signing-jwk, <<: *private-secret-target}
       - {source: sro-evidence-signing-public-jwk, <<: *public-secret-target}
@@ -107,7 +108,7 @@ services:
   mosd-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-mosd-programme]
-    volumes: [mosd-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/mosd-evidence/transit:/transit]
     secrets:
       - {source: mosd-evidence-signing-jwk, <<: *private-secret-target}
       - {source: mosd-evidence-signing-public-jwk, <<: *public-secret-target}
@@ -116,7 +117,7 @@ services:
   sipf-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-sipf]
-    volumes: [sipf-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/sipf-evidence/transit:/transit]
     secrets:
       - {source: sipf-evidence-signing-jwk, <<: *private-secret-target}
       - {source: sipf-evidence-signing-public-jwk, <<: *public-secret-target}
@@ -125,7 +126,7 @@ services:
   nagdi-signer:
     <<: *signer
     command: [--private-jwk, /tmp/solmara-signing.jwk, --public-jwk, /tmp/solmara-signing-public.jwk, --socket, /transit/transit-proxy.sock, --key-name, solmara-evidence-nagdi]
-    volumes: [nagdi-evidence-transit:/transit]
+    volumes: [/data/solmara-authority-cells/nagdi-evidence/transit:/transit]
     secrets:
       - {source: nagdi-evidence-signing-jwk, <<: *private-secret-target}
       - {source: nagdi-evidence-signing-public-jwk, <<: *public-secret-target}
@@ -167,12 +168,3 @@ secrets:
   sipf-evidence-signing-public-jwk: {environment: SIPF_EVIDENCE_SIGNING_PUBLIC_JWK}
   nagdi-evidence-signing-jwk: {environment: NAGDI_EVIDENCE_SIGNING_JWK}
   nagdi-evidence-signing-public-jwk: {environment: NAGDI_EVIDENCE_SIGNING_PUBLIC_JWK}
-
-volumes:
-  mint-transit: {external: true, name: solmara-authority-cells-mint-transit}
-  cra-evidence-transit: {external: true, name: solmara-authority-cells-cra-evidence-transit}
-  nia-evidence-transit: {external: true, name: solmara-authority-cells-nia-evidence-transit}
-  sro-evidence-transit: {external: true, name: solmara-authority-cells-sro-evidence-transit}
-  mosd-evidence-transit: {external: true, name: solmara-authority-cells-mosd-evidence-transit}
-  sipf-evidence-transit: {external: true, name: solmara-authority-cells-sipf-evidence-transit}
-  nagdi-evidence-transit: {external: true, name: solmara-authority-cells-nagdi-evidence-transit}
