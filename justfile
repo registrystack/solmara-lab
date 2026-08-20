@@ -123,7 +123,7 @@ lifecycle-fixture-proof:
     uv run scripts/lifecycle_proof.py
 
 portal-live-e2e:
-    cd portal && SOLMARA_PORTAL_E2E_MODE=hosted PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}" pnpm e2e
+    cd portal && SOLMARA_PORTAL_E2E_MODE=hosted PLAYWRIGHT_BASE_URL="${SOLMARA_PORTAL_PUBLIC_BASE_URL:-http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}}" pnpm e2e
 
 home-live-e2e:
     cd home && SOLMARA_HOME_E2E_MODE=live PLAYWRIGHT_BASE_URL="http://127.0.0.1:${SOLMARA_HOME_PORT:-4301}" pnpm e2e
