@@ -75,6 +75,17 @@ runtime requires before it accepts a wildcard bind. Isolation rests on network
 membership rather than on the bind address: an application's networks carry only
 its own containers and the proxy, so no authority reaches another's cells.
 
+Joining two networks makes a container's routable address ambiguous. Traefik
+reads the address from the first network it iterates when no network is named,
+and that order is randomised, so an unnamed service is routed to its private
+runtime address on roughly half of every proxy configuration rebuild and then
+answers nothing on its public route. Every routed service that joins the runtime
+network therefore carries
+`traefik.docker.network: ${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}`,
+which resolves to the Coolify-managed network the proxy is on. A routed service
+that joins the ingress network alone has no choice to remove and carries no such
+label.
+
 `compose.coolify.provision.yaml` is a dedicated operator-only application. It
 runs only the one-shot target provisioners and is the sole writer of every
 shared path except the seven Transit sockets.

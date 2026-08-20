@@ -30,6 +30,9 @@ EXPECTED_SUBNETS = {
 # application's networks contain another application's containers, so binding
 # every interface reaches only the owning application and the proxy.
 BIND_HOST = "0.0.0.0"
+# Coolify exports the application uuid into the environment it runs Compose in,
+# and names the network that carries the ingress proxy after it.
+INGRESS_NETWORK = "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"
 PROVISIONED_SERVICES = {
     "mint-provisioner": ("core", "mint", "172.29.1.20"),
     "cra-evidence-provisioner": ("interior", "cra-evidence", "172.29.2.21"),
@@ -106,6 +109,32 @@ class HostedNetworkIsolationTests(unittest.TestCase):
                 f"{service_name} reuses the address of {addresses.get(expected_address)}",
             )
             addresses[expected_address] = service_name
+
+    def test_routed_services_on_the_runtime_network_name_the_ingress_network(
+        self,
+    ) -> None:
+        """Traefik reads a container's address from the first network it iterates
+        when no network is named, and that order is randomised, so a service that
+        joins both the runtime network and the ingress network is routed to its
+        private runtime address on roughly half of every proxy configuration
+        rebuild and then answers nothing. Naming the ingress network removes the
+        choice. A service that joins the ingress network alone has no choice to
+        remove, so it carries no label."""
+        pinned = 0
+        for app, compose in self.runtime.items():
+            for service_name, service in compose["services"].items():
+                labels = service.get("labels") or {}
+                if "solmara.lab.host" not in labels:
+                    continue
+                where = f"{app}/{service_name}"
+                if "runtime" not in (service.get("networks") or {}):
+                    self.assertNotIn("traefik.docker.network", labels, where)
+                    continue
+                self.assertEqual(
+                    labels.get("traefik.docker.network"), INGRESS_NETWORK, where
+                )
+                pinned += 1
+        self.assertEqual(pinned, 12)
 
     def test_provisioning_services_remain_networkless(self) -> None:
         self.assertNotIn("networks", self.provision)

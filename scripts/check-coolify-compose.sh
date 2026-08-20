@@ -10,6 +10,7 @@ scratch=$(mktemp -d)
 trap 'rm -rf -- "$scratch"' EXIT HUP INT TERM
 
 check_compose() {
+  COOLIFY_RESOURCE_UUID=solmara-test-application \
   REGISTRY_RELAY_IMAGE="ghcr.io/registrystack/relay@sha256:$test_digest" \
   SOLMARA_EVIDENCE_IMAGE="$test_image" \
   SOLMARA_MINT_IMAGE="$test_image" \

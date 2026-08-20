@@ -31,7 +31,7 @@ services:
     command: [serve, --runtime, /etc/relay/mosd/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${MOSD_RELAY_AUDIT_KEY:?required}"}
     volumes: [/data/solmara-authority-cells/mosd-relay/runtime:/etc/relay/mosd:ro, /data/solmara-authority-cells/mosd-relay/source:/var/lib/relay/source:ro, mosd-relay-audit:/var/lib/relay/audit]
-    labels: {solmara.lab.host: mosd-programme-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: mosd-programme-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
   sro-evidence:
     <<: *runtime
@@ -39,7 +39,7 @@ services:
     command: [--runtime, /etc/registry-evidence/sro/runtime.yaml, serve]
     volumes: [/data/solmara-authority-cells/sro-evidence/runtime:/etc/registry-evidence/sro:ro, /data/solmara-authority-cells/sro-evidence/secrets:/run/secrets/registry-evidence/sro:ro, /data/solmara-authority-cells/sro-evidence/transit:/run/registry-evidence/sro:ro, /data/solmara-authority-cells/sro-evidence/extracts:/var/lib/registry-evidence/sro/extracts:ro, sro-evidence-audit:/var/lib/registry-evidence/sro/audit]
     networks: {runtime: {ipv4_address: 172.29.3.23}}
-    labels: {solmara.lab.host: "${SOLMARA_SRO_EVIDENCE_PUBLIC_HOST:-sro-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_SRO_EVIDENCE_PUBLIC_HOST:-sro-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
   mosd-programme-evidence:
     <<: *runtime
@@ -50,7 +50,7 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       mosd-relay: {condition: service_started}
-    labels: {solmara.lab.host: "${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_HOST:-mosd-programme-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_HOST:-mosd-programme-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
 volumes:
   mosd-relay-audit:

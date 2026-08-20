@@ -31,7 +31,7 @@ services:
     command: [serve, --runtime, /etc/relay/nagdi/runtime.yaml]
     environment: {SOLMARA_RELAY_AUDIT_KEY: "${NAGDI_RELAY_AUDIT_KEY:?required}", SOLMARA_RELAY_CURSOR_KEY: "${NAGDI_RELAY_CURSOR_KEY:?required}"}
     volumes: [/data/solmara-authority-cells/nagdi-relay/runtime:/etc/relay/nagdi:ro, /data/solmara-authority-cells/nagdi-relay/source:/var/lib/relay/source:ro, nagdi-relay-audit:/var/lib/relay/audit]
-    labels: {solmara.lab.host: nagdi-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: nagdi-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
   nagdi-evidence:
     <<: *runtime
@@ -42,7 +42,7 @@ services:
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
       nagdi-relay: {condition: service_started}
-    labels: {solmara.lab.host: "${SOLMARA_NAGDI_EVIDENCE_PUBLIC_HOST:-nagdi-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: "${SOLMARA_NAGDI_EVIDENCE_PUBLIC_HOST:-nagdi-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
 volumes:
   nagdi-relay-audit:

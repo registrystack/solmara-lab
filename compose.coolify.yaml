@@ -36,7 +36,7 @@ services:
     networks: {runtime: {ipv4_address: 172.29.1.20}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
-    labels: {solmara.lab.host: mint-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells}
+    labels: {solmara.lab.host: mint-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
   mint-readiness:
     image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
     entrypoint: [python, -c]
