@@ -160,6 +160,14 @@ CRA birth, NIA population, and SRO poverty use immutable SQLite extracts. The
 hosted provisioner creates the initial checked publication and reuses the exact
 active filename on a restart. It never overwrites an active extract in place.
 
+Reuse does not re-apply the extract's serving age. `maximumExtractAgeSeconds` is
+a policy each Evidence cell applies to live requests, so re-checking it while
+re-adopting an already published extract would only make the provision
+application refuse to redeploy a day after it last ran. Every other binding,
+metadata, schema, and integrity check still applies, and an extract published in
+the future is still refused. Publishing a newer checkpoint remains the deliberate
+`publish-extract` operation below.
+
 To publish a later checkpoint, override the matching direct-cell provisioner
 service command with:
 
