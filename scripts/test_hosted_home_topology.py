@@ -33,9 +33,9 @@ class HostedHomeTopologyTests(unittest.TestCase):
         # interpreter, so without an explicit command the container exits 0 at
         # once and restarts forever instead of serving.
         compose = yaml.safe_load(COMPOSE_PATH.read_text(encoding="utf-8"))
-        command = compose["services"]["static-metadata"].get("command")
+        command = compose["services"]["static_metadata"].get("command")
 
-        self.assertIsNotNone(command, "static-metadata must name its server command")
+        self.assertIsNotNone(command, "static_metadata must name its server command")
         self.assertEqual(
             command,
             ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"],

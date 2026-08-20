@@ -35,18 +35,18 @@ BIND_HOST = "0.0.0.0"
 INGRESS_NETWORK = "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"
 PROVISIONED_SERVICES = {
     "mint-provisioner": ("core", "mint", "172.29.1.20"),
-    "cra-evidence-provisioner": ("interior", "cra-evidence", "172.29.2.21"),
-    "nia-evidence-provisioner": ("interior", "nia-evidence", "172.29.2.22"),
-    "sro-evidence-provisioner": ("social", "sro-evidence", "172.29.3.23"),
+    "cra-evidence-provisioner": ("interior", "cra_evidence", "172.29.2.21"),
+    "nia-evidence-provisioner": ("interior", "nia_evidence", "172.29.2.22"),
+    "sro-evidence-provisioner": ("social", "sro_evidence", "172.29.3.23"),
     "mosd-evidence-provisioner": (
         "social",
-        "mosd-programme-evidence",
+        "mosd_programme_evidence",
         "172.29.3.24",
     ),
-    "sipf-evidence-provisioner": ("pensions", "sipf-evidence", "172.29.4.25"),
+    "sipf-evidence-provisioner": ("pensions", "sipf_evidence", "172.29.4.25"),
     "nagdi-evidence-provisioner": (
         "agriculture",
-        "nagdi-evidence",
+        "nagdi_evidence",
         "172.29.5.26",
     ),
 }

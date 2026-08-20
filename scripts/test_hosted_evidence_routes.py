@@ -14,32 +14,32 @@ ROOT = Path(__file__).resolve().parents[1]
 TEST_IMAGE = "example.invalid/solmara@sha256:" + "a" * 64
 
 EVIDENCE_ROUTES = {
-    "cra-evidence": (
+    "cra_evidence": (
         ROOT / "compose.coolify.interior.yaml",
         "SOLMARA_CRA_EVIDENCE_PUBLIC_HOST",
         "cra-evidence.solmara.registrystack.org",
     ),
-    "nia-evidence": (
+    "nia_evidence": (
         ROOT / "compose.coolify.interior.yaml",
         "SOLMARA_NIA_EVIDENCE_PUBLIC_HOST",
         "nia-evidence.solmara.registrystack.org",
     ),
-    "sro-evidence": (
+    "sro_evidence": (
         ROOT / "compose.coolify.social-development.yaml",
         "SOLMARA_SRO_EVIDENCE_PUBLIC_HOST",
         "sro-evidence.solmara.registrystack.org",
     ),
-    "mosd-programme-evidence": (
+    "mosd_programme_evidence": (
         ROOT / "compose.coolify.social-development.yaml",
         "SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_HOST",
         "mosd-programme-evidence.solmara.registrystack.org",
     ),
-    "sipf-evidence": (
+    "sipf_evidence": (
         ROOT / "compose.coolify.labour-pensions.yaml",
         "SOLMARA_SIPF_EVIDENCE_PUBLIC_HOST",
         "sipf-evidence.solmara.registrystack.org",
     ),
-    "nagdi-evidence": (
+    "nagdi_evidence": (
         ROOT / "compose.coolify.agriculture.yaml",
         "SOLMARA_NAGDI_EVIDENCE_PUBLIC_HOST",
         "nagdi-evidence.solmara.registrystack.org",
@@ -47,23 +47,23 @@ EVIDENCE_ROUTES = {
 }
 
 RELAY_ROUTES = {
-    "cra-relay": (
+    "cra_relay": (
         ROOT / "compose.coolify.interior.yaml",
         "cra-relay-authority-cells.solmara.registrystack.org",
     ),
-    "nia-relay": (
+    "nia_relay": (
         ROOT / "compose.coolify.interior.yaml",
         "nia-relay-authority-cells.solmara.registrystack.org",
     ),
-    "mosd-relay": (
+    "mosd_relay": (
         ROOT / "compose.coolify.social-development.yaml",
         "mosd-programme-relay-authority-cells.solmara.registrystack.org",
     ),
-    "sipf-relay": (
+    "sipf_relay": (
         ROOT / "compose.coolify.labour-pensions.yaml",
         "sipf-relay-authority-cells.solmara.registrystack.org",
     ),
-    "nagdi-relay": (
+    "nagdi_relay": (
         ROOT / "compose.coolify.agriculture.yaml",
         "nagdi-relay-authority-cells.solmara.registrystack.org",
     ),
@@ -139,9 +139,11 @@ class HostedEvidenceRouteTests(unittest.TestCase):
                 )
 
     def test_staging_evidence_hosts_render_without_changing_relay_routes(self) -> None:
+        # The compose key is not a hostname label, so the staging host comes
+        # from the canonical route rather than from the service name.
         overrides = {
-            variable: f"{service}.staging.example.org"
-            for service, (_, variable, _) in EVIDENCE_ROUTES.items()
+            variable: f"{canonical_host.split('.', 1)[0]}.staging.example.org"
+            for _, variable, canonical_host in EVIDENCE_ROUTES.values()
         }
         rendered = {
             path: render_compose(path, overrides)
@@ -160,6 +162,21 @@ class HostedEvidenceRouteTests(unittest.TestCase):
                     rendered[path]["services"][service]["labels"]["solmara.lab.host"],
                     permanent_host,
                 )
+
+
+class RoutedServiceNameTests(unittest.TestCase):
+    def test_every_routed_service_carries_a_coolify_resolvable_name(self) -> None:
+        """Coolify accepts a routed service only under its exact compose key but
+        resolves it after rewriting "-" to "_", so a hyphenated key is stored
+        where routing never reads it and the service answers no public route."""
+        for path in sorted(ROOT.glob("compose.coolify*.yaml")):
+            compose = yaml.safe_load(path.read_text(encoding="utf-8"))
+            for name, service in (compose.get("services") or {}).items():
+                labels = service.get("labels") or {}
+                if "solmara.lab.host" not in labels:
+                    continue
+                with self.subTest(compose=path.name, service=name):
+                    self.assertNotIn("-", name)
 
 
 if __name__ == "__main__":

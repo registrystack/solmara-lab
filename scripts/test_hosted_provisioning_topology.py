@@ -396,22 +396,22 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     ) -> None:
         runtime_services = {
             "cra": self.runtime["compose.coolify.interior.yaml"]["services"][
-                "cra-evidence"
+                "cra_evidence"
             ],
             "nia": self.runtime["compose.coolify.interior.yaml"]["services"][
-                "nia-evidence"
+                "nia_evidence"
             ],
             "sro": self.runtime["compose.coolify.social-development.yaml"]["services"][
-                "sro-evidence"
+                "sro_evidence"
             ],
             "mosd": self.runtime["compose.coolify.social-development.yaml"]["services"][
-                "mosd-programme-evidence"
+                "mosd_programme_evidence"
             ],
             "sipf": self.runtime["compose.coolify.labour-pensions.yaml"]["services"][
-                "sipf-evidence"
+                "sipf_evidence"
             ],
             "nagdi": self.runtime["compose.coolify.agriculture.yaml"]["services"][
-                "nagdi-evidence"
+                "nagdi_evidence"
             ],
         }
         for authority, runtime in runtime_services.items():
@@ -549,7 +549,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         for compose in self.runtime.values():
             services.update(compose["services"])
         for authority in RELAYS:
-            environment = services[f"{authority}-relay"]["environment"]
+            environment = services[f"{authority}_relay"]["environment"]
             expected = {
                 "SOLMARA_RELAY_AUDIT_KEY": f"${{{authority.upper()}_RELAY_AUDIT_KEY:?required}}"
             }
@@ -569,9 +569,9 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 if name in {
                     "audit-permissions",
                     "mint-readiness",
-                    "static-metadata",
-                    "scenario-runner",
-                    "child-benefit-federator",
+                    "static_metadata",
+                    "scenario_runner",
+                    "child_benefit_federator",
                     "home",
                     "portal",
                 }:
@@ -594,7 +594,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertNotIn("secrets", readiness)
         self.assertIn("172.29.1.20:8081/health", readiness["command"][0])
         self.assertEqual(
-            core["scenario-runner"]["depends_on"],
+            core["scenario_runner"]["depends_on"],
             {"mint-readiness": {"condition": "service_completed_successfully"}},
         )
 

@@ -655,7 +655,7 @@ class RuntimeTopologyTests(unittest.TestCase):
             services.update(compose["services"])
 
         for authority in ("cra", "nia", "mosd", "sipf", "nagdi"):
-            service = services[f"{authority}-relay"]
+            service = services[f"{authority}_relay"]
             self.assertEqual(
                 service["command"],
                 ["serve", "--runtime", f"/etc/relay/{authority}/runtime.yaml"],
@@ -688,7 +688,7 @@ class RuntimeTopologyTests(unittest.TestCase):
             compose["secrets"][secret_name],
             {"environment": "SOLMARA_DEMO_CLIENT_PRIVATE_JWK"},
         )
-        for service_name in ("scenario-runner", "child-benefit-federator", "portal"):
+        for service_name in ("scenario_runner", "child_benefit_federator", "portal"):
             service = services[service_name]
             self.assertEqual(
                 service["secrets"],
@@ -712,7 +712,7 @@ class RuntimeTopologyTests(unittest.TestCase):
             )
 
         self.assertEqual(
-            services["scenario-runner"]["environment"]["CHILD_BENEFIT_FEDERATOR_URL"],
+            services["scenario_runner"]["environment"]["CHILD_BENEFIT_FEDERATOR_URL"],
             "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}",
         )
         self.assertEqual(
@@ -720,19 +720,19 @@ class RuntimeTopologyTests(unittest.TestCase):
             "${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}",
         )
         self.assertEqual(
-            services["child-benefit-federator"]["environment"][
+            services["child_benefit_federator"]["environment"][
                 "CHILD_BENEFIT_FEDERATOR_HOST"
             ],
             "0.0.0.0",
         )
         self.assertEqual(
-            services["child-benefit-federator"]["environment"][
+            services["child_benefit_federator"]["environment"][
                 "CHILD_BENEFIT_FEDERATOR_PORT"
             ],
             "8080",
         )
 
-        for service_name in ("home", "static-metadata"):
+        for service_name in ("home", "static_metadata"):
             service = services[service_name]
             self.assertNotIn("secrets", service, service_name)
             environment = service.get("environment", {})

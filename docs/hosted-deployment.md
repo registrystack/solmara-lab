@@ -86,6 +86,12 @@ which resolves to the Coolify-managed network the proxy is on. A routed service
 that joins the ingress network alone has no choice to remove and carries no such
 label.
 
+Coolify accepts a routed service only under its exact Compose key but resolves
+that key after rewriting `-` to `_`. A hyphenated routed service is therefore
+recorded where routing never reads it and answers no public route. Every service
+that carries `solmara.lab.host` uses an underscore name so both halves agree.
+Volume keys, host paths, label values, and public hostnames are unaffected.
+
 `compose.coolify.provision.yaml` is a dedicated operator-only application. It
 runs only the one-shot target provisioners and is the sole writer of every
 shared path except the seven Transit sockets.
