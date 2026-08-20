@@ -10,6 +10,10 @@ x-runtime: &runtime
   depends_on:
     audit-permissions: {condition: service_completed_successfully}
 
+# Coolify matches a routed service against its exact compose key but resolves
+# that key after rewriting "-" to "_", so a hyphenated name is stored where
+# routing never reads it. Every service carrying solmara.lab.host therefore
+# uses an underscore name.
 services:
   audit-permissions:
     image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
@@ -25,7 +29,7 @@ services:
     security_opt: [no-new-privileges:true]
     volumes: [sipf-relay-audit:/audit/sipf-relay, sipf-evidence-audit:/audit/sipf-evidence]
 
-  sipf-relay:
+  sipf_relay:
     <<: *runtime
     image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/sipf/runtime.yaml]
@@ -33,7 +37,7 @@ services:
     volumes: [/data/solmara-authority-cells/sipf-relay/runtime:/etc/relay/sipf:ro, /data/solmara-authority-cells/sipf-relay/source:/var/lib/relay/source:ro, sipf-relay-audit:/var/lib/relay/audit]
     labels: {solmara.lab.host: sipf-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
-  sipf-evidence:
+  sipf_evidence:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/sipf/runtime.yaml, serve]
@@ -41,7 +45,7 @@ services:
     networks: {runtime: {ipv4_address: 172.29.4.25}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
-      sipf-relay: {condition: service_started}
+      sipf_relay: {condition: service_started}
     labels: {solmara.lab.host: "${SOLMARA_SIPF_EVIDENCE_PUBLIC_HOST:-sipf-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
 volumes:

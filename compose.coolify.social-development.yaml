@@ -10,6 +10,10 @@ x-runtime: &runtime
   depends_on:
     audit-permissions: {condition: service_completed_successfully}
 
+# Coolify matches a routed service against its exact compose key but resolves
+# that key after rewriting "-" to "_", so a hyphenated name is stored where
+# routing never reads it. Every service carrying solmara.lab.host therefore
+# uses an underscore name.
 services:
   audit-permissions:
     image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
@@ -25,7 +29,7 @@ services:
     security_opt: [no-new-privileges:true]
     volumes: [mosd-relay-audit:/audit/mosd-relay, sro-evidence-audit:/audit/sro-evidence, mosd-evidence-audit:/audit/mosd-evidence]
 
-  mosd-relay:
+  mosd_relay:
     <<: *runtime
     image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/mosd/runtime.yaml]
@@ -33,7 +37,7 @@ services:
     volumes: [/data/solmara-authority-cells/mosd-relay/runtime:/etc/relay/mosd:ro, /data/solmara-authority-cells/mosd-relay/source:/var/lib/relay/source:ro, mosd-relay-audit:/var/lib/relay/audit]
     labels: {solmara.lab.host: mosd-programme-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
-  sro-evidence:
+  sro_evidence:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/sro/runtime.yaml, serve]
@@ -41,7 +45,7 @@ services:
     networks: {runtime: {ipv4_address: 172.29.3.23}}
     labels: {solmara.lab.host: "${SOLMARA_SRO_EVIDENCE_PUBLIC_HOST:-sro-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
-  mosd-programme-evidence:
+  mosd_programme_evidence:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/mosd-programme/runtime.yaml, serve]
@@ -49,7 +53,7 @@ services:
     networks: {runtime: {ipv4_address: 172.29.3.24}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
-      mosd-relay: {condition: service_started}
+      mosd_relay: {condition: service_started}
     labels: {solmara.lab.host: "${SOLMARA_MOSD_PROGRAMME_EVIDENCE_PUBLIC_HOST:-mosd-programme-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
 volumes:

@@ -12,6 +12,10 @@ x-hosted-evidence-environment: &hosted-evidence
   SOLMARA_SIPF_EVIDENCE_URL: ${SOLMARA_SIPF_EVIDENCE_PUBLIC_BASE_URL:-https://sipf-evidence.solmara.registrystack.org}
   SOLMARA_NAGDI_EVIDENCE_URL: ${SOLMARA_NAGDI_EVIDENCE_PUBLIC_BASE_URL:-https://nagdi-evidence.solmara.registrystack.org}
   CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN:?required}
+# Coolify matches a routed service against its exact compose key but resolves
+# that key after rewriting "-" to "_", so a hyphenated name is stored where
+# routing never reads it. Every service carrying solmara.lab.host therefore
+# uses an underscore name.
 services:
   audit-permissions:
     image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
@@ -55,14 +59,14 @@ services:
     security_opt: [no-new-privileges:true]
     depends_on:
       mint: {condition: service_started}
-  static-metadata:
+  static_metadata:
     image: ${SOLMARA_STATIC_METADATA_IMAGE:?set a digest-pinned Solmara static metadata image}
     # The image only layers the published metadata onto a stock Python base and
     # sets no CMD of its own, so the server has to be named here.
     command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/srv/static"]
     restart: unless-stopped
     labels: {solmara.lab.host: "${SOLMARA_METADATA_PUBLIC_HOST:-metadata.solmara.registrystack.org}"}
-  scenario-runner:
+  scenario_runner:
     image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set a digest-pinned Solmara scenario runner image}
     restart: unless-stopped
     environment:
@@ -76,7 +80,7 @@ services:
     depends_on:
       mint-readiness: {condition: service_completed_successfully}
     labels: {solmara.lab.host: "${SOLMARA_SCENARIO_RUNNER_PUBLIC_HOST:-scenarios.solmara.registrystack.org}"}
-  child-benefit-federator:
+  child_benefit_federator:
     image: ${SOLMARA_SCENARIO_RUNNER_IMAGE:?set a digest-pinned Solmara scenario runner image}
     command: ["python", "scenario-runner/child_benefit_federator.py"]
     restart: unless-stopped

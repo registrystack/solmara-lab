@@ -10,6 +10,10 @@ x-runtime: &runtime
   depends_on:
     audit-permissions: {condition: service_completed_successfully}
 
+# Coolify matches a routed service against its exact compose key but resolves
+# that key after rewriting "-" to "_", so a hyphenated name is stored where
+# routing never reads it. Every service carrying solmara.lab.host therefore
+# uses an underscore name.
 services:
   audit-permissions:
     image: ${SOLMARA_AUTHORITY_PROVISIONER_IMAGE:?set the digest-pinned Solmara authority provisioner image}
@@ -25,7 +29,7 @@ services:
     security_opt: [no-new-privileges:true]
     volumes: [nagdi-relay-audit:/audit/nagdi-relay, nagdi-evidence-audit:/audit/nagdi-evidence]
 
-  nagdi-relay:
+  nagdi_relay:
     <<: *runtime
     image: ${REGISTRY_RELAY_IMAGE:?set the digest-pinned official Registry Stack Relay image}
     command: [serve, --runtime, /etc/relay/nagdi/runtime.yaml]
@@ -33,7 +37,7 @@ services:
     volumes: [/data/solmara-authority-cells/nagdi-relay/runtime:/etc/relay/nagdi:ro, /data/solmara-authority-cells/nagdi-relay/source:/var/lib/relay/source:ro, nagdi-relay-audit:/var/lib/relay/audit]
     labels: {solmara.lab.host: nagdi-relay-authority-cells.solmara.registrystack.org, solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
-  nagdi-evidence:
+  nagdi_evidence:
     <<: *runtime
     image: ${SOLMARA_EVIDENCE_IMAGE:?set the digest-pinned official Registry Stack Evidence image}
     command: [--runtime, /etc/registry-evidence/nagdi/runtime.yaml, serve]
@@ -41,7 +45,7 @@ services:
     networks: {runtime: {ipv4_address: 172.29.5.26}}
     depends_on:
       audit-permissions: {condition: service_completed_successfully}
-      nagdi-relay: {condition: service_started}
+      nagdi_relay: {condition: service_started}
     labels: {solmara.lab.host: "${SOLMARA_NAGDI_EVIDENCE_PUBLIC_HOST:-nagdi-evidence.solmara.registrystack.org}", solmara.rollout.slot: authority-cells, traefik.docker.network: "${COOLIFY_RESOURCE_UUID:?set by Coolify for every deployment}"}
 
 volumes:
