@@ -10,7 +10,19 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PROVISION = ROOT / "compose.coolify.provision.yaml"
-SIGNERS = ROOT / "compose.coolify.signers.yaml"
+# Each ministry runs its own signer application so that no Coolify application
+# environment holds another ministry's private issuer key. Compose scopes a key
+# to its container; only splitting the application scopes it to its owner.
+SIGNER_GROUPS = {
+    "mint": ("mint",),
+    "interior": ("cra", "nia"),
+    "social-development": ("sro", "mosd"),
+    "labour-pensions": ("sipf",),
+    "agriculture": ("nagdi",),
+}
+SIGNER_COMPOSES = {
+    group: ROOT / f"compose.coolify.signers.{group}.yaml" for group in SIGNER_GROUPS
+}
 RUNTIME_COMPOSES = (
     ROOT / "compose.coolify.yaml",
     ROOT / "compose.coolify.interior.yaml",
@@ -121,7 +133,15 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.provision = yaml.safe_load(PROVISION.read_text(encoding="utf-8"))
-        cls.signers = yaml.safe_load(SIGNERS.read_text(encoding="utf-8"))
+        cls.signers = {
+            group: yaml.safe_load(path.read_text(encoding="utf-8"))
+            for group, path in SIGNER_COMPOSES.items()
+        }
+        cls.signer_services = {}
+        for group, compose in cls.signers.items():
+            for name, service in compose["services"].items():
+                assert name not in cls.signer_services, (group, name)
+                cls.signer_services[name] = service
         cls.runtime = {
             path.name: yaml.safe_load(path.read_text(encoding="utf-8"))
             for path in RUNTIME_COMPOSES
@@ -141,7 +161,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertEqual(written, SHARED_PATHS - TRANSIT_PATHS)
 
     def test_no_application_declares_a_shared_named_volume(self) -> None:
-        for path in (PROVISION, SIGNERS, *RUNTIME_COMPOSES):
+        for path in (PROVISION, *SIGNER_COMPOSES.values(), *RUNTIME_COMPOSES):
             compose = yaml.safe_load(path.read_text(encoding="utf-8"))
             for key, value in (compose.get("volumes") or {}).items():
                 name = (value or {}).get("name", "")
@@ -179,7 +199,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
         self.assertEqual(attached, SHARED_PATHS)
 
     def test_private_signing_keys_are_mounted_only_into_matching_signers(self) -> None:
-        services = self.signers["services"]
+        services = self.signer_services
         for provider in PROVIDERS:
             secret = (
                 "mint-signing-jwk"
@@ -198,7 +218,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 self.assertNotIn("solmara-provisioning/signing.jwk", targets)
 
     def test_each_signer_requires_its_matching_public_projection(self) -> None:
-        services = self.signers["services"]
+        services = self.signer_services
         for provider in PROVIDERS:
             prefix = "mint" if provider == "mint" else f"{provider}-evidence"
             signer = services[f"{provider}-signer"]
@@ -405,7 +425,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
     def test_each_signer_and_transit_initializer_mount_only_its_matching_volume(
         self,
     ) -> None:
-        services = self.signers["services"]
+        services = self.signer_services
         for provider in PROVIDERS:
             cell = "mint" if provider == "mint" else f"{provider}-evidence"
             path = f"{STATE_ROOT}/{cell}/transit"
@@ -424,46 +444,78 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 },
             )
 
-    def test_signer_application_has_exact_services_and_secrets(self) -> None:
-        expected_services = {
-            *(f"{provider}-transit-init" for provider in PROVIDERS),
-            *(f"{provider}-signer" for provider in PROVIDERS),
-            "signers-ready",
-        }
-        self.assertEqual(set(self.signers["services"]), expected_services)
+    def test_signer_applications_have_exact_services_and_secrets(self) -> None:
+        for group, providers in SIGNER_GROUPS.items():
+            with self.subTest(group=group):
+                compose = self.signers[group]
+                expected_services = {
+                    *(f"{provider}-transit-init" for provider in providers),
+                    *(f"{provider}-signer" for provider in providers),
+                    f"{group}-signers-ready",
+                }
+                self.assertEqual(set(compose["services"]), expected_services)
 
-        expected_secrets: set[str] = set()
-        for provider in PROVIDERS:
-            prefix = "mint" if provider == "mint" else f"{provider}-evidence"
-            expected_secrets.update(
-                {f"{prefix}-signing-jwk", f"{prefix}-signing-public-jwk"}
-            )
-        self.assertEqual(set(self.signers["secrets"]), expected_secrets)
-        self.assertNotIn("volumes", self.signers)
+                expected_secrets: set[str] = set()
+                for provider in providers:
+                    prefix = "mint" if provider == "mint" else f"{provider}-evidence"
+                    expected_secrets.update(
+                        {f"{prefix}-signing-jwk", f"{prefix}-signing-public-jwk"}
+                    )
+                self.assertEqual(set(compose["secrets"]), expected_secrets)
+                self.assertNotIn("volumes", compose)
 
-        readiness = self.signers["services"]["signers-ready"]
+                readiness = compose["services"][f"{group}-signers-ready"]
+                self.assertEqual(
+                    readiness["depends_on"],
+                    {
+                        f"{provider}-signer": {"condition": "service_healthy"}
+                        for provider in providers
+                    },
+                )
+                self.assertEqual(readiness["network_mode"], "none")
+                self.assertTrue(readiness["read_only"])
+                self.assertEqual(readiness["cap_drop"], ["ALL"])
+
+                self.assertEqual(
+                    {service["image"] for service in compose["services"].values()},
+                    {
+                        "${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}"
+                    },
+                )
+
+    def test_signer_applications_partition_the_private_key_boundary(self) -> None:
         self.assertEqual(
-            readiness["depends_on"],
-            {
-                f"{provider}-signer": {"condition": "service_healthy"}
-                for provider in PROVIDERS
-            },
+            {provider for providers in SIGNER_GROUPS.values() for provider in providers},
+            set(PROVIDERS),
         )
-        self.assertEqual(readiness["network_mode"], "none")
-        self.assertTrue(readiness["read_only"])
-        self.assertEqual(readiness["cap_drop"], ["ALL"])
+        seen_secrets: set[str] = set()
+        seen_paths: set[str] = set()
+        for group, providers in SIGNER_GROUPS.items():
+            compose = self.signers[group]
+            secrets = set(compose["secrets"])
+            self.assertTrue(seen_secrets.isdisjoint(secrets), group)
+            seen_secrets |= secrets
 
-        self.assertEqual(
-            {service["image"] for service in self.signers["services"].values()},
-            {
-                "${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}"
-            },
-        )
+            owned = {
+                f"{STATE_ROOT}/{'mint' if p == 'mint' else f'{p}-evidence'}/transit"
+                for p in providers
+            }
+            mounted = {
+                source
+                for service in compose["services"].values()
+                for source, _, _ in service_mounts(service)
+            }
+            # An application may reach its own cells' Transit sockets and
+            # nothing else under the shared authority state root.
+            self.assertEqual(mounted, owned, group)
+            self.assertTrue(seen_paths.isdisjoint(mounted), group)
+            seen_paths |= mounted
+        self.assertEqual(seen_paths, TRANSIT_PATHS)
 
     def test_rendered_operator_applications_fit_coolify_payload_limit(self) -> None:
         for path, compose in (
             (PROVISION, self.provision),
-            (SIGNERS, self.signers),
+            *((SIGNER_COMPOSES[group], self.signers[group]) for group in SIGNER_GROUPS),
         ):
             with self.subTest(compose=path.name):
                 rendered = yaml.safe_dump(
@@ -472,7 +524,7 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
                 self.assertLess(len(rendered), 65_536)
 
     def test_signer_application_preserves_process_confinement(self) -> None:
-        services = self.signers["services"]
+        services = self.signer_services
         for provider in PROVIDERS:
             initializer = services[f"{provider}-transit-init"]
             self.assertEqual(initializer["user"], "0:0")
