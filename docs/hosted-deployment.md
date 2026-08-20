@@ -186,6 +186,13 @@ Deploy the reset alongside the existing deployment in this order:
    any order. Require every Transit initializer to complete successfully and
    each application's `<group>-signers-ready` barrier to complete, which happens
    only once all seven signers across the five applications are healthy.
+
+   If a previous deployment ran the single aggregate signer application, stop it
+   before deploying these five. It still owns the seven live Transit sockets, and
+   a signer refuses to start on a socket that accepts a connection rather than
+   removing another process's listener, so every replacement would exit and no
+   readiness barrier could complete. Rollback reverses this: stop all five, then
+   start the aggregate application.
 4. Deploy the shared Mint, programme services, portal, Visitor Center, and
    static metadata from `compose.coolify.yaml`. Require Mint health, discovery,
    and JWKS to pass before starting a Relay, because every Relay validates the
