@@ -692,12 +692,17 @@ def _stage_extract(
         generated = publisher.publish_extract(
             Path(temporary), cell, published_at, extract_id
         )
+        # Regenerating a reused publication carries its original published_at,
+        # so the serving age is lifted here for the same reason it is lifted
+        # when the binding is read back. This validates deterministic output
+        # against an exact expected identity; freshness is not the question.
         publisher.validate_extract(
             generated,
             cell,
             observed_at=observed_at,
             expected_extract_id=extract_id,
             expected_published_at=published_at,
+            maximum_age_seconds=REUSE_MAX_EXTRACT_AGE_SECONDS,
         )
         target = destination / generated.name
         target.parent.mkdir(parents=True, exist_ok=True)

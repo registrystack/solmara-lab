@@ -1197,6 +1197,110 @@ class RealPublisherExtractAgeTest(unittest.TestCase):
                     root, runtime, extracts, "2026-08-12T08:59:59Z"
                 )
 
+    def test_staging_a_reused_publication_past_its_serving_age_succeeds(self) -> None:
+        # provision() regenerates the reused publication from the old
+        # published_at and validates it against now, so lifting the ceiling on
+        # the binding lookup alone leaves the redeploy broken here instead.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            destination = root / "extracts"
+            with mock.patch.object(
+                provisioner, "_load_publisher", return_value=self.publisher
+            ):
+                name = provisioner._stage_extract(
+                    root, "sro", destination, self.PUBLISHED_AT, self.LONG_AFTER
+                )
+            self.assertEqual(name, f"{self.EXTRACT_ID}.sqlite")
+            self.assertTrue((destination / name).is_file())
+
+    def test_staging_a_publication_dated_in_the_future_is_still_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with (
+                mock.patch.object(
+                    provisioner, "_load_publisher", return_value=self.publisher
+                ),
+                self.assertRaises(self.publisher.ExtractValidationError),
+            ):
+                provisioner._stage_extract(
+                    root,
+                    "sro",
+                    root / "extracts",
+                    self.PUBLISHED_AT,
+                    "2026-08-12T08:59:59Z",
+                )
+
+    def test_evidence_staging_reuses_a_publication_past_its_serving_age(self) -> None:
+        # The composition provision() actually runs: _publication_time returns
+        # the old published_at, which _stage_evidence then hands to
+        # _stage_extract together with the current time.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            assets = root / "assets"
+            cell = assets / "evidence" / "cells" / "sro"
+            (cell / "bundle").mkdir(parents=True)
+            (cell / "bundle" / "evidence.yaml").write_text(
+                yaml.safe_dump(
+                    {
+                        "authentication": {"issuer": "old", "jwksUri": "old"},
+                        "signing": {"activePublicJwkFile": "old"},
+                        "sources": {
+                            "sro-poverty": {
+                                "transport": "sqlite-extract",
+                                "extractProfile": "sro-poverty-extract",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (cell / "runtime.yaml").write_text(
+                yaml.safe_dump(
+                    {
+                        "listener": {"bindHost": "old"},
+                        "sourceExtracts": {
+                            "sro-poverty-extract": {
+                                "path": "/var/lib/registry-evidence/sro/extracts"
+                                "/placeholder.sqlite"
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            secrets = root / "inputs"
+            signing_public, _ = key_pair()
+            write_secret(secrets, "signing-public.jwk", signing_public)
+            write_secret(secrets, "audit-hmac-key", b"a" * 32)
+            write_secret(secrets, "subject-binding-hmac-key", b"b" * 32)
+
+            runtime = root / "runtime"
+            extracts = root / "extracts"
+            with mock.patch.object(
+                provisioner, "_load_publisher", return_value=self.publisher
+            ):
+                provisioner._stage_evidence(
+                    assets,
+                    "sro",
+                    secrets,
+                    runtime,
+                    root / "output-secrets",
+                    extracts,
+                    provisioner.EXPECTED_BIND_HOST["sro"],
+                    self.PUBLISHED_AT,
+                    self.LONG_AFTER,
+                    provisioner.MINT_ORIGIN,
+                    provisioner.RELAY_ORIGINS.get("sro"),
+                )
+            self.assertTrue((extracts / f"{self.EXTRACT_ID}.sqlite").is_file())
+            bound = yaml.safe_load(
+                (runtime / "runtime.yaml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                bound["sourceExtracts"]["sro-poverty-extract"]["path"],
+                f"/var/lib/registry-evidence/sro/extracts/{self.EXTRACT_ID}.sqlite",
+            )
+
     def test_tampered_extract_past_its_serving_age_is_still_refused(self) -> None:
         # Relaxing the age ceiling must not relax integrity.
         with self._published_extract(bind=True) as (root, runtime, extracts, extract):
