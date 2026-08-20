@@ -47,9 +47,15 @@ class HostedEsignetTopologyTests(unittest.TestCase):
                 "esignet-redis",
                 "esignet",
                 "esignet-ui",
+                "esignet-edge",
                 "esignet-seed",
             },
         )
+        # The issuer origin is fronted by the proxy image, not by eSignet
+        # itself, so its discovery documents are reachable where the issuer
+        # says they are.
+        self.assertEqual(services["esignet-edge"]["image"], services["esignet-ui"]["image"])
+        self.assertNotIn("solmara.lab.host", services["esignet"]["labels"])
         self.assertNotIn("portal", services)
         self.assertEqual(
             services["esignet"]["environment"]["REGISTRY_MINT_TOKEN_ENDPOINT"],
