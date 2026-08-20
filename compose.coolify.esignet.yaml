@@ -87,7 +87,7 @@ services:
     labels:
       solmara.rollout.slot: authority-cells
 
-  esignet-ui:
+  esignet_ui:
     image: ${SOLMARA_ESIGNET_UI_IMAGE:?set digest-pinned eSignet UI image}
     environment:
       SOLMARA_ESIGNET_PUBLIC_HOST: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
@@ -102,7 +102,9 @@ services:
   # neither its OpenID discovery document nor its RFC 8414 authorization-server
   # metadata. The UI image is a host-agnostic reverse proxy that serves both at
   # the root and forwards /v1/esignet, so it also fronts the issuer origin.
-  esignet-edge:
+  # Coolify matches a routed service against the compose key but resolves it
+  # after rewriting "-" to "_", so both proxies carry underscore names.
+  esignet_edge:
     image: ${SOLMARA_ESIGNET_UI_IMAGE:?set digest-pinned eSignet UI image}
     environment:
       SOLMARA_ESIGNET_PUBLIC_HOST: ${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}
