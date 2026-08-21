@@ -221,7 +221,7 @@ class RuntimeTopologyTests(unittest.TestCase):
             issuer_readiness["depends_on"],
             {
                 "mint": {"condition": "service_started"},
-                "evidence-gateway": {"condition": "service_started"},
+                "local-edge": {"condition": "service_started"},
             },
         )
         readiness_code = issuer_readiness["command"][2]
@@ -276,13 +276,13 @@ class RuntimeTopologyTests(unittest.TestCase):
             [{"subnet": "192.0.2.0/26", "ip_range": "192.0.2.0/27"}],
         )
 
-        gateway_networks = compose["services"]["evidence-gateway"]["networks"]
+        edge_networks = compose["services"]["local-edge"]["networks"]
         self.assertNotIn(
             "mint.solmara.registrystack.org",
-            gateway_networks["runtime"]["aliases"],
+            edge_networks["runtime"]["aliases"],
         )
         self.assertEqual(
-            gateway_networks["issuer-validation"],
+            edge_networks["issuer-validation"],
             {
                 "ipv4_address": "192.0.2.62",
                 "aliases": ["mint.solmara.registrystack.org"],
