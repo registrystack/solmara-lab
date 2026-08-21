@@ -14,7 +14,7 @@ RELAY = "ghcr.io/registrystack/relay@sha256:" + "1" * 64
 EVIDENCE = "ghcr.io/registrystack/evidence@sha256:" + "2" * 64
 MINT = "ghcr.io/registrystack/mint@sha256:" + "3" * 64
 VOLUME_INIT = "busybox@sha256:" + "4" * 64
-GATEWAY = "caddy@sha256:" + "5" * 64
+LOCAL_EDGE = "caddy@sha256:" + "5" * 64
 
 
 def load_check_image_pins():
@@ -40,7 +40,7 @@ class ImagePinTests(unittest.TestCase):
             f"SOLMARA_EVIDENCE_IMAGE={EVIDENCE}\n"
             f"SOLMARA_MINT_IMAGE={MINT}\n"
             f"VOLUME_INIT_IMAGE={VOLUME_INIT}\n"
-            f"EVIDENCE_GATEWAY_IMAGE={GATEWAY}\n",
+            f"LOCAL_EDGE_IMAGE={LOCAL_EDGE}\n",
             encoding="utf-8",
         )
         with (self.root / "versions.env").open("a", encoding="utf-8") as versions:
@@ -79,13 +79,13 @@ class ImagePinTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("expected a required REGISTRY_RELAY_IMAGE reference", stderr)
 
-    def test_gateway_must_be_digest_pinned(self) -> None:
-        versions = (self.root / "versions.env").read_text().replace(GATEWAY, "caddy:latest")
+    def test_local_edge_must_be_digest_pinned(self) -> None:
+        versions = (self.root / "versions.env").read_text().replace(LOCAL_EDGE, "caddy:latest")
         (self.root / "versions.env").write_text(versions)
         result, stderr = self.run_check()
 
         self.assertEqual(result, 1)
-        self.assertIn("EVIDENCE_GATEWAY_IMAGE must use image@sha256", stderr)
+        self.assertIn("LOCAL_EDGE_IMAGE must use image@sha256", stderr)
 
     def test_runtime_images_must_use_their_exact_official_repository(self) -> None:
         versions = (self.root / "versions.env").read_text().replace(

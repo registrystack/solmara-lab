@@ -104,7 +104,7 @@ jobs:
         run: |
           cd portal && pnpm exec playwright install --with-deps chromium
           cd ../home && pnpm exec playwright install chromium
-      - name: Generate and validate authority-cell runtime
+      - name: Generate and validate lab runtime
         env:
           REGISTRY_STACK_SOURCE_DIR: ${{ github.workspace }}/vendor/registry-stack
         run: |
@@ -114,7 +114,7 @@ jobs:
           just test
           just compose
           just relay-check
-      - name: Start and smoke authority cells
+      - name: Start and smoke the lab stack
         env:
           REGISTRY_STACK_SOURCE_DIR: ${{ github.workspace }}/vendor/registry-stack
         run: |
@@ -125,13 +125,13 @@ jobs:
           just lifecycle-proof
           just portal-live-e2e
           just home-live-e2e
-      - name: Report authority-cell startup failure
+      - name: Report lab startup failure
         if: failure()
         run: |
           project_name="$(python3 scripts/compose_project_name.py)"
           docker compose --env-file versions.env --env-file .env --project-name "$project_name" -f compose.yaml ps --all
           docker compose --env-file versions.env --env-file .env --project-name "$project_name" -f compose.yaml logs --no-color \
-            authority-audit-init mint evidence-gateway relay-issuer-readiness \
+            authority-audit-init mint local-edge relay-issuer-readiness \
             cra-relay nia-relay mosd-relay sipf-relay nagdi-relay
       - name: Record recoverable rollout phases
         run: |
@@ -469,6 +469,6 @@ jobs:
               printf -- '- %s=%s\n' "$key" "$image"
             done < "$RUNNER_TEMP/solmara-release/solmara-hosted-images.env"
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Stop authority-cell stack
+      - name: Stop the lab stack
         if: always()
         run: just down || true

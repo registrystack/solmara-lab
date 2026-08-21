@@ -1,7 +1,7 @@
 name: solmara-lab-interior-signers
 
 # This operator-only application is the private issuer-key boundary for the
-# Interior cells. It holds only the CRA and NIA signing keys and attaches only
+# Interior Evidence gateways. It holds only the CRA and NIA signing keys and attaches only
 # their Transit socket directories under the shared authority state root.
 x-transit-init: &transit-init
   image: ${SOLMARA_TRANSIT_SIGNER_IMAGE:?set the digest-pinned Solmara Transit signer image}

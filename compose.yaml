@@ -415,7 +415,7 @@ services:
     networks: [issuer-validation]
     depends_on:
       mint: {condition: service_started}
-      evidence-gateway: {condition: service_started}
+      local-edge: {condition: service_started}
 
   mint-signer:
     <<: *transit-signer
@@ -566,11 +566,11 @@ services:
     networks: {runtime: {ipv4_address: 172.29.1.26}, issuer-validation: {}}
     depends_on: {mint: {condition: service_started}, nagdi-secret-stager: {condition: service_completed_successfully}, authority-audit-init: {condition: service_completed_successfully}, nagdi-signer: {condition: service_healthy}, nagdi-relay: {condition: service_healthy}}
 
-  evidence-gateway:
-    image: ${EVIDENCE_GATEWAY_IMAGE:?versions.env must pin Caddy}
+  local-edge:
+    image: ${LOCAL_EDGE_IMAGE:?versions.env must pin Caddy}
     user: "0:0"
     restart: unless-stopped
-    ports: ["${SOLMARA_EVIDENCE_GATEWAY_PORT:-4341}:443"]
+    ports: ["${SOLMARA_LOCAL_EDGE_PORT:-4341}:443"]
     volumes: ["./config/evidence/Caddyfile:/etc/caddy/Caddyfile:ro", "./config/evidence/local/tls:/etc/solmara-evidence/tls:ro", "caddy-data:/data", "caddy-config:/config"]
     networks:
       runtime:

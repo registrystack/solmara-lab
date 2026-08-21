@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  authority-cell-checks:
+  lab-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -46,9 +46,9 @@ jobs:
         run: just generate
       - name: Publish checked-in metadata
         run: just metadata-publish
-      - name: Lint authority-cell configuration
+      - name: Lint lab configuration
         run: just lint
-      - name: Test authority-cell application
+      - name: Test lab application
         run: just test
       - name: Validate and package all Relay V2 projects
         run: just relay-check

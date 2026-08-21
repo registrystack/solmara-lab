@@ -3,6 +3,17 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-08-21 The local front door is `local-edge`
+
+The local Compose service that terminates TLS on port 4341 was called
+`evidence-gateway`, which now names something else. It is also not only an
+Evidence front door: the same Caddy instance answers the Relay and Mint
+hostnames the hermetic local run needs. It is now `local-edge`, pinned by
+`LOCAL_EDGE_IMAGE`, and its published port is `SOLMARA_LOCAL_EDGE_PORT`. The
+default port is still 4341, so a developer who never overrode
+`SOLMARA_EVIDENCE_GATEWAY_PORT` has nothing to change. Nothing hosted uses
+this service.
+
 ## 2026-08-20 Evidence gateways replace "cells"
 
 Every visitor-facing surface now calls an authority's Evidence deployment an
