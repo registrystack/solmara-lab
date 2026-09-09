@@ -5,6 +5,12 @@ v0.2.0 authenticator validates the challenge and consent first, then obtains a
 short-lived Mint token using the `nia-esignet` private-key JWT client and calls
 `POST /v2/resources/population-person/lookups/esignet-userinfo`.
 
+The upstream provider has since moved on. `esignet-relay-authenticator` v0.3.0
+replaces the JAR with a Go provider compiled into eSignet `v2.0.0-beta.1`, and
+that provider reads a Base Registry Engine registry through one governed lookup
+carrying a Registry Mint token. Its Relay support is deferred. This lab deploys
+no Base Registry Engine, so it stays on the v0.2.0 JAR profile described here.
+
 The request contains only the selected UIN and consented `fields`. The adapter
 parses only `data.domainData`, preserves PSUT, KYC-token and JWS behaviour, and
 collapses unresolved, concealed, denied, authentication, and dependency

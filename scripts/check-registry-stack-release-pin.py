@@ -60,7 +60,7 @@ def validate(values: dict[str, str], *, require_public: bool) -> list[str]:
             failures.append(f"{key} is not published; v{REQUIRED_VERSION} promotion is blocked")
     if values.get("ESIGNET_AUTHENTICATOR_VERSION") != "0.2.0":
         failures.append("ESIGNET_AUTHENTICATOR_VERSION must be 0.2.0")
-    release_url = "https://github.com/jeremi/esignet-relay-authenticator/releases/tag/v0.2.0"
+    release_url = "https://github.com/registrystack/esignet-relay-authenticator/releases/tag/v0.2.0"
     if values.get("ESIGNET_AUTHENTICATOR_RELEASE_URL") != release_url:
         failures.append("ESIGNET_AUTHENTICATOR_RELEASE_URL must bind the exact v0.2.0 release")
     jar_url = values.get("ESIGNET_AUTHENTICATOR_JAR_URL", "")
@@ -69,7 +69,7 @@ def validate(values: dict[str, str], *, require_public: bool) -> list[str]:
         failures.append("ESIGNET_AUTHENTICATOR_JAR_URL must be an exact HTTPS URL")
     if jar_sha and not DIGEST.fullmatch(jar_sha):
         failures.append("ESIGNET_AUTHENTICATOR_JAR_SHA256 must be 64 lowercase hex characters")
-    expected_base = "https://github.com/jeremi/esignet-relay-authenticator/releases/download/v0.2.0/"
+    expected_base = "https://github.com/registrystack/esignet-relay-authenticator/releases/download/v0.2.0/"
     if jar_url and jar_url != expected_base + "esignet-relay-authenticator-0.2.0.jar":
         failures.append("ESIGNET_AUTHENTICATOR_JAR_URL must bind the exact v0.2.0 release asset")
     if values.get("ESIGNET_AUTHENTICATOR_CHECKSUM_URL", "") != expected_base + "esignet-relay-authenticator-0.2.0.jar.sha256":

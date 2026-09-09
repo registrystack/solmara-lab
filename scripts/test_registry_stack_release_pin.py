@@ -12,10 +12,10 @@ SPEC.loader.exec_module(MODULE)
 
 
 def authenticator_values() -> dict[str, str]:
-    base = "https://github.com/jeremi/esignet-relay-authenticator/releases/download/v0.2.0/"
+    base = "https://github.com/registrystack/esignet-relay-authenticator/releases/download/v0.2.0/"
     return {
         "ESIGNET_AUTHENTICATOR_VERSION": "0.2.0",
-        "ESIGNET_AUTHENTICATOR_RELEASE_URL": "https://github.com/jeremi/esignet-relay-authenticator/releases/tag/v0.2.0",
+        "ESIGNET_AUTHENTICATOR_RELEASE_URL": "https://github.com/registrystack/esignet-relay-authenticator/releases/tag/v0.2.0",
         "ESIGNET_AUTHENTICATOR_JAR_URL": base + "esignet-relay-authenticator-0.2.0.jar",
         "ESIGNET_AUTHENTICATOR_JAR_SHA256": "e" * 64,
         "ESIGNET_AUTHENTICATOR_CHECKSUM_URL": base + "esignet-relay-authenticator-0.2.0.jar.sha256",
