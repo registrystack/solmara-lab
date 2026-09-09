@@ -12,14 +12,13 @@ SPEC.loader.exec_module(MODULE)
 
 
 def authenticator_values() -> dict[str, str]:
-    base = "https://github.com/jeremi/esignet-relay-authenticator/releases/download/v0.2.0/"
     return {
-        "ESIGNET_AUTHENTICATOR_VERSION": "0.2.0",
-        "ESIGNET_AUTHENTICATOR_RELEASE_URL": "https://github.com/jeremi/esignet-relay-authenticator/releases/tag/v0.2.0",
-        "ESIGNET_AUTHENTICATOR_JAR_URL": base + "esignet-relay-authenticator-0.2.0.jar",
-        "ESIGNET_AUTHENTICATOR_JAR_SHA256": "e" * 64,
-        "ESIGNET_AUTHENTICATOR_CHECKSUM_URL": base + "esignet-relay-authenticator-0.2.0.jar.sha256",
+        "ESIGNET_AUTHENTICATOR_VERSION": "0.3.0",
+        "ESIGNET_SOURCE_VERSION": "2.0.0-beta.1",
+        "ESIGNET_SOURCE_COMMIT": "df0d0e771dae16eb2597b8e5b5dc65e70baa7f86",
+        "ESIGNET_SOURCE_ARCHIVE_SHA256": "e" * 64,
     }
+
 
 
 class ReleasePinTests(unittest.TestCase):

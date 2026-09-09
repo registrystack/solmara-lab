@@ -1,0 +1,61 @@
+apiVersion: registry.registrystack.org/breg-journeys/v1
+journeys:
+- id: identity-lookup-boundary
+  steps:
+  - id: operator-creates-person
+    entity: person
+    accessProfile: operator
+    claims:
+      principal: solmara-population-operator
+      purpose: population-maintenance
+      scopes:
+      - registry:population:operate
+    request:
+      operation: create
+      data:
+        uin: '2300000000'
+        status: active
+        given-name: Synthetic
+        family-name: Journey
+        birthdate: '1990-01-01'
+        gender: unknown
+        operator-note: Private operator fact
+    expect:
+      outcome: success
+      status: 201
+      fields:
+        uin: '2300000000'
+  - id: source-exact-lookup
+    entity: person
+    accessProfile: esignet-source
+    claims: &id001
+      principal: solmara-esignet-provider
+      purpose: identity-authentication
+      scopes:
+      - registry:population:lookup
+      directClaims:
+        registry_identity_status: active
+    request:
+      operation: lookup
+      selector: by-uin
+      values:
+        uin: '2300000000'
+    expect:
+      outcome: success
+      status: 200
+      fields:
+        uin: '2300000000'
+        status: active
+  - id: source-unresolved
+    entity: person
+    accessProfile: esignet-source
+    claims: *id001
+    request:
+      operation: lookup
+      selector: by-uin
+      values:
+        uin: '2399999998'
+    expect:
+      outcome: refusal
+      status: 404
+      problemCode: lookup.unresolved

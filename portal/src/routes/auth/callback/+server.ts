@@ -12,17 +12,22 @@ import { completeEsignetLogin, esignetConfigFor, EsignetAuthError, EsignetConfig
 import { setMockSession, setPortalSession } from '$lib/server/session';
 import { resolvePersona } from '$lib/server/personas';
 
-export const GET: RequestHandler = async ({ cookies, fetch, url }) => {
+export const GET: RequestHandler = async ({ cookies, url }) => {
   try {
     const esignet = esignetConfigFor(url);
     if (esignet) {
-      const session = await completeEsignetLogin(cookies, url, esignet, fetch);
+      // OIDC backchannel requests use native fetch without the browser request context.
+      const session = await completeEsignetLogin(cookies, url, esignet);
       setPortalSession(cookies, session);
       throw redirect(302, '/services');
     }
   } catch (err) {
     if (err instanceof EsignetConfigError) throw error(500, 'eSignet login is not configured');
-    if (err instanceof EsignetAuthError) throw error(401, 'eSignet login failed');
+    if (err instanceof EsignetAuthError) {
+      // Fixed stages and SDK codes are useful operational diagnostics without protocol values.
+      console.error('eSignet login rejected', { stage: err.stage, code: err.code });
+      throw error(401, 'eSignet login failed');
+    }
     throw err;
   }
 

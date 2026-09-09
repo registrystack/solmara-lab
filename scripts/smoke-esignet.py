@@ -103,53 +103,30 @@ def normalize_url(value: str) -> str:
 
 
 def check_esignet_discovery(targets: SmokeTargets, timeout: float) -> None:
-    service_doc = wait_for_json(
-        "GET",
-        f"{targets.esignet_url}/v1/esignet/oidc/.well-known/openid-configuration",
-        timeout=timeout,
+    oidc = wait_for_json(
+        "GET", f"{targets.esignet_url}/.well-known/openid-configuration", timeout=timeout
     )
-    root_doc = wait_for_json(
-        "GET",
-        f"{targets.esignet_url}/.well-known/openid-configuration",
-        timeout=timeout,
+    oauth = wait_for_json(
+        "GET", f"{targets.esignet_url}/.well-known/oauth-authorization-server", timeout=timeout
     )
-    root_oauth_doc = wait_for_json(
-        "GET",
-        f"{targets.esignet_url}/.well-known/oauth-authorization-server",
-        timeout=timeout,
+    ui = wait_for_json(
+        "GET", f"{targets.esignet_ui_url}/.well-known/openid-configuration", timeout=timeout
     )
-    ui_doc = wait_for_json(
-        "GET",
-        f"{targets.esignet_ui_url}/.well-known/openid-configuration",
-        timeout=timeout,
-    )
-    service_issuer = service_doc.get("issuer")
-    root_issuer = root_doc.get("issuer")
-    root_oauth_issuer = root_oauth_doc.get("issuer")
-    ui_issuer = ui_doc.get("issuer")
-    expected_token_endpoint = f"{targets.esignet_url}/v1/esignet/oauth/v2/token"
-    if not isinstance(service_issuer, str) or not service_issuer:
-        raise SmokeFailure("service discovery omitted issuer")
-    if root_issuer != service_issuer:
-        raise SmokeFailure(
-            "root OpenID discovery issuer does not match service discovery issuer"
-        )
-    if root_oauth_issuer != service_issuer:
-        raise SmokeFailure(
-            "root OAuth authorization-server issuer does not match service discovery issuer"
-        )
-    if ui_issuer != service_issuer:
-        raise SmokeFailure(
-            "UI discovery issuer does not match service discovery issuer"
-        )
-    for name, document in (
-        ("service", service_doc),
-        ("root OpenID", root_doc),
-        ("root OAuth", root_oauth_doc),
-        ("UI", ui_doc),
-    ):
-        if document.get("token_endpoint") != expected_token_endpoint:
-            raise SmokeFailure(f"{name} discovery token endpoint is not the public endpoint")
+    expected = {
+        "issuer": targets.esignet_url,
+        "authorization_endpoint": f"{targets.esignet_url}/oauth2/authorize",
+        "token_endpoint": f"{targets.esignet_url}/oauth2/token",
+        "jwks_uri": f"{targets.esignet_url}/oauth2/jwks",
+    }
+    for document in (oidc, oauth, ui):
+        for key, value in expected.items():
+            if document.get(key) != value:
+                raise SmokeFailure(f"discovery {key} does not match the public eSignet endpoint")
+        if "private_key_jwt" not in document.get("token_endpoint_auth_methods_supported", []):
+            raise SmokeFailure("discovery does not support private_key_jwt")
+    for document in (oidc, ui):
+        if document.get("userinfo_endpoint") != f"{targets.esignet_url}/oauth2/userinfo":
+            raise SmokeFailure("discovery userinfo_endpoint does not match the public eSignet endpoint")
 
 
 def wait_for_json(
@@ -168,7 +145,7 @@ def wait_for_json(
         except SmokeFailure as exc:
             last_error = str(exc)
         time.sleep(1)
-    raise SmokeFailure(f"{url}: {last_error or 'timed out'}")
+    raise SmokeFailure(last_error or "endpoint timed out")
 
 
 def request_json(
@@ -184,16 +161,17 @@ def request_json(
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            data = response.read()
+            data = response.read(1024 * 1024 + 1)
+            if len(data) > 1024 * 1024:
+                raise SmokeFailure("discovery response exceeded limit")
             value = json.loads(data.decode("utf-8"))
             if not isinstance(value, dict):
                 raise SmokeFailure("response was not a JSON object")
             return value
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:240]
-        raise SmokeFailure(f"HTTP {exc.code}: {detail}") from exc
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise SmokeFailure(str(exc)) from exc
+        raise SmokeFailure(f"discovery HTTP {exc.code}") from None
+    except (urllib.error.URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError):
+        raise SmokeFailure("discovery response unavailable or invalid") from None
 
 
 if __name__ == "__main__":
