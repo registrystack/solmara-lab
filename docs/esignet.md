@@ -13,6 +13,11 @@ provisioned fields are read from BREG's `data.domainData`. The pairwise OIDC
 requests continue to use the synthetic citizen's UIN. Refusing that claim does
 not create a Portal session.
 
+The UI build applies reviewed locale and dependency patches to that exact
+source. It retains Thunder React 0.11.2 and pins the resulting npm lockfile
+checksum in the image metadata. See [UI build maintenance](../docker/esignet-ui/README.md)
+for dependency refresh and validation commands.
+
 ## Build and start locally
 
 Prerequisites: Docker with Buildx, Go 1.26, Node with pnpm, uv, just, and matching
