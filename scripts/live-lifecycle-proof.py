@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import closing
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -295,7 +296,7 @@ def _publish_changed_sro(root: Path) -> ExtractPublication:
         original_mode = stat.S_IMODE(staged.stat().st_mode)
         try:
             staged.chmod(original_mode | stat.S_IWUSR)
-            with sqlite3.connect(staged) as connection:
+            with closing(sqlite3.connect(staged)) as connection, connection:
                 row = connection.execute(
                     """
                     SELECT record_id, lifecycle_state, recorded_at
@@ -367,7 +368,7 @@ def _publish_invalid_sro(root: Path, *, stale: bool) -> Path:
         original_mode = stat.S_IMODE(path.stat().st_mode)
         path.chmod(original_mode | stat.S_IWUSR)
         try:
-            with sqlite3.connect(path) as connection:
+            with closing(sqlite3.connect(path)) as connection, connection:
                 connection.execute(
                     "UPDATE evidence_extract SET published_at = ?", ("invalid",)
                 )

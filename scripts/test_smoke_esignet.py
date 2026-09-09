@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -141,6 +142,16 @@ class SmokeEsignetTests(unittest.TestCase):
                 smoke_esignet.request_json("GET", f"{server.url}/broken")
             self.assertEqual(str(caught.exception), "discovery HTTP 500")
             self.assertIsNone(caught.exception.__cause__)
+
+    def test_dependency_http_error_closes_its_response(self) -> None:
+        body = io.BytesIO(b"sensitive-canary")
+        error = smoke_esignet.urllib.error.HTTPError(
+            "http://unused.invalid", 500, "failure", {}, body
+        )
+        with mock.patch.object(smoke_esignet.urllib.request, "urlopen", side_effect=error):
+            with self.assertRaisesRegex(smoke_esignet.SmokeFailure, "^discovery HTTP 500$"):
+                smoke_esignet.request_json("GET", "http://unused.invalid")
+        self.assertTrue(body.closed)
 
     def test_main_does_not_require_a_static_relay_credential(self) -> None:
         with mock.patch.object(smoke_esignet, "check_esignet_discovery") as discovery:

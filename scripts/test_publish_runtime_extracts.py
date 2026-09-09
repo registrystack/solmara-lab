@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest import mock
 
@@ -97,7 +98,7 @@ class RuntimeExtractPublicationTests(unittest.TestCase):
             )
             extract = self.root / item["path"]
             self.assertEqual(stat.S_IMODE(extract.stat().st_mode), 0o444)
-            with sqlite3.connect(extract) as connection:
+            with closing(sqlite3.connect(extract)) as connection, connection:
                 self.assertEqual(
                     connection.execute(
                         "SELECT published_at, publisher, extract_id FROM evidence_extract"
@@ -116,7 +117,7 @@ class RuntimeExtractPublicationTests(unittest.TestCase):
         clock.assert_called_once_with()
         for authority, item in result.items():
             extract = self.root / item["path"]
-            with sqlite3.connect(extract) as connection:
+            with closing(sqlite3.connect(extract)) as connection, connection:
                 self.assertEqual(
                     connection.execute(
                         "SELECT published_at FROM evidence_extract"
@@ -188,7 +189,7 @@ class RuntimeExtractPublicationTests(unittest.TestCase):
         cra = Path(self._runtime_binding("cra")).name
         cra_extract = self.root / PUBLISHER.EVIDENCE_DIRECTORY / cra
         cra_extract.chmod(0o644)
-        with sqlite3.connect(cra_extract) as connection:
+        with closing(sqlite3.connect(cra_extract)) as connection, connection:
             connection.execute(
                 "UPDATE evidence_extract SET publisher = ?",
                 (PUBLISHER.PUBLISHERS["nia"],),

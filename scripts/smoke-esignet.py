@@ -169,6 +169,7 @@ def request_json(
                 raise SmokeFailure("response was not a JSON object")
             return value
     except urllib.error.HTTPError as exc:
+        exc.close()
         raise SmokeFailure(f"discovery HTTP {exc.code}") from None
     except (urllib.error.URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError):
         raise SmokeFailure("discovery response unavailable or invalid") from None
