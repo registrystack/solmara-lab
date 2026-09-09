@@ -16,6 +16,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+from contextlib import closing
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -778,7 +779,7 @@ def _publication_time(
             raise ProvisionError("invalid existing extract")
         extract_name = bound_path.name
         existing = extract_output / extract_name
-        with sqlite3.connect(f"file:{existing}?mode=ro", uri=True) as connection:
+        with closing(sqlite3.connect(f"file:{existing}?mode=ro", uri=True)) as connection, connection:
             rows = connection.execute(
                 "SELECT published_at, extract_id FROM evidence_extract"
             ).fetchall()

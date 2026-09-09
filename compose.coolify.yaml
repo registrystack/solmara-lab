@@ -138,19 +138,16 @@ services:
     environment:
       <<: *hosted-evidence
       PORTAL_PROVIDER: live
+      ORIGIN: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}
       PORTAL_AUTH_PROVIDER: ${PORTAL_AUTH_PROVIDER:-mock}
       PORTAL_SECURE_COOKIES: "true"
       PORTAL_ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
       PORTAL_ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
       PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}
       PORTAL_ESIGNET_ISSUER: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}
-      PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT: ${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize
-      PORTAL_ESIGNET_TOKEN_ENDPOINT: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token
-      PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token
-      PORTAL_ESIGNET_USERINFO_ENDPOINT: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oidc/userinfo
       PORTAL_ESIGNET_REDIRECT_URI: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback
-      PORTAL_ESIGNET_SCOPE: openid profile
-      PORTAL_ESIGNET_SUBJECT_CLAIM: sub
+      PORTAL_ESIGNET_SCOPE: ${PORTAL_ESIGNET_SCOPE:-openid}
+      PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
       SCENARIO_RUNNER_URL: ${SOLMARA_SCENARIO_RUNNER_PUBLIC_BASE_URL:-https://scenarios.solmara.registrystack.org}
       CHILD_BENEFIT_FEDERATOR_URL: ${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}
     secrets:

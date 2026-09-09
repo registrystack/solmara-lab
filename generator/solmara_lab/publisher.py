@@ -8,6 +8,7 @@ import re
 import sqlite3
 import stat
 import tempfile
+from contextlib import closing
 from collections.abc import Callable, Iterable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -175,7 +176,7 @@ def _replace_database(
     if temporary.exists():
         temporary.unlink()
     try:
-        with sqlite3.connect(temporary) as connection:
+        with closing(sqlite3.connect(temporary)) as connection, connection:
             _configure(connection)
             populate(connection)
             _finish(connection)
@@ -199,7 +200,7 @@ def _create_immutable_database(
     os.close(descriptor)
     temporary = Path(temporary_name)
     try:
-        with sqlite3.connect(temporary) as connection:
+        with closing(sqlite3.connect(temporary)) as connection, connection:
             _configure(connection)
             populate(connection)
             _finish(connection)
@@ -799,7 +800,7 @@ def validate_extract(
         raise ExtractValidationError("extract filename does not match its binding")
 
     try:
-        with sqlite3.connect(_database_uri(path), uri=True) as connection:
+        with closing(sqlite3.connect(_database_uri(path), uri=True)) as connection, connection:
             if connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
                 raise ExtractValidationError("extract integrity check failed")
             metadata_columns = tuple(
@@ -910,7 +911,7 @@ def mutate_mosd_state(
 ) -> None:
     database = database.resolve()
     before = database.stat()
-    with sqlite3.connect(database) as connection:
+    with closing(sqlite3.connect(database)) as connection, connection:
         _configure(connection)
         current = connection.execute(
             "SELECT record_id, lifecycle_state FROM beneficiary_enrolment_source WHERE uin = ?",

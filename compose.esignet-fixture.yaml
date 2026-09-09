@@ -1,0 +1,181 @@
+services:
+  esignet-database:
+    build:
+      context: .
+      dockerfile: docker/esignet-postgres/Dockerfile
+      args:
+        POSTGRES_IMAGE: ${ESIGNET_POSTGRES_IMAGE:?versions.env must pin eSignet database image}
+    image: ${SOLMARA_ESIGNET_POSTGRES_IMAGE:-solmara-lab-esignet-v2-db:local}
+    environment:
+      POSTGRES_USER: esignet
+      POSTGRES_PASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?run just gen-secrets}
+    volumes:
+    - esignet-v2-db-data:/var/lib/postgresql
+    networks:
+    - runtime
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U esignet -d esignet
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  esignet-redis:
+    image: ${ESIGNET_REDIS_IMAGE:?versions.env must pin eSignet Redis}
+    command:
+    - redis-server
+    volumes:
+    - esignet-v2-redis-data:/data
+    networks:
+    - runtime
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - redis-cli --raw COMMAND INFO GETDEL | grep -qx getdel
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  esignet:
+    image: ${SOLMARA_ESIGNET_CANDIDATE_IMAGE:?build the native v2 candidate image}
+    environment:
+      DATA_DIR: /home/mosip/data
+      PORT: '8080'
+      MOSIP_ESIGNET_AUTHN_PROVIDER: breg
+      MOSIP_ESIGNET_AUTH_FLOW_ID: flow-breg-otp
+      MOSIP_ESIGNET_HOST: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}
+      MOSIP_ESIGNET_OIDC_UI_SCHEME: http
+      MOSIP_ESIGNET_OIDC_UI_HOSTNAME: 127.0.0.1
+      MOSIP_ESIGNET_OIDC_UI_PORT: ${SOLMARA_ESIGNET_UI_PORT:-4309}
+      MOSIP_ESIGNET_OIDC_UI_LOGIN_PATH: /signin
+      DATABASE_HOST: esignet-database
+      DATABASE_PORT: '5432'
+      DATABASE_NAME: mosip_esignet
+      DATABASE_USERNAME: esignet
+      DATABASE_PASSWORD: ${SOLMARA_ESIGNET_POSTGRES_PASSWORD:?run just gen-secrets}
+      REDIS_HOST: esignet-redis
+      KEYMANAGER_DB_SCHEMA: esignet
+      KEYMANAGER_KEYSTORE_TYPE: PKCS12
+      KEYMANAGER_PKCS12_FILE_PATH: /var/lib/esignet-keys/host.p12
+      KEYMANAGER_PKCS12_PASSWORD: ${SOLMARA_ESIGNET_V2_KEYSTORE_PASSWORD:?run just gen-secrets}
+      KEYMANAGER_PKCS12_ALLOW_INSECURE_SOFTWARE_KEYSTORE: 'true'
+      KEYMANAGER_CERT_CN: Solmara synthetic identity demo
+      KEYMANAGER_CERT_O: Solmara Lab
+      KEYMANAGER_CERT_C: XS
+      REGISTRY_ESIGNET_CONFIG_FILE: /etc/registry-esignet/registry.yaml
+    volumes:
+    - esignet-v2-keys:/var/lib/esignet-keys
+    - esignet-v2-config:/etc/registry-esignet:ro
+    networks:
+    - runtime
+    depends_on:
+      esignet-database:
+        condition: service_healthy
+      esignet-redis:
+        condition: service_healthy
+      esignet-key-init:
+        condition: service_completed_successfully
+  esignet-ui:
+    build:
+      context: .
+      dockerfile: docker/esignet-ui/Dockerfile
+      args:
+        NODE_BUILD_IMAGE: ${NODE_BUILD_IMAGE:?versions.env must pin Node}
+        ESIGNET_NGINX_IMAGE: ${ESIGNET_NGINX_IMAGE:?versions.env must pin nginx}
+        ESIGNET_SOURCE_COMMIT: ${ESIGNET_SOURCE_COMMIT:?required}
+        ESIGNET_SOURCE_ARCHIVE_SHA256: ${ESIGNET_SOURCE_ARCHIVE_SHA256:?required}
+        ESIGNET_NGINX_CONF: config/esignet/nginx.conf
+    image: ${SOLMARA_ESIGNET_UI_IMAGE:-solmara-lab-esignet-v2-ui:local}
+    ports:
+    - 127.0.0.1:${SOLMARA_ESIGNET_UI_PORT:-4309}:3000
+    networks:
+    - runtime
+    depends_on:
+      esignet:
+        condition: service_started
+  esignet-edge:
+    build:
+      context: .
+      dockerfile: docker/esignet-ui/Dockerfile
+      args:
+        NODE_BUILD_IMAGE: ${NODE_BUILD_IMAGE:?versions.env must pin Node}
+        ESIGNET_NGINX_IMAGE: ${ESIGNET_NGINX_IMAGE:?versions.env must pin nginx}
+        ESIGNET_SOURCE_COMMIT: ${ESIGNET_SOURCE_COMMIT:?required}
+        ESIGNET_SOURCE_ARCHIVE_SHA256: ${ESIGNET_SOURCE_ARCHIVE_SHA256:?required}
+        ESIGNET_NGINX_CONF: config/esignet/nginx.conf
+    image: ${SOLMARA_ESIGNET_UI_IMAGE:-solmara-lab-esignet-v2-ui:local}
+    ports:
+    - 127.0.0.1:${SOLMARA_ESIGNET_PORT:-4308}:3000
+    networks:
+    - runtime
+    depends_on:
+      esignet:
+        condition: service_started
+  esignet-seed:
+    build:
+      context: .
+      dockerfile: docker/esignet-seed/Dockerfile
+      args:
+        POSTGRES_IMAGE: ${ESIGNET_POSTGRES_IMAGE:?versions.env must pin eSignet database image}
+    image: ${SOLMARA_ESIGNET_SEED_IMAGE:-solmara-lab-esignet-v2-seed:local}
+    environment:
+      ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
+      ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
+      ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?run just gen-secrets}
+      ESIGNET_ADMIN_URL: http://esignet:8080
+      ESIGNET_CLIENT_REDIRECT_URIS_JSON: '["${SOLMARA_PORTAL_PUBLIC_BASE_URL:-http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}}/auth/callback"]'
+    entrypoint:
+    - seed-esignet.py
+    networks:
+    - runtime
+    depends_on:
+      esignet-database:
+        condition: service_healthy
+      esignet:
+        condition: service_started
+    volumes:
+    - esignet-v2-seed-state:/var/lib/esignet-seed/state
+  portal:
+    build:
+      context: ./portal
+    image: ${SOLMARA_ESIGNET_PORTAL_IMAGE:-solmara-lab-portal-esignet-v2:local}
+    environment:
+      ORIGIN: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}}
+      PORTAL_AUTH_PROVIDER: esignet
+      PORTAL_ESIGNET_CLIENT_ID: ${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}
+      PORTAL_ESIGNET_CLIENT_KEY_ID: ${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}
+      PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64: ${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?run just gen-secrets}
+      PORTAL_ESIGNET_ISSUER: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-http://127.0.0.1:4308}
+      PORTAL_ESIGNET_REDIRECT_URI: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-http://127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}}/auth/callback
+      PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
+      PORTAL_ESIGNET_TRANSPORT_ORIGIN: http://esignet:8080
+      PORTAL_ESIGNET_ALLOW_HTTP: 'true'
+      HOST: 0.0.0.0
+      PORT: '4000'
+      PORTAL_PROVIDER: mock
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:?run just gen-secrets}
+    ports:
+    - 127.0.0.1:${SOLMARA_PORTAL_PORT:-4300}:4000
+    networks:
+    - runtime
+  esignet-key-init:
+    image: ${VOLUME_INIT_IMAGE:?versions.env must pin volume initializer}
+    user: 0:0
+    command:
+    - sh
+    - -c
+    - set -eu; cp /source/* /config/; chown -R 65532:65532 /keys /config; chmod 0700 /keys /config; chmod 0600 /config/*
+    volumes:
+    - esignet-v2-keys:/keys
+    - ./config/evidence/local/esignet-v2:/source:ro
+    - esignet-v2-config:/config
+    networks:
+    - runtime
+volumes:
+  esignet-v2-db-data: null
+  esignet-v2-redis-data: null
+  esignet-v2-keys: null
+  esignet-v2-config: null
+  esignet-v2-seed-state: null
+name: solmara-esignet-v2-fixture
+networks:
+  runtime: {}

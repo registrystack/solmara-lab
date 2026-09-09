@@ -17,6 +17,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -103,7 +104,7 @@ def _structural_schema(path: Path, authority: str) -> tuple[Any, ...]:
     try:
         if not path.is_file() or path.is_symlink():
             raise _fail()
-        with _connect_read_only(path) as connection:
+        with closing(_connect_read_only(path)) as connection, connection:
             integrity = connection.execute("PRAGMA quick_check").fetchall()
             if integrity != [("ok",)]:
                 raise _fail()
@@ -285,6 +286,7 @@ def _validate_mosd(authority: str, database: Path, seed: Path) -> None:
 
 
 def _open_mutable(database: Path) -> sqlite3.Connection:
+    connection = None
     try:
         connection = sqlite3.connect(database)
         connection.execute("PRAGMA journal_mode = DELETE")
@@ -293,6 +295,8 @@ def _open_mutable(database: Path) -> sqlite3.Connection:
         connection.execute("PRAGMA secure_delete = ON")
         return connection
     except sqlite3.Error:
+        if connection is not None:
+            connection.close()
         raise _fail() from None
 
 
@@ -320,7 +324,7 @@ def begin_proof(authority: str, database: Path, seed: Path) -> None:
         _read_backup(database)
         return
     try:
-        with _open_mutable(database) as connection:
+        with closing(_open_mutable(database)) as connection, connection:
             row = _control_row(connection)
         _write_backup(database, _backup_envelope(database, row))
     except PublisherError:
@@ -354,7 +358,7 @@ def set_proof_state(authority: str, database: Path, seed: Path) -> None:
     payload = _read_backup(database)
     before = database.stat()
     try:
-        with _open_mutable(database) as connection:
+        with closing(_open_mutable(database)) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             row = _control_row(connection)
             if row[0] != payload["row"][0] or row[4] != payload["row"][4]:
@@ -394,7 +398,7 @@ def restore_proof(authority: str, database: Path, seed: Path) -> None:
     before = database.stat()
     row = payload["row"]
     try:
-        with _open_mutable(database) as connection:
+        with closing(_open_mutable(database)) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             current = _control_row(connection)
             if current[0] != row[0] or current[4] != row[4]:

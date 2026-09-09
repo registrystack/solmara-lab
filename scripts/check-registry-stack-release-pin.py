@@ -58,24 +58,19 @@ def validate(values: dict[str, str], *, require_public: bool) -> list[str]:
             failures.append(f"{key} must bind the exact v{REQUIRED_VERSION} linux-amd64 asset")
         if require_public and not asset_url:
             failures.append(f"{key} is not published; v{REQUIRED_VERSION} promotion is blocked")
-    if values.get("ESIGNET_AUTHENTICATOR_VERSION") != "0.2.0":
-        failures.append("ESIGNET_AUTHENTICATOR_VERSION must be 0.2.0")
-    release_url = "https://github.com/jeremi/esignet-relay-authenticator/releases/tag/v0.2.0"
-    if values.get("ESIGNET_AUTHENTICATOR_RELEASE_URL") != release_url:
-        failures.append("ESIGNET_AUTHENTICATOR_RELEASE_URL must bind the exact v0.2.0 release")
-    jar_url = values.get("ESIGNET_AUTHENTICATOR_JAR_URL", "")
-    jar_sha = values.get("ESIGNET_AUTHENTICATOR_JAR_SHA256", "")
-    if jar_url and not HTTPS.fullmatch(jar_url):
-        failures.append("ESIGNET_AUTHENTICATOR_JAR_URL must be an exact HTTPS URL")
-    if jar_sha and not DIGEST.fullmatch(jar_sha):
-        failures.append("ESIGNET_AUTHENTICATOR_JAR_SHA256 must be 64 lowercase hex characters")
-    expected_base = "https://github.com/jeremi/esignet-relay-authenticator/releases/download/v0.2.0/"
-    if jar_url and jar_url != expected_base + "esignet-relay-authenticator-0.2.0.jar":
-        failures.append("ESIGNET_AUTHENTICATOR_JAR_URL must bind the exact v0.2.0 release asset")
-    if values.get("ESIGNET_AUTHENTICATOR_CHECKSUM_URL", "") != expected_base + "esignet-relay-authenticator-0.2.0.jar.sha256":
-        failures.append("ESIGNET_AUTHENTICATOR_CHECKSUM_URL must bind the exact v0.2.0 checksum asset")
-    if require_public and (not jar_url or not jar_sha):
-        failures.append("eSignet authenticator v0.2.0 JAR URL/checksum is not published; promotion is blocked")
+    expected = {
+        "ESIGNET_AUTHENTICATOR_VERSION": "0.3.0",
+        "ESIGNET_SOURCE_VERSION": "2.0.0-beta.1",
+        "ESIGNET_SOURCE_COMMIT": "df0d0e771dae16eb2597b8e5b5dc65e70baa7f86",
+    }
+    for key, value in expected.items():
+        if values.get(key) != value:
+            failures.append(f"{key} must be {value}")
+    archive_digest = values.get("ESIGNET_SOURCE_ARCHIVE_SHA256", "")
+    if not DIGEST.fullmatch(archive_digest):
+        failures.append("ESIGNET_SOURCE_ARCHIVE_SHA256 must be 64 lowercase hex characters")
+    # Native provider candidates are local build inputs, not published release assets.
+    # Hosted image publication verifies the final image digests in its manifest gate.
     return failures
 
 

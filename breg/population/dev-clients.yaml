@@ -1,0 +1,175 @@
+version: 1
+clients:
+- id: operator
+  accessProfiles:
+  - operator
+  scopes:
+  - registry:population:operate
+  claims:
+    registry_principal: solmara-population-operator
+    registry_purpose: population-maintenance
+- id: esignet
+  accessProfiles:
+  - esignet-source
+  scopes:
+  - registry:population:lookup
+  claims:
+    registry_principal: solmara-esignet-provider
+    registry_purpose: identity-authentication
+    registry_identity_status: active
+seed:
+- id: person-01
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300010248'
+    status: active
+    givenName: Mateo
+    familyName: Santos
+    birthdate: '2022-03-14'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-02
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300018263'
+    status: active
+    givenName: Elena
+    familyName: Dela Cruz
+    birthdate: '1992-11-02'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-03
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300027390'
+    status: active
+    givenName: Luis
+    familyName: Okafor
+    birthdate: '1989-08-20'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-04
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300036523'
+    status: active
+    givenName: Hana
+    familyName: Aquino
+    birthdate: '2021-01-29'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-05
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300045650'
+    status: active
+    givenName: Priya
+    familyName: Mensah
+    birthdate: '1985-07-08'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-06
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300054788'
+    status: active
+    givenName: Tomas
+    familyName: Bello
+    birthdate: '2020-06-17'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-07
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300063915'
+    status: active
+    givenName: Joana
+    familyName: Bello
+    birthdate: '1985-09-10'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-08
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300073046'
+    status: active
+    givenName: Karim
+    familyName: Kone
+    birthdate: '2020-05-18'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-09
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300082172'
+    status: active
+    givenName: Aisha
+    familyName: Kone
+    birthdate: '1981-04-23'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-10
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300091305'
+    status: deceased
+    givenName: Esteban
+    familyName: Cruz
+    birthdate: '2019-12-12'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-11
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300100431'
+    status: active
+    givenName: Miriam
+    familyName: Cruz
+    birthdate: '1988-12-12'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-12
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300109568'
+    status: deceased
+    givenName: Rafael
+    familyName: Nkomo
+    birthdate: '1944-02-01'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: inactive-person
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2399999999'
+    status: inactive
+    givenName: Inactive
+    familyName: Fixture
+    birthdate: '1980-01-01'
+    gender: unknown

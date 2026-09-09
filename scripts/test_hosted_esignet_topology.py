@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -19,6 +20,33 @@ LOCAL_TEMPLATE = ROOT / "config" / "esignet" / "nginx.conf"
 
 
 class HostedEsignetTopologyTests(unittest.TestCase):
+    def test_portal_origin_matches_its_registered_callback(self) -> None:
+        for path in (CORE_COMPOSE_PATH, LOCAL_COMPOSE_PATH, ROOT / "compose.esignet-fixture.yaml"):
+            compose = yaml.safe_load(path.read_text(encoding="utf-8"))
+            portal = compose["services"]["portal"]["environment"]
+            self.assertTrue(portal["ORIGIN"].startswith("${SOLMARA_PORTAL_PUBLIC_BASE_URL:-"))
+            self.assertEqual(portal["PORTAL_ESIGNET_REDIRECT_URI"], portal["ORIGIN"] + "/auth/callback")
+            if path != CORE_COMPOSE_PATH:
+                seed = compose["services"]["esignet-seed"]["environment"]
+                self.assertEqual(seed["ESIGNET_CLIENT_REDIRECT_URIS_JSON"], '["' + portal["ORIGIN"] + '/auth/callback"]')
+
+    def test_redis_health_requires_atomic_one_use_grant_consumption(self) -> None:
+        for path in (COMPOSE_PATH, LOCAL_COMPOSE_PATH, ROOT / "compose.esignet-fixture.yaml"):
+            compose = yaml.safe_load(path.read_text(encoding="utf-8"))
+            self.assertEqual(compose["services"]["esignet-redis"]["healthcheck"]["test"], [
+                "CMD-SHELL", "redis-cli --raw COMMAND INFO GETDEL | grep -qx getdel",
+            ])
+
+    def test_native_flow_callback_is_proxied_without_exposing_administration(self) -> None:
+        for path in (TEMPLATE, LOCAL_TEMPLATE):
+            config = path.read_text(encoding="utf-8")
+            expression = re.search(r"location ~ (\S+) \{\n      proxy_pass", config)
+            self.assertIsNotNone(expression)
+            route = re.compile(expression.group(1))
+            self.assertIsNotNone(route.match("/oauth2/auth/callback"))
+            for private_path in ("/client-mgmt/client", "/system-info", "/oauth2/auth/admin", "/oauth2/auth/callback-admin"):
+                self.assertIsNone(route.match(private_path))
+
     def test_mint_and_relay_dependency_origins_are_not_operator_overridable(
         self,
     ) -> None:
@@ -49,6 +77,7 @@ class HostedEsignetTopologyTests(unittest.TestCase):
                 "esignet_ui",
                 "esignet_edge",
                 "esignet-seed",
+                "esignet-key-init",
             },
         )
         # The issuer origin is fronted by the proxy image, not by eSignet
@@ -57,14 +86,10 @@ class HostedEsignetTopologyTests(unittest.TestCase):
         self.assertEqual(services["esignet_edge"]["image"], services["esignet_ui"]["image"])
         self.assertNotIn("solmara.lab.host", services["esignet"]["labels"])
         self.assertNotIn("portal", services)
-        self.assertEqual(
-            services["esignet"]["environment"]["REGISTRY_MINT_TOKEN_ENDPOINT"],
-            "https://mint-authority-cells.solmara.registrystack.org/token",
-        )
-        self.assertEqual(
-            services["esignet"]["environment"]["REGISTRY_RELAY_BASE_URL"],
-            "https://nia-relay-authority-cells.solmara.registrystack.org",
-        )
+        self.assertEqual(services["esignet"]["environment"]["MOSIP_ESIGNET_AUTHN_PROVIDER"], "breg")
+        self.assertEqual(services["esignet"]["environment"]["REGISTRY_ESIGNET_CONFIG_FILE"], "/etc/registry-esignet/registry.yaml")
+        self.assertNotIn("ports", services["esignet"])
+        self.assertTrue(all(name.startswith("esignet-v2-") for name in compose["volumes"]))
         self.assertEqual(
             services["esignet-seed"]["environment"][
                 "ESIGNET_CLIENT_REDIRECT_URIS_JSON"
@@ -102,6 +127,14 @@ class HostedEsignetTopologyTests(unittest.TestCase):
                 "connect-src 'self' https://login-authority-cells.example.org https://login-ui-authority-cells.example.org;",
                 rendered,
             )
+
+    def test_identity_proxy_logs_exclude_query_and_error_request_context(self) -> None:
+        for path in (TEMPLATE, LOCAL_TEMPLATE):
+            config = path.read_text(encoding="utf-8")
+            self.assertIn("log_format identity_safe '$request_method $uri $status';", config)
+            self.assertIn("error_log /dev/stderr crit;", config)
+            self.assertNotIn("$request_uri", config)
+            self.assertNotIn("$http_referer", config)
 
     def test_renderer_rejects_directive_injection(self) -> None:
         invalid_hosts = (
