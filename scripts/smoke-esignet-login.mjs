@@ -17,6 +17,9 @@ try {
     throw new Error('the portal signed in without eSignet');
   }
   console.log('smoke-esignet-login: PASS');
+} catch {
+  console.error('smoke-esignet-login: FAIL');
+  process.exitCode = 1;
 } finally {
   await browser.close();
 }

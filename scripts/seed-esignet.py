@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed MOSIP eSignet for the Solmara portal client."""
+"""Register the portal through the native eSignet v2 private client API."""
 
 from __future__ import annotations
 
@@ -7,24 +7,25 @@ import base64
 import hashlib
 import json
 import os
-import socket
 import subprocess
 import sys
 import time
 from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
+from datetime import datetime, timezone
 
 
 CLIENT_ID = os.environ.get("ESIGNET_CLIENT_ID", "solmara-portal")
 CLIENT_KEY_ID = os.environ.get("ESIGNET_CLIENT_KEY_ID", "solmara-portal-key-1")
 RELYING_PARTY_ID = os.environ.get("ESIGNET_RELYING_PARTY_ID", "solmara")
-CLIENT_DETAIL_CACHE_KEY = f"esignet:clientdetails::{CLIENT_ID}"
 DEFAULT_CLIENT_CLAIMS = [
-    "individual_id",
+    "person_reference",
+    "family_name",
     "name",
     "given_name",
-    "family_name",
     "gender",
     "birthdate",
 ]
@@ -39,23 +40,6 @@ def run(args: list[str], *, input_text: str | None = None, capture: bool = False
         stdout=subprocess.PIPE if capture else None,
     )
     return result.stdout if capture else ""
-
-
-def psql(database: str, sql: str, *, capture: bool = False) -> str:
-    return run(["psql", "-v", "ON_ERROR_STOP=1", "-d", database, "-At"], input_text=sql, capture=capture)
-
-
-def wait_for_table(database: str, table_name: str) -> None:
-    deadline = time.time() + 180
-    query = f"select to_regclass('{table_name}') is not null;\n"
-    while time.time() < deadline:
-        try:
-            if psql(database, query, capture=True).strip() == "t":
-                return
-        except subprocess.CalledProcessError:
-            pass
-        time.sleep(2)
-    raise RuntimeError(f"timed out waiting for {database}.{table_name}")
 
 
 def read_der_length(data: bytes, offset: int) -> tuple[int, int]:
@@ -127,12 +111,6 @@ def ensure_private_key() -> tuple[Path, str, str]:
     return key_file, jwk, key_hash
 
 
-def sql_literal(value: object) -> str:
-    if not isinstance(value, str):
-        value = json.dumps(value, separators=(",", ":"))
-    return "'" + value.replace("'", "''") + "'"
-
-
 def default_redirect_uris() -> list[str]:
     return [
         "http://127.0.0.1:4300/auth/callback",
@@ -158,86 +136,112 @@ def redirect_uris() -> list[str]:
     return value
 
 
-def seed_esignet(jwk: str, key_hash: str) -> None:
-    client_name = {"@none": os.environ.get("ESIGNET_CLIENT_NAME", "Solmara Portal")}
-    claims = json.loads(
-        os.environ.get("ESIGNET_CLIENT_CLAIMS_JSON", json.dumps(DEFAULT_CLIENT_CLAIMS, separators=(",", ":")))
-    )
-    additional_config = {
-        "userinfo_response_type": "JWS",
-        "purpose": {"type": "verify"},
-        "signup_banner_required": False,
-        "forgot_pwd_link_required": False,
-        "consent_expire_in_mins": 20,
+def client_request(jwk: str) -> dict:
+    return {
+        "clientId": CLIENT_ID,
+        "clientName": "Solmara Portal",
+        "clientNameLangMap": {"eng": "Solmara Portal"},
+        "relyingPartyId": RELYING_PARTY_ID,
+        "logoUri": "https://id.registrystack.org/solmara/logo.svg",
+        "redirectUris": redirect_uris(),
+        "userClaims": DEFAULT_CLIENT_CLAIMS,
+        "authContextRefs": ["mosip:idp:acr:static-code"],
+        "publicKey": json.loads(jwk),
+        "grantTypes": ["authorization_code"],
+        "clientAuthMethods": ["private_key_jwt"],
+        "additionalConfig": {
+            "userinfo_response_type": "JWS",
+            "require_pkce": True,
+            "pkce_required": True,
+
+        },
     }
-    sql = f"""
-insert into esignet.client_detail (
-  id, name, rp_id, logo_uri, redirect_uris, claims, acr_values, public_key,
-  public_key_hash, grant_types, auth_methods, status, additional_config,
-  cr_dtimes, upd_dtimes
-) values (
-  {sql_literal(CLIENT_ID)},
-  {sql_literal(client_name)},
-  {sql_literal(RELYING_PARTY_ID)},
-  'https://example.invalid/logo.png',
-  {sql_literal(redirect_uris())},
-  {sql_literal(claims)},
-  {sql_literal(["mosip:idp:acr:generated-code", "mosip:idp:acr:password", "mosip:idp:acr:linked-wallet"])},
-  {sql_literal(jwk)},
-  {sql_literal(key_hash)},
-  {sql_literal(["authorization_code"])},
-  {sql_literal(["private_key_jwt"])},
-  'ACTIVE',
-  {sql_literal(additional_config)},
-  now(),
-  now()
-)
-on conflict (id) do update set
-  public_key = excluded.public_key,
-  public_key_hash = excluded.public_key_hash,
-  redirect_uris = excluded.redirect_uris,
-  claims = excluded.claims,
-  acr_values = excluded.acr_values,
-  grant_types = excluded.grant_types,
-  auth_methods = excluded.auth_methods,
-  status = excluded.status,
-  additional_config = excluded.additional_config,
-  upd_dtimes = now();
-"""
-    psql("mosip_esignet", sql)
 
 
-def redis_command(*parts: str) -> bytes:
-    encoded = [part.encode("utf-8") for part in parts]
-    payload = [f"*{len(encoded)}\r\n".encode("ascii")]
-    for part in encoded:
-        payload.append(f"${len(part)}\r\n".encode("ascii"))
-        payload.append(part)
-        payload.append(b"\r\n")
-    return b"".join(payload)
+def admin_request(method: str, path: str, payload: dict | None = None) -> dict:
+    origin = os.environ.get("ESIGNET_ADMIN_URL", "http://esignet:8080").rstrip("/")
+    data = None if payload is None else json.dumps({
+        "requestTime": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"), "request": payload,
+    }).encode()
+    request = Request(origin + path, data=data, method=method,
+                      headers={"Content-Type": "application/json"})
+    with urlopen(request, timeout=10) as response:
+        return json.load(response)
 
 
-def clear_esignet_client_cache() -> None:
-    redis_host = os.environ.get("ESIGNET_REDIS_HOST")
-    if not redis_host:
-        return
-    redis_port = int(os.environ.get("ESIGNET_REDIS_PORT", "6379"))
-    command = redis_command("DEL", CLIENT_DETAIL_CACHE_KEY)
-    with socket.create_connection((redis_host, redis_port), timeout=10) as connection:
-        connection.sendall(command)
-        response = connection.recv(128)
-    if not response.startswith((b":0", b":1")):
-        raise RuntimeError(f"failed to clear eSignet client cache: {response!r}")
+def registration_binding(jwk: str) -> dict[str, str]:
+    public = json.loads(jwk)
+    canonical = json.dumps(public, sort_keys=True, separators=(",", ":"))
+    return {"client_id": CLIENT_ID, "relying_party_id": RELYING_PARTY_ID,
+            "public_key_sha256": hashlib.sha256(canonical.encode()).hexdigest()}
+
+
+def binding_path() -> Path:
+    directory = Path(os.environ.get("ESIGNET_SEED_STATE_DIR", "/var/lib/esignet-seed/state"))
+    identifier = hashlib.sha256(CLIENT_ID.encode()).hexdigest()
+    return directory / f"{identifier}.json"
+
+
+def require_registered_binding(jwk: str) -> None:
+    path = binding_path()
+    if not path.exists() or json.loads(path.read_text()) != registration_binding(jwk):
+        raise RuntimeError("existing eSignet registration key or relying party cannot be verified; "
+                           "configure a fresh ESIGNET_CLIENT_ID and a fresh signing key, updating both matching portal values")
+
+
+def save_registered_binding(jwk: str) -> None:
+    path = binding_path()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(json.dumps(registration_binding(jwk), sort_keys=True) + "\n")
+    path.chmod(0o600)
+
+
+def seed_esignet(jwk: str, key_hash: str = "") -> None:
+    payload = client_request(jwk)
+    deadline = time.monotonic() + 180
+    while True:
+        try:
+            current = admin_request("GET", "/client-mgmt/client/" + CLIENT_ID)
+            if (current.get("response") or {}).get("clientId") == CLIENT_ID:
+                require_registered_binding(jwk)
+                payload["status"] = "ACTIVE"
+                result = admin_request("PUT", "/client-mgmt/client/" + CLIENT_ID, payload)
+            else:
+                current_errors = current.get("errors") or []
+                if not current_errors or any(e.get("errorCode") != "invalid_client_id" for e in current_errors):
+                    raise RuntimeError("private eSignet client lookup failed")
+                result = admin_request("POST", "/client-mgmt/client", payload)
+            break
+        except HTTPError as exc:
+            if exc.code < 500:
+                raise RuntimeError(f"private eSignet client API rejected registration (HTTP {exc.code})") from None
+            if time.monotonic() >= deadline:
+                raise RuntimeError("timed out waiting for private eSignet client API") from None
+            time.sleep(2)
+        except (URLError, OSError):
+            if time.monotonic() >= deadline:
+                raise RuntimeError("timed out waiting for private eSignet client API") from None
+            time.sleep(2)
+    errors = result.get("errors") or []
+    if any(error.get("errorCode") == "duplicate_client_id" for error in errors):
+        # Go's update API intentionally does not rotate the registered signing key.
+        # A changed key needs an explicit new client registration.
+        require_registered_binding(jwk)
+        payload["status"] = "ACTIVE"
+        result = admin_request("PUT", "/client-mgmt/client/" + CLIENT_ID, payload)
+        errors = result.get("errors") or []
+    if errors or (result.get("response") or {}).get("clientId") != CLIENT_ID:
+        codes = ", ".join(str(error.get("errorCode", "unknown")) for error in errors)
+        raise RuntimeError("eSignet client registration failed: " + codes)
+    save_registered_binding(jwk)
 
 
 def main() -> int:
     _, jwk, key_hash = ensure_private_key()
-    wait_for_table("mosip_esignet", "esignet.client_detail")
     seed_esignet(jwk, key_hash)
-    clear_esignet_client_cache()
-    account_source = os.environ.get("ESIGNET_ACCOUNT_SOURCE_LABEL", "NIA population Relay profile solmara-nia-userinfo")
+    account_source = os.environ.get("ESIGNET_ACCOUNT_SOURCE_LABEL", "BREG population access profile esignet-source")
     print(f"Seeded eSignet client {CLIENT_ID}.")
-    print(f"Relay-backed account source: {account_source}.")
+    print(f"BREG-backed account source: {account_source}.")
     print("Demo credentials are configured without being written to logs.")
     if os.environ.get("ESIGNET_SEED_STAY_READY") == "true":
         Path("/tmp/ready").write_text("ready\n", encoding="utf-8")

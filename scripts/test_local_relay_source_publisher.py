@@ -8,7 +8,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 SCRIPT = Path(__file__).with_name("local-relay-source-publisher.py")
 SPEC = importlib.util.spec_from_file_location("local_relay_source_publisher", SCRIPT)
@@ -28,7 +30,7 @@ CONTROL_ROW = (
 
 def create_mosd_database(path: Path, *, include_control: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.executescript(
             """
             PRAGMA journal_mode = DELETE;
@@ -56,7 +58,7 @@ def create_mosd_database(path: Path, *, include_control: bool = True) -> None:
 
 def create_cra_database(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.executescript(
             """
             PRAGMA journal_mode = DELETE;
@@ -78,7 +80,7 @@ def create_cra_database(path: Path) -> None:
 
 
 def read_control(path: Path) -> tuple[object, ...]:
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         row = connection.execute(
             """
             SELECT record_id, record_revision, lifecycle_state, recorded_at,
@@ -93,6 +95,14 @@ def read_control(path: Path) -> tuple[object, ...]:
 
 
 class LocalRelaySourcePublisherTests(unittest.TestCase):
+    def test_failed_connection_configuration_closes_database(self) -> None:
+        connection = Mock(spec=sqlite3.Connection)
+        connection.execute.side_effect = sqlite3.OperationalError("fixture setup failure")
+        with patch.object(MODULE.sqlite3, "connect", return_value=connection):
+            with self.assertRaises(MODULE.PublisherError):
+                MODULE._open_mutable(Path("unused.sqlite"))
+        connection.close.assert_called_once_with()
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
@@ -107,7 +117,7 @@ class LocalRelaySourcePublisherTests(unittest.TestCase):
         MODULE.ensure_seeded("mosd", self.database, self.seed)
         original_inode = self.database.stat().st_ino
         self.assertEqual(stat.S_IMODE(self.database.stat().st_mode), 0o644)
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute(
                 """
                 UPDATE beneficiary_enrolment_source
@@ -140,7 +150,7 @@ class LocalRelaySourcePublisherTests(unittest.TestCase):
     def test_existing_database_must_match_the_seed_structure_exactly(self) -> None:
         MODULE.ensure_seeded("mosd", self.database, self.seed)
         inode = self.database.stat().st_ino
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection, connection:
             connection.execute("DROP VIEW relay_beneficiary_enrolment")
             connection.execute(
                 """

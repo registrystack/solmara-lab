@@ -11,6 +11,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -87,7 +88,7 @@ def _validate_sro_extract(
     if stat.S_IMODE(path.stat().st_mode) & 0o222:
         raise LifecycleProofError("extract has a writable mode")
 
-    with sqlite3.connect(_database_uri(path), uri=True) as connection:
+    with closing(sqlite3.connect(_database_uri(path), uri=True)) as connection, connection:
         if connection.execute("PRAGMA quick_check").fetchone() != ("ok",):
             raise LifecycleProofError("extract integrity check failed")
         metadata = connection.execute(
@@ -182,7 +183,7 @@ def _publish_changed_sro_extract(
     staging_root = root / ".lifecycle-staging" / extract_id
     staged = publish_extract(staging_root, "sro", published_at, extract_id)
     staged.chmod(0o600)
-    with sqlite3.connect(staged) as connection:
+    with closing(sqlite3.connect(staged)) as connection, connection:
         current = connection.execute(
             """
             SELECT record_id, lifecycle_state, recorded_at

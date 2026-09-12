@@ -1,21 +1,25 @@
 // GET /auth/login.
 //
 // In eSignet mode this starts Authorization Code + PKCE and redirects to the
-// configured eSignet authorize endpoint. In mock mode it redirects straight to
+// discovered eSignet authorize endpoint. The default request asks for the
+// required business identifier and optional given/family names for display.
+// In mock mode it redirects straight to
 // the callback, which establishes a server-side persona session. No token is
 // forged, stored in the browser, or logged here.
 
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createEsignetLogin, esignetConfigFor, EsignetConfigError } from '$lib/server/esignet';
+import { createEsignetLogin, esignetConfigFor, EsignetConfigError, EsignetAuthError } from '$lib/server/esignet';
 
-export const GET: RequestHandler = ({ cookies, url }) => {
+export const GET: RequestHandler = async ({ cookies, url }) => {
   try {
     const esignet = esignetConfigFor(url);
     if (esignet) {
-      throw redirect(302, createEsignetLogin(cookies, esignet).toString());
+      // OIDC backchannel requests use native fetch without the browser request context.
+      throw redirect(302, (await createEsignetLogin(cookies, esignet)).toString());
     }
   } catch (err) {
+    if (err instanceof EsignetAuthError) throw error(503, 'eSignet login is unavailable');
     if (err instanceof EsignetConfigError) throw error(500, 'eSignet login is not configured');
     throw err;
   }

@@ -29,9 +29,7 @@ RANDOM_ENV_KEYS = (
     "CHILD_BENEFIT_FEDERATOR_TOKEN",
     "PORTAL_SESSION_SECRET",
     "SOLMARA_ESIGNET_POSTGRES_PASSWORD",
-    "REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD",
-    "REGISTRY_ESIGNET_KYC_TOKEN_SECRET",
-    "REGISTRY_ESIGNET_PSUT_SECRET",
+    "SOLMARA_ESIGNET_V2_KEYSTORE_PASSWORD",
 )
 
 
@@ -177,6 +175,12 @@ def ensure_operator_material() -> dict[str, str]:
         for client in clients:
             create_once(secret_root / f"{client}-client-key", p256_jwk)
             ensure_client_identifier(secret_root / f"{client}-client-id", client)
+
+    esignet = LOCAL / "esignet-v2"
+    esignet.mkdir(parents=True, exist_ok=True, mode=0o700)
+    esignet.chmod(0o700)
+    create_once(esignet / "psut-secret", raw_key)
+    create_once(esignet / "static-otp", lambda: "111111")
 
     mint = LOCAL / "cells" / "mint"
     for directory in (mint / "secrets", mint / "clients", mint / "transit"):

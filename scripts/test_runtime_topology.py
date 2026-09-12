@@ -754,6 +754,7 @@ class RuntimeTopologyTests(unittest.TestCase):
                 "esignet_ui",
                 "esignet_edge",
                 "esignet-seed",
+                "esignet-key-init",
             },
         )
         self.assertNotIn("portal", services)
@@ -769,13 +770,9 @@ class RuntimeTopologyTests(unittest.TestCase):
             "PORTAL_ESIGNET_CLIENT_KEY_ID": "${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}",
             "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64": "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}",
             "PORTAL_ESIGNET_ISSUER": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}",
-            "PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT": "${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize",
-            "PORTAL_ESIGNET_TOKEN_ENDPOINT": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token",
-            "PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token",
-            "PORTAL_ESIGNET_USERINFO_ENDPOINT": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oidc/userinfo",
             "PORTAL_ESIGNET_REDIRECT_URI": "${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback",
-            "PORTAL_ESIGNET_SCOPE": "openid profile",
-            "PORTAL_ESIGNET_SUBJECT_CLAIM": "sub",
+            "PORTAL_ESIGNET_SCOPE": "${PORTAL_ESIGNET_SCOPE:-openid}",
+            "PORTAL_ESIGNET_SUBJECT_CLAIM": "person_reference",
         }
         for key, value in expected.items():
             self.assertEqual(portal[key], value)
@@ -797,6 +794,7 @@ class RuntimeTopologyTests(unittest.TestCase):
             "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}",
         )
         self.assertNotIn("NIA_ESIGNET_CLIENT_PRIVATE_JWK", portal)
+
 
     def test_hosted_esignet_seeder_runs_once(self) -> None:
         """Coolify gives a service that declares no restart policy

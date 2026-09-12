@@ -3,6 +3,25 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-09-09 Native eSignet 2 BREG candidate
+
+The optional identity profile now builds on eSignet `2.0.0-beta.1` and the
+native `0.3.0` BREG provider candidate. Its isolated population registry uses
+real PostgreSQL, a lookup-only Mint client and explicit field projections.
+The OTP-only synthetic flow requests fresh consent on every login. Relay
+integration is deferred.
+
+The Portal uses `openid-client` for private-key JWT authentication, PKCE and
+validated ID-token/UserInfo handling. A separately consented business identifier
+continues to bind programme requests; OIDC subjects remain pairwise. Service,
+UI and bootstrap configuration use the pinned Go contracts, with separate new
+state volumes and private administrative routes. Historical volumes and
+published artifacts are preserved.
+
+See [the native eSignet journey](esignet.md) for a reproducible local candidate
+build and startup. This preparation does not publish artifacts or change the
+hosted deployment.
+
 ## 2026-08-21 The local front door is `local-edge`
 
 The local Compose service that terminates TLS on port 4341 was called
@@ -199,8 +218,8 @@ exact lifecycle, while rejecting anonymous PGDATA mounts.
 Local eSignet now exposes its issuer port through the same standards edge used
 by hosted deployments, so root discovery and `/v1/esignet` share the public
 issuer origin while the Java backend remains internal. The NIA UserInfo release
-profile now resolves eSignet's `individual_id` input against the canonical UIN
-column, matching the portal login identifier and returning the typed identity
+profile now resolves eSignet's `person_reference` claim against a governed
+opaque reference column, matching the portal login identifier and returning the typed identity
 claims from the authority source.
 
 ## 2026-07-05 Visitor's Center completion pass
