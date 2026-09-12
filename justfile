@@ -60,11 +60,12 @@ test:
     cd home && pnpm test
 
 # Validate local, hosted, eSignet, and every Coolify topology without starting it.
+# The eSignet image below is a structural fixture, never pulled or used by startup.
 compose:
     @test -f .env || { echo ".env is missing; run just gen-secrets" >&2; exit 1; }
     COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml config >/dev/null
-    COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml config >/dev/null
-    docker compose -p solmara-esignet-v2-fixture --env-file versions.env --env-file .env -f compose.esignet-fixture.yaml config >/dev/null
+    SOLMARA_ESIGNET_CANDIDATE_IMAGE="esignet-config-check@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-{{ compose_project_name }}}" docker compose --env-file versions.env --env-file .env -f compose.yaml -f compose.esignet.yaml config >/dev/null
+    SOLMARA_ESIGNET_CANDIDATE_IMAGE="esignet-config-check@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" docker compose -p solmara-esignet-v2-fixture --env-file versions.env --env-file .env -f compose.esignet-fixture.yaml config >/dev/null
     @scripts/check-hosted-compose.sh
     @scripts/check-coolify-compose.sh
 
