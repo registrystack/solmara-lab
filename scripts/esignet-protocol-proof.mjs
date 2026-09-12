@@ -23,7 +23,7 @@ import { requestEsignetOtp, verifyEsignetOtp } from '../portal/e2e/support/auth.
 const requireOidc = createRequire(import.meta.resolve('../portal/node_modules/openid-client/build/index.js'));
 const jose = await import(pathToFileURL(requireOidc.resolve('jose')).href);
 const root = fileURLToPath(new URL('..', import.meta.url));
-const claimNames = ['person_reference', 'name', 'given_name', 'family_name', 'gender', 'birthdate'];
+const claimNames = ['individual_id', 'name', 'given_name', 'family_name', 'gender', 'birthdate'];
 const proofTrace = [];
 const resultPath = '/tmp/solmara-esignet-protocol-proof.json';
 const protocolClaims = new Set(['sub', 'iss', 'aud', 'iat', 'exp', 'nbf', 'jti']);
@@ -271,7 +271,7 @@ export async function main() {
     const encrypted = await createClient(issuer, redirectUri, true, (value) => { stage = value; });
     console.log('esignet-protocol-proof: client-registration PASS');
     browser = await chromium.launch({ headless: true });
-    const requested = { person_reference: { essential: true }, given_name: null, name: null, gender: null };
+    const requested = { individual_id: { essential: true }, given_name: null, name: null, gender: null };
     stage = 'invalid-otp';
     const invalid = await beginLogin(browser, signed, requested, callbacks);
     try { await authenticate(invalid, true); } finally { await invalid.close(); }
@@ -300,7 +300,7 @@ export async function main() {
     const strongerFlow = await beginLogin(browser, stronger, requested, callbacks);
     try {
       await authenticate(strongerFlow);
-      const body = await continueConsent(strongerFlow, ['person_reference', 'given_name']);
+      const body = await continueConsent(strongerFlow, ['individual_id', 'given_name']);
       assert.equal(body.flowStatus, 'ERROR');
       assert.equal(body.error?.code, 'FET-1082');
       assert.ok(callbacks.has(strongerFlow.pending.state));
@@ -313,10 +313,10 @@ export async function main() {
     let subject;
     try {
       await authenticate(first);
-      const { token, callback } = await finishLogin(first, signed, ['person_reference', 'given_name', 'name']);
+      const { token, callback } = await finishLogin(first, signed, ['individual_id', 'given_name', 'name']);
       const claims = await signedClaims(signed, token);
-      assertDisclosure(claims, ['person_reference', 'given_name']);
-      assert.equal(claims.person_reference, process.env.ESIGNET_DEMO_REFERENCE || '44a5ef0a-aaa2-574e-8969-1069bf62b948');
+      assertDisclosure(claims, ['individual_id', 'given_name']);
+      assert.equal(claims.individual_id, process.env.ESIGNET_DEMO_REFERENCE || '44a5ef0a-aaa2-574e-8969-1069bf62b948');
       subject = claims.sub;
       await assert.rejects(() => oidc.authorizationCodeGrant(signed.config, callback, {
         expectedState: first.pending.state, expectedNonce: first.pending.nonce,
@@ -329,13 +329,13 @@ export async function main() {
     const repeat = await beginLogin(browser, signed, requested, callbacks);
     try {
       await authenticate(repeat);
-      const { token } = await finishLogin(repeat, signed, ['person_reference', 'gender', 'name']);
-      assertDisclosure(await signedClaims(signed, token), ['person_reference', 'gender'], subject);
+      const { token } = await finishLogin(repeat, signed, ['individual_id', 'gender', 'name']);
+      assertDisclosure(await signedClaims(signed, token), ['individual_id', 'gender'], subject);
     } finally { await repeat.close(); }
     console.log('esignet-protocol-proof: fresh-consent-no-expansion PASS');
 
     stage = 'empty-selection';
-    const empty = await beginLogin(browser, signed, { person_reference: null, given_name: null, name: null, gender: null }, callbacks);
+    const empty = await beginLogin(browser, signed, { individual_id: null, given_name: null, name: null, gender: null }, callbacks);
     try {
       await authenticate(empty);
       const { token } = await finishLogin(empty, signed, []);
@@ -347,12 +347,12 @@ export async function main() {
     const encryptedFlow = await beginLogin(browser, encrypted, requested, callbacks);
     try {
       await authenticate(encryptedFlow);
-      const { token } = await finishLogin(encryptedFlow, encrypted, ['person_reference', 'given_name', 'name']);
+      const { token } = await finishLogin(encryptedFlow, encrypted, ['individual_id', 'given_name', 'name']);
       const claims = await encryptedClaims(encrypted, token);
-      assertDisclosure(claims, ['person_reference', 'given_name']);
-      assert.equal(claims.person_reference, process.env.ESIGNET_DEMO_REFERENCE || '44a5ef0a-aaa2-574e-8969-1069bf62b948');
+      assertDisclosure(claims, ['individual_id', 'given_name']);
+      assert.equal(claims.individual_id, process.env.ESIGNET_DEMO_REFERENCE || '44a5ef0a-aaa2-574e-8969-1069bf62b948');
       const repeatClaims = await encryptedClaims(encrypted, token);
-      assertDisclosure(repeatClaims, ['person_reference', 'given_name'], claims.sub);
+      assertDisclosure(repeatClaims, ['individual_id', 'given_name'], claims.sub);
     } finally { await encryptedFlow.close(); }
     console.log('esignet-protocol-proof: encrypted-userinfo PASS');
 

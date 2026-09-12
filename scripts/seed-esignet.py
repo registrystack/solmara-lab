@@ -22,7 +22,7 @@ CLIENT_ID = os.environ.get("ESIGNET_CLIENT_ID", "solmara-portal")
 CLIENT_KEY_ID = os.environ.get("ESIGNET_CLIENT_KEY_ID", "solmara-portal-key-1")
 RELYING_PARTY_ID = os.environ.get("ESIGNET_RELYING_PARTY_ID", "solmara")
 DEFAULT_CLIENT_CLAIMS = [
-    "person_reference",
+    "individual_id",
     "family_name",
     "name",
     "given_name",

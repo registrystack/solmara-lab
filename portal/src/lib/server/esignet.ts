@@ -71,7 +71,7 @@ export function esignetConfigFor(url: URL, env: NodeJS.ProcessEnv = process.env)
     redirectUri: trustedUrl(env.PORTAL_ESIGNET_REDIRECT_URI || new URL('/auth/callback', url.origin).href,
       'PORTAL_ESIGNET_REDIRECT_URI', allowHttp),
     scope: env.PORTAL_ESIGNET_SCOPE || 'openid',
-    subjectClaim: env.PORTAL_ESIGNET_SUBJECT_CLAIM || 'person_reference',
+    subjectClaim: env.PORTAL_ESIGNET_SUBJECT_CLAIM || 'individual_id',
     secureCookies: env.PORTAL_SECURE_COOKIES === 'true'
   };
 }

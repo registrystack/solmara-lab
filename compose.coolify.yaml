@@ -147,7 +147,7 @@ services:
       PORTAL_ESIGNET_ISSUER: ${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}
       PORTAL_ESIGNET_REDIRECT_URI: ${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback
       PORTAL_ESIGNET_SCOPE: ${PORTAL_ESIGNET_SCOPE:-openid}
-      PORTAL_ESIGNET_SUBJECT_CLAIM: person_reference
+      PORTAL_ESIGNET_SUBJECT_CLAIM: individual_id
       SCENARIO_RUNNER_URL: ${SOLMARA_SCENARIO_RUNNER_PUBLIC_BASE_URL:-https://scenarios.solmara.registrystack.org}
       CHILD_BENEFIT_FEDERATOR_URL: ${SOLMARA_CHILD_BENEFIT_FEDERATOR_PUBLIC_BASE_URL:-https://child-benefit.solmara.registrystack.org}
     secrets:

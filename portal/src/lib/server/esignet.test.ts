@@ -28,7 +28,7 @@ const cfg: EsignetConfig = {
   clientId: 'solmara-portal', clientKeyId: 'solmara-portal-key-1',
   clientPrivateKeyPem: clientKey.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
   redirectUri: 'https://portal.example.test/auth/callback', scope: 'openid',
-  subjectClaim: 'person_reference', secureCookies: true
+  subjectClaim: 'individual_id', secureCookies: true
 };
 const metadata = {
   issuer: cfg.issuer, authorization_endpoint: `${cfg.issuer}/oauth2/authorize`,
@@ -73,7 +73,7 @@ function provider(options: Options = {}) {
     }
     if (url.pathname === '/oauth2/userinfo') {
       expect(new Headers(init?.headers).get('authorization')).toBe('Bearer access-token');
-      const claims = { ...common, person_reference: '8fa0e667-5042-5ba2-9837-a9fd852f0394', name: 'Elena Dela Cruz', ...options.userinfo };
+      const claims = { ...common, individual_id: '8fa0e667-5042-5ba2-9837-a9fd852f0394', name: 'Elena Dela Cruz', ...options.userinfo };
       return options.unsignedUserinfo ? json(claims) : new Response(jwt(claims, options.tamperUserinfo), {
         headers: { 'content-type': 'application/jwt' }
       });
@@ -104,7 +104,7 @@ describe('eSignet portal login', () => {
     expect(flow.authorize.searchParams.get('scope')).toBe('openid');
     expect(flow.authorize.searchParams.get('ui_locales')).toBe('en');
     expect(JSON.parse(flow.authorize.searchParams.get('claims') ?? '{}')).toEqual({
-      userinfo: { given_name: null, family_name: null, person_reference: { essential: true } }
+      userinfo: { given_name: null, family_name: null, individual_id: { essential: true } }
     });
     expect(flow.jar.get(ESIGNET_LOGIN_COOKIE)).toBe(flow.authorize.searchParams.get('state'));
     expect(await flow.complete()).toEqual({ subject: '8fa0e667-5042-5ba2-9837-a9fd852f0394', displayName: 'Elena Dela Cruz' });
@@ -136,7 +136,7 @@ describe('eSignet portal login', () => {
     ['UserInfo audience', { userinfo: { aud: 'another-client' } }],
     ['UserInfo subject correlation', { userinfo: { sub: 'different-subject' } }],
     ['unsigned UserInfo', { unsignedUserinfo: true }],
-    ['missing identity claim', { userinfo: { person_reference: null } }],
+    ['missing identity claim', { userinfo: { individual_id: null } }],
     ['token endpoint refusal', { tokenError: true }]
   ])('rejects %s and consumes the login even on failure', async (_name, options) => {
     const flow = await begin(options);

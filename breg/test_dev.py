@@ -131,8 +131,8 @@ class DevFixtureTests(unittest.TestCase):
                 "scopes": ["registry:population:lookup"],
             })
             self.assertEqual(config["claim_map"]["sub"], "$psut")
-            self.assertEqual(config["claim_map"]["person_reference"], "personReference")
-            self.assertNotIn("individual_id", config["claim_map"])
+            self.assertEqual(config["claim_map"]["individual_id"], "personReference")
+            self.assertNotIn("person_reference", config["claim_map"])
 
     def test_token_uses_native_dev_token_header(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

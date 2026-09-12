@@ -218,7 +218,7 @@ exact lifecycle, while rejecting anonymous PGDATA mounts.
 Local eSignet now exposes its issuer port through the same standards edge used
 by hosted deployments, so root discovery and `/v1/esignet` share the public
 issuer origin while the Java backend remains internal. The NIA UserInfo release
-profile now resolves eSignet's `person_reference` claim against a governed
+profile now resolves eSignet's existing `individual_id` claim against a governed
 opaque reference column, matching the portal login identifier and returning the typed identity
 claims from the authority source.
 

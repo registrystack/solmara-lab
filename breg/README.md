@@ -137,7 +137,7 @@ fields with its provisioned fields using `$select`. It never falls back to
 enumerating records. `givenName` and `familyName` are HTTP names for authored
 logical fields `given-name` and `family-name`.
 
-The portal requests `person_reference` explicitly as an essential consented
+The portal requests `individual_id` explicitly as an essential consented
 claim. It maps to the governed opaque `personReference` field generated with the
 fixture. The UIN remains a challenge input and is not the Portal correlation
 identifier. The OIDC `sub` remains the pairwise pseudonymous subject token and

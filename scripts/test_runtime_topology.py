@@ -772,7 +772,7 @@ class RuntimeTopologyTests(unittest.TestCase):
             "PORTAL_ESIGNET_ISSUER": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}",
             "PORTAL_ESIGNET_REDIRECT_URI": "${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback",
             "PORTAL_ESIGNET_SCOPE": "${PORTAL_ESIGNET_SCOPE:-openid}",
-            "PORTAL_ESIGNET_SUBJECT_CLAIM": "person_reference",
+            "PORTAL_ESIGNET_SUBJECT_CLAIM": "individual_id",
         }
         for key, value in expected.items():
             self.assertEqual(portal[key], value)

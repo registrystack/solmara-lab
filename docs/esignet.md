@@ -1,8 +1,8 @@
 # Native eSignet 2 with BREG
 
 The optional identity profile runs eSignet `v2.0.0-beta.1` at commit
-`df0d0e771dae16eb2597b8e5b5dc65e70baa7f86`, its matching UI, and the native
-an unreleased BREG provider candidate built from the companion provider
+`df0d0e771dae16eb2597b8e5b5dc65e70baa7f86`, its matching UI, and
+an unreleased native BREG provider candidate built from the companion provider
 checkout. BREG is the population system of record and the retained ThunderID
 dev issuer authenticates the provider. Relay integration is deferred.
 
@@ -10,7 +10,7 @@ The provider verifies the OTP before contacting ThunderID or BREG. It checks onl
 `uin,status`, then asks for fresh consent on every login. Only approved, mapped,
 provisioned fields are read from BREG's `data.domainData`. The pairwise OIDC
 `sub` is derived with an independent HMAC secret. The Portal separately requests
-`person_reference` as an essential, consented opaque reference. That reference
+`individual_id` as an essential, consented opaque reference. That reference
 is a governed BREG field distinct from both the challenge UIN and the pairwise
 subject. Refusing that claim does not create a Portal session.
 

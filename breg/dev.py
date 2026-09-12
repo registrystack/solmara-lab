@@ -86,7 +86,7 @@ def export_provider(args):
                  "client_id": (SECRETS / "token-client-id").read_text().strip(),
                  "private_key_file": f"{container_root}/token-client-private.jwk",
                  "key_id": key_id, "resource": exported["resource"], "scopes": scopes},
-        "claim_map": {"sub": "$psut", "person_reference": "personReference", "given_name": "givenName", "family_name": "familyName",
+        "claim_map": {"sub": "$psut", "individual_id": "personReference", "given_name": "givenName", "family_name": "familyName",
                       "birthdate": "birthdate", "gender": "gender"},
         "http": {"allow_insecure_http": True, "timeout_seconds": 10,
                  "max_response_bytes": 1048576},
