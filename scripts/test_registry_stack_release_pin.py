@@ -13,7 +13,6 @@ SPEC.loader.exec_module(MODULE)
 
 def authenticator_values() -> dict[str, str]:
     return {
-        "ESIGNET_AUTHENTICATOR_VERSION": "0.3.0",
         "ESIGNET_SOURCE_VERSION": "2.0.0-beta.1",
         "ESIGNET_SOURCE_COMMIT": "df0d0e771dae16eb2597b8e5b5dc65e70baa7f86",
         "ESIGNET_SOURCE_ARCHIVE_SHA256": "e" * 64,

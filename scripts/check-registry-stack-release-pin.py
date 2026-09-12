@@ -59,7 +59,6 @@ def validate(values: dict[str, str], *, require_public: bool) -> list[str]:
         if require_public and not asset_url:
             failures.append(f"{key} is not published; v{REQUIRED_VERSION} promotion is blocked")
     expected = {
-        "ESIGNET_AUTHENTICATOR_VERSION": "0.3.0",
         "ESIGNET_SOURCE_VERSION": "2.0.0-beta.1",
         "ESIGNET_SOURCE_COMMIT": "df0d0e771dae16eb2597b8e5b5dc65e70baa7f86",
     }
