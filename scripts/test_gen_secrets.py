@@ -85,6 +85,40 @@ class SecretGenerationTests(unittest.TestCase):
             self.assertEqual(values[key], value)
         self.assertEqual(values["NIA_ESIGNET_CLIENT_PRIVATE_JWK"], "operator-jwk")
 
+    def test_regeneration_preserves_exact_operator_image(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / ".env"
+            candidate_image = (
+                "registry.example/esignet-breg-candidate@sha256:"
+                + "a" * 64
+            )
+            output.write_text(
+                f"SOLMARA_ESIGNET_CANDIDATE_IMAGE={candidate_image}\n",
+                encoding="utf-8",
+            )
+            operator = {
+                "NIA_ESIGNET_CLIENT_PRIVATE_JWK": "operator-jwk",
+                "SOLMARA_EVIDENCE_CLIENT_KEY": "/operator/client-key",
+            }
+            with (
+                mock.patch.object(
+                    MODULE,
+                    "raw_key",
+                    return_value="fresh-runtime-secret",
+                ),
+                mock.patch.object(
+                    MODULE,
+                    "rsa_private_key_b64",
+                    return_value="fresh-portal-key",
+                ),
+                mock.patch.object(MODULE, "compose_project_name", return_value="test"),
+            ):
+                MODULE.write_environment(output, operator)
+            regenerated = MODULE.load_environment(output)
+            self.assertEqual(regenerated["SOLMARA_ESIGNET_CANDIDATE_IMAGE"], candidate_image)
+            self.assertEqual(regenerated["CRA_RELAY_AUDIT_KEY"], "fresh-runtime-secret")
+            self.assertEqual(regenerated["PORTAL_AUTH_PROVIDER"], "mock")
+
     def test_generated_environment_rejects_duplicate_or_empty_values(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / ".env"

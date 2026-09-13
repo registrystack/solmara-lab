@@ -1,0 +1,196 @@
+version: 1
+clients:
+- id: operator
+  accessProfiles:
+  - operator
+  scopes:
+  - registry:population:operate
+  claims:
+    registry_purpose: population-maintenance
+- id: esignet
+  accessProfiles:
+  - esignet-source
+  scopes:
+  - registry:population:lookup
+  claims:
+    registry_purpose: identity-authentication
+    registry_identity_status: active
+- id: citizen-self-service-agent
+  accessProfiles:
+  - citizen-self-service
+  scopes:
+  - registry:population:self-service
+  claims:
+    registry_purpose: citizen-self-service
+    registry_subject_person_reference: cd00b0e5-e2fd-5df4-a343-029b7c4aed41
+    registry_identity_status: active
+seed:
+- id: person-01
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300010248'
+    status: active
+    personReference: 5260223c-e413-57f4-9d3c-02f46ff38bfc
+    givenName: Mateo
+    familyName: Santos
+    birthdate: '2022-03-14'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-02
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300018263'
+    status: active
+    personReference: 44a5ef0a-aaa2-574e-8969-1069bf62b948
+    givenName: Elena
+    familyName: Dela Cruz
+    birthdate: '1992-11-02'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-03
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300027390'
+    status: active
+    personReference: 99447082-8141-5e59-aa9f-d8138f8986c5
+    givenName: Luis
+    familyName: Okafor
+    birthdate: '1989-08-20'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-04
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300036523'
+    status: active
+    personReference: f2f7a5e6-4ffe-53f2-b870-ac5f6bde2ec2
+    givenName: Hana
+    familyName: Aquino
+    birthdate: '2021-01-29'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-05
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300045650'
+    status: active
+    personReference: 93c624a2-6e9f-5b94-a27d-45f1dc47fd4d
+    givenName: Priya
+    familyName: Mensah
+    birthdate: '1985-07-08'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-06
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300054788'
+    status: active
+    personReference: 7072f22b-ec8c-50f6-b60f-10f49cf24831
+    givenName: Tomas
+    familyName: Bello
+    birthdate: '2020-06-17'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-07
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300063915'
+    status: active
+    personReference: d458b083-3199-572d-84b5-782e8c1c2610
+    givenName: Joana
+    familyName: Bello
+    birthdate: '1985-09-10'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-08
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300073046'
+    status: active
+    personReference: e2e8c712-d840-560d-9c50-775e5099d8f3
+    givenName: Karim
+    familyName: Kone
+    birthdate: '2020-05-18'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-09
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300082172'
+    status: active
+    personReference: 48b21113-7b59-59d8-ba50-32da9a6a49e1
+    givenName: Aisha
+    familyName: Kone
+    birthdate: '1981-04-23'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-10
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300091305'
+    status: deceased
+    personReference: 7753112a-09a3-5982-ba3e-ae7aba6cd6a1
+    givenName: Esteban
+    familyName: Cruz
+    birthdate: '2019-12-12'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-11
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300100431'
+    status: active
+    personReference: d9596aad-6009-5543-b214-ad9e8eb7c835
+    givenName: Miriam
+    familyName: Cruz
+    birthdate: '1988-12-12'
+    gender: female
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: person-12
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2300109568'
+    status: deceased
+    personReference: 50862595-f88e-5aca-8c9a-b29fb70d96bd
+    givenName: Rafael
+    familyName: Nkomo
+    birthdate: '1944-02-01'
+    gender: male
+    operatorNote: Synthetic seed; not disclosed to authentication provider.
+- id: inactive-person
+  client: operator
+  entity: person
+  accessProfile: operator
+  data:
+    uin: '2399999999'
+    status: inactive
+    personReference: 4c4955a1-96c9-5dfd-8609-7226d74f0f38
+    givenName: Inactive
+    familyName: Fixture
+    birthdate: '1980-01-01'
+    gender: unknown
+    operatorNote: Synthetic seed; not disclosed to authentication provider.

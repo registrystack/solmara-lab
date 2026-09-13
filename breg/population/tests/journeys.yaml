@@ -1,0 +1,125 @@
+apiVersion: registry.registrystack.org/breg-journeys/v1
+journeys:
+- id: identity-lookup-boundary
+  steps:
+  - id: operator-creates-person
+    entity: person
+    accessProfile: operator
+    claims:
+      principal: solmara-population-operator
+      purpose: population-maintenance
+      scopes:
+      - registry:population:operate
+    request:
+      operation: create
+      data:
+        uin: '2300000000'
+        status: active
+        person-reference: cd00b0e5-e2fd-5df4-a343-029b7c4aed41
+        given-name: Synthetic
+        family-name: Journey
+        birthdate: '1990-01-01'
+        gender: unknown
+        operator-note: Private operator fact
+    expect:
+      outcome: success
+      status: 201
+      fields:
+        uin: '2300000000'
+  - id: source-exact-lookup
+    entity: person
+    accessProfile: esignet-source
+    claims: &id001
+      principal: solmara-esignet-provider
+      purpose: identity-authentication
+      scopes:
+      - registry:population:lookup
+      directClaims:
+        registry_identity_status: active
+    request:
+      operation: lookup
+      selector: by-uin
+      values:
+        uin: '2300000000'
+    expect:
+      outcome: success
+      status: 200
+      fields:
+        uin: '2300000000'
+        status: active
+        personReference: cd00b0e5-e2fd-5df4-a343-029b7c4aed41
+  - id: source-unresolved
+    entity: person
+    accessProfile: esignet-source
+    claims: *id001
+    request:
+      operation: lookup
+      selector: by-uin
+      values:
+        uin: '2399999998'
+    expect:
+      outcome: refusal
+      status: 404
+      problemCode: lookup.unresolved
+  - id: operator-creates-other-person
+    entity: person
+    accessProfile: operator
+    claims:
+      principal: solmara-population-operator
+      purpose: population-maintenance
+      scopes:
+      - registry:population:operate
+    request:
+      operation: create
+      data:
+        uin: '2300000001'
+        status: active
+        person-reference: a506b48c-c8b8-5a09-b735-999bb05039f5
+        given-name: Other
+        family-name: Journey
+        birthdate: '1991-01-01'
+        gender: unknown
+        operator-note: Private operator fact
+    expect:
+      outcome: success
+      status: 201
+      fields:
+        personReference: a506b48c-c8b8-5a09-b735-999bb05039f5
+  - id: citizen-self-service-exact-person
+    entity: person
+    accessProfile: citizen-self-service
+    claims: &citizen-self-service-claims
+      principal: solmara-citizen-self-service-agent
+      actorKind: agent
+      requesterClient: citizen-self-service-agent
+      actorSubject: solmara-citizen-self-service-agent
+      purpose: citizen-self-service
+      scopes:
+      - registry:population:self-service
+      directClaims:
+        registry_subject_person_reference: cd00b0e5-e2fd-5df4-a343-029b7c4aed41
+        registry_identity_status: active
+    request:
+      operation: lookup
+      selector: by-person-reference
+      values:
+        person-reference: cd00b0e5-e2fd-5df4-a343-029b7c4aed41
+    expect:
+      outcome: success
+      status: 200
+      fields:
+        personReference: cd00b0e5-e2fd-5df4-a343-029b7c4aed41
+        status: active
+  - id: citizen-self-service-refuses-other-person
+    entity: person
+    accessProfile: citizen-self-service
+    claims: *citizen-self-service-claims
+    request:
+      operation: lookup
+      selector: by-person-reference
+      values:
+        person-reference: a506b48c-c8b8-5a09-b735-999bb05039f5
+    expect:
+      outcome: refusal
+      status: 404
+      problemCode: lookup.unresolved

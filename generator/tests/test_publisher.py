@@ -7,8 +7,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
+from solmara_lab import publisher
 from solmara_lab.generate import OBSERVED_AT
 from solmara_lab.publisher import (
     DEFAULT_EXTRACTS,
@@ -33,7 +36,7 @@ def digest(path: Path) -> str:
 
 
 def query(path: Path, statement: str, parameters: tuple[object, ...] = ()) -> list[tuple]:
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         return connection.execute(statement, parameters).fetchall()
 
 
@@ -53,6 +56,36 @@ class PublisherTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    def test_publication_closes_connections_on_success_and_failure(self) -> None:
+        original_connect = sqlite3.connect
+        opened = []
+
+        def connect(*args, **kwargs):
+            connection = original_connect(*args, **kwargs)
+            opened.append(connection)
+            return connection
+
+        def populate(connection):
+            connection.execute("CREATE TABLE fixture (value TEXT)")
+            connection.execute("INSERT INTO fixture VALUES ('retained')")
+
+        def fail(connection):
+            populate(connection)
+            raise RuntimeError("fixture population failed")
+
+        for publish in (publisher._replace_database, publisher._create_immutable_database):
+            with self.subTest(publish=publish.__name__):
+                target = self.root / f"{publish.__name__}.sqlite"
+                with patch.object(publisher.sqlite3, "connect", side_effect=connect):
+                    publish(target, populate)
+                    with self.assertRaisesRegex(RuntimeError, "fixture population failed"):
+                        publish(target.with_name("failed-" + target.name), fail)
+                self.assertEqual(query(target, "SELECT value FROM fixture"), [("retained",)])
+        self.assertEqual(len(opened), 4)
+        for connection in opened:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                connection.execute("SELECT 1")
 
     def test_repeatable_schema_content_and_bytes(self) -> None:
         relay_paths = sorted((self.root / RELAY_DIRECTORY).glob("*.sqlite"))
@@ -417,7 +450,7 @@ class PublisherTests(unittest.TestCase):
                     self.root, "sro", "2026-08-12T10:00:00Z", extract_id
                 )
                 path.chmod(0o644)
-                with sqlite3.connect(path) as connection:
+                with closing(sqlite3.connect(path)) as connection, connection:
                     if mismatch == "publisher":
                         connection.execute(
                             "UPDATE evidence_extract SET publisher = ?",

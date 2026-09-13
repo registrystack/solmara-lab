@@ -1,0 +1,178 @@
+apiVersion: registry.registrystack.org/v1alpha1
+kind: RegistryProject
+registry:
+  id: solmara-population
+  canonicalBaseIri: https://id.registrystack.org/solmara/nia
+  version: 0.1.0
+  defaultLanguage: en
+package:
+  environment: local
+  instanceId: solmara-esignet-v2
+  sequence: 1
+  sourceRevision: solmara-esignet-v2-fixture-v1
+manifestProjection:
+  accessProfile: operator
+  classificationCeiling: internal
+  catalog:
+    baseUrl: https://nia.gov.solmara.example
+    title: Solmara synthetic population registry
+    publisher:
+      id: nia
+      name: National Identity Authority
+  publicService:
+    id: registry-service
+    title: Solmara population registry
+  datasets:
+  - id: registry
+    title: Synthetic population
+    owner: National Identity Authority
+    status: active
+  dataServices:
+  - id: registry-data
+    title: Population identity lookup
+    endpointUrl: https://nia.gov.solmara.example
+    servesDatasets:
+    - registry
+  distributions: []
+entities:
+- id: person
+  primaryDataset: registry
+  route: population
+  mutationMode: mutable
+  classification: internal
+  fields:
+  - id: uin
+    type: string
+    required: true
+    classification: internal
+    minLength: 1
+    maxLength: 160
+  - id: status
+    type: string
+    required: true
+    classification: internal
+    minLength: 1
+    maxLength: 160
+  - id: person-reference
+    apiName: personReference
+    type: string
+    required: true
+    classification: internal
+    minLength: 36
+    maxLength: 36
+  - id: given-name
+    type: string
+    required: true
+    classification: internal
+    minLength: 1
+    maxLength: 160
+    apiName: givenName
+  - id: family-name
+    type: string
+    required: true
+    classification: internal
+    minLength: 1
+    maxLength: 160
+    apiName: familyName
+  - id: birthdate
+    type: date
+    required: true
+    classification: internal
+  - id: gender
+    type: string
+    required: true
+    classification: internal
+    minLength: 1
+    maxLength: 160
+  - id: operator-note
+    apiName: operatorNote
+    type: string
+    classification: internal
+    maxLength: 200
+  constraints:
+  - kind: unique
+    fields:
+    - uin
+  selectorProfiles:
+  - id: by-uin
+    fields:
+    - uin
+  - id: by-person-reference
+    fields:
+    - person-reference
+accessProfiles:
+- id: operator
+  default: true
+  principalClaim: sub
+  requiredScopes:
+  - registry:population:operate
+  requiredPurposes:
+  - population-maintenance
+  permissions:
+  - entity: person
+    operations:
+    - create
+    - get
+    - patch
+    readableFields: &id001
+    - uin
+    - status
+    - person-reference
+    - given-name
+    - family-name
+    - birthdate
+    - gender
+    - operator-note
+    writableFields: *id001
+    rowBoundaries: []
+- id: esignet-source
+  principalClaim: sub
+  requiredScopes:
+  - registry:population:lookup
+  requiredPurposes:
+  - identity-authentication
+  permissions:
+  - entity: person
+    operations:
+    - lookup
+    readableFields:
+    - uin
+    - status
+    - person-reference
+    - given-name
+    - family-name
+    - birthdate
+    - gender
+    lookups:
+    - selector: by-uin
+      valueOrigin: request
+    rowBoundaries:
+    - field: status
+      claim: registry_identity_status
+      operator: equals
+- id: citizen-self-service
+  principalClaim: sub
+  actorKind: agent
+  requesterClients:
+  - citizen-self-service-agent
+  requiredScopes:
+  - registry:population:self-service
+  requiredPurposes:
+  - citizen-self-service
+  permissions:
+  - entity: person
+    operations:
+    - lookup
+    readableFields:
+    - person-reference
+    - status
+    lookups:
+    - selector: by-person-reference
+      valueOrigin: request
+    rowBoundaries:
+    - field: person-reference
+      claim: registry_subject_person_reference
+      operator: equals
+    - field: status
+      claim: registry_identity_status
+      operator: equals

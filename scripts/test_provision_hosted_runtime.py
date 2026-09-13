@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -879,7 +880,7 @@ class HostedProvisionerTests(unittest.TestCase):
             published_at = "2026-08-12T09:00:00Z"
             extract_id = "sro-poverty-20260812T090000Z"
             extract = extracts / f"{extract_id}.sqlite"
-            with sqlite3.connect(extract) as connection:
+            with closing(sqlite3.connect(extract)) as connection, connection:
                 connection.execute(
                     "CREATE TABLE evidence_extract (published_at TEXT, publisher TEXT, extract_id TEXT)"
                 )
@@ -1478,7 +1479,7 @@ class RealPublisherExtractAgeTest(unittest.TestCase):
         # Relaxing the age ceiling must not relax integrity.
         with self._published_extract(bind=True) as (root, runtime, extracts, extract):
             extract.chmod(0o644)
-            with sqlite3.connect(extract) as connection:
+            with closing(sqlite3.connect(extract)) as connection, connection:
                 connection.execute("UPDATE evidence_extract SET publisher = 'did:web:impostor'")
             extract.chmod(0o444)
             with self.assertRaisesRegex(

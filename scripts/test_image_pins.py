@@ -46,8 +46,8 @@ class ImagePinTests(unittest.TestCase):
         with (self.root / "versions.env").open("a", encoding="utf-8") as versions:
             for key in (
                 "PYTHON_STATIC_IMAGE", "NODE_BUILD_IMAGE", "UV_BUILD_IMAGE",
-                "ESIGNET_REDIS_IMAGE", "ESIGNET_BASE_IMAGE",
-                "ESIGNET_UI_IMAGE", "ESIGNET_POSTGRES_IMAGE",
+                "ESIGNET_REDIS_IMAGE", "ESIGNET_NGINX_IMAGE",
+                "ESIGNET_POSTGRES_IMAGE",
             ):
                 versions.write(f"{key}=example.invalid/image@sha256:{'6' * 64}\n")
 
@@ -86,6 +86,17 @@ class ImagePinTests(unittest.TestCase):
 
         self.assertEqual(result, 1)
         self.assertIn("LOCAL_EDGE_IMAGE must use image@sha256", stderr)
+
+    def test_esignet_redis_must_be_digest_pinned(self) -> None:
+        path = self.root / "versions.env"
+        lines = path.read_text().splitlines()
+        path.write_text("\n".join(
+            "ESIGNET_REDIS_IMAGE=redis:8" if line.startswith("ESIGNET_REDIS_IMAGE=") else line
+            for line in lines
+        ) + "\n")
+        result, stderr = self.run_check()
+        self.assertEqual(result, 1)
+        self.assertIn("ESIGNET_REDIS_IMAGE must use image@sha256", stderr)
 
     def test_runtime_images_must_use_their_exact_official_repository(self) -> None:
         versions = (self.root / "versions.env").read_text().replace(

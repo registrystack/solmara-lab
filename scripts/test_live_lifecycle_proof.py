@@ -9,6 +9,7 @@ import stat
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
@@ -226,7 +227,7 @@ class LiveLifecycleProofTests(unittest.TestCase):
                     observed_at=lifecycle._timestamp(lifecycle._now()),
                     expected_extract_id=publication.extract_id,
                 )
-                with sqlite3.connect(publication.path) as connection:
+                with closing(sqlite3.connect(publication.path)) as connection, connection:
                     row = connection.execute(
                         "SELECT poverty_band FROM poverty_evidence WHERE uin = ?",
                         (lifecycle.SRO_CONTROL_SUBJECT,),

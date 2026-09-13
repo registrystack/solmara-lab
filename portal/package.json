@@ -31,6 +31,7 @@
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.1.1",
     "@fontsource/public-sans": "^5.1.1",
+    "openid-client": "^6.8.8",
     "qrcode-generator": "^2.0.4"
   }
 }
