@@ -59,7 +59,7 @@
       result: null
     },
     {
-      note: 'prefilled - locked identity chip, "self - from eSignet"',
+      note: 'prefilled - locked identity chip, "self - from sign-in"',
       field: selfField,
       result: { state: 'prefilled', display: 'Elena Dela Cruz · 2300018263', traceId: 'event-0' }
     },

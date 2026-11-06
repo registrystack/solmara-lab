@@ -30,10 +30,10 @@ describe('authority-cell topology', () => {
 
   it('renders the approved deterministic topology groups and owned configs', () => {
     const groups = topologyGroups('https://github.com/registrystack/solmara-lab');
-    expect(groups.map((group) => group.key)).toEqual(['publisher', 'relays', 'evidence', 'programme', 'identity']);
+    expect(groups.map((group) => group.key)).toEqual(['publisher', 'relays', 'evidence', 'programme']);
     expect(groups.find((group) => group.key === 'relays')?.services).toHaveLength(5);
     expect(groups.find((group) => group.key === 'evidence')?.services.filter((service) => service.role === 'evidence')).toHaveLength(6);
     expect(groups.find((group) => group.key === 'evidence')?.services.find((service) => service.id === 'cra-evidence')?.config[0].path).toBe('evidence/cells/cra');
-    expect(groups.find((group) => group.key === 'identity')?.services[0].blurb).toContain('NIA Relay');
+    expect(groups.flatMap((group) => group.services).some((service) => service.id === 'esignet')).toBe(false);
   });
 });

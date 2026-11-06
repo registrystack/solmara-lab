@@ -93,11 +93,11 @@
       />
     </div>
   {:else if fieldState === 'prefilled'}
-    <!-- PREFILLED IDENTITY: locked, self from eSignet. -->
+    <!-- PREFILLED IDENTITY: locked, self from sign-in. -->
     <div class="chip chip-self chip-locked" role="status">
       <span class="value">{result?.display}</span>
       <StatusIcon icon="lock" />
-      <span class="badge">self - from eSignet</span>
+      <span class="badge">self - from sign-in</span>
     </div>
   {:else if fieldState === 'in_flight'}
     <!-- IN-FLIGHT: the authority is NAMED, never a bare "Loading...". -->

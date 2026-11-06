@@ -22,7 +22,7 @@ SPEC.loader.exec_module(MODULE)
 class RuntimeTopologyTests(unittest.TestCase):
     def test_local_up_recreates_immutable_runtime_consumers(self) -> None:
         justfile = (SCRIPT.parents[1] / "justfile").read_text()
-        for recipe in ("up: prepare", "up-esignet: prepare"):
+        for recipe in ("up: prepare",):
             start = justfile.index(recipe)
             command = justfile[start:].splitlines()[1]
             self.assertIn("docker compose", command)
@@ -739,104 +739,28 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertNotIn("SOLMARA_EVIDENCE_CLIENT_KEY", environment, service_name)
             self.assertNotIn("CHILD_BENEFIT_FEDERATOR_TOKEN", environment, service_name)
 
-    def test_hosted_esignet_is_standalone_and_core_portal_owns_login_config(
-        self,
-    ) -> None:
-        esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
-        esignet = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))
-        services = esignet["services"]
-        self.assertEqual(
-            set(services),
-            {
-                "esignet-database",
-                "esignet-redis",
-                "esignet",
-                "esignet_ui",
-                "esignet_edge",
-                "esignet-seed",
-            },
-        )
-        self.assertNotIn("portal", services)
+    def test_portal_login_is_mock_only_and_no_esignet_profile_remains(self) -> None:
+        root = SCRIPT.parents[1]
+        for name in ("compose.yaml", "compose.coolify.yaml"):
+            core = yaml.safe_load((root / name).read_text(encoding="utf-8"))
+            portal = core["services"]["portal"]["environment"]
+            self.assertEqual(
+                [
+                    key
+                    for key in portal
+                    if key.startswith(("PORTAL_ESIGNET_", "PORTAL_AUTH_"))
+                ],
+                [],
+                name,
+            )
+        for name in ("compose.esignet.yaml", "compose.coolify.esignet.yaml"):
+            self.assertFalse((root / name).exists(), name)
+        for path in sorted(root.glob("compose*.yaml")):
+            self.assertNotIn("esignet", path.read_text(encoding="utf-8").lower(), path.name)
+        justfile = (root / "justfile").read_text(encoding="utf-8")
+        self.assertNotIn("esignet", justfile.lower())
 
-        core = yaml.safe_load(
-            (SCRIPT.parents[1] / "compose.coolify.yaml").read_text(encoding="utf-8")
-        )
-        portal = core["services"]["portal"]["environment"]
-        expected = {
-            "PORTAL_AUTH_PROVIDER": "${PORTAL_AUTH_PROVIDER:-mock}",
-            "PORTAL_SECURE_COOKIES": "true",
-            "PORTAL_ESIGNET_CLIENT_ID": "${PORTAL_ESIGNET_CLIENT_ID:-solmara-portal}",
-            "PORTAL_ESIGNET_CLIENT_KEY_ID": "${PORTAL_ESIGNET_CLIENT_KEY_ID:-solmara-portal-key-1}",
-            "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64": "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}",
-            "PORTAL_ESIGNET_ISSUER": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}",
-            "PORTAL_ESIGNET_AUTHORIZATION_ENDPOINT": "${SOLMARA_ESIGNET_UI_PUBLIC_BASE_URL:-https://esignet-ui.solmara.registrystack.org}/authorize",
-            "PORTAL_ESIGNET_TOKEN_ENDPOINT": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token",
-            "PORTAL_ESIGNET_CLIENT_ASSERTION_AUDIENCE": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oauth/v2/token",
-            "PORTAL_ESIGNET_USERINFO_ENDPOINT": "${SOLMARA_ESIGNET_PUBLIC_BASE_URL:-https://esignet.solmara.registrystack.org}/v1/esignet/oidc/userinfo",
-            "PORTAL_ESIGNET_REDIRECT_URI": "${SOLMARA_PORTAL_PUBLIC_BASE_URL:-https://portal.solmara.registrystack.org}/auth/callback",
-            "PORTAL_ESIGNET_SCOPE": "openid profile",
-            "PORTAL_ESIGNET_SUBJECT_CLAIM": "sub",
-        }
-        for key, value in expected.items():
-            self.assertEqual(portal[key], value)
-
-        private_key_value = "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:-}"
-        self.assertEqual(
-            {
-                service_name
-                for service_name, service in core["services"].items()
-                if service.get("environment", {}).get(
-                    "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64"
-                )
-                == private_key_value
-            },
-            {"portal"},
-        )
-        self.assertEqual(
-            services["esignet-seed"]["environment"]["ESIGNET_CLIENT_PRIVATE_KEY_B64"],
-            "${PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64:?required}",
-        )
-        self.assertNotIn("NIA_ESIGNET_CLIENT_PRIVATE_JWK", portal)
-
-    def test_hosted_esignet_seeder_runs_once(self) -> None:
-        """Coolify gives a service that declares no restart policy
-        `unless-stopped`, so a one-shot that exits on success is started again
-        forever. Every other one-shot in the fleet says `no`; the seeder must
-        too."""
-        esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
-        esignet = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))
-        self.assertEqual(esignet["services"]["esignet-seed"].get("restart"), "no")
-
-    def test_hosted_esignet_publishes_discovery_at_its_issuer_root(self) -> None:
-        """eSignet declares its issuer as the bare public origin but the Spring
-        service answers only under `/v1/esignet`, so routing the public host
-        straight at it leaves `{issuer}/.well-known/openid-configuration` and the
-        RFC 8414 authorization-server document unserved. The UI image is a
-        host-agnostic reverse proxy that publishes both, so the public host
-        belongs to an edge instance of it and the service stays unrouted.
-
-        Both proxies carry underscore names because Coolify accepts a routed
-        service only under its compose key but resolves it after rewriting "-"
-        to "_", so a hyphenated name is stored where routing never reads."""
-        esignet_path = SCRIPT.parents[1] / "compose.coolify.esignet.yaml"
-        services = yaml.safe_load(esignet_path.read_text(encoding="utf-8"))["services"]
-        edge = services["esignet_edge"]
-        self.assertEqual(edge["image"], services["esignet_ui"]["image"])
-        self.assertEqual(
-            edge["labels"]["solmara.lab.host"],
-            "${SOLMARA_ESIGNET_PUBLIC_HOST:-esignet.solmara.registrystack.org}",
-        )
-        self.assertNotIn("solmara.lab.host", services["esignet"].get("labels") or {})
-        routed = [
-            name
-            for name, service in services.items()
-            if "solmara.lab.host" in (service.get("labels") or {})
-        ]
-        self.assertEqual(sorted(routed), ["esignet_edge", "esignet_ui"])
-        for name in routed:
-            self.assertNotIn("-", name)
-
-    def test_bruno_workspace_covers_only_the_eight_governed_v2_lookups(self) -> None:
+    def test_bruno_workspace_covers_only_the_seven_governed_v2_lookups(self) -> None:
         relay_requests = SCRIPT.parents[1] / "requests/registry-lab/50 - Relay V2"
         rendered = "\n".join(
             path.read_text(encoding="utf-8")
@@ -845,7 +769,6 @@ class RuntimeTopologyTests(unittest.TestCase):
         expected = {
             "/v2/resources/civil-person/lookups/death-by-uin",
             "/v2/resources/civil-person/lookups/citizen-link-by-uin",
-            "/v2/resources/population-person/lookups/esignet-userinfo",
             "/v2/resources/beneficiary-enrolment/lookups/by-uin",
             "/v2/resources/pension-payment/lookups/by-pensioner-uin",
             "/v2/resources/survivor-case/lookups/by-spouse-uin",
@@ -855,6 +778,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(len(list(relay_requests.glob("*.bru"))), len(expected))
         for path in expected:
             self.assertIn(path, rendered)
+        self.assertNotIn("esignet", rendered.lower())
         self.assertNotIn("/records", rendered)
         self.assertNotIn("/search", rendered)
         self.assertNotIn("Data-Purpose", rendered)

@@ -13,7 +13,7 @@ export type AuthorityId =
 // Lifecycle state of an EvidenceField (UX section 4 + Phase 0 DoD).
 export type FieldState =
   | 'idle'        // self-entry, empty input
-  | 'prefilled'   // self identity from eSignet, locked
+  | 'prefilled'   // self identity from sign-in, locked
   | 'in_flight'   // request issued, authority named
   | 'slow'        // > ~6-8s, elapsed counter, "it's a live call"
   | 'verified'    // predicate true (GREEN)

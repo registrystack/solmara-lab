@@ -87,10 +87,6 @@ MINT_CLIENTS = {
         "solmara:relay:nagdi:movement-by-farmer-id",
         "https://id.registrystack.org/solmara/purpose/livestock-movement-control",
     ),
-    "nia-esignet": (
-        "solmara:relay:nia:esignet-userinfo",
-        "https://id.registrystack.org/solmara/purpose/esignet-identity-verification",
-    ),
 }
 # Re-adopting an extract this provisioner already published imposes no freshness
 # ceiling. `maximumExtractAgeSeconds` is a serving policy the Evidence cell

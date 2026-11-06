@@ -283,7 +283,7 @@ datasets:
         fields: [{name: uin, type: string, required: true}]
   - id: nia-population
     title: {en: NIA population publication}
-    description: {en: NIA-owned immutable population extract and governed eSignet Relay source.}
+    description: {en: NIA-owned immutable population extract and governed Relay source.}
     access_rights: restricted
     entities:
       - name: population_person

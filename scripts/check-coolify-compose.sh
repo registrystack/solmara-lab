@@ -20,18 +20,6 @@ check_compose() {
   SOLMARA_TRANSIT_SIGNER_IMAGE="$test_image" \
   SOLMARA_HOME_IMAGE="$test_image" \
   SOLMARA_PORTAL_IMAGE="$test_image" \
-  SOLMARA_ESIGNET_RELAY_IMAGE="$test_image" \
-  SOLMARA_ESIGNET_SEED_IMAGE="$test_image" \
-  SOLMARA_ESIGNET_POSTGRES_IMAGE="$test_image" \
-  SOLMARA_ESIGNET_UI_IMAGE="$test_image" \
-  ESIGNET_REDIS_IMAGE="redis@sha256:b99ffd0554dc8d300230b9d1b9f2a129a6abf595bf8589883beb980ed1feae3d" \
-  SOLMARA_ESIGNET_POSTGRES_PASSWORD=test \
-  ESIGNET_DEMO_OTP=111111 \
-  REGISTRY_ESIGNET_KYC_TOKEN_SECRET=test \
-  REGISTRY_ESIGNET_PSUT_SECRET=test \
-  REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD=test \
-  PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64=test \
-  NIA_ESIGNET_CLIENT_PRIVATE_JWK="$test_private_jwk" \
   SOLMARA_DEMO_CLIENT_PRIVATE_JWK="$test_private_jwk" \
   CHILD_BENEFIT_FEDERATOR_TOKEN=test \
   CRA_RELAY_AUDIT_KEY=test NIA_RELAY_AUDIT_KEY=test MOSD_RELAY_AUDIT_KEY=test \
@@ -52,7 +40,7 @@ check_compose() {
   MOSD_CHILD_BENEFIT_EVIDENCE_CLIENT_PUBLIC_JWK="$test_public_jwk" \
   SIPF_PENSION_EVIDENCE_CLIENT_PUBLIC_JWK="$test_public_jwk" SIPF_SURVIVOR_EVIDENCE_CLIENT_PUBLIC_JWK="$test_public_jwk" \
   NAGDI_VOUCHER_EVIDENCE_CLIENT_PUBLIC_JWK="$test_public_jwk" NAGDI_LIVESTOCK_EVIDENCE_CLIENT_PUBLIC_JWK="$test_public_jwk" \
-  NIA_ESIGNET_CLIENT_PUBLIC_JWK="$test_public_jwk" SOLMARA_DEMO_CLIENT_PUBLIC_JWK="$test_public_jwk" \
+  SOLMARA_DEMO_CLIENT_PUBLIC_JWK="$test_public_jwk" \
   docker compose "$@" config >"$scratch/rendered.yaml"
 
   rendered_bytes=$(wc -c <"$scratch/rendered.yaml" | tr -d ' ')

@@ -53,13 +53,13 @@ describe('EvidenceField - self', () => {
     expect(input).toBeInTheDocument();
   });
 
-  it('renders the locked identity chip with "self - from eSignet" when prefilled', () => {
+  it('renders the locked identity chip with "self - from sign-in" when prefilled', () => {
     render(EvidenceField, {
       field: selfField,
       result: result({ state: 'prefilled', display: 'Elena Dela Cruz · 2300018263' })
     });
     expect(screen.getByText('Elena Dela Cruz · 2300018263')).toBeInTheDocument();
-    expect(screen.getByText(/self - from eSignet/i)).toBeInTheDocument();
+    expect(screen.getByText(/self - from sign-in/i)).toBeInTheDocument();
   });
 });
 

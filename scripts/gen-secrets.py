@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import ec
 
 from compose_project_name import compose_project_name
 
@@ -28,10 +28,6 @@ RANDOM_ENV_KEYS = (
     "NAGDI_RELAY_CURSOR_KEY",
     "CHILD_BENEFIT_FEDERATOR_TOKEN",
     "PORTAL_SESSION_SECRET",
-    "SOLMARA_ESIGNET_POSTGRES_PASSWORD",
-    "REGISTRY_ESIGNET_KYC_KEYSTORE_PASSWORD",
-    "REGISTRY_ESIGNET_KYC_TOKEN_SECRET",
-    "REGISTRY_ESIGNET_PSUT_SECRET",
 )
 
 
@@ -53,23 +49,6 @@ def p256_jwk() -> str:
         "d": b64url(private.private_value.to_bytes(32, "big")),
     }
     thumbprint = {key: jwk[key] for key in ("crv", "kty", "x", "y")}
-    jwk["kid"] = b64url(hashlib.sha256(json.dumps(thumbprint, separators=(",", ":"), sort_keys=True).encode()).digest())
-    return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
-
-
-def rsa_jwk() -> str:
-    private = rsa.generate_private_key(public_exponent=65537, key_size=2048).private_numbers()
-    public = private.public_numbers
-
-    def encode(number: int) -> str:
-        return b64url(number.to_bytes((number.bit_length() + 7) // 8, "big"))
-
-    jwk = {
-        "kty": "RSA", "alg": "RS256", "n": encode(public.n), "e": encode(public.e),
-        "d": encode(private.d), "p": encode(private.p), "q": encode(private.q),
-        "dp": encode(private.dmp1), "dq": encode(private.dmq1), "qi": encode(private.iqmp),
-    }
-    thumbprint = {key: jwk[key] for key in ("e", "kty", "n")}
     jwk["kid"] = b64url(hashlib.sha256(json.dumps(thumbprint, separators=(",", ":"), sort_keys=True).encode()).digest())
     return json.dumps(jwk, separators=(",", ":"), sort_keys=True)
 
@@ -128,15 +107,9 @@ def compose_environment_values(
         key: create_environment_value(existing, key, raw_key)
         for key in RANDOM_ENV_KEYS
     }
-    values["PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64"] = create_environment_value(
-        existing, "PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64", rsa_private_key_b64
-    )
     values.update(
         {
             "COMPOSE_PROJECT_NAME": compose_project_name(ROOT),
-            "PORTAL_AUTH_PROVIDER": "mock",
-            "PORTAL_ESIGNET_CLIENT_ID": "solmara-portal",
-            "PORTAL_ESIGNET_CLIENT_KEY_ID": "solmara-portal-key-1",
             **operator_values,
         }
     )
@@ -183,10 +156,8 @@ def ensure_operator_material() -> dict[str, str]:
         directory.mkdir(parents=True, exist_ok=True)
     create_once(mint / "secrets/signing.jwk", p256_jwk)
     create_once(mint / "secrets/audit-hmac-key", raw_key)
-    create_once(mint / "clients/nia-esignet-rsa-client-key", rsa_jwk)
     create_once(mint / "clients/solmara-demo-client-key", p256_jwk)
     return {
-        "NIA_ESIGNET_CLIENT_PRIVATE_JWK": (mint / "clients/nia-esignet-rsa-client-key").read_text().strip(),
         "SOLMARA_EVIDENCE_CLIENT_KEY": str(mint / "clients/solmara-demo-client-key"),
     }
 
@@ -219,10 +190,6 @@ def ensure_tls() -> None:
     key.chmod(0o600)
     ca_crt.chmod(0o644)
     crt.chmod(0o644)
-
-
-def rsa_private_key_b64() -> str:
-    return base64.b64encode(subprocess.run(["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048"], check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout).decode()
 
 
 def main() -> int:

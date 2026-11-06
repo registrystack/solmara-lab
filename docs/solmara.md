@@ -10,7 +10,7 @@ several authorities and owns the programme decision.
 | Authority | Evidence source | Relay operation |
 |---|---|---|
 | CRA | immutable birth extract | civil death and citizen-link exact lookups |
-| NIA | immutable population extract | eSignet UserInfo exact lookup |
+| NIA | immutable population extract | population-person exact lookup (no lab client calls it) |
 | SRO | immutable poverty extract | none |
 | MoSD Programme MIS | live read-only SQLite | beneficiary enrolment exact lookup |
 | SIPF | live read-only SQLite | pension payment and survivor exact lookups |
@@ -69,8 +69,8 @@ consultation.
   is separately requested for the spouse.
 - Agriculture requests NAgDI voucher or livestock assertions under isolated
   purposes.
-- Optional citizen login uses the NIA Relay V2 lookup through eSignet, while the
-  application can separately compose CRA and NIA Evidence assertions.
+- Citizen login in the portal is a mock login that binds a published persona;
+  the application can separately compose CRA and NIA Evidence assertions.
 
 The preserved `/v1` suffixes in requirement and evidence-type identifiers are
 domain identifier versions, not transport routes.

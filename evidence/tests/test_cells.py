@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 import yaml
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import ec
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -55,22 +55,6 @@ def private_jwk() -> dict[str, str]:
     ).rstrip(b"=").decode()
     public["d"] = encode(key.private_value)
     return public
-
-
-def rsa_private_jwk() -> str:
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048).private_numbers()
-
-    def encode(value: int) -> str:
-        return base64.urlsafe_b64encode(value.to_bytes((value.bit_length() + 7) // 8, "big")).rstrip(b"=").decode()
-
-    value = {
-        "kty": "RSA", "alg": "RS256", "n": encode(key.public_numbers.n), "e": encode(key.public_numbers.e),
-        "d": encode(key.d), "p": encode(key.p), "q": encode(key.q), "dp": encode(key.dmp1),
-        "dq": encode(key.dmq1), "qi": encode(key.iqmp),
-    }
-    thumbprint = {member: value[member] for member in ("e", "kty", "n")}
-    value["kid"] = base64.urlsafe_b64encode(hashlib.sha256(json.dumps(thumbprint, separators=(",", ":"), sort_keys=True).encode()).digest()).rstrip(b"=").decode()
-    return json.dumps(value)
 
 
 class CellContractsTest(unittest.TestCase):
@@ -198,10 +182,11 @@ class CellContractsTest(unittest.TestCase):
             mint_signing.parent.mkdir(parents=True)
             mint_signing.write_text(json.dumps(private_jwk()), encoding="utf-8")
             for client in module.RELAY_CLIENTS:
-                path = (private_root / module.CLIENT_CELLS[client] / "secrets" / f"{client}-client-key" if client in module.CLIENT_CELLS else private_root / "mint" / "clients" / "nia-esignet-rsa-client-key")
+                path = private_root / module.CLIENT_CELLS[client] / "secrets" / f"{client}-client-key"
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(rsa_private_jwk() if client == "nia-esignet" else json.dumps(private_jwk()), encoding="utf-8")
+                path.write_text(json.dumps(private_jwk()), encoding="utf-8")
             application_key = private_root / "mint" / "clients" / "solmara-demo-client-key"
+            application_key.parent.mkdir(parents=True, exist_ok=True)
             application_key.write_text(json.dumps(private_jwk()), encoding="utf-8")
             output = temp / "output"
             module.build(private_root, output, None)
@@ -221,16 +206,9 @@ class CellContractsTest(unittest.TestCase):
                 scope, purpose = module.RELAY_CLIENTS[client]
                 self.assertEqual(registration["authorization"], {"scopes": [scope], "claims": {"purpose": purpose}})
 
-            nia_registration = registrations["nia-esignet"]
-            self.assertEqual(nia_registration["keys"][0]["kty"], "RSA")
-            self.assertEqual(nia_registration["keys"][0]["alg"], "RS256")
-            self.assertNotIn("d", nia_registration["keys"][0])
-            nia_relay = load_yaml(ROOT / "relays" / "nia" / "registry.yaml")
-            nia_profile = nia_relay["resources"][0]["operations"]["lookups"][0]["accessProfiles"]["esignet"]
-            self.assertEqual(
-                nia_registration["authorization"]["claims"]["purpose"],
-                nia_profile["access"]["purpose"]["allowed"][0],
-            )
+            self.assertNotIn("nia-esignet", registrations)
+            for registration in registrations.values():
+                self.assertEqual(registration["keys"][0]["kty"], "EC")
 
 
 if __name__ == "__main__":

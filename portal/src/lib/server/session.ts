@@ -1,10 +1,8 @@
-// Server-side portal sessions. Mock mode binds a canned/persona subject without
-// eSignet; eSignet mode binds the subject returned by UserInfo. The session
-// shape stays the same in both modes.
+// Server-side portal sessions. The mock login binds a canned or persona subject
+// server-side.
 //
 // We NEVER forge or store a token here: a mock session carries only the subject
-// and display name, never bearer material. In eSignet mode the BFF derives the
-// same session shape from UserInfo and does not store access tokens here.
+// and display name, never bearer material.
 // Server-only module.
 
 import type { Cookies } from '@sveltejs/kit';
@@ -13,7 +11,7 @@ import { PERSONA } from '$lib/providers/mock';
 
 export type PortalSession = {
   subject: string; // Solmara UIN bound server-side, e.g. 2300010248
-  displayName: string; // from eSignet UserInfo in Phase 1; canned here
+  displayName: string; // canned by the mock login
 };
 
 export const SESSION_COOKIE = 'solmara_session';
@@ -34,8 +32,8 @@ type StoredSession = {
 const sessions = new Map<string, StoredSession>();
 
 // Establish the mock session cookie. httpOnly so the browser script never reads
-// it; no token material is stored. Phase 1 stores the eSignet session server-side
-// keyed by an opaque id instead of carrying the subject in the cookie value.
+// it; no token material is stored. The session is held server-side keyed by an
+// opaque id rather than carrying the subject in the cookie value.
 //
 // The optional `session` selects which mock persona to bind. It defaults to the
 // canned Elena Dela Cruz session. Callers pass a persona ONLY after validating

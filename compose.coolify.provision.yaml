@@ -136,7 +136,6 @@ services:
       - {source: sipf-survivor-evidence-client-public-jwk, target: /tmp/solmara-provisioning/sipf-survivor-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
       - {source: nagdi-voucher-evidence-client-public-jwk, target: /tmp/solmara-provisioning/nagdi-voucher-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
       - {source: nagdi-livestock-evidence-client-public-jwk, target: /tmp/solmara-provisioning/nagdi-livestock-evidence-public.jwk, uid: "0", gid: "0", mode: 0400}
-      - {source: nia-esignet-client-public-jwk, target: /tmp/solmara-provisioning/nia-esignet-public.jwk, uid: "0", gid: "0", mode: 0400}
       - {source: solmara-demo-client-public-jwk, target: /tmp/solmara-provisioning/solmara-demo-client-public.jwk, uid: "0", gid: "0", mode: 0400}
 
   provisioning-ready:
@@ -198,5 +197,4 @@ secrets:
   sipf-survivor-evidence-client-public-jwk: {environment: SIPF_SURVIVOR_EVIDENCE_CLIENT_PUBLIC_JWK}
   nagdi-voucher-evidence-client-public-jwk: {environment: NAGDI_VOUCHER_EVIDENCE_CLIENT_PUBLIC_JWK}
   nagdi-livestock-evidence-client-public-jwk: {environment: NAGDI_LIVESTOCK_EVIDENCE_CLIENT_PUBLIC_JWK}
-  nia-esignet-client-public-jwk: {environment: NIA_ESIGNET_CLIENT_PUBLIC_JWK}
   solmara-demo-client-public-jwk: {environment: SOLMARA_DEMO_CLIENT_PUBLIC_JWK}

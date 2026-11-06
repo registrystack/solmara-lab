@@ -39,11 +39,11 @@
   }
 
   function authorityShort(trace: ProofTrace): string {
-    // The identity-binding trace has no Evidence authority (eSignet is the identity
+    // The identity-binding trace has no Evidence authority (SolmaraID is the identity
     // provider, not one of the source authorities), so name its issuer explicitly rather
     // than falling through to a bare "Unknown".
     if (trace.id === IDENTITY_TRACE_ID) {
-      return 'eSignet';
+      return 'SolmaraID';
     }
     switch (trace.authority) {
       case 'civil':

@@ -65,7 +65,7 @@ export const SERVICES: ServiceDef[] = [
     id: 'nia-relay',
     label: 'NIA Relay',
     authority: 'National Identity Agency',
-    blurb: 'Relay V2 exact lookups over the population source, also available to the optional eSignet path.',
+    blurb: 'Relay V2 exact lookups over the population source.',
     probeEnv: 'NIA_POPULATION_RELAY_URL',
     probeDefault: 'http://127.0.0.1:4312',
     probePath: '/ready',
@@ -190,13 +190,6 @@ export const SERVICES: ServiceDef[] = [
     configPaths: [{ label: 'Scenario modules', path: 'scenarios' }]
   }),
   shared({
-    id: 'esignet',
-    label: 'Optional eSignet',
-    authority: 'National Identity Agency',
-    blurb: 'Optional resident sign-in. It resolves identity through the NIA Relay and is not an Evidence authority.',
-    configPaths: [{ label: 'Portal eSignet integration', path: 'portal/src/lib/server/esignet.ts' }]
-  }),
-  shared({
     id: 'portal',
     label: 'Citizen portal',
     blurb: 'The resident application that presents authority Evidence without exposing selectors or raw wire material.',
@@ -279,12 +272,6 @@ export function topologyGroups(repoUrl: string): TopologyGroup[] {
       title: 'Programme and visitor applications',
       blurb: 'The child benefit app combines signed authority values into a programme decision. The scenario runner, portal, and Visitor Center present the result.',
       services: byId(['child-benefit-programme', 'scenario-runner', 'portal', 'home'])
-    },
-    {
-      key: 'identity',
-      title: 'Optional resident identity',
-      blurb: 'eSignet is optional and uses the NIA Relay for identity resolution. It is not a national Evidence service.',
-      services: byId(['esignet'])
     }
   ];
 }

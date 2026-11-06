@@ -23,12 +23,6 @@ class SecretGenerationTests(unittest.TestCase):
         self.assertIn("d", jwk)
         self.assertEqual(len(jwk["kid"]), 43)
 
-    def test_rsa_key_is_private_and_thumbprint_bound(self) -> None:
-        jwk = json.loads(MODULE.rsa_jwk())
-        self.assertEqual((jwk["kty"], jwk["alg"]), ("RSA", "RS256"))
-        self.assertEqual(set(jwk), {"kty", "alg", "n", "e", "d", "p", "q", "dp", "dq", "qi", "kid"})
-        self.assertEqual(len(jwk["kid"]), 43)
-
     def test_operator_material_is_create_only_and_per_cell(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             previous = MODULE.LOCAL
@@ -44,9 +38,10 @@ class SecretGenerationTests(unittest.TestCase):
                 client_id = MODULE.LOCAL / "cells/cra/secrets/cra-pension-evidence-client-id"
                 self.assertEqual(client_id.read_bytes(), b"cra-pension-evidence")
                 self.assertEqual(client_id.stat().st_mode & 0o777, 0o600)
-                esignet_key = MODULE.LOCAL / "cells/mint/clients/nia-esignet-rsa-client-key"
-                self.assertEqual(json.loads(esignet_key.read_text())["kty"], "RSA")
-                self.assertEqual(esignet_key.stat().st_mode & 0o777, 0o600)
+                demo_key = MODULE.LOCAL / "cells/mint/clients/solmara-demo-client-key"
+                self.assertEqual(json.loads(demo_key.read_text())["kty"], "EC")
+                self.assertEqual(demo_key.stat().st_mode & 0o777, 0o600)
+                self.assertFalse((MODULE.LOCAL / "cells/mint/clients/nia-esignet-rsa-client-key").exists())
             finally:
                 MODULE.LOCAL = previous
 
@@ -67,23 +62,15 @@ class SecretGenerationTests(unittest.TestCase):
             key: f"stable-{index}"
             for index, key in enumerate(MODULE.RANDOM_ENV_KEYS)
         }
-        existing["PORTAL_ESIGNET_CLIENT_PRIVATE_KEY_B64"] = "stable-portal-key"
         operator = {
-            "NIA_ESIGNET_CLIENT_PRIVATE_JWK": "operator-jwk",
             "SOLMARA_EVIDENCE_CLIENT_KEY": "/operator/client-key",
         }
-        with (
-            mock.patch.object(MODULE, "raw_key", side_effect=AssertionError("rotated")),
-            mock.patch.object(
-                MODULE,
-                "rsa_private_key_b64",
-                side_effect=AssertionError("rotated"),
-            ),
-        ):
+        with mock.patch.object(MODULE, "raw_key", side_effect=AssertionError("rotated")):
             values = MODULE.compose_environment_values(existing, operator)
         for key, value in existing.items():
             self.assertEqual(values[key], value)
-        self.assertEqual(values["NIA_ESIGNET_CLIENT_PRIVATE_JWK"], "operator-jwk")
+        self.assertEqual(values["SOLMARA_EVIDENCE_CLIENT_KEY"], "/operator/client-key")
+        self.assertFalse([key for key in values if "ESIGNET" in key])
 
     def test_generated_environment_rejects_duplicate_or_empty_values(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

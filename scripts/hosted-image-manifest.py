@@ -25,10 +25,6 @@ IMAGE_REPOSITORIES = (
     ("SOLMARA_SCENARIO_RUNNER_IMAGE", "solmara-lab-scenario-runner"),
     ("SOLMARA_HOME_IMAGE", "solmara-lab-home"),
     ("SOLMARA_PORTAL_IMAGE", "solmara-lab-portal"),
-    ("SOLMARA_ESIGNET_RELAY_IMAGE", "solmara-lab-esignet-relay"),
-    ("SOLMARA_ESIGNET_POSTGRES_IMAGE", "solmara-lab-esignet-postgres"),
-    ("SOLMARA_ESIGNET_UI_IMAGE", "solmara-lab-esignet-ui"),
-    ("SOLMARA_ESIGNET_SEED_IMAGE", "solmara-lab-esignet-seed"),
 )
 EXPECTED_KEYS = tuple(key for key, _repository in IMAGE_REPOSITORIES)
 EXPECTED_REPOSITORIES = dict(IMAGE_REPOSITORIES)

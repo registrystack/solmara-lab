@@ -130,7 +130,7 @@ test('country, developer, and status inventories have dedicated routes', async (
   await expect(page.locator('#engineer-door')).toContainText('pension-payment-review');
 
   await page.goto('/status');
-  await expect(page.locator('#status .status')).toHaveCount(18);
+  await expect(page.locator('#status .status')).toHaveCount(17);
 });
 
 test('no page publishes runtime tokens', async ({ request }) => {
@@ -176,9 +176,9 @@ test('anatomy lists five Relay V2 projects and six authority Evidence gateways w
 
 test('status grid shows the whole topology', async ({ page }) => {
   await page.goto('/status');
-  await expect(page.locator('#status .status')).toHaveCount(18);
+  await expect(page.locator('#status .status')).toHaveCount(17);
   await expect(page.locator('#status .status.up')).toHaveCount(17);
-  await expect(page.locator('#status .status', { hasText: 'Optional eSignet' })).toContainText('down');
+  await expect(page.locator('#status .status', { hasText: 'eSignet' })).toHaveCount(0);
 });
 
 test('engineer door always shows the copy-as-curl examples', async ({ page }) => {
