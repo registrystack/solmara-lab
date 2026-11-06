@@ -19,8 +19,6 @@ SOURCE_IMAGE_KEYS = set(OFFICIAL_RUNTIME_REPOSITORIES)
 PINNED_IMAGE_KEYS = {
     "VOLUME_INIT_IMAGE", "LOCAL_EDGE_IMAGE", "PYTHON_STATIC_IMAGE",
     "NODE_BUILD_IMAGE", "UV_BUILD_IMAGE",
-    "ESIGNET_REDIS_IMAGE", "ESIGNET_BASE_IMAGE", "ESIGNET_UI_IMAGE",
-    "ESIGNET_POSTGRES_IMAGE",
 }
 
 
@@ -59,7 +57,7 @@ def main() -> int:
         if key not in values:
             failures.append(f"versions.env: {key} is required")
 
-    compose_files = [ROOT / "compose.yaml", ROOT / "compose.esignet.yaml"]
+    compose_files = [ROOT / "compose.yaml"]
     required_counts = {key: 0 for key in SOURCE_IMAGE_KEYS}
     for compose in compose_files:
         if not compose.exists():

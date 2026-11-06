@@ -13,8 +13,8 @@ The reset has two evidence cadences:
 
 Six Evidence gateways have distinct providers, issuers, signing keys, JWKS, audit
 sinks, subject-binding secrets, and endpoints. Five Relays expose only the
-named non-enumerating operations needed by the lab. NIA's Relay is reserved for
-the optional eSignet UserInfo profile; NIA Evidence reads its own extract.
+named non-enumerating operations needed by the lab. NIA's Relay serves one
+exact lookup that no lab client calls; NIA Evidence reads its own extract.
 
 ## Release prerequisite
 
@@ -30,9 +30,7 @@ official OCI references by digest, and the `relayctl` binary checksum in
 same full references without reconstructing them from a second deployment
 input.
 
-The eSignet profile uses the separately released
-`esignet-relay-authenticator` v0.2.0 JAR and its matching SHA-256 checksum. No
-source-build, locally wrapped runtime, floating-tag, or v0.19 compatibility
+No source-build, locally wrapped runtime, floating-tag, or v0.19 compatibility
 fallback is accepted.
 
 ## Quick start
@@ -72,7 +70,7 @@ never assumes a national Evidence host.
 | Authority | Evidence source | Relay V2 role |
 |---|---|---|
 | CRA | immutable birth extract; Relay for death and civil link | `civil-person/death-by-uin`, `civil-person/citizen-link-by-uin` |
-| NIA | immutable population extract | `population-person/esignet-userinfo` for eSignet |
+| NIA | immutable population extract | `population-person/esignet-userinfo` (retained; no lab client calls it) |
 | SRO | immutable poverty extract | none |
 | MoSD | Relay lookup | `beneficiary-enrolment/by-uin` |
 | SIPF | Relay lookups | `pension-payment/by-pensioner-uin`, `survivor-case/by-spouse-uin` |
@@ -115,13 +113,12 @@ just relay-check          # relayctl check --production, generate, test, package
 just evidence-check       # six bundles, 11 requirements, source/error fixtures
 just lint                 # metadata, redaction, portal and Visitor Center checks
 just test                 # Python and web unit/integration suites
-just compose              # local, hosted, Coolify, and optional eSignet config
+just compose              # local, hosted, and Coolify config
 just smoke                # local UI and Relay health
 just programme-acceptance # programme stories and generic denial controls
 just lifecycle-proof      # live Relay and immutable-extract cadence
 just portal-live-e2e
 just home-live-e2e
-just smoke-esignet        # optional NIA Relay V2 login profile
 ```
 
 Generated SQLite databases, Relay packages, runtime bundles, keys, secrets,

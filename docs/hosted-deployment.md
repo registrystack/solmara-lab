@@ -41,8 +41,7 @@ Do not reuse an unrelated package or deploy a mutable tag.
 ## Authority topology
 
 The hosted topology contains five Relay V2 services, six independently signed
-Evidence gateways, one shared lab Mint, and the programme application. The optional
-eSignet profile uses the NIA Relay lookup.
+Evidence gateways, one shared lab Mint, and the programme application.
 
 Evidence hosts are:
 
@@ -143,7 +142,7 @@ path; private issuer signing keys remain confined to signer tmpfs.
 
 ## Mint clients
 
-The shared Mint registers nine clients under the common lab audience. Eight are
+The shared Mint registers eight clients under the common lab audience. Seven are
 least-authority source clients, each limited to its named operation:
 
 - `cra-pension-evidence`
@@ -153,9 +152,8 @@ least-authority source clients, each limited to its named operation:
 - `sipf-survivor-evidence`
 - `nagdi-voucher-evidence`
 - `nagdi-livestock-evidence`
-- `nia-esignet`
 
-The ninth client, `solmara-demo`, belongs to the programme application and is
+The eighth client, `solmara-demo`, belongs to the programme application and is
 used to request assertions from the authority Evidence gateways. The shared Mint
 is a lab convenience, not production tenancy guidance.
 
@@ -166,14 +164,12 @@ Compose file, repository file, build log, or delivery record:
 
 - one private and public signing JWK pair for Mint and for each of the six
   Evidence issuers;
-- one private and public client JWK pair for each of the nine Mint clients;
+- one private and public client JWK pair for each of the eight Mint clients;
 - authority-specific Relay audit HMAC keys, plus cursor HMAC keys for the Relay
   contracts that require cursors;
 - Mint and Evidence audit HMAC keys;
 - one subject-binding HMAC key for each Evidence gateway;
-- the programme federator token;
-- when eSignet is enabled, its database credential, KYC-token and PSUT HMAC
-  secrets, KYC keystore credentials, and portal OIDC client key.
+- the programme federator token.
 
 Each signing private JWK is projected only to its dedicated signer. That signer
 also receives the matching public half and refuses startup unless it is the
@@ -252,9 +248,7 @@ Deploy the reset alongside the existing deployment in this order:
    Evidence gateways are ready on the private routes.
 6. Run the hosted programme, denial, JWKS, source-label, redaction, and UI smoke
    against the new routes before changing public routing.
-7. If required for this deployment, add `compose.coolify.esignet.yaml` and run
-   the citizen-login smoke through the NIA Relay V2 lookup.
-8. Switch programme authority URLs and public metadata routing only after every
+7. Switch programme authority URLs and public metadata routing only after every
    required smoke passes. Disable the superseded services, but retain their
    volumes and exact deployment references for recovery.
 
@@ -276,9 +270,7 @@ requires:
 - the portal to prove authority URL selection, per-authority JWKS verification,
   source-type labels, and redaction;
 - the Visitor Center to show the publisher, six Evidence gateways, five Relays,
-  shared Mint, and programme application;
-- when the optional profile is deployed, eSignet login to complete through the
-  NIA Relay V2 lookup.
+  shared Mint, and programme application.
 
 Attach only sanitized pass or fail results and public artifact identities to
 the delivery record. Do not attach selectors, source rows, tokens, private

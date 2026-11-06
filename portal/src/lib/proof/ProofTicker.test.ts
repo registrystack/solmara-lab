@@ -63,12 +63,12 @@ describe('ProofTicker', () => {
     expect(screen.getAllByText('Portal').length).toBeGreaterThan(0);
   });
 
-  it('labels the identity-binding trace as eSignet, never Unknown', () => {
-    // The identity trace carries no authority Evidence source (eSignet is the
+  it('labels the identity-binding trace as SolmaraID, never Unknown', () => {
+    // The identity trace carries no authority Evidence source (SolmaraID is the
     // identity provider), so a naive lookup falls through to "Unknown". It
     // must instead name its issuer so the first proof line reads honestly.
     render(ProofTicker, { props: { traces: [buildIdentityTrace('Elena Dela Cruz')] } });
     expect(screen.queryByText('Unknown')).toBeNull();
-    expect(screen.getByText('eSignet')).toBeInTheDocument();
+    expect(screen.getByText('SolmaraID')).toBeInTheDocument();
   });
 });

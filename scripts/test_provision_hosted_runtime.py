@@ -621,7 +621,8 @@ class HostedProvisionerTests(unittest.TestCase):
                 path.read_text() for path in runtime.rglob("*") if path.is_file()
             )
             self.assertNotIn(private["d"], emitted)
-            self.assertEqual(len(list((runtime / "clients").glob("*.yaml"))), 9)
+            self.assertEqual(len(list((runtime / "clients").glob("*.yaml"))), 8)
+            self.assertFalse((runtime / "clients" / "nia-esignet.yaml").exists())
             authored = yaml.safe_load(
                 (assets / "mint" / "mint.yaml").read_text(encoding="utf-8")
             )

@@ -17,13 +17,6 @@
     {
       "alg": "EdDSA",
       "crv": "Ed25519",
-      "kid": "solmara-nia-esignet-relay-workload-key-1",
-      "kty": "OKP",
-      "x": "isAltfG5GvqFX5DZmj9NNFfiNDJVvhNtHpyQtQIWI-o"
-    },
-    {
-      "alg": "EdDSA",
-      "crv": "Ed25519",
       "kid": "solmara-nia-relay-workload-key-1",
       "kty": "OKP",
       "x": "GxzXobbS9FQp73ZpKeIDP2wDSwM9k8JzGTvO3pJy64M"

@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 ACTIVE = [
     ROOT / "compose.yaml",
     ROOT / "compose.hosted.yaml",
-    ROOT / "compose.esignet.yaml",
     ROOT / "justfile",
     ROOT / "config/evidence/Caddyfile",
     ROOT / "config/walt/Caddyfile",
@@ -33,12 +32,7 @@ def failures(paths: list[Path] = ACTIVE) -> list[str]:
     found: list[str] = []
     for path in paths:
         text = path.read_text(encoding="utf-8")
-        # eSignet is the only surviving stateful third-party component. Its
-        # database is deliberately isolated from Registry Stack runtime state.
-        suppress_database = path.name in {"compose.esignet.yaml", "compose.coolify.esignet.yaml"}
         for label, pattern in FORBIDDEN.items():
-            if suppress_database and label == "retired database":
-                continue
             for match in pattern.finditer(text):
                 line = text.count("\n", 0, match.start()) + 1
                 found.append(f"{path.name}:{line}: {label}")

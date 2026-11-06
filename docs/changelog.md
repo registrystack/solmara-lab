@@ -3,6 +3,25 @@
 A small dated log of what changed in the visitor center and the lab topology.
 Newest entry first.
 
+## 2026-11-07 The eSignet sign-in path is retired
+
+The optional eSignet profile is removed. It ran the Java eSignet service with
+the `esignet-relay-authenticator` v0.2.0 plugin against the NIA Relay, which no
+longer matches how eSignet is built and deployed elsewhere. The portal keeps
+its mock login, which binds a published persona server-side; the persona
+handoff from the Visitor Center is unchanged.
+
+Removed: `compose.esignet.yaml`, `compose.coolify.esignet.yaml`, the four
+eSignet images and their release-candidate builds, the portal OIDC code and
+`PORTAL_AUTH_PROVIDER` and `PORTAL_ESIGNET_*` settings, the `nia-esignet` Mint
+client with its generated key and hosted provisioning input, the eSignet
+authenticator pins in `versions.env`, the `up-esignet`, `down-esignet`, and
+`smoke-esignet` recipes, and the Visitor Center "Optional eSignet" status
+entry. The NIA Relay project and its `esignet-userinfo` lookup are kept because
+the Relay is part of the five-Relay topology, but no lab client is registered
+for that lookup and the Bruno request that used it is gone. Existing history
+below that mentions eSignet describes the lab as it was then.
+
 ## 2026-08-21 The local front door is `local-edge`
 
 The local Compose service that terminates TLS on port 4341 was called

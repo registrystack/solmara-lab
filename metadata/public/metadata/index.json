@@ -9,7 +9,7 @@
     {
       "media_type": "application/json",
       "path": "metadata/catalog.json",
-      "sha256": "sha256:c9c540a49ef5945b62a035b285fc992987227b5bf371f1a8d3908f9608ddc8ef"
+      "sha256": "sha256:02c346b3351edf9cad88c0ac2d6ed17eadb4a7ea2e4a0b7259be45a3fc9f24dd"
     },
     {
       "media_type": "application/json",
@@ -89,7 +89,7 @@
     {
       "media_type": "application/yaml",
       "path": "metadata/metadata.yaml",
-      "sha256": "sha256:f3842a3527c81a513a23587591f21d767edd7147f01ddcc9f1332152ce7cb783"
+      "sha256": "sha256:4066a2c3f83c92c3c9886f2b1185c1ca10b9f4d91e7d79b16fe9be8aa781860d"
     },
     {
       "media_type": "application/json",

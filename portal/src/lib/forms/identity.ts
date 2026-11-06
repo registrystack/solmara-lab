@@ -13,7 +13,7 @@ export function buildIdentityTrace(displayName: string): ProofTrace {
     id: IDENTITY_TRACE_ID,
     seq: 0,
     headline: `Identity bound by SolmaraID: ${displayName} signed in, the portal never typed her name`,
-    answered: 'SolmaraID (eSignet) answered: identity verified, subject bound server-side',
+    answered: 'SolmaraID answered: identity verified, subject bound server-side',
     notDisclosed:
       'Not disclosed: the raw national id and the tokens, held server-side only and never sent to the browser',
     status: 'ok',
@@ -23,9 +23,9 @@ export function buildIdentityTrace(displayName: string): ProofTrace {
     presentations: [],
     responseStatus: 200,
     proof: {
-      signedBy: 'SolmaraID (eSignet)',
+      signedBy: 'SolmaraID',
       algorithm: 'EdDSA-Ed25519',
-      issuerKey: 'did:web:esignet.gov.solmara.example#key-1',
+      issuerKey: 'did:web:id.gov.solmara.example#key-1',
       holderBound: 'Bound to the signed-in portal session',
       credential: 'OIDC session identity held server-side'
     }

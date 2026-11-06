@@ -1,8 +1,7 @@
-// MOCK-ONLY persona roster for the Phase 0 handoff from the visitor center.
+// MOCK-ONLY persona roster for the handoff from the visitor center.
 //
-// The visitor center's persona cards link to `/?persona=<UIN>`. In Phase 1 the
-// login is a real eSignet flow and this file goes away: the subject comes from
-// UserInfo, never from a query parameter. For Phase 0 we accept a persona hint
+// The visitor center's persona cards link to `/?persona=<UIN>`. The subject is
+// never taken from a query parameter directly: we accept a persona hint
 // ONLY when it matches this published, synthetic roster, so a stranger UIN can
 // never forge a session for someone off the cast list. Everything here is
 // synthetic Solmara data.

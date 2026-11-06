@@ -226,10 +226,6 @@ def smoke(image: str, state_root: Path) -> None:
                 helper.public_jwk(LOCAL / cell / "secrets" / f"{client}-client-key"),
             )
     _write_json(
-        mint_input / "nia-esignet-public.jwk",
-        helper.public_jwk(LOCAL / "mint" / "clients" / "nia-esignet-rsa-client-key"),
-    )
-    _write_json(
         mint_input / "solmara-demo-client-public.jwk",
         helper.public_jwk(LOCAL / "mint" / "clients" / "solmara-demo-client-key"),
     )

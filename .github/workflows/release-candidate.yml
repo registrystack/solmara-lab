@@ -33,13 +33,11 @@ jobs:
           printf 'source_commit=%s\n' "$REGISTRY_STACK_SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
           for key in REGISTRY_STACK_REQUIRED_VERSION \
             REGISTRY_RELAY_IMAGE SOLMARA_EVIDENCE_IMAGE SOLMARA_MINT_IMAGE \
-            ESIGNET_BASE_IMAGE ESIGNET_POSTGRES_IMAGE ESIGNET_UI_IMAGE \
-            ESIGNET_AUTHENTICATOR_JAR_URL ESIGNET_AUTHENTICATOR_JAR_SHA256 \
             REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_URL REGISTRY_STACK_RELEASE_RELAYCTL_ASSET_SHA256; do
             value="$(printenv "$key")"
             printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
           done
-      - name: Require published Registry Stack and authenticator pins
+      - name: Require published Registry Stack pins
         run: scripts/check-registry-stack-release-pin.py --require-public
       - name: Checkout the exact Registry Stack source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -388,51 +386,6 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-portal:${{ env.SOLMARA_IMAGE_TAG }}
-      - name: Build and push eSignet Relay V2 authenticator image
-        id: esignet_relay
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: docker/esignet-relay/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-relay:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            ESIGNET_BASE_IMAGE=${{ env.ESIGNET_BASE_IMAGE }}
-            ESIGNET_AUTHENTICATOR_JAR_URL=${{ env.ESIGNET_AUTHENTICATOR_JAR_URL }}
-            ESIGNET_AUTHENTICATOR_JAR_SHA256=${{ env.ESIGNET_AUTHENTICATOR_JAR_SHA256 }}
-      - name: Build and push isolated eSignet database
-        id: esignet_postgres
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: docker/esignet-postgres/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-postgres:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            POSTGRES_IMAGE=${{ env.ESIGNET_POSTGRES_IMAGE }}
-      - name: Build and push eSignet UI
-        id: esignet_ui
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: docker/esignet-ui/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-ui:${{ env.SOLMARA_IMAGE_TAG }}
-          build-args: |
-            ESIGNET_UI_IMAGE=${{ env.ESIGNET_UI_IMAGE }}
-            ESIGNET_NGINX_CONF=config/esignet/nginx-hosted.conf
-      - name: Build and push eSignet seed image
-        id: esignet_seed
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: docker/esignet-seed/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed:${{ env.SOLMARA_IMAGE_TAG }}
       - name: Generate Coolify image manifest
         env:
           REGISTRY_RELAY_IMAGE: ${{ env.REGISTRY_RELAY_IMAGE }}
@@ -444,10 +397,6 @@ jobs:
           SOLMARA_SCENARIO_RUNNER_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-scenario-runner@${{ steps.scenario_runner.outputs.digest }}
           SOLMARA_HOME_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-home@${{ steps.home.outputs.digest }}
           SOLMARA_PORTAL_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-portal@${{ steps.portal.outputs.digest }}
-          SOLMARA_ESIGNET_RELAY_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-relay@${{ steps.esignet_relay.outputs.digest }}
-          SOLMARA_ESIGNET_POSTGRES_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-postgres@${{ steps.esignet_postgres.outputs.digest }}
-          SOLMARA_ESIGNET_UI_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-ui@${{ steps.esignet_ui.outputs.digest }}
-          SOLMARA_ESIGNET_SEED_IMAGE: ${{ env.SOLMARA_IMAGE_REGISTRY }}/solmara-lab-esignet-seed@${{ steps.esignet_seed.outputs.digest }}
         run: |
           set -euo pipefail
           manifest="$RUNNER_TEMP/solmara-release/solmara-hosted-images.env"

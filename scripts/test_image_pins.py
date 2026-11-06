@@ -46,8 +46,6 @@ class ImagePinTests(unittest.TestCase):
         with (self.root / "versions.env").open("a", encoding="utf-8") as versions:
             for key in (
                 "PYTHON_STATIC_IMAGE", "NODE_BUILD_IMAGE", "UV_BUILD_IMAGE",
-                "ESIGNET_REDIS_IMAGE", "ESIGNET_BASE_IMAGE",
-                "ESIGNET_UI_IMAGE", "ESIGNET_POSTGRES_IMAGE",
             ):
                 versions.write(f"{key}=example.invalid/image@sha256:{'6' * 64}\n")
 

@@ -26,7 +26,6 @@ RELAY_CLIENTS = {
     "sipf-survivor-evidence": ("solmara:relay:sipf:by-spouse-uin", "https://id.registrystack.org/solmara/purpose/survivor-benefit-determination"),
     "nagdi-voucher-evidence": ("solmara:relay:nagdi:voucher-by-farmer-id", "https://id.registrystack.org/solmara/purpose/voucher-eligibility-review"),
     "nagdi-livestock-evidence": ("solmara:relay:nagdi:movement-by-farmer-id", "https://id.registrystack.org/solmara/purpose/livestock-movement-control"),
-    "nia-esignet": ("solmara:relay:nia:esignet-userinfo", "https://id.registrystack.org/solmara/purpose/esignet-identity-verification"),
 }
 CLIENT_CELLS = {
     "cra-pension-evidence": "cra",
@@ -125,11 +124,7 @@ def build(private_root: Path, output: Path, evidence_binary: Path | None) -> Non
             "clientId": client,
             "principal": f"https://id.registrystack.org/solmara/client/{client}",
             "authorization": {"scopes": [scope], "claims": {"purpose": purpose}},
-            "keys": [public_jwk(
-                private_root / CLIENT_CELLS[client] / "secrets" / f"{client}-client-key"
-                if client in CLIENT_CELLS
-                else private_root / "mint" / "clients" / "nia-esignet-rsa-client-key"
-            )],
+            "keys": [public_jwk(private_root / CLIENT_CELLS[client] / "secrets" / f"{client}-client-key")],
         }
         path = mint_destination / "clients" / f"{client}.yaml"
         path.parent.mkdir(parents=True, exist_ok=True)

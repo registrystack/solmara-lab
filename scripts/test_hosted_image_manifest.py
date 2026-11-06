@@ -23,10 +23,6 @@ DIGESTS = {
     "SOLMARA_SCENARIO_RUNNER_IMAGE": "7" * 64,
     "SOLMARA_HOME_IMAGE": "8" * 64,
     "SOLMARA_PORTAL_IMAGE": "9" * 64,
-    "SOLMARA_ESIGNET_RELAY_IMAGE": "a" * 64,
-    "SOLMARA_ESIGNET_POSTGRES_IMAGE": "b" * 64,
-    "SOLMARA_ESIGNET_UI_IMAGE": "c" * 64,
-    "SOLMARA_ESIGNET_SEED_IMAGE": "d" * 64,
 }
 
 
@@ -49,29 +45,11 @@ class HostedImageManifestTests(unittest.TestCase):
             key: self.module.expected_reference(key, digest)
             for key, digest in DIGESTS.items()
         }
-        core = [
-            key
-            for key in self.module.EXPECTED_KEYS
-            if not key.startswith("SOLMARA_ESIGNET_")
-        ]
-        esignet = [
-            key
-            for key in self.module.EXPECTED_KEYS
-            if key.startswith("SOLMARA_ESIGNET_")
-        ]
         (self.root / "compose.hosted.yaml").write_text(
             "services:\n"
             + "".join(
                 f"  {index}:\n    image: ${{" + key + ":?required}\n"
-                for index, key in enumerate(core)
-            ),
-            encoding="utf-8",
-        )
-        (self.root / "compose.coolify.esignet.yaml").write_text(
-            "services:\n"
-            + "".join(
-                f"  {index}:\n    image: ${{" + key + ":?required}\n"
-                for index, key in enumerate(esignet)
+                for index, key in enumerate(self.module.EXPECTED_KEYS)
             ),
             encoding="utf-8",
         )
@@ -243,9 +221,7 @@ class HostedImageManifestTests(unittest.TestCase):
         upload_index = names.index("Upload Coolify image manifest")
         self.assertLess(provisioner_index, generate_index)
         self.assertLess(signer_index, generate_index)
-        self.assertGreater(
-            generate_index, names.index("Build and push eSignet seed image")
-        )
+        self.assertGreater(generate_index, names.index("Build and push programme portal"))
         self.assertGreater(upload_index, generate_index)
 
         provisioner = steps[provisioner_index]

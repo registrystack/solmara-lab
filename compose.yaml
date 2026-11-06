@@ -621,7 +621,6 @@ services:
       HOST: 0.0.0.0
       PORT: "4000"
       PORTAL_PROVIDER: live
-      PORTAL_AUTH_PROVIDER: ${PORTAL_AUTH_PROVIDER:-mock}
       PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:?run just gen-secrets}
       CHILD_BENEFIT_FEDERATOR_URL: http://child-benefit-federator:8080
       CHILD_BENEFIT_FEDERATOR_TOKEN: ${CHILD_BENEFIT_FEDERATOR_TOKEN:?run just gen-secrets}

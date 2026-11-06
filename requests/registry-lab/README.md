@@ -5,8 +5,8 @@ The examples exercise the authority-owned reset:
 1. The child-benefit programme composes four independently signed assertions.
 2. CRA and SIPF issue separate pension and survivor assertions.
 3. NAgDI issues separate voucher and livestock assertions.
-4. The Relay V2 folder demonstrates only the eight governed exact lookups used
-   by Evidence and the optional NIA eSignet profile.
+4. The Relay V2 folder demonstrates only the seven governed exact lookups used
+   by Evidence.
 
 Set `EVIDENCE_ACCESS_TOKEN` to a short-lived Registry Mint token for the
 authority Evidence endpoints. Set `CHILD_BENEFIT_FEDERATOR_TOKEN` only when

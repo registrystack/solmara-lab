@@ -64,8 +64,7 @@ EVIDENCE_CLIENTS = {
     "nagdi": {"nagdi-voucher-evidence", "nagdi-livestock-evidence"},
 }
 MINT_CLIENTS = {
-    *(client for clients in EVIDENCE_CLIENTS.values() for client in clients),
-    "nia-esignet",
+    client for clients in EVIDENCE_CLIENTS.values() for client in clients
 }
 TARGET_PROVISIONERS = {
     *(f"{authority}-relay-provisioner" for authority in RELAYS),
@@ -252,10 +251,10 @@ class HostedProvisioningTopologyTests(unittest.TestCase):
             "sipf-survivor-evidence",
             "nagdi-voucher-evidence",
             "nagdi-livestock-evidence",
-            "nia-esignet",
         )
         for client in clients:
             self.assertIn(f"/tmp/solmara-provisioning/{client}-public.jwk", targets)
+        self.assertNotIn("/tmp/solmara-provisioning/nia-esignet-public.jwk", targets)
         self.assertIn(
             "/tmp/solmara-provisioning/solmara-demo-client-public.jwk", targets
         )
